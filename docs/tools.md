@@ -12,14 +12,28 @@ lives, how to invoke it, and the non-obvious gotchas.
 
 | Tool / pipeline | What it's for | Detail |
 |-----------------|---------------|--------|
-| _[e.g. Android build]_ | _[build & test the Android app]_ | _[below, or `docs/android.md`]_ |
+| Android build | Compile & package the app (APK/AAB) | [below](#android-build) |
+| Android emulator | Run & test the app on a virtual device | [below](#android-emulator) |
 
 ---
 
-## [Tool name]
+## Android build
 
-*Delete this example and add real tools as the project grows.*
+The pipeline that compiles and packages the Android app. Per `CLAUDE.md`, builds run
+**inside a container** (Docker first, Podman fallback) so the SDK/NDK toolchain is pinned
+and the host stays clean.
 
-- **Where it lives:** `[path or repo]`
-- **How to run it:** `[command]`
-- **Gotchas:** `[the things that bite — stale caches, required clean builds, auth, etc.]`
+- **Where it lives:** `[Gradle project root / Dockerfile path — fill in]`
+- **How to run it:** `[e.g. docker compose run --rm build ./gradlew assembleDebug — fill in]`
+- **Outputs:** `[e.g. app/build/outputs/apk/… — fill in]`
+- **Gotchas:** `[stale Gradle caches, required clean builds, signing keys/keystore, SDK
+  licenses — fill in]`
+
+## Android emulator
+
+The device/emulator harness used to run and test the app on a virtual device.
+
+- **Where it lives:** `[AVD config / emulator launch script — fill in]`
+- **How to run it:** `[e.g. emulator -avd <name> -no-window, then adb install <apk> — fill in]`
+- **Gotchas:** `[KVM/host virtualization requirements, headless flags, cold-boot vs snapshot,
+  adb port/connection issues — fill in]`
