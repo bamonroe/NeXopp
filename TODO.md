@@ -19,6 +19,8 @@ ones with a one-line why.
       placeholder example entry.
 - [ ] Decide/pin the stack (Kotlin + Android SDK, drawing surface, gzip/XML libraries) and
       scaffold the Android project.
+- [ ] Build the UI with Material Design (Material 3 / Material You) — use Material components
+      and layout for all app chrome (app bar, menus, dialogs, tool palette).
 
 ## Done
 
