@@ -47,25 +47,165 @@ structure:
 
 ## The `.xopp` format (code-derived — this is its authoritative home)
 
-A `.xopp` file is a **gzip-compressed XML document**. The element/attribute mapping —
-`<xournal> → <page> → <layer> → <stroke>/<text>/<image>` with their attributes (tool, color,
-width, pressure list, coordinates, etc.) — is owned here.
+A `.xopp` file is a **gzip-compressed, UTF-8, XML document**. Uncompress with gzip and you get
+a plain XML tree rooted at `<xournal>`. This section is the authoritative schema our
+reader/writer must implement. It is derived from three sources: the real `udiff.xopp` sample in
+the repo root (`xournalpp 1.1.1+dev`, `fileversion="4"`), the archived Xournal++ Mobile
+reference clone, and desktop Xournal++'s writer. Where the sample and the reference disagree,
+**the desktop file wins** — round-trip safety is measured against desktop Xournal++.
 
-- [ ] Document the concrete XML schema (elements, attributes, units, coordinate system,
-      pressure encoding) — derive it from the reference clone and from real files (e.g. the
-      `udiff.xopp` sample in the repo root), and from desktop Xournal++'s own writer.
-- [ ] When the parser exists, add a **drift test** so this doc stays a faithful mirror of the
-      code (per `CLAUDE.md`'s code-derived-fact rule).
+### Units and coordinate system
+
+- **All geometry is in points (pt), 1 pt = 1/72 inch.** Page size, stroke coordinates and
+  widths, text position and size, and image/teximage bounding boxes are all pt.
+- **Origin is top-left**, x increases right, y increases down. Values are written as decimals
+  with 8 fractional digits (e.g. `162.27585752`), but any valid decimal parses.
+
+### Color encoding
+
+- On-disk form is `#RRGGBBAA` — 8 hex digits, **alpha last** (e.g. `#000000ff` opaque black,
+  `#ffffffff` opaque white). Our writer emits this form.
+- On **read** be lenient: also accept 6-digit `#RRGGBB` (implicit `ff` alpha) and the desktop
+  named-color keywords (`black, blue, red, green, gray`/`grey`, `lightblue, lightgreen,
+  magenta, orange, yellow, white`). Internally we store ARGB; only the byte order differs
+  from Android's `0xAARRGGBB`, so convert on the boundary.
+
+### Element tree
+
+```
+<xournal creator="…" fileversion="4">
+  <title>…</title>                     (ignored on read; a fixed string on write)
+  <preview>…base64 PNG…</preview>       (optional thumbnail; regenerated on write)
+  <page width height>
+    <background type style color … />
+    <layer>
+      <stroke …>…coords…</stroke>
+      <text …>…text…</text>
+      <image …>…base64…</image>
+      <teximage …>…latex…</teximage>
+    </layer>                            (1+ layers per page)
+  </page>                              (1+ pages per document)
+</xournal>
+```
+
+**`<xournal>`** — root. Attributes: `creator` (writer id string), `fileversion` (`"4"` for
+current desktop). Children: optional `<title>`, optional `<preview>`, then 1+ `<page>`.
+
+**`<title>`** — decorative text child; desktop writes a fixed banner string. Not parsed.
+
+**`<preview>`** — inner text is a base64-encoded PNG thumbnail of page 1. Optional; we
+regenerate it on write (or omit it — desktop tolerates its absence).
+
+**`<page>`** — attributes `width`, `height` (pt). Contains exactly one `<background>` then 1+
+`<layer>`.
+
+**`<background>`** — empty element, attributes depend on `type`:
+- `type="solid"`: `color` (hex or named), `style` ∈ `plain | lined | ruled | graph | dotted`.
+- `type="pixmap"`: `domain` ∈ `absolute | attach | clone`, `filename` (image path/URI).
+- `type="pdf"`: `filename` (PDF path), `pageno` (0-based PDF page index); `domain` on the
+  first pdf background of the doc.
+
+**`<layer>`** — no attributes. Children in document order: any mix of `<stroke>`, `<text>`,
+`<image>`, `<teximage>`. **Document order is z-order** and must be preserved on round-trip.
+
+**`<stroke>`** — the core drawable. Attributes:
+- `tool` ∈ `pen | highlighter | eraser` (highlighter is drawn semi-transparent; eraser
+  strokes exist in the format but desktop rarely persists them).
+- `color` — hex/named as above.
+- `width` — **space-separated list of doubles (pt)**. The **first value is the nominal stroke
+  width**; the remaining values (if present) are the **per-vertex pressure widths**. A single
+  value means constant width. On read, if fewer widths than vertices, reuse the first for all.
+- `capStyle` — `round` | `butt` | `square` (line cap; desktop attribute, default `round`).
+- `ts`, `fn` — audio-recording timestamp / filename for pen-replay; `ts="0" fn=""` when
+  unused. Preserve verbatim on round-trip; no rendering meaning for us.
+- **Inner text**: a flat space-separated coordinate list `x0 y0 x1 y1 …` (pt). Vertex *i* is
+  `(text[2i], text[2i+1])` and its width is `width[i+1]` (or `width[0]` if constant).
+
+**`<text>`** — attributes `font` (family name), `size` (pt), `x`, `y` (pt, top-left anchor),
+`color`. **Inner text** is the string, XML-escaped (`&amp; &lt; &gt;`).
+
+**`<image>`** — attributes `left`, `top`, `right`, `bottom` (pt bounding box). **Inner text**
+is base64-encoded raw image bytes (PNG/JPEG as stored).
+
+**`<teximage>`** — a LaTeX-rendered image. Attributes `text` (LaTeX source), `color`, and
+`left/top/right/bottom` bounding box (pt). Inner text duplicates the LaTeX source (escaped).
+
+### Fidelity notes / round-trip hazards
+
+- **Preserve unknown attributes.** Desktop emits attributes we don't render (`ts`/`fn`,
+  possibly future ones); carry them through unchanged rather than dropping them.
+- **Preserve layer child order** exactly (it is z-order).
+- **Alpha matters** for highlighter — don't force `ff`.
+- The Xournal++ Mobile reference is a *simplified* writer (always alpha `ff`, fixed title,
+  skips erasers, pressure-as-width-list); use it for element names, not as the fidelity bar.
+
+- [ ] When the parser exists, add a **drift test** that parses `udiff.xopp` (and a
+      desktop-generated fixture set), re-serializes, and asserts semantic equality — so this
+      doc and the code stay a faithful mirror (per `CLAUDE.md`'s code-derived-fact rule).
+
+## Stack — pinned 2026-07-30
+
+Native Android, no cross-platform framework (the abandoned reference was Flutter; we go
+native for stylus latency and platform fit).
+
+- **Language:** Kotlin, targeting the modern Android SDK.
+- **App chrome / UI:** **Jetpack Compose with Material 3** (Material You) for all app chrome —
+  app bar, menus, dialogs, the tool palette. Satisfies the Material Design requirement in
+  `TODO.md`.
+- **Drawing surface:** a custom low-latency **`SurfaceView`** (not Compose `Canvas`) hosted in
+  the Compose tree via `AndroidView`. Stylus input comes from raw **`MotionEvent`** with
+  `getPressure()` / `getAxisValue(AXIS_PRESSURE)` and historical points
+  (`getHistoricalX/Y/Pressure`) so fast strokes keep their samples. This is the load-bearing
+  choice for "round-trip safety" — we capture pressure at the same fidelity the format stores.
+- **`.xopp` I/O — no third-party format libraries.** Gzip via the JDK's built-in
+  `java.util.zip.GZIPInputStream` / `GZIPOutputStream`; XML via Android's built-in streaming
+  `XmlPullParser` (read) and `XmlSerializer` (write). Streaming keeps large documents off the
+  heap and gives us exact control over attribute preservation (a fidelity requirement above).
+- **File access:** the Storage Access Framework (`ACTION_OPEN_DOCUMENT` /
+  `ACTION_CREATE_DOCUMENT`) so a `.xopp` opens/saves in place on the device — the file on disk
+  is the only source of truth (per `CLAUDE.md` non-goals: no cloud, no custom format).
+- **Build:** Gradle (Kotlin DSL) inside a **Docker** container (Podman fallback) per
+  `CLAUDE.md`. Pipeline details live in `docs/tools.md`; build/run for a human lives in
+  `README.md`.
 
 ## Data path
 
-*(To be written once the stack is scaffolded.)* The core loop: `open → gunzip → parse XML →
-in-memory document model → render on a stylus canvas → edit → serialize XML → gzip → save`.
+The core loop:
 
-- [ ] Define the in-memory document model (the native-Android analogue of the `Xpp*` types).
-- [ ] Pin the drawing surface / stylus input approach (`MotionEvent` pressure, low-latency
-      rendering).
+```
+open (SAF Uri) → GZIPInputStream → XmlPullParser → Document model
+   → render on SurfaceView (Material 3 chrome around it)
+   → stylus edits mutate the model → XmlSerializer → GZIPOutputStream → save (SAF Uri)
+```
+
+Reading and writing are **streaming and symmetric**: the parser builds the model element by
+element; the serializer walks the model in document order and re-emits it, carrying through any
+preserved-but-unrendered attributes so the file round-trips.
+
+### In-memory document model
+
+The native-Android analogue of the reference's `Xpp*` types — one small Kotlin data
+class/module per format element, mirroring the tree in [The `.xopp` format](#the-xopp-format-code-derived--this-is-its-authoritative-home):
+
+- `Document` — `creator`, `fileversion`, optional title/preview, `List<Page>`.
+- `Page` — `width`, `height` (pt), `Background`, `List<Layer>`.
+- `Background` — sealed type: `Solid(color, style)`, `Pixmap(domain, filename)`,
+  `Pdf(filename, pageNo, domain?)`.
+- `Layer` — ordered `List<Element>` (z-order).
+- `Element` — sealed type: `Stroke`, `Text`, `Image`, `TexImage`.
+  - `Stroke` — `tool`, `color`, `capStyle`, `List<Point>` (each `x, y, width`), plus
+    preserved raw attrs (`ts`, `fn`, unknowns).
+  - `Text` — `font`, `size`, `x`, `y`, `color`, `content`.
+  - `Image` — bbox `left/top/right/bottom`, decoded bytes.
+  - `TexImage` — bbox, `latex`, `color`.
+
+Colors are stored as Android `0xAARRGGBB` ints; the I/O layer converts to/from the on-disk
+`#RRGGBBAA`. Coordinates are stored in pt (document space); the view applies a pan/zoom
+transform to screen space.
+
+- [ ] Firm up the model once code lands; keep this list in sync with the Kotlin types.
 
 ## Repository layout
 
-*(To be written once the Android project is scaffolded — every module and what it does.)*
+*(To be written once the Android Gradle project is scaffolded — every module/package and what
+it does.)*
