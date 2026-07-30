@@ -37,9 +37,30 @@ you pull in a spoke only when the task touches it, instead of reading everything
 
 ## What this project is
 
-**[project-name]** is [one-paragraph description: what it does and for whom]. It is built
-with [stack]. [If it has more than one half — e.g. a server plus an app — name each half
-and how they talk to each other.]
+**xopp_android** is an **Android app that reads and writes Xournal++ (`.xopp`) files** — the
+native document format of [Xournal++](https://github.com/xournalpp/xournalpp), the
+handwriting/notetaking app the owner uses daily on Linux. The goal is a stylus-first Android
+companion: open a `.xopp` file on an Android tablet/phone, draw, handwrite, annotate, and
+sketch with a pen/stylus, then save back to the **same `.xopp` format** so the file round-trips
+cleanly to and from desktop Xournal++ on Linux.
+
+The guiding principle is **format fidelity and round-trip safety**: a file edited on Android
+must reopen correctly in desktop Xournal++ (and vice versa) without losing strokes, layers,
+pages, backgrounds, text, or images. Aim to cover as many of desktop Xournal++'s per-file
+features as practical — multi-page documents, layers, pen/highlighter/eraser strokes with
+pressure, text boxes, images, and page backgrounds (plain/ruled/graph, PDF annotation).
+
+A `.xopp` file is a **gzip-compressed XML document**; reading and writing that format
+losslessly is the core of the app. (The concrete schema/element mapping is a code-derived fact
+— its authoritative home is `docs/architecture.md`, not this file.)
+
+**Stack:** native Android (to be pinned in `docs/architecture.md` / `README.md` — e.g. Kotlin
++ the Android SDK, with drawing built on the stylus/`MotionEvent` pressure APIs). Builds run in
+a container per the Android pipeline in `docs/tools.md`.
+
+**Non-goals (for now):** no cloud sync or account system, no real-time collaboration, no custom
+file format — the `.xopp` file on disk is the only source of truth and the only interchange
+mechanism with the desktop.
 
 ## Architecture — see `docs/architecture.md`
 
