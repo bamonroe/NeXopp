@@ -100,7 +100,7 @@ class XoppReader(xml: String) {
             .map { it.toDoubleOrNull() ?: 1.0 }
         val extra = r.attributes()
             .filterKeys { it !in strokeKnownAttrs }
-            .toMap(LinkedHashMap())
+            .toMap(LinkedHashMap<String, String>())
         val coords = readTextContent().trim().split(WS).filter { it.isNotEmpty() }
             .map { it.toDoubleOrNull() ?: 0.0 }
         val uniform = widths.size <= 1

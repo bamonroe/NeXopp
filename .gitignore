@@ -16,3 +16,6 @@ local.properties
 .kotlin/
 captures/
 .cxx/
+
+# Build logs
+*.log
