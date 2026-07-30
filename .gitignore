@@ -1,0 +1,6 @@
+# Build artifacts & OS/editor cruft
+*.tmp
+*~
+.DS_Store
+
+# Add project-specific ignores (build/, target/, node_modules/, etc.) as the stack lands.
