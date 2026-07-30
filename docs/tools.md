@@ -19,46 +19,48 @@ lives, how to invoke it, and the non-obvious gotchas.
 
 ## Android build
 
-The pipeline that compiles and packages the Android app. Per `CLAUDE.md`, builds run
-**inside a container** (Docker first, Podman fallback) so the SDK toolchain is pinned and the
-host stays clean.
+The pipeline that compiles and packages the Android app. **All APKs on this box are built with
+the shared Android toolchain in `/data/android`** — the single front door for building (and
+running) Android apps without a JDK/SDK/Gradle on the host. Per `CLAUDE.md`, the build runs
+inside a container; that container is the baked `android-builder:local` image maintained in
+`/data/android`, not one owned by this repo. This repo only supplies its Gradle project + the
+Gradle wrapper (pinned to Gradle 8.9); the toolchain supplies JDK 21 + the Android SDK
+(`platforms;android-34/35`, `build-tools;34.0.0/35.0.0`).
 
-- **Where it lives:** repo root — `Dockerfile` (the pinned Android SDK image: cmdline-tools +
-  `platforms;android-34` + `build-tools;34.0.0` on Temurin JDK 17), `compose.yaml` (the
-  `build` service that mounts the repo and caches `~/.gradle` in a named volume), and
-  `scripts/build.sh` (the entry point). The Gradle project itself is `settings.gradle.kts` +
-  `app/` with the wrapper pinned to Gradle 8.9.
+- **Where it lives:** `/data/android/` — `build.sh` (the disposable-container build front door)
+  and `Dockerfile.builder` (the baked `android-builder:local` image). That directory has its
+  own `README.md`/`CLAUDE.md`; read them for the full contract. This repo's `scripts/build.sh`
+  is a thin wrapper that calls `/data/android/build.sh` (override the location with
+  `ANDROID_TOOLCHAIN`).
 - **How to run it:**
-  - `scripts/build.sh` — the default check loop: `testDebugUnitTest assembleDebug` in the
-    container (auto-selects docker, else podman).
+  - `scripts/build.sh` — the default check loop: `testDebugUnitTest assembleDebug`.
   - `scripts/build.sh <tasks…>` — arbitrary Gradle tasks, e.g. `scripts/build.sh testDebugUnitTest`
-    (unit tests only) or `scripts/build.sh clean assembleDebug`.
-  - Direct equivalent: `docker compose run --rm build`.
+    or `scripts/build.sh clean assembleDebug`.
+  - Direct equivalent: `/data/android/build.sh /home/bam/git/personal/xopp_android <tasks…>`.
 - **Outputs:** debug APK at `app/build/outputs/apk/debug/app-debug.apk`; unit-test reports at
   `app/build/reports/tests/testDebugUnitTest/`.
 - **Gotchas:**
-  - First run builds the image (downloads the Android SDK) and Gradle downloads dependencies —
-    minutes and hundreds of MB. The `gradle-cache` volume makes subsequent runs fast; don't
-    delete it casually.
-  - `--no-daemon` is used in-container (the container is ephemeral; a daemon would just be
-    killed). Don't add a daemon.
-  - The SDK licenses are accepted in the image build (`sdkmanager --licenses`); no
-    `local.properties` is needed — `ANDROID_HOME` is set in the image.
-  - The `RealFileRoundTripTest` reads the repo-root `udiff.xopp` (mounted into the container);
-    it self-skips when absent, so it's green with or without the sample.
+  - The builder mounts the project's **parent** dir as `/workspace` and runs `./gradlew` in the
+    project subdir, so sibling files resolve; it keeps a **per-project Gradle cache** at
+    `.gradle-cache/` (git-ignored) and sets `HOME` there for a stable debug keystore.
+  - Runs as your UID (`--user`) — build outputs are owned by you, not root. (Don't run the
+    builder image as root against the mount, or `build/` becomes root-owned and later
+    user-mode builds can't clean it.)
+  - The image is already baked; only Gradle + dependencies download on first use into
+    `.gradle-cache/`. No `local.properties` needed — the SDK is baked in.
+  - The `RealFileRoundTripTest` reads the repo-root `udiff.xopp` (visible via the parent
+    mount); it self-skips when absent, so it's green with or without the sample.
 
 ## Android emulator
 
-The device/emulator harness used to run and test the app on a virtual device. (Instrumented
-tests and manual runs; unit tests need no device — they run in the build container above.)
+Running the APK on a device/emulator also goes through `/data/android` — a headless Android 14
+emulator you drive over `adb`, plus physical devices on the tailnet (see its `config.yaml`).
 
-- **Where it lives:** not yet scripted. The intended harness: an AVD created from an SDK
-  system image (`system-images;android-34;google_apis;x86_64`) via `sdkmanager` + `avdmanager`.
-- **How to run it (intended):**
-  - Create once: `avdmanager create avd -n xopp -k "system-images;android-34;google_apis;x86_64"`.
-  - Launch headless: `emulator -avd xopp -no-window -no-audio -gpu swiftshader_indirect`.
-  - Install & launch: `adb install -r app/build/outputs/apk/debug/app-debug.apk` then
-    `adb shell am start -n com.xopp.android/.MainActivity`.
-- **Gotchas:** the emulator needs host KVM (`/dev/kvm`) — hard to nest inside the build
-  container, so run it on the host or a KVM-enabled runner, not the build image. Prefer
-  `-no-snapshot-load` for clean boots in CI. Left as a TODO to script (see `TODO.md`).
+- **Where it lives:** `/data/android/` — `docker-compose.yml` (the emulator container) and
+  `.claude/skills/android-dev/scripts/emulator.sh` (the driver). Full details in that
+  directory's `README.md`; don't duplicate them here.
+- **How to run it:** `emulator.sh up` / `status` to boot, then `emulator.sh install <apk>`,
+  `emulator.sh launch com.xopp.android`, `emulator.sh screenshot <png>`, `emulator.sh ui`.
+  Physical devices: `adb -s <ip>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
+- **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS). Wiring a
+  `.xopp` round-trip smoke test on the emulator is still a TODO (see `TODO.md`).

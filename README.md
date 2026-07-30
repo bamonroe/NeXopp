@@ -16,13 +16,10 @@ Android reopens correctly on the desktop, and vice versa.
 
 ## Requirements
 
-Everything builds **inside a container**, so the only host requirement is a container engine:
-
-- **Docker** (preferred), or **Podman** (drop-in fallback).
-
-You do **not** need a local JDK, Android SDK, or Gradle — they're pinned in the build image.
-To run the app on a virtual device you additionally need a KVM-capable host for the Android
-emulator (see [`docs/tools.md`](docs/tools.md)).
+Everything builds through the **shared Android toolchain in `/data/android`** (a baked
+`android-builder:local` container), so the only host requirement is Docker. You do **not** need
+a local JDK, Android SDK, or Gradle. To run the app on a virtual device you additionally need a
+KVM-capable host for that directory's headless emulator (see [`docs/tools.md`](docs/tools.md)).
 
 ## Build & test
 
@@ -32,9 +29,9 @@ The one command you need:
 scripts/build.sh
 ```
 
-This runs the full check loop in the container — **unit tests + a debug APK**. First run
-builds the SDK image and downloads dependencies (several minutes, hundreds of MB); later runs
-reuse a cached Gradle volume and are fast.
+This runs the full check loop through the shared toolchain container — **unit tests + a debug
+APK**. The SDK image is already baked; the first run only downloads Gradle and dependencies
+into a per-project `.gradle-cache/`, so later runs are fast.
 
 Common variants:
 

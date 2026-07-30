@@ -9,6 +9,7 @@
 # Android / Gradle build artifacts & local config
 build/
 .gradle/
+.gradle-cache/
 local.properties
 *.iml
 .idea/

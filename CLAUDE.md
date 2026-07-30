@@ -72,8 +72,9 @@ The **repository layout** (every package/module and what it does) lives in
 either here.
 
 ```sh
-# The canonical build + check loop for this project. All run inside the pinned SDK
-# container (Docker first, Podman fallback); see docs/tools.md for the pipeline.
+# The canonical build + check loop for this project. Builds run through the SHARED Android
+# toolchain in /data/android (the one front door for every APK on this box); scripts/build.sh
+# is a thin wrapper over it. See docs/tools.md for the pipeline.
 scripts/build.sh                       # build: unit tests + debug APK (default loop)
 scripts/build.sh testDebugUnitTest     # tests only (JVM; no device needed)
 scripts/build.sh clean assembleDebug   # clean release-path build of the debug APK

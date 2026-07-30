@@ -1,22 +1,21 @@
 #!/usr/bin/env sh
-# Containerized build/check loop. Runs the Gradle tasks inside the pinned SDK image.
+# Build/check loop. Delegates to the shared Android toolchain in /data/android — the one
+# front door for building every APK on this box (baked android-builder:local image, JDK 21 +
+# SDK; no JDK/SDK/Gradle on the host). See docs/tools.md.
+#
 # Usage: scripts/build.sh [gradle tasks...]   (default: unit tests + debug APK)
-# Docker first; falls back to Podman. See docs/tools.md.
 set -eu
 
-cd "$(dirname "$0")/.."
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+TOOLCHAIN="${ANDROID_TOOLCHAIN:-/data/android}"
 
-if command -v docker >/dev/null 2>&1; then
-    ENGINE=docker
-elif command -v podman >/dev/null 2>&1; then
-    ENGINE=podman
-else
-    echo "Need docker or podman on PATH." >&2
+if [ ! -x "$TOOLCHAIN/build.sh" ]; then
+    echo "Shared Android toolchain not found at $TOOLCHAIN (set ANDROID_TOOLCHAIN)." >&2
     exit 1
 fi
 
 if [ "$#" -eq 0 ]; then
-    exec "$ENGINE" compose run --rm build
-else
-    exec "$ENGINE" compose run --rm build ./gradlew --no-daemon "$@"
+    set -- testDebugUnitTest assembleDebug
 fi
+
+exec "$TOOLCHAIN/build.sh" "$REPO" "$@"
