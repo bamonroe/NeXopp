@@ -3,4 +3,7 @@
 *~
 .DS_Store
 
+# Reference material — cloned third-party repos kept locally for reading code, not tracked.
+/reference/
+
 # Add project-specific ignores (build/, target/, node_modules/, etc.) as the stack lands.
