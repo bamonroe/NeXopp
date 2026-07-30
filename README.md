@@ -66,10 +66,16 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 ## Using the app
 
 - **Open** — the folder/open action in the top bar launches the system file picker; choose a
-  `.xopp` file. It's read in place via the Storage Access Framework.
-- **Draw** — pick **Pen**, **Highlighter**, or **Eraser** from the tool palette and draw with a
-  stylus; pen pressure sets stroke width.
-- **Save** — the save action writes the document back out as a `.xopp` file (gzip + XML).
+  `.xopp` file. It's read in place via the Storage Access Framework. Every page is shown, one
+  above the next, each drawn with its own background ruling (plain, lined, ruled, graph, or
+  dotted) and all of its layers.
+- **Draw** — pick **Pen**, **Highlighter**, or **Eraser** from the tool palette and draw with
+  **one finger or the stylus**; pen pressure sets stroke width. New strokes land on the top
+  layer of whichever page you draw on.
+- **Scroll** — drag with **two fingers** to move up and down the page stack.
+- **Save** — the save action writes the whole document back out as a `.xopp` file (gzip + XML),
+  preserving every page, layer, background, and element — including text and images that aren't
+  edited on-device yet.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 

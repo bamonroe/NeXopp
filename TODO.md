@@ -8,9 +8,6 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] Render page backgrounds (plain/lined/ruled/graph/dotted) and support **multi-page**
-      documents and **layers** in the editor (the model already carries them; the
-      `DrawingSurfaceView` currently draws page 1, one layer, strokes only).
 - [ ] Implement the remaining element types in the editor: **text boxes**, **images**, and
       **teximage** (read + render + edit; the format layer already round-trips them).
 - [ ] Implement the **eraser** tool behaviour (currently selectable but a no-op) and pen
@@ -21,6 +18,15 @@ ones with a one-line why.
 
 ## Done
 
+- [x] 2026-07-30 — **Multi-page + backgrounds + layers in the editor.** `DrawingSurfaceView` now
+      holds the whole document and renders every page stacked top-to-bottom (`PageStacker`), each
+      with its background ruling — plain/lined/ruled/graph/dotted (`BackgroundRenderer` +
+      `BackgroundGrid`) — and all layers in z-order; one finger draws, two fingers scroll. Save
+      no longer flattens to one page/layer — it preserves all pages, layers, and unmodelled
+      elements. 7 new JVM geometry tests (22 total). Verified on the `/data/android` emulator:
+      graph grid + pen drawing, and a loaded multi-page fixture showing plain then lined pages
+      with their strokes. Caught and fixed a stale-layout bug (appended strokes weren't
+      re-rendering) via on-device testing. Left: two-finger scroll gesture not yet auto-tested.
 - [x] 2026-07-30 — Added a **format drift test** (`FormatDriftTest`) over a committed set of
       desktop-format `.xopp` fixtures (`app/src/test/resources/fixtures/`, each validated to
       load in desktop Xournal++ 1.3.5): asserts model round-trip equality and that the set

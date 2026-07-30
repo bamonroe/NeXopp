@@ -236,12 +236,27 @@ app/
       Xopp.kt                # gzip open/save + parse/serialize entry points
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
+      PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
+      BackgroundGrid.kt      # ruling line/dot offsets in pt (pure geometry)
+      BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted)
     ui/                      # Compose Material 3
       EditorScreen.kt, ToolPalette.kt
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
+  src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid geometry
 ```
 
 The **`format/` package is the heart** and is deliberately free of Android dependencies so the
 round-trip logic is fully unit-testable on the JVM (see `app/src/test/`). `render/` and `ui/`
 are the Android-facing shell around it.
+
+**Rendering (`render/`).** The `DrawingSurfaceView` holds the whole [Document] and renders every
+page in a single vertical stack, each page scaled to fit the view width via `PageStacker` and
+drawn with its background ruling (`BackgroundRenderer`, using the pure `BackgroundGrid` offsets)
+plus all of its layers in z-order. The geometry (page placement, gridlines) is factored into
+`PageStacker`/`BackgroundGrid` precisely so it's unit-testable off-device. **One finger draws**
+(a new stroke lands on the top layer of the page under the touch); **two fingers scroll** the
+stack. The view keeps the loaded document intact and only appends — so unmodelled elements
+(text, images) and every other page/layer round-trip through save even though only strokes and
+backgrounds are drawn today. Non-stroke element rendering and pan/zoom are still to come
+(`TODO.md`).
