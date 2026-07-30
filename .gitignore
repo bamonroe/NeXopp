@@ -6,4 +6,12 @@
 # Reference material — cloned third-party repos kept locally for reading code, not tracked.
 /reference/
 
-# Add project-specific ignores (build/, target/, node_modules/, etc.) as the stack lands.
+# Android / Gradle build artifacts & local config
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
+.kotlin/
+captures/
+.cxx/

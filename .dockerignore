@@ -1,0 +1,8 @@
+.git
+reference/
+build/
+app/build/
+.gradle/
+.idea/
+*.iml
+udiff.xopp

@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Xopp</string>
+    <string name="open_document">Open .xopp</string>
+    <string name="save_document">Save</string>
+    <string name="tool_pen">Pen</string>
+    <string name="tool_highlighter">Highlighter</string>
+    <string name="tool_eraser">Eraser</string>
+</resources>

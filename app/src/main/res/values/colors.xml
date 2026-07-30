@@ -1,0 +1,4 @@
+<resources>
+    <color name="ic_launcher_background">@color/xopp_purple</color>
+    <color name="xopp_purple">#4A2C7A</color>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground: a simple stylus glyph centered in the 108dp canvas
+     (inside the 72dp safe zone). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M69.5,30.5 l8,8 -34,34 -12,4 4,-12 z M74,26 l4,-4 8,8 -4,4 z" />
+</vector>
