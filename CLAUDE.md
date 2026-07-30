@@ -80,6 +80,13 @@ scripts/build.sh testDebugUnitTest     # tests only (JVM; no device needed)
 scripts/build.sh clean assembleDebug   # clean release-path build of the debug APK
 ```
 
+**Use the `/data/android` toolchain for everything Android — going forward there is no other
+path.** Never build against a host JDK/SDK/Gradle or an in-repo container. And **don't stop at
+"it compiles":** any change with a runtime surface must be installed on the `/data/android`
+emulator and actually exercised — screenshots to *see* the UI, `adb logcat` for error logs,
+and simulated finger/stylus presses to drive the interactions. The full build + emulator-test
+loop is owned by `docs/tools.md`.
+
 ## External tools & build pipelines — see `docs/tools.md`
 
 Tooling that isn't part of this repo's own build — external build pipelines, deploy scripts,

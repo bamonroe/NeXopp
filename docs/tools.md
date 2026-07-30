@@ -55,6 +55,8 @@ Gradle wrapper (pinned to Gradle 8.9); the toolchain supplies JDK 21 + the Andro
 
 Running the APK on a device/emulator also goes through `/data/android` — a headless Android 14
 emulator you drive over `adb`, plus physical devices on the tailnet (see its `config.yaml`).
+**This emulator is the standard way to test the app: don't stop at "it compiles."** Every
+change with a runtime surface must be installed and exercised on the emulator, not just built.
 
 - **Where it lives:** `/data/android/` — `docker-compose.yml` (the emulator container) and
   `.claude/skills/android-dev/scripts/emulator.sh` (the driver). Full details in that
@@ -62,5 +64,18 @@ emulator you drive over `adb`, plus physical devices on the tailnet (see its `co
 - **How to run it:** `emulator.sh up` / `status` to boot, then `emulator.sh install <apk>`,
   `emulator.sh launch com.xopp.android`, `emulator.sh screenshot <png>`, `emulator.sh ui`.
   Physical devices: `adb -s <ip>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
+- **Testing a change on the emulator (the expected loop):** after a green
+  `scripts/build.sh`, install the fresh APK and actually drive it:
+  1. `emulator.sh install app/build/outputs/apk/debug/app-debug.apk` then
+     `emulator.sh launch com.xopp.android`.
+  2. **Take screenshots** (`emulator.sh screenshot <png>`) and look at them to confirm the UI
+     rendered as intended — this is how you *see* the change, not infer it.
+  3. **Read the error logs** — `adb logcat` (filter to the app) — to catch crashes, stack
+     traces, and warnings the build can't surface.
+  4. **Simulate touch / stylus input** — finger presses, taps, and swipes over `adb` (e.g.
+     `adb shell input tap <x> <y>` / `input swipe …`, or `emulator.sh ui`) to exercise
+     drawing, tool selection, open/save, and other interactions end-to-end.
+  Report what the screenshots and logs actually showed; a change isn't verified until it's
+  been run this way on the emulator.
 - **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS). Wiring a
   `.xopp` round-trip smoke test on the emulator is still a TODO (see `TODO.md`).
