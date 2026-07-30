@@ -11,8 +11,6 @@ ones with a one-line why.
 - [ ] Add a **format drift test** that round-trips a set of desktop-generated `.xopp` fixtures
       (not just `udiff.xopp`) and asserts semantic equality, keeping `docs/architecture.md`'s
       schema a faithful mirror of the code.
-- [ ] Verify the build in the container end-to-end (`scripts/build.sh`) and confirm the unit
-      tests pass; fix anything the first real compile surfaces.
 - [ ] Render page backgrounds (plain/lined/ruled/graph/dotted) and support **multi-page**
       documents and **layers** in the editor (the model already carries them; the
       `DrawingSurfaceView` currently draws page 1, one layer, strokes only).
@@ -26,6 +24,9 @@ ones with a one-line why.
 
 ## Done
 
+- [x] 2026-07-30 — Switched builds to the shared `/data/android` toolchain (baked
+      `android-builder:local`); verified end to end: `BUILD SUCCESSFUL`, `app-debug.apk` builds,
+      and all 9 unit tests pass — including the real 3981-stroke `udiff.xopp` round-trip.
 - [x] 2026-07-30 — Documented the concrete `.xopp` XML schema (elements/attributes, units,
       coordinate system, colour encoding, round-trip hazards) in `docs/architecture.md`, derived
       from `udiff.xopp` and the reference clone.
