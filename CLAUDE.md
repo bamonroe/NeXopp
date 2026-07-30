@@ -2,11 +2,6 @@
 
 Guidance for Claude Code instances working in this repository.
 
-> **This is a template.** Replace the bracketed placeholders (`[…]`) with the real
-> project's specifics, delete the sections that don't apply, and keep the working
-> practices below — they encode the owner's standing preferences and apply to every
-> project regardless of stack.
-
 ## Start here: the documentation map (hub-and-spoke)
 
 This repo keeps documentation **de-duplicated** — every fact has exactly **one**
@@ -54,9 +49,10 @@ A `.xopp` file is a **gzip-compressed XML document**; reading and writing that f
 losslessly is the core of the app. (The concrete schema/element mapping is a code-derived fact
 — its authoritative home is `docs/architecture.md`, not this file.)
 
-**Stack:** native Android (to be pinned in `docs/architecture.md` / `README.md` — e.g. Kotlin
-+ the Android SDK, with drawing built on the stylus/`MotionEvent` pressure APIs). Builds run in
-a container per the Android pipeline in `docs/tools.md`.
+**Stack (pinned — details in `docs/architecture.md`):** native Android in **Kotlin**, with
+**Jetpack Compose Material 3** chrome and a low-latency custom `SurfaceView` for stylus
+(`MotionEvent` pressure) drawing; `.xopp` I/O uses the JDK's built-in gzip + a dependency-free
+XML layer. Builds run in a container per the Android pipeline in `docs/tools.md`.
 
 **Non-goals (for now):** no cloud sync or account system, no real-time collaboration, no custom
 file format — the `.xopp` file on disk is the only source of truth and the only interchange
@@ -76,10 +72,11 @@ The **repository layout** (every package/module and what it does) lives in
 either here.
 
 ```sh
-# The canonical build + check loop for this project (fill in):
-[build command]        # build
-[vet/lint command]     # static checks before committing
-[test command]         # tests
+# The canonical build + check loop for this project. All run inside the pinned SDK
+# container (Docker first, Podman fallback); see docs/tools.md for the pipeline.
+scripts/build.sh                       # build: unit tests + debug APK (default loop)
+scripts/build.sh testDebugUnitTest     # tests only (JVM; no device needed)
+scripts/build.sh clean assembleDebug   # clean release-path build of the debug APK
 ```
 
 ## External tools & build pipelines — see `docs/tools.md`
