@@ -139,9 +139,13 @@ is base64-encoded raw image bytes (PNG/JPEG as stored).
 - The Xournal++ Mobile reference is a *simplified* writer (always alpha `ff`, fixed title,
   skips erasers, pressure-as-width-list); use it for element names, not as the fidelity bar.
 
-- [ ] When the parser exists, add a **drift test** that parses `udiff.xopp` (and a
-      desktop-generated fixture set), re-serializes, and asserts semantic equality — so this
-      doc and the code stay a faithful mirror (per `CLAUDE.md`'s code-derived-fact rule).
+- [x] **Drift test in place.** `RealFileRoundTripTest` re-serializes `udiff.xopp`, and
+      `FormatDriftTest` does the same over a committed fixture set
+      (`app/src/test/resources/fixtures/`, each validated to load in desktop Xournal++ 1.3.5)
+      while asserting the fixtures collectively cover this schema surface — all background
+      styles, multi-page, layers, every element type, pressure vs. uniform width, highlighter
+      alpha. A parser/writer change that would corrupt a real file, or drop a documented
+      feature's coverage, fails the build (per `CLAUDE.md`'s code-derived-fact rule).
 
 ## Stack — pinned 2026-07-30
 

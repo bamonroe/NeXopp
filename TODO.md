@@ -8,9 +8,6 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] Add a **format drift test** that round-trips a set of desktop-generated `.xopp` fixtures
-      (not just `udiff.xopp`) and asserts semantic equality, keeping `docs/architecture.md`'s
-      schema a faithful mirror of the code.
 - [ ] Render page backgrounds (plain/lined/ruled/graph/dotted) and support **multi-page**
       documents and **layers** in the editor (the model already carries them; the
       `DrawingSurfaceView` currently draws page 1, one layer, strokes only).
@@ -24,6 +21,11 @@ ones with a one-line why.
 
 ## Done
 
+- [x] 2026-07-30 — Added a **format drift test** (`FormatDriftTest`) over a committed set of
+      desktop-format `.xopp` fixtures (`app/src/test/resources/fixtures/`, each validated to
+      load in desktop Xournal++ 1.3.5): asserts model round-trip equality and that the set
+      covers every background style, multi-page, layers, all element types, pressure vs.
+      uniform width, and highlighter alpha. 15 unit tests pass (6 new), `BUILD SUCCESSFUL`.
 - [x] 2026-07-30 — Switched builds to the shared `/data/android` toolchain (baked
       `android-builder:local`); verified end to end: `BUILD SUCCESSFUL`, `app-debug.apk` builds,
       and all 9 unit tests pass — including the real 3981-stroke `udiff.xopp` round-trip.
