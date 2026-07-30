@@ -8,21 +8,41 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] Finish the remaining `[…]` placeholders in `CLAUDE.md` (pin the stack; fill the
-      build/vet/test command loop once the Android project exists).
-- [ ] Flesh out `docs/architecture.md` — the load-bearing piece: document the concrete
-      `.xopp` XML schema (gzip + XML → strokes, layers, pages, text, images, backgrounds),
-      define the in-memory document model, and pin the stylus/render approach. (Prior-art
-      survey and skeleton are done; the format mapping is still `[…]`.)
-- [ ] Write `README.md` (setup, build & run).
-- [ ] Flesh out `docs/tools.md` with the real Android build/emulator pipeline; delete the
-      placeholder example entry.
-- [ ] Decide/pin the stack (Kotlin + Android SDK, drawing surface, gzip/XML libraries) and
-      scaffold the Android project.
-- [ ] Build the UI with Material Design (Material 3 / Material You) — use Material components
-      and layout for all app chrome (app bar, menus, dialogs, tool palette).
+- [ ] Add a **format drift test** that round-trips a set of desktop-generated `.xopp` fixtures
+      (not just `udiff.xopp`) and asserts semantic equality, keeping `docs/architecture.md`'s
+      schema a faithful mirror of the code.
+- [ ] Verify the build in the container end-to-end (`scripts/build.sh`) and confirm the unit
+      tests pass; fix anything the first real compile surfaces.
+- [ ] Render page backgrounds (plain/lined/ruled/graph/dotted) and support **multi-page**
+      documents and **layers** in the editor (the model already carries them; the
+      `DrawingSurfaceView` currently draws page 1, one layer, strokes only).
+- [ ] Implement the remaining element types in the editor: **text boxes**, **images**, and
+      **teximage** (read + render + edit; the format layer already round-trips them).
+- [ ] Implement the **eraser** tool behaviour (currently selectable but a no-op) and pen
+      colour/width pickers in the Material 3 chrome.
+- [ ] Add pan/zoom to the canvas and a page navigator.
+- [ ] Script the **emulator harness** (AVD create + headless launch + install) per
+      `docs/tools.md`; wire an instrumented smoke test.
 
 ## Done
+
+- [x] 2026-07-30 — Documented the concrete `.xopp` XML schema (elements/attributes, units,
+      coordinate system, colour encoding, round-trip hazards) in `docs/architecture.md`, derived
+      from `udiff.xopp` and the reference clone.
+- [x] 2026-07-30 — Pinned the stack (Kotlin + Compose Material 3, custom `SurfaceView` for
+      stylus, built-in gzip + dependency-free XML) and recorded the data path, in-memory model,
+      and repository layout in `docs/architecture.md`.
+- [x] 2026-07-30 — Scaffolded the single-module Gradle (Kotlin DSL) Android project with a
+      containerized Docker/Podman build (`Dockerfile`, `compose.yaml`, `scripts/build.sh`,
+      Gradle wrapper).
+- [x] 2026-07-30 — Implemented the lossless `.xopp` read/write core (model, colour codec,
+      pure-Kotlin XML reader/writer, gzip open/save) with JVM unit tests covering every element
+      type, escaping, reserialization, gzip, and the real 3981-stroke sample.
+- [x] 2026-07-30 — Built the Material 3 editor UI (top bar, tool palette, Material You theme)
+      and the low-latency stylus `DrawingSurfaceView`; wired open/save via the Storage Access
+      Framework in `MainActivity`.
+- [x] 2026-07-30 — Filled the remaining `CLAUDE.md` placeholders (stack + build/check loop) and
+      wrote `README.md` (setup, build & run) and the real `docs/tools.md` build/emulator pipeline.
 
 - [x] 2026-07-30 — Scaffolded project from `base/` template: `CLAUDE.md`, `docs/tools.md`,
       `TODO.md`, git repo.

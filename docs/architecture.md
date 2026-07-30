@@ -207,5 +207,37 @@ transform to screen space.
 
 ## Repository layout
 
-*(To be written once the Android Gradle project is scaffolded — every module/package and what
-it does.)*
+A standard single-module Gradle (Kotlin DSL) Android project. The app code is split into small,
+single-responsibility files per `CLAUDE.md`'s style guide.
+
+```
+settings.gradle.kts, build.gradle.kts, gradle.properties   # Gradle config
+gradle/libs.versions.toml                                  # version catalog (all deps/plugins)
+gradlew, gradle/wrapper/                                    # Gradle wrapper (pinned 8.9)
+Dockerfile, compose.yaml, .dockerignore                    # containerized build image + service
+scripts/build.sh                                           # docker/podman build entry point
+
+app/
+  build.gradle.kts                                         # module config (SDK levels, Compose, deps)
+  src/main/AndroidManifest.xml
+  src/main/res/                                            # strings, Material 3 theme, adaptive icon
+  src/main/java/com/xopp/android/
+    MainActivity.kt          # hosts the editor; bridges the Storage Access Framework to I/O
+    format/                  # THE CORE — lossless .xopp read/write (pure Kotlin, no device deps)
+      model/                 # Document, Page, Layer, Background, Element/Stroke/Text/Image/TexImage
+      xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
+      XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
+      XoppReader.kt          # XML -> Document
+      XoppWriter.kt          # Document -> XML
+      Xopp.kt                # gzip open/save + parse/serialize entry points
+    render/
+      DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
+    ui/                      # Compose Material 3
+      EditorScreen.kt, ToolPalette.kt
+      theme/                 # XoppTheme (Material You), Color
+  src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
+```
+
+The **`format/` package is the heart** and is deliberately free of Android dependencies so the
+round-trip logic is fully unit-testable on the JVM (see `app/src/test/`). `render/` and `ui/`
+are the Android-facing shell around it.
