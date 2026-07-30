@@ -1,0 +1,67 @@
+package com.xopp.android
+
+import android.net.Uri
+import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import com.xopp.android.format.Xopp
+import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.ui.EditorScreen
+import com.xopp.android.ui.theme.XoppTheme
+
+/**
+ * Hosts the editor and bridges the Storage Access Framework to the `.xopp` I/O layer: open a
+ * document in place, edit on the [DrawingSurfaceView], save back to the same format. The file on
+ * disk is the only source of truth (see `CLAUDE.md` non-goals).
+ */
+class MainActivity : ComponentActivity() {
+
+    private var surface: DrawingSurfaceView? = null
+
+    private val openLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let(::openDocument)
+        }
+
+    private val saveLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument(XOPP_MIME)) { uri ->
+            uri?.let(::saveDocument)
+        }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            XoppTheme {
+                EditorScreen(
+                    onOpen = { openLauncher.launch(arrayOf("*/*")) },
+                    onSave = { saveLauncher.launch("document.xopp") },
+                    onSurfaceCreated = { surface = it },
+                )
+            }
+        }
+    }
+
+    private fun openDocument(uri: Uri) = runCatching {
+        val doc = contentResolver.openInputStream(uri).use { input ->
+            requireNotNull(input) { "could not open $uri" }
+            Xopp.open(input)
+        }
+        surface?.load(doc)
+    }.onFailure { toast("Open failed: ${it.message}") }
+
+    private fun saveDocument(uri: Uri) = runCatching {
+        val doc = surface?.toDocument() ?: return@runCatching
+        contentResolver.openOutputStream(uri, "w").use { output ->
+            requireNotNull(output) { "could not write $uri" }
+            Xopp.save(doc, output)
+        }
+    }.onFailure { toast("Save failed: ${it.message}") }
+
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+
+    private companion object {
+        const val XOPP_MIME = "application/gzip"
+    }
+}
