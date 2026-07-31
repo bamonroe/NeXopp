@@ -98,6 +98,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity.toFloat()
     private val flingCallback = Choreographer.FrameCallback { frameTimeNanos -> onFlingFrame(frameTimeNanos) }
 
+    // Hand-tool double-tap: a centre double-tap toggles full-page view, a left/right-edge double-tap
+    // pages back/forward. Detected manually (single-finger tap = down→up without exceeding tap slop).
+    private val doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong()
+    private val doubleTapSlopPx = ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat()
+    /** The current single touch's down time/position, and whether it has moved past tap slop (→ a pan). */
+    private var handTapDownTime = 0L
+    private var handTapDownX = 0f
+    private var handTapDownY = 0f
+    private var handTapCandidate = false
+    private var handTapMoved = false
+    /** The previous confirmed tap's down time/position, to match the next tap against for a double-tap. */
+    private var handFirstTapTime = 0L
+    private var handFirstTapX = 0f
+    private var handFirstTapY = 0f
+
     /** The text box a placement tap hit, awaiting an edit-or-delete from the editor. */
     private var editingTarget: TextElement? = null
     /** Which page index was last reported to [onCurrentPageChanged], to suppress duplicate calls. */
@@ -122,6 +137,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onScrollChanged: ((Float, Float, Float) -> Unit)? = null
     /** Notified when a placement tap lands, so the editor can prompt for content / pick an image. */
     var onPlace: ((PlaceKind, Placement) -> Unit)? = null
+    /** Notified when the Hand tool receives a centre double-tap, so the editor can toggle full-page (chrome-hidden) view. */
+    var onToggleFullPage: (() -> Unit)? = null
 
     var tool: Tool = Tool.PEN
     var colorArgb: Int = AndroidColor.BLACK
@@ -747,22 +764,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { stopFling(); beginPointer(event, 0) }
-            MotionEvent.ACTION_POINTER_DOWN -> onPointerDown(event)
-            MotionEvent.ACTION_MOVE -> when {
-                scrolling -> doScroll(event)
-                erasing -> eraseMove(event)
-                placing -> placeMove(event)
-                resizing -> resizeSelect(event)
-                rotating -> rotateSelect(event)
-                movingSel -> moveSelect(event)
-                banding -> bandMove(event)
-                current != null -> extendStroke(event)
-                else -> Unit
+            MotionEvent.ACTION_DOWN -> { stopFling(); beginPointer(event, 0); beginHandTap(event) }
+            MotionEvent.ACTION_POINTER_DOWN -> { handTapCandidate = false; onPointerDown(event) }
+            MotionEvent.ACTION_MOVE -> {
+                if (handTapCandidate) trackHandTapMove(event)
+                when {
+                    scrolling -> doScroll(event)
+                    erasing -> eraseMove(event)
+                    placing -> placeMove(event)
+                    resizing -> resizeSelect(event)
+                    rotating -> rotateSelect(event)
+                    movingSel -> moveSelect(event)
+                    banding -> bandMove(event)
+                    current != null -> extendStroke(event)
+                    else -> Unit
+                }
             }
             MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
-            MotionEvent.ACTION_UP -> { captureReleaseVelocity(event); endGesture() }
-            MotionEvent.ACTION_CANCEL -> cancelGesture()
+            MotionEvent.ACTION_UP -> { captureReleaseVelocity(event); handleHandTapUp(event); endGesture() }
+            MotionEvent.ACTION_CANCEL -> { handTapCandidate = false; cancelGesture() }
             else -> return super.onTouchEvent(event)
         }
         return true
@@ -775,6 +795,48 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val v = velocityEstimator.velocity()
         releaseVx = (-v.vx).coerceIn(-maxFlingVelocity, maxFlingVelocity)
         releaseVy = (-v.vy).coerceIn(-maxFlingVelocity, maxFlingVelocity)
+    }
+
+    /** Arm double-tap tracking for a fresh single-finger touch, but only while the Hand tool is active. */
+    private fun beginHandTap(event: MotionEvent) {
+        handTapCandidate = handMode
+        handTapMoved = false
+        handTapDownTime = event.eventTime
+        handTapDownX = event.x
+        handTapDownY = event.y
+    }
+
+    /** A moved-too-far touch is a pan, not a tap — disqualify it from forming a double-tap. */
+    private fun trackHandTapMove(event: MotionEvent) {
+        if (hypot(event.x - handTapDownX, event.y - handTapDownY) > doubleTapSlopPx) handTapMoved = true
+    }
+
+    /** On lift, confirm a tap and — if it pairs with the previous one in time and place — fire the double-tap. */
+    private fun handleHandTapUp(event: MotionEvent) {
+        if (!handTapCandidate) return
+        handTapCandidate = false
+        if (handTapMoved) { handFirstTapTime = 0L; return }
+        val pairsWithPrevious = handFirstTapTime != 0L &&
+            handTapDownTime - handFirstTapTime <= doubleTapTimeoutMs &&
+            hypot(handTapDownX - handFirstTapX, handTapDownY - handFirstTapY) <= doubleTapSlopPx
+        if (pairsWithPrevious) {
+            handFirstTapTime = 0L // consume, so a third tap doesn't immediately re-fire
+            onHandDoubleTap(handTapDownX)
+        } else {
+            handFirstTapTime = handTapDownTime
+            handFirstTapX = handTapDownX
+            handFirstTapY = handTapDownY
+        }
+    }
+
+    /** Route a Hand-tool double-tap by horizontal zone: left third → prev page, right third → next, centre → toggle full-page. */
+    private fun onHandDoubleTap(x: Float) {
+        val edge = width / 3f
+        when {
+            x < edge -> goToPage(currentPageIndex() - 1)
+            x > width - edge -> goToPage(currentPageIndex() + 1)
+            else -> onToggleFullPage?.invoke()
+        }
     }
 
     /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */

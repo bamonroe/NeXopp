@@ -128,6 +128,8 @@ fun EditorScreen(
     var canUndo by remember { mutableStateOf(false) }
     var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    // Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar.
+    var fullPage by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
     var hasClipboard by remember { mutableStateOf(false) }
     var lasso by remember { mutableStateOf(false) }
@@ -144,27 +146,30 @@ fun EditorScreen(
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Xopp") },
-                actions = {
-                    IconButton(onClick = { surface?.undo() }, enabled = canUndo) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
-                    }
-                    IconButton(onClick = { surface?.redo() }, enabled = canRedo) {
-                        Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
-                    }
-                    OverflowMenu(
-                        onOpen = onOpen,
-                        onSave = onSave,
-                        onImportPdf = onImportPdf,
-                        onExportPdf = onExportPdf,
-                        onSettings = { showSettings = true },
-                    )
-                },
-            )
+            if (!fullPage) {
+                TopAppBar(
+                    title = { Text("Xopp") },
+                    actions = {
+                        IconButton(onClick = { surface?.undo() }, enabled = canUndo) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+                        }
+                        IconButton(onClick = { surface?.redo() }, enabled = canRedo) {
+                            Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
+                        }
+                        OverflowMenu(
+                            onOpen = onOpen,
+                            onSave = onSave,
+                            onImportPdf = onImportPdf,
+                            onExportPdf = onExportPdf,
+                            onSettings = { showSettings = true },
+                        )
+                    },
+                )
+            }
         },
     ) { padding ->
         Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (!fullPage) {
             SideToolbar(
                 tool = tool,
                 onTool = { tool = it; surface?.applyTool(it) },
@@ -196,6 +201,7 @@ fun EditorScreen(
                 onRemovePage = { surface?.removePage() },
                 onGoToPage = { surface?.goToPage(it) },
             )
+            }
             Box(modifier = Modifier.fillMaxHeight().weight(1f)) {
             AndroidView(
                 factory = { ctx ->
@@ -211,6 +217,7 @@ fun EditorScreen(
                         it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
                         it.onSelectionChanged = { s -> hasSelection = s }
                         it.onClipboardChanged = { c -> hasClipboard = c }
+                        it.onToggleFullPage = { fullPage = !fullPage }
                         it.lassoMode = lasso
                         it.onPlace = { kind, placement ->
                             when (kind) {

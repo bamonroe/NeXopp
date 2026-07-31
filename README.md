@@ -131,7 +131,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   allows; opening a file starts fresh history.
 - **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
   from the Tool pop-up to pan with **one finger** (handy on a stylus). A quick **flick** keeps the
-  pages **gliding** with momentum and coasts to a stop; touch down again to halt it at once. A
+  pages **gliding** with momentum and coasts to a stop; touch down again to halt it at once. With the
+  Hand tool, a **double-tap** navigates: tap twice on the **left edge** to jump to the previous page,
+  on the **right edge** for the next page, or in the **centre** to toggle **full-page view** (hides
+  the top bar and side toolbar for a distraction-free canvas; double-tap the centre again to restore
+  them). A
   PDF-style **scroll thumb**
   rides the **right edge** whenever the document is taller than the screen: **drag it** to page
   quickly through a long document (a **page-number bubble** shows where you are as you drag). A small

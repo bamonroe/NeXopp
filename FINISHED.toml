@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "hand-tool-double-tap-navigation"
+title = "Add hand-tool double-tap page navigation"
+description = "When the hand tool is selected, center double-tap toggles full-page view by hiding/showing the sidebar and top bar, left-edge double-tap goes to the previous page, and right-edge double-tap goes to the next page."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = []
+
+[[task]]
 id = "pen-tip-size-controls"
 title = "Improve pen tip size controls"
 description = "Add minus and plus buttons beside the slider for small increments, and add a text input for entering an exact point size."
