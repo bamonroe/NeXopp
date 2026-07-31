@@ -12,14 +12,16 @@ ones with a one-line why.
       insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
       authoring path.
 - [ ] Render **teximage** as real math (a LaTeX renderer), replacing the source-text placeholder.
-- [ ] Add pen **colour and width pickers** to the Material 3 chrome (the surface already exposes
-      `colorArgb`/`baseWidthPt`; the UI just hardcodes black at 1.5 pt).
 - [ ] Add pan/zoom to the canvas and a page navigator.
 - [ ] Script the **emulator harness** (AVD create + headless launch + install) per
       `docs/tools.md`; wire an instrumented smoke test.
 
 ## Done
 
+- [x] 2026-07-30 — **Pen colour and width pickers.** Added `PenSettings` to the Material 3 chrome
+      — a scrollable row of colour swatches (black/red/blue/green/orange/yellow) and S/M/L width
+      chips — wired to the surface's `colorArgb`/`baseWidthPt`. Verified on the `/data/android`
+      emulator: picked red + L and drew a red, thicker stroke; installed to both tailnet devices.
 - [x] 2026-07-30 — **Eraser tool (delete-stroke).** Selecting Eraser and dragging now deletes any
       stroke the eraser disc touches on the page under the finger; hit geometry (point-to-segment
       distance, accounting for pen half-width) lives in the pure, tested `StrokeHitTester`. 6 new

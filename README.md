@@ -71,8 +71,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   dotted) and all of its layers — including strokes, text boxes, and images. LaTeX images show
   their source in a placeholder box until math rendering is added.
 - **Draw** — pick **Pen** or **Highlighter** from the tool palette and draw with **one finger or
-  the stylus**; pen pressure sets stroke width. New strokes land on the top layer of whichever
-  page you draw on.
+  the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base **width**
+  (S / M / L) from the settings row above the palette. New strokes land on the top layer of
+  whichever page you draw on.
 - **Erase** — pick **Eraser** and drag over strokes to delete them; each stroke the eraser
   touches is removed whole.
 - **Scroll** — drag with **two fingers** to move up and down the page stack.

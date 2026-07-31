@@ -243,7 +243,7 @@ app/
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
     ui/                      # Compose Material 3
-      EditorScreen.kt, ToolPalette.kt
+      EditorScreen.kt, ToolPalette.kt, PenSettings.kt
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
   src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid geometry

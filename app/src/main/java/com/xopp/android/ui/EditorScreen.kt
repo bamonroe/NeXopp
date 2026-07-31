@@ -36,6 +36,8 @@ fun EditorScreen(
     onSurfaceCreated: (DrawingSurfaceView) -> Unit,
 ) {
     var tool by remember { mutableStateOf(Tool.PEN) }
+    var color by remember { mutableStateOf(PEN_COLORS.first()) }
+    var width by remember { mutableStateOf(PEN_WIDTHS[1].pt) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
 
     Scaffold(
@@ -57,11 +59,21 @@ fun EditorScreen(
             AndroidView(
                 factory = { ctx ->
                     DrawingSurfaceView(ctx).also {
+                        it.tool = tool
+                        it.colorArgb = color
+                        it.baseWidthPt = width
                         surface = it
                         onSurfaceCreated(it)
                     }
                 },
                 modifier = Modifier.fillMaxWidth().weight(1f),
+            )
+            PenSettings(
+                selectedColor = color,
+                onColor = { color = it; surface?.colorArgb = it },
+                selectedWidth = width,
+                onWidth = { width = it; surface?.baseWidthPt = it },
+                modifier = Modifier.fillMaxWidth(),
             )
             ToolPalette(
                 selected = tool,
