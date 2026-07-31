@@ -1,0 +1,33 @@
+package com.xopp.android.render
+
+import com.xopp.android.format.model.Background
+import com.xopp.android.format.model.Document
+import com.xopp.android.format.model.Layer
+import com.xopp.android.format.model.Page
+
+/**
+ * Builds a fresh [Document] whose pages are backed by the pages of an imported PDF — the same shape
+ * desktop Xournal++ produces when you "annotate a PDF": one `.xopp` page per PDF page, each with a
+ * `<background type="pdf">` and an empty layer to draw on. Only the first page carries `filename`
+ * and `domain`; the rest reference the same PDF by `pageno` alone, matching the on-disk convention
+ * (see `docs/architecture.md`). The actual rasterisation is done by [PdfPageCache].
+ */
+object PdfImport {
+
+    fun documentFor(cache: PdfPageCache, filename: String): Document {
+        val pages = (0 until cache.pageCount).map { i ->
+            val (w, h) = cache.pageSizePt(i)
+            Page(
+                width = w,
+                height = h,
+                background = Background.Pdf(
+                    filename = if (i == 0) filename else null,
+                    pageNo = i,
+                    domain = if (i == 0) "absolute" else null,
+                ),
+                layers = listOf(Layer(emptyList())),
+            )
+        }
+        return Document(pages = pages)
+    }
+}

@@ -1,6 +1,7 @@
 package com.xopp.android.render
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
@@ -35,6 +36,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var scrollY = 0f
     private var scrollX = 0f
     private var zoom = 1f
+
+    /** Rasteriser for the PDF that backs this document's `pdf` pages (set on import), or null. */
+    private var pdfSource: PdfPageCache? = null
 
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
     private var current: ArrayList<StrokePoint>? = null
@@ -87,6 +91,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** The current working document — every page, layer, and preserved element, ready to save. */
     fun toDocument(): Document = doc
+
+    /**
+     * Supply the PDF whose pages back this document's `pdf` backgrounds (set on import), or null to
+     * clear it (opening a plain `.xopp`). Closes any previously-held rasteriser.
+     */
+    fun setPdfSource(source: PdfPageCache?) {
+        if (source === pdfSource) return
+        pdfSource?.close()
+        pdfSource = source
+    }
 
     // --- undo / redo ---------------------------------------------------------------------------
 
@@ -362,13 +376,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
         try {
             canvas.drawColor(BACKDROP)
             for (box in layout.visible(scrollY, height.toFloat())) {
-                BackgroundRenderer.draw(canvas, box, scrollX, scrollY)
+                BackgroundRenderer.draw(canvas, box, scrollX, scrollY, pdfBitmapFor(box))
                 drawPageElements(canvas, box)
             }
             drawCurrent(canvas)
         } finally {
             holder.unlockCanvasAndPost(canvas)
         }
+    }
+
+    /** The rasterised background for a `pdf`-backed page at its on-screen width, or null. */
+    private fun pdfBitmapFor(box: PageBox): Bitmap? {
+        val bg = box.page.background as? Background.Pdf ?: return null
+        return pdfSource?.render(bg.pageNo, box.widthPx.toInt())
     }
 
     private fun drawPageElements(canvas: Canvas, box: PageBox) {

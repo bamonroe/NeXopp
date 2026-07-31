@@ -1,15 +1,18 @@
 package com.xopp.android.render
 
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
+import android.graphics.RectF
 import com.xopp.android.format.model.Background
 
 /**
  * Draws a page background — the base sheet colour plus its ruling (plain / lined / ruled / graph /
  * dotted) — into a [PageBox]'s rectangle. Line/dot positions come from [BackgroundGrid]; this
- * class only maps them to canvas coordinates. `pixmap`/`pdf` backgrounds render as a plain sheet
- * for now (the referenced image/PDF isn't loaded yet — see `TODO.md`).
+ * class only maps them to canvas coordinates. A `pdf` background is drawn as its rasterised page
+ * ([pageImage], supplied by [PdfPageCache]); when no image is available (e.g. a `.xopp` whose PDF
+ * isn't present) it, like `pixmap`, falls back to a plain sheet.
  */
 object BackgroundRenderer {
 
@@ -24,13 +27,18 @@ object BackgroundRenderer {
     private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFF8FB0D6.toInt(); style = Paint.Style.FILL
     }
+    private val image = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    fun draw(canvas: Canvas, box: PageBox, scrollX: Float, scrollY: Float) {
+    fun draw(canvas: Canvas, box: PageBox, scrollX: Float, scrollY: Float, pageImage: Bitmap? = null) {
         val left = box.leftPx - scrollX
         val top = box.topPx - scrollY
         val solid = box.page.background as? Background.Solid
         fill.color = solid?.color ?: AndroidColor.WHITE
         canvas.drawRect(left, top, left + box.widthPx, top + box.heightPx, fill)
+        if (pageImage != null) {
+            canvas.drawBitmap(pageImage, null, RectF(left, top, left + box.widthPx, top + box.heightPx), image)
+            return
+        }
         when (solid?.style) {
             "lined" -> horizontals(canvas, box, left, top)
             "ruled" -> { horizontals(canvas, box, left, top); marginLine(canvas, box, left, top) }

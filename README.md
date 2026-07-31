@@ -70,6 +70,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   page is shown, one above the next, each drawn with its own background ruling (plain, lined,
   ruled, graph, or dotted) and all of its layers — including strokes, text boxes, and images.
   LaTeX images show their source in a placeholder box until math rendering is added.
+- **Import PDF** — the menu's **Import PDF** launches the picker filtered to PDFs; choosing one
+  builds a fresh document with **one page per PDF page**, each PDF page rasterised and shown as the
+  page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
+  kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
 - **Draw** — the bottom bar has three buttons — **Tool**, **Colour**, **Size** — each opening a
   small pop-up anchored to its own button. Pick **Pen** or **Highlighter** and draw with **one
   finger or the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base

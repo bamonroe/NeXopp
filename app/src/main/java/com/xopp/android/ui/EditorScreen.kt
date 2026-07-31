@@ -10,6 +10,7 @@ import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
@@ -53,6 +54,7 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
 fun EditorScreen(
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onImportPdf: () -> Unit,
     onSurfaceCreated: (DrawingSurfaceView) -> Unit,
 ) {
     var tool by remember { mutableStateOf(EditorTool.PEN) }
@@ -80,6 +82,7 @@ fun EditorScreen(
                     OverflowMenu(
                         onOpen = onOpen,
                         onSave = onSave,
+                        onImportPdf = onImportPdf,
                         onSettings = { showSettings = true },
                     )
                 },
@@ -135,6 +138,7 @@ fun EditorScreen(
 private fun OverflowMenu(
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onImportPdf: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -146,6 +150,11 @@ private fun OverflowMenu(
             text = { Text("Open") },
             leadingIcon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
             onClick = { open = false; onOpen() },
+        )
+        DropdownMenuItem(
+            text = { Text("Import PDF") },
+            leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
+            onClick = { open = false; onImportPdf() },
         )
         DropdownMenuItem(
             text = { Text("Save") },

@@ -8,8 +8,8 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] **Import & export PDF.** Open a PDF as a document (each page a background, à la desktop
-      Xournal++ PDF annotation) and export the annotated document back out as a flattened PDF.
+- [ ] **Export PDF.** Flatten the annotated document (PDF/solid backgrounds + all strokes and
+      elements) back out to a PDF via the framework `android.graphics.pdf.PdfDocument`.
 - [ ] **Edit** the non-stroke element types on-device: create/edit **text boxes** (keyboard),
       insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
       authoring path.
@@ -20,6 +20,15 @@ ones with a one-line why.
       (open a fixture, draw, save, reopen) so the runtime path is checked mechanically, not by hand.
 ## Done
 
+- [x] 2026-07-30 — **Import a PDF as an annotatable document (PDF page backgrounds).** The menu's
+      **Import PDF** copies the picked PDF into app cache and builds a document with one page per PDF
+      page; each page carries a `<background type="pdf">` (filename+domain on page 1 only, `pageno`
+      thereafter — the desktop convention). Pages are rasterised on demand by the framework
+      `PdfRenderer` (dependency-free) in the new `PdfPageCache` (serialised, bounded bitmap cache),
+      and `BackgroundRenderer` draws the page image; a `.xopp` whose PDF isn't present falls back to
+      a plain sheet. `BUILD SUCCESSFUL`, 40 tests pass. Verified on the `/data/android` emulator:
+      imported a 2-page PDF (both pages rendered with their text/border), drew an X over page 1
+      (Undo lit), no crash. Export to PDF is the remaining half — see Active.
 - [x] 2026-07-30 — **Emulator harness already scripted.** The AVD-create / headless-launch /
       install loop lives in `/data/android/.claude/skills/android-dev/scripts/emulator.sh`
       (`up`/`boot-wait`/`install`/`launch`/`screenshot`/`ui`/`logcat`), driven by that repo's
