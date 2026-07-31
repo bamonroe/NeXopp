@@ -39,7 +39,7 @@ array of `[[task]]` tables. A task carries **more** metadata rather than less:
 | `description` | both             | the detail                                          |
 | `status`      | both             | active · in-progress · blocked (TODO) / finished (archive) |
 | `category`    | both             | feature · bug · docs · refactor · test · chore     |
-| `urgency`     | TODO             | low · medium · high · critical                     |
+| `urgency`     | TODO             | low · normal · high · critical                     |
 | `order`       | TODO             | manual sort key (10, 20, 30…); lower = sooner       |
 | `created`     | both             | date the task was added (`YYYY-MM-DD`)             |
 | `completed`   | archive          | date it shipped                                     |
@@ -68,8 +68,9 @@ newest-`completed`-first.
 - **`add --title T --description D`** `[--category C] [--urgency U]
   [--status S] [--tag t …] [--id ID] [--no-rebuild] [--no-emulator-debug]` —
   append an active task. The `id` is a slug of the title (made unique) and
-  `order` auto-increments unless given. `rebuild`/`emulator_debug` default to
-  yes; pass `--no-rebuild` / `--no-emulator-debug` to turn either off.
+  `order` auto-increments unless given. `urgency` defaults to normal.
+  `rebuild`/`emulator_debug` default to yes; pass `--no-rebuild` /
+  `--no-emulator-debug` to turn either off.
 - **`edit <id>`** `[--title|--description|--status|--category|--urgency|--order
   …] [--add-tag t] [--rebuild|--no-rebuild] [--emulator-debug|--no-emulator-debug]`
   — change fields on an active task.

@@ -21,7 +21,7 @@ SCHEMA_VERSION = 1
 STATUSES_ACTIVE = ("active", "in-progress", "blocked")
 STATUS_FINISHED = "finished"
 CATEGORIES = ("feature", "bug", "docs", "refactor", "test", "chore")
-URGENCIES = ("low", "medium", "high", "critical")
+URGENCIES = ("low", "normal", "high", "critical")
 _URGENCY_RANK = {name: i for i, name in enumerate(URGENCIES)}
 
 # Field write-order within a [[task]] block. `completed` only appears in the

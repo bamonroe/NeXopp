@@ -400,7 +400,7 @@ def build_parser():
     ad.add_argument("--title", required=True)
     ad.add_argument("--description", required=True)
     ad.add_argument("--category", choices=store.CATEGORIES, default="feature")
-    ad.add_argument("--urgency", choices=store.URGENCIES, default="medium")
+    ad.add_argument("--urgency", choices=store.URGENCIES, default="normal")
     ad.add_argument("--status", choices=store.STATUSES_ACTIVE, default="active")
     ad.add_argument("--id", help="explicit id (default: slug of title)")
     ad.add_argument("--tag", action="append")
