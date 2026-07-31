@@ -51,6 +51,10 @@ def _print_task(task, indent=""):
         meta += f" order={task['order']}"
     if "completed" in task:
         meta += f" completed={task['completed']}"
+    if "rebuild" in task:
+        meta += f" rebuild={'yes' if task['rebuild'] else 'no'}"
+    if "emulator_debug" in task:
+        meta += f" emulator-debug={'yes' if task['emulator_debug'] else 'no'}"
     print(meta)
 
 
@@ -141,6 +145,8 @@ def cmd_add(args):
         "order": store.next_order(doc["tasks"]),
         "created": _today(),
         "tags": args.tag or [],
+        "rebuild": args.rebuild,
+        "emulator_debug": args.emulator_debug,
     }
     doc["tasks"].append(task)
     store.save_todo(doc, path)
@@ -152,7 +158,8 @@ def cmd_edit(args):
     task = store.find(doc["tasks"], args.id)
     if not task:
         sys.exit(f"no active task with id {args.id!r}")
-    for field in ("title", "description", "status", "category", "urgency", "order"):
+    for field in ("title", "description", "status", "category", "urgency", "order",
+                  "rebuild", "emulator_debug"):
         value = getattr(args, field)
         if value is not None:
             task[field] = value
@@ -176,7 +183,7 @@ def cmd_done(args):
     task["completed"] = (
         datetime.date.fromisoformat(args.date) if args.date else _today()
     )
-    for stray in ("order", "urgency"):
+    for stray in ("order", "urgency", "rebuild", "emulator_debug"):
         task.pop(stray, None)
     done["tasks"].insert(0, task)  # newest first
     store.save_todo(todo, todo_path)
@@ -233,6 +240,9 @@ def _validate_task(label, task, finished, seen):
             out.append(f"{where}: status not one of {store.STATUSES_ACTIVE}")
         if task.get("urgency") and task["urgency"] not in store.URGENCIES:
             out.append(f"{where}: unknown urgency {task['urgency']!r}")
+        for flag in ("rebuild", "emulator_debug"):
+            if flag in task and not isinstance(task[flag], bool):
+                out.append(f"{where}: {flag} must be true or false")
     return out
 
 
@@ -394,6 +404,11 @@ def build_parser():
     ad.add_argument("--status", choices=store.STATUSES_ACTIVE, default="active")
     ad.add_argument("--id", help="explicit id (default: slug of title)")
     ad.add_argument("--tag", action="append")
+    ad.add_argument("--rebuild", action=argparse.BooleanOptionalAction, default=True,
+                    help="rebuild the Android app for this task (default: yes)")
+    ad.add_argument("--emulator-debug", action=argparse.BooleanOptionalAction,
+                    default=True,
+                    help="run the full emulator verify loop for this task (default: yes)")
     ad.set_defaults(func=cmd_add)
 
     ed = sub.add_parser("edit", help="edit an active task")
@@ -405,6 +420,11 @@ def build_parser():
     ed.add_argument("--urgency", choices=store.URGENCIES)
     ed.add_argument("--order", type=int)
     ed.add_argument("--add-tag", action="append")
+    ed.add_argument("--rebuild", action=argparse.BooleanOptionalAction, default=None,
+                    help="set whether this task rebuilds the Android app")
+    ed.add_argument("--emulator-debug", action=argparse.BooleanOptionalAction,
+                    default=None,
+                    help="set whether this task runs the full emulator verify loop")
     ed.set_defaults(func=cmd_edit)
 
     dn = sub.add_parser("done", help="move a task to the archive")

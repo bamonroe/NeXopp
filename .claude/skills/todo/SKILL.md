@@ -44,6 +44,15 @@ array of `[[task]]` tables. A task carries **more** metadata rather than less:
 | `created`     | both             | date the task was added (`YYYY-MM-DD`)             |
 | `completed`   | archive          | date it shipped                                     |
 | `tags`        | TODO             | freeform string list                                |
+| `rebuild`     | TODO             | rebuild the Android app for this task? (default `true`) |
+| `emulator_debug` | TODO          | run the full emulator verify loop for this task? (default `true`) |
+
+`rebuild` and `emulator_debug` are **build hints** for whoever works the task,
+both defaulting to **`true`** (yes / yes) — the normal "build the APK, then
+install and exercise it on the emulator" loop. Set them **`false`** for a run of
+rapid-fire tweaks that don't each need a fresh rebuild or a full emulator pass;
+you still build/verify once at the end. Like `urgency`/`order`, they're
+TODO-only and are dropped when a task is archived.
 
 Active tasks list most-urgent-first, then by `order`. The archive is
 newest-`completed`-first.
@@ -57,10 +66,13 @@ newest-`completed`-first.
 - **`count`** `[--finished] [--by status|category|urgency]` — a raw count, or
   a grouped tally.
 - **`add --title T --description D`** `[--category C] [--urgency U]
-  [--status S] [--tag t …] [--id ID]` — append an active task. The `id` is a
-  slug of the title (made unique) and `order` auto-increments unless given.
+  [--status S] [--tag t …] [--id ID] [--no-rebuild] [--no-emulator-debug]` —
+  append an active task. The `id` is a slug of the title (made unique) and
+  `order` auto-increments unless given. `rebuild`/`emulator_debug` default to
+  yes; pass `--no-rebuild` / `--no-emulator-debug` to turn either off.
 - **`edit <id>`** `[--title|--description|--status|--category|--urgency|--order
-  …] [--add-tag t]` — change fields on an active task.
+  …] [--add-tag t] [--rebuild|--no-rebuild] [--emulator-debug|--no-emulator-debug]`
+  — change fields on an active task.
 - **`done <id>`** `[--date YYYY-MM-DD]` — move an active task into
   `FINISHED.toml`, stamped `completed` (today unless `--date`), newest-first.
 - **`remove <id>`** `[--reason "…"]` — drop an active task (e.g. descoped).

@@ -25,7 +25,8 @@ URGENCIES = ("low", "medium", "high", "critical")
 _URGENCY_RANK = {name: i for i, name in enumerate(URGENCIES)}
 
 # Field write-order within a [[task]] block. `completed` only appears in the
-# archive; absent fields are simply skipped.
+# archive; absent fields are simply skipped. `rebuild`/`emulator_debug` are
+# TODO-only build hints (like `urgency`/`order`) dropped when a task is archived.
 _TASK_FIELDS = (
     "id",
     "title",
@@ -37,6 +38,8 @@ _TASK_FIELDS = (
     "created",
     "completed",
     "tags",
+    "rebuild",
+    "emulator_debug",
 )
 
 _TODO_HEADER = """\
