@@ -9,7 +9,7 @@ Android reopens correctly on the desktop, and vice versa.
 - What the project is and how to work in it: [`CLAUDE.md`](CLAUDE.md).
 - How it works internally (the `.xopp` schema, data path, model): [`docs/architecture.md`](docs/architecture.md).
 - Build/emulator tooling: [`docs/tools.md`](docs/tools.md).
-- What's done and what's next: [`TODO.md`](TODO.md).
+- What's next (active tasks): [`TODO.md`](TODO.md); what's already shipped: [`FINISHED.md`](FINISHED.md).
 
 > Status: the `.xopp` read/write core and its tests are in place, and the Android editor is
 > functional — pen/highlighter/eraser drawing with pressure, colour and width pickers, undo/redo,

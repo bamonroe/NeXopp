@@ -13,7 +13,8 @@ you pull in a spoke only when the task touches it, instead of reading everything
 
 | You want to know / change…                       | Authoritative home        |
 |--------------------------------------------------|---------------------------|
-| **What to do next / what's done** (task state)   | `TODO.md`                 |
+| **What to do next** (active tasks only)          | `TODO.md`                 |
+| **What's already done** (completed-work archive) | `FINISHED.md`             |
 | **How to work here** (conventions, decisions)    | `CLAUDE.md` (this file)   |
 | **How the system works internally** (data flow, layout) | `docs/architecture.md` |
 | **How a user runs/uses it** (setup, build & run) | `README.md`               |
@@ -185,19 +186,24 @@ work, or immediately after — never defer it to "later," and never ship code wi
   such script from both `README.md` (how an operator runs it) and this file (how it fits).
   Nothing load-bearing should live only in someone's shell history.
 
-### `TODO.md` is the live task list / journal — keep it current
+### `TODO.md` (active) + `FINISHED.md` (archive) — keep them current
 
-`TODO.md` (repo root) is the single source of truth for active and completed work, and the
-**journal for what to build next**. Status lives there only — not here and not in
-`README.md` (both link to it).
+`TODO.md` (repo root) is the single source of truth for **active** work and the **journal
+for what to build next**; `FINISHED.md` is the archive of **completed** work. Splitting the
+two keeps `TODO.md` a short list of what's actually in flight instead of an ever-growing
+pile of done items. Status lives in these two files only — not here and not in `README.md`
+(all link to them).
 
-- **Update `TODO.md` in the same commit that changes the work it describes:** add proposed
-  features/tests **unchecked**; check off and **date** completed ones; remove dropped ones
-  with a one-line why.
-- Use it to journal next steps: when you finish something and notice the next feature, write
-  it down as an unchecked item rather than losing it. A future session reads `TODO.md` first
-  to know where to pick up.
-- A stale `TODO.md` means the change isn't done — same rule as the docs.
+- **Update both in the same commit that changes the work they describe:** add proposed
+  features/tests to `TODO.md` **unchecked**; remove dropped items with a one-line why.
+- **When a task is fully finished** (built, tested, documented), **move** its entry out of
+  `TODO.md`'s Active list and into `FINISHED.md` — check it off, **date** it, and place it
+  newest-first. Don't leave completed items sitting in `TODO.md`, and don't delete the
+  history; `FINISHED.md` only grows.
+- Use `TODO.md` to journal next steps: when you finish something and notice the next feature,
+  write it down as an unchecked item rather than losing it. A future session reads `TODO.md`
+  first to know where to pick up, and `FINISHED.md` to see what already shipped.
+- A stale `TODO.md`/`FINISHED.md` means the change isn't done — same rule as the docs.
 
 ### Token discipline — keep the context small
 
