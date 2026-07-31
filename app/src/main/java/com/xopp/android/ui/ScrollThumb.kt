@@ -33,6 +33,13 @@ import kotlin.math.roundToInt
 /** Width of the grab band on the right edge, and the visual thumb bar inside it. */
 private val THUMB_GRAB_WIDTH = 28.dp
 private val THUMB_WIDTH = 6.dp
+/**
+ * A small rounded "peninsula" that bulges left out of the thumb's centre so there's an obvious,
+ * finger-sized grip to grab (the thin bar alone reads as decoration). Purely visual — the whole
+ * [THUMB_GRAB_WIDTH] band already catches touches.
+ */
+private val OUTSERT_WIDTH = 14.dp
+private val OUTSERT_HEIGHT = 38.dp
 /** Smallest the thumb ever shrinks to, so a very long document still leaves a grabbable target. */
 private val THUMB_MIN_HEIGHT = 44.dp
 /** How long the thumb stays bright after the last scroll before fading back to its faint idle look. */
@@ -131,6 +138,16 @@ fun ScrollThumb(
                     .padding(end = 3.dp)
                     .width(THUMB_WIDTH)
                     .clip(RoundedCornerShape(THUMB_WIDTH / 2))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha)),
+            )
+            // The grip peninsula: a rounded bulge centred on the thumb, sticking out to the left so
+            // there's a plainly grabbable target. Shares the thumb's alpha so it fades in step.
+            Box(
+                modifier = Modifier
+                    .padding(end = 3.dp)
+                    .width(OUTSERT_WIDTH)
+                    .heightPx(with(density) { OUTSERT_HEIGHT.toPx() }.coerceAtMost(thumbHeightPx))
+                    .clip(RoundedCornerShape(OUTSERT_WIDTH / 2))
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha)),
             )
         }

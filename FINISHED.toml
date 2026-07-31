@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "sidebar-thumb-outsert"
+title = "Add sidebar thumb outsert"
+description = "Add a small peninsula/outsert to the sidebar thumb so it is easier to grab."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = []
+
+[[task]]
 id = "2026-07-31-resize-orientation-data-loss-fixed-the-loaded-document-survives-rotate-split-screen-resize-01"
 title = "Resize/orientation data loss fixed — the loaded document survives rotate & split-screen resize."
 description = "The parsed `.xopp` `Document` lives only in `DrawingSurfaceView.doc` (an imperatively-created `SurfaceView` reached via a plain `remember{}` handle, with no ViewModel/`rememberSaveable`/`onSaveInstanceState`). Previously a phone rotation or split-screen resize triggered Activity recreation: `onCreate` re-ran, the `AndroidView` factory built a fresh `DrawingSurfaceView` whose `doc` defaults to a single blank page, and the loaded document — held only by the now-destroyed old view — was gone, so the canvas came back blank. Fix: add `android:configChanges=\"orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize\"` to the `MainActivity` entry in `AndroidManifest.xml`, so Android keeps the same Activity, composition, and `DrawingSurfaceView` instance across those config changes instead of recreating it. On resize the existing `surfaceChanged` just re-runs `relayout(); render()`, re-stacking the same `doc.pages` to the new width — document and undo history retained. Emulator-verified: loaded a multi-page document, rotated portrait↔landscape and entered split-screen, and the strokes/pages survived intact."

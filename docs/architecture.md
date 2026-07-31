@@ -370,7 +370,8 @@ sizes/positions itself from that ratio and **dragging it** drives `DrawingSurfac
 touch target is only the thumb *band* (a small region tracking the scroll position), not the full
 right edge, so a stylus can still draw over the page's right margin everywhere but the thumb; the
 thumb sits faint when idle, brightens after a scroll, and is brightest while dragged, showing a
-page-number bubble beside it. It is a pure navigation affordance — no `.xopp` state, so nothing
+page-number bubble beside it. A rounded grip "peninsula" bulges out of the thumb's centre (purely
+visual — the whole band already catches touches) so there's an obvious finger-sized target to grab. It is a pure navigation affordance — no `.xopp` state, so nothing
 round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
