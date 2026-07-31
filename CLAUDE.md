@@ -88,11 +88,26 @@ scripts/build.sh clean assembleDebug   # clean release-path build of the debug A
 ```
 
 **Use the `/data/android` toolchain for everything Android — going forward there is no other
-path.** Never build against a host JDK/SDK/Gradle or an in-repo container. And **don't stop at
-"it compiles":** any change with a runtime surface must be installed on the `/data/android`
-emulator and actually exercised — screenshots to *see* the UI, `adb logcat` for error logs,
-and simulated finger/stylus presses to drive the interactions. The full build + emulator-test
-loop is owned by `docs/tools.md`.
+path.** Never build against a host JDK/SDK/Gradle or an in-repo container. The full build +
+emulator-test loop is owned by `docs/tools.md`.
+
+**The task's `rebuild` and `emulator_debug` flags decide how far to go — they are load-bearing,
+not advisory.** Every `TODO.toml` task carries these two flags (owned by the `todo` skill; see
+`.claude/skills/todo/SKILL.md`), and they are the authoritative answer to two questions:
+- **`rebuild`** — whether to build the APK **at all** for this task. `false` means the change
+  doesn't warrant a fresh APK build (e.g. docs, or a run of rapid-fire tweaks); `true` (the
+  default) means build it through `scripts/build.sh`.
+- **`emulator_debug`** — whether to **install and exercise on the `/data/android` emulator**.
+  `true` (the default) is the full pass: install the APK and actually drive it — screenshots to
+  *see* the UI, `adb logcat` for error logs, and simulated finger/stylus presses. `false` means
+  **skip the emulator pass entirely** for this task; a clean build + unit tests is sufficient.
+
+**Honor these per-task flags over any general "always test the running app" instinct** — when a
+task says `emulator_debug=no`, do **not** install-and-exercise it on the emulator, even for a
+change with a runtime surface. When flags are off for a run of quick tweaks, you still build and
+(if `emulator_debug` is on for any of them) verify once at the end. If a task has no flags
+(e.g. ad-hoc work outside `TODO.toml`), fall back to the defaults: build, and exercise anything
+with a runtime surface.
 
 ## External tools & build pipelines — see `docs/tools.md`
 
