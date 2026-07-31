@@ -1,10 +1,12 @@
 package com.xopp.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -38,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.FilterChip
@@ -55,11 +58,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.LaunchedEffect
+import com.xopp.android.format.FontDescription
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.InputSettings
 import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
+import kotlin.math.roundToInt
 
 /**
  * Push an [EditorTool] onto the surface: the three drawing tools set [Tool]; Hand toggles pan mode;
@@ -124,6 +129,12 @@ fun EditorScreen(
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
     var textPlacement by remember { mutableStateOf<Placement?>(null) }
     var texPlacement by remember { mutableStateOf<Placement?>(null) }
+    // Remembered defaults for a newly authored text box (an edit seeds from the element instead).
+    var textFamily by remember { mutableStateOf(FontDescription.DEFAULT_FAMILY) }
+    var textBold by remember { mutableStateOf(false) }
+    var textItalic by remember { mutableStateOf(false) }
+    var textSize by remember { mutableStateOf(TEXT_SIZE_PT) }
+    var textColor by remember { mutableStateOf(PEN_COLORS.first()) }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -237,11 +248,24 @@ fun EditorScreen(
         }
 
         textPlacement?.let { p ->
-            TextInputDialog(
-                title = if (p.existingText != null) "Edit text" else "Add text",
-                initial = p.existingText ?: "",
-                confirmLabel = "Save",
-                onConfirm = { content -> surface?.insertText(p, content, TEXT_SIZE_PT, color); textPlacement = null },
+            val existing = p.existing
+            val seedFont = existing?.let { FontDescription.parse(it.font) }
+            TextBoxDialog(
+                title = if (existing != null) "Edit text" else "Add text",
+                initialContent = existing?.content ?: "",
+                initialFamily = seedFont?.family ?: textFamily,
+                initialBold = seedFont?.bold ?: textBold,
+                initialItalic = seedFont?.italic ?: textItalic,
+                initialSize = existing?.size ?: textSize,
+                initialColor = existing?.color ?: textColor,
+                onConfirm = { content, family, bold, italic, sizePt, colorArgb ->
+                    surface?.insertText(p, content, FontDescription(family, bold, italic).compose(), sizePt, colorArgb)
+                    if (existing == null) {
+                        textFamily = family; textBold = bold; textItalic = italic
+                        textSize = sizePt; textColor = colorArgb
+                    }
+                    textPlacement = null
+                },
                 onDismiss = { surface?.cancelTextEdit(); textPlacement = null },
             )
         }
@@ -400,8 +424,105 @@ private fun TextInputDialog(
     )
 }
 
-/** Default point size for a newly authored text box. */
+/** Default point size for a newly authored text box, and the slider bounds for editing it. */
 private const val TEXT_SIZE_PT = 12.0
+private const val TEXT_SIZE_MIN = 6f
+private const val TEXT_SIZE_MAX = 96f
+
+/** The families offered in the text dialog — names desktop Xournal++ and Android both resolve. */
+private val TEXT_FAMILIES = listOf("Sans", "Serif", "Monospace")
+
+/**
+ * The styled text-box editor: content plus the styling the `.xopp` `<text>` element can hold —
+ * font family, bold/italic, point size, and colour. Confirms with all five so the caller can
+ * compose the font description and place/replace the box. (Underline is intentionally absent —
+ * the format can't store it; see `TODO.md`.)
+ */
+@Composable
+private fun TextBoxDialog(
+    title: String,
+    initialContent: String,
+    initialFamily: String,
+    initialBold: Boolean,
+    initialItalic: Boolean,
+    initialSize: Double,
+    initialColor: Int,
+    onConfirm: (content: String, family: String, bold: Boolean, italic: Boolean, sizePt: Double, colorArgb: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var content by remember { mutableStateOf(initialContent) }
+    var family by remember { mutableStateOf(initialFamily) }
+    var bold by remember { mutableStateOf(initialBold) }
+    var italic by remember { mutableStateOf(initialItalic) }
+    var size by remember { mutableStateOf(initialSize.toFloat().coerceIn(TEXT_SIZE_MIN, TEXT_SIZE_MAX)) }
+    var colorArgb by remember { mutableStateOf(initialColor) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    singleLine = false,
+                    label = { Text("Text") },
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FontFamilyPicker(family = family, onFamily = { family = it })
+                    FilterChip(selected = bold, onClick = { bold = !bold }, label = { Text("Bold") })
+                    FilterChip(selected = italic, onClick = { italic = !italic }, label = { Text("Italic") })
+                }
+                Text("Size: ${size.roundToInt()} pt")
+                Slider(
+                    value = size,
+                    onValueChange = { size = it },
+                    valueRange = TEXT_SIZE_MIN..TEXT_SIZE_MAX,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (c in PEN_COLORS) TextSwatch(color = c, selected = c == colorArgb) { colorArgb = c }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(content, family, bold, italic, size.toDouble(), colorArgb) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** Dropdown to pick a text font family from [TEXT_FAMILIES]. */
+@Composable
+private fun FontFamilyPicker(family: String, onFamily: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) { Text(family) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (f in TEXT_FAMILIES) {
+                DropdownMenuItem(text = { Text(f) }, onClick = { onFamily(f); open = false })
+            }
+        }
+    }
+}
+
+/** A tappable colour circle for the text dialog (a local twin of the toolbar's swatch). */
+@Composable
+private fun TextSwatch(color: Int, selected: Boolean, onClick: () -> Unit) {
+    val ring = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(Color(color))
+            .border(if (selected) 3.dp else 1.dp, ring, CircleShape)
+            .clickable(onClick = onClick),
+    )
+}
 
 /** The top-bar overflow ("hamburger") menu: open, save, and the settings page. */
 @Composable

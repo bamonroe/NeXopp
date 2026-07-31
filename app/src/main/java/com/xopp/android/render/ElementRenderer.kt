@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import com.xopp.android.format.FontDescription
 import com.xopp.android.format.model.Element
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.TexImageElement
@@ -43,7 +44,7 @@ class ElementRenderer {
     private fun drawText(canvas: Canvas, t: TextElement, scale: Float, offsetX: Float, offsetY: Float) {
         textPaint.color = t.color
         textPaint.textSize = (t.size * scale).toFloat()
-        textPaint.typeface = Typeface.create(t.font, Typeface.NORMAL)
+        textPaint.typeface = typefaceFor(t.font)
         val fm = textPaint.fontMetrics
         val topPx = offsetY + (t.y * scale).toFloat()
         val xPx = offsetX + (t.x * scale).toFloat()
@@ -51,6 +52,28 @@ class ElementRenderer {
         val lines = TextBlock.lines(t.content)
         val baselines = TextBlock.baselines(lines.size, topPx, fm.ascent, lineHeight)
         for (i in lines.indices) canvas.drawText(lines[i], xPx, baselines[i], textPaint)
+    }
+
+    /**
+     * Resolve a `.xopp` font description into an Android [Typeface]. The Pango-style bold/italic
+     * tokens become a [Typeface] style, and the desktop family names Xournal++ uses map onto the
+     * generic Android families (unknown families fall back to Android's own resolution).
+     */
+    private fun typefaceFor(font: String): Typeface {
+        val fd = FontDescription.parse(font)
+        val style = when {
+            fd.bold && fd.italic -> Typeface.BOLD_ITALIC
+            fd.bold -> Typeface.BOLD
+            fd.italic -> Typeface.ITALIC
+            else -> Typeface.NORMAL
+        }
+        val androidFamily = when (fd.family.lowercase()) {
+            "sans", "sans-serif" -> "sans-serif"
+            "serif" -> "serif"
+            "monospace", "mono" -> "monospace"
+            else -> fd.family
+        }
+        return Typeface.create(androidFamily, style)
     }
 
     private fun drawImage(canvas: Canvas, img: ImageElement, scale: Float, offsetX: Float, offsetY: Float) {

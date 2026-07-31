@@ -120,8 +120,10 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 - **Inner text**: a flat space-separated coordinate list `x0 y0 x1 y1 …` (pt). Vertex *i* is
   `(text[2i], text[2i+1])` and its width is `width[i+1]` (or `width[0]` if constant).
 
-**`<text>`** — attributes `font` (family name), `size` (pt), `x`, `y` (pt, top-left anchor),
-`color`. **Inner text** is the string, XML-escaped (`&amp; &lt; &gt;`).
+**`<text>`** — attributes `font` (a Pango-style font **description**: family plus optional
+`Bold`/`Italic` tokens, e.g. `Sans Bold Italic` — parsed/composed by `format/FontDescription.kt`),
+`size` (pt), `x`, `y` (pt, top-left anchor), `color`. **Inner text** is the string, XML-escaped
+(`&amp; &lt; &gt;`). The description has no underline token, so underline is not representable.
 
 **`<image>`** — attributes `left`, `top`, `right`, `bottom` (pt bounding box). **Inner text**
 is base64-encoded raw image bytes (PNG/JPEG as stored).

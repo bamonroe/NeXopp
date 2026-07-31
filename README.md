@@ -110,8 +110,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 
   All of these are undoable. (Selection is per page; two-finger pan still works.)
 - **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
-  takes the content from the keyboard. Tapping an existing text box reopens it for editing (clearing
-  the text deletes the box). New text uses the current pen colour.
+  takes the content from the keyboard and lets you style it: **font family** (Sans / Serif /
+  Monospace), **bold**, **italic**, a **size** slider (6–96 pt), and its own **colour**. Tapping
+  an existing text box reopens it for editing with all of that prefilled from the box (clearing the
+  text deletes it). Every property round-trips to and from desktop Xournal++ via the `.xopp`
+  `<text>` element. (Underline isn't offered — the format can't store it.)
 - **Image** — pick **Image** and **tap** where the image should go; the system picker opens, and the
   chosen picture is placed at that point (scaled to a sensible size).
 - **LaTeX** — pick **LaTeX** and **tap** to place a math image; type the LaTeX source (e.g.

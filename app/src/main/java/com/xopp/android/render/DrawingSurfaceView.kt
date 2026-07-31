@@ -32,11 +32,11 @@ import kotlin.math.min
 enum class PlaceKind { TEXT, IMAGE, TEX }
 
 /**
- * Where a placement tap landed: the page and its page-local pt coordinates. [existingText] carries
- * the content of a text box the tap hit (so the editor opens it for editing instead of creating a
- * new one); null means "create new".
+ * Where a placement tap landed: the page and its page-local pt coordinates. [existing] carries the
+ * text box the tap hit (so the editor opens it for editing — prefilling its content, font, size and
+ * colour — instead of creating a new one); null means "create new".
  */
-data class Placement(val pageIndex: Int, val xPt: Double, val yPt: Double, val existingText: String? = null)
+data class Placement(val pageIndex: Int, val xPt: Double, val yPt: Double, val existing: TextElement? = null)
 
 /**
  * The low-latency stylus canvas. Holds the whole [Document] and renders every page top-to-bottom,
@@ -329,14 +329,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // --- authoring: place text boxes, images, and LaTeX images by tapping ------------------------
 
     /** Create a text box (or edit the one a tap hit) at the placement; blank content deletes it. */
-    fun insertText(p: Placement, content: String, sizePt: Double, colorArgb: Int) {
+    fun insertText(p: Placement, content: String, font: String, sizePt: Double, colorArgb: Int) {
         val target = editingTarget
         editingTarget = null
         if (content.isBlank()) {
             if (target != null) replaceElement(target, null)
             return
         }
-        val text = TextElement("Sans", sizePt, p.xPt, p.yPt, colorArgb, content)
+        val text = TextElement(font, sizePt, p.xPt, p.yPt, colorArgb, content)
         if (target != null) replaceElement(target, text) else addElement(p.pageIndex, text)
     }
 
@@ -888,7 +888,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.pageAt(placeDownY + scrollY) ?: return
         val xPt = ((placeDownX + scrollX - box.leftPx) / box.scale).toDouble()
         val yPt = ((placeDownY + scrollY - box.topPx) / box.scale).toDouble()
-        val existing = if (kind == PlaceKind.TEXT) pickText(box.index, xPt, yPt)?.also { editingTarget = it }?.content else null
+        val existing = if (kind == PlaceKind.TEXT) pickText(box.index, xPt, yPt)?.also { editingTarget = it } else null
         onPlace?.invoke(kind, Placement(box.index, xPt, yPt, existing))
     }
 

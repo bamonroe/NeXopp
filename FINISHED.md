@@ -6,6 +6,17 @@ The archive of **completed** work for this project — the graveyard for done ta
 When a task is fully finished (built, tested, documented), move its checked, dated entry
 here from `TODO.md`. Newest first. This file only grows; nothing is removed from it.
 
+- [x] 2026-07-31 — **Text tool styling — font family, bold, italic, size, colour.** The text tool
+      now opens a styled dialog instead of a bare content field: pick a **font family** (Sans / Serif /
+      Monospace), toggle **bold**/**italic**, set a **size** (6–96 pt slider), and choose the box's own
+      **colour** (its own swatch row, decoupled from the pen colour). Bold/italic encode into the
+      `.xopp` `<text font>` value as Pango tokens (`Sans Bold Italic`) via the pure, JVM-tested
+      `format/FontDescription.kt` (parse/compose are exact inverses); the renderer parses that back to a
+      `Typeface` style and maps the family to an Android typeface, so styling round-trips to and from
+      desktop Xournal++. Editing an existing box prefills every control from the element (`Placement`
+      now carries the whole `TextElement`). Emulator-verified end-to-end: styled placement renders red
+      bold-italic 38 pt and reopens with all controls prefilled. **Underline is intentionally excluded**
+      — a Pango font description can't store it, so it can't round-trip (format-is-the-boundary rule).
 - [x] 2026-07-31 — **Selection tool to desktop parity.** Extended the object-selection tool from
       rectangle-select + move + delete to the full desktop feature set, all as pure, JVM-tested
       `SelectionOps`/`SelectionTester` ops so the logic stays off the Android surface: (1) **resize**
