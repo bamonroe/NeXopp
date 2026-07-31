@@ -13,8 +13,9 @@ Android reopens correctly on the desktop, and vice versa.
 
 > Status: the `.xopp` read/write core and its tests are in place, and the Android editor is
 > functional — pen/highlighter/eraser drawing with pressure, colour and width pickers, undo/redo,
-> zoom, pan, add/remove page, multi-page documents with layers and backgrounds, and PDF import and
-> export. See `TODO.md` for what's next.
+> zoom, pan, a page navigator (add/remove/jump), on-device authoring of text/image/LaTeX elements,
+> LaTeX math rendering, multi-page documents with layers and backgrounds, and PDF import and
+> export. The controls live in a vertical rail down the left edge. See `TODO.md` for what's next.
 
 ## Requirements
 
@@ -72,30 +73,39 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Open** — the top-bar **menu** (the ☰ button, top right) has **Open**; it launches the system
   file picker; choose a `.xopp` file. It's read in place via the Storage Access Framework. Every
   page is shown, one above the next, each drawn with its own background ruling (plain, lined,
-  ruled, graph, or dotted) and all of its layers — including strokes, text boxes, and images.
-  LaTeX images show their source in a placeholder box until math rendering is added.
+  ruled, graph, or dotted) and all of its layers — including strokes, text boxes, images, and
+  LaTeX images (rendered as real math — fractions, super/subscripts, roots, and Greek/operator
+  symbols; malformed formulae fall back to their source text).
 - **Import PDF** — the menu's **Import PDF** launches the picker filtered to PDFs; choosing one
   builds a fresh document with **one page per PDF page**, each PDF page rasterised and shown as the
   page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
-- **Draw** — three of the bottom bar's buttons — **Tool**, **Colour**, **Size** — each open a
-  small pop-up anchored to their own button (Zoom and Pages are the other two, below). Pick **Pen**
-  or **Highlighter** and draw with **one
-  finger or the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base
-  **width** (S / M / L) from the other two pop-ups. New strokes land on the top layer of whichever
-  page you draw on.
+- **Draw** — the controls live in a **vertical rail down the left edge**. Its buttons — **Tool**,
+  **Colour**, **Size**, **Zoom**, **Pages** — each open a small pop-up anchored to their own button
+  (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with **one finger or
+  the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base **width**
+  (S / M / L) from the other two pop-ups. New strokes land on the top layer of whichever page you
+  draw on.
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each
   stroke the eraser touches is removed whole.
-- **Undo / Redo** — the arrows in the top bar undo and redo edits, one draw or erase gesture at
-  a time. They enable and disable as history allows; opening a file starts fresh history.
+- **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
+  takes the content from the keyboard. Tapping an existing text box reopens it for editing (clearing
+  the text deletes the box). New text uses the current pen colour.
+- **Image** — pick **Image** and **tap** where the image should go; the system picker opens, and the
+  chosen picture is placed at that point (scaled to a sensible size).
+- **LaTeX** — pick **LaTeX** and **tap** to place a math image; type the LaTeX source (e.g.
+  `\frac{a}{b}`, `x^2`, `\sqrt{y}`, `\alpha`) and it's rendered as real math.
+- **Undo / Redo** — the arrows in the top bar undo and redo edits, one gesture at a time (drawing,
+  erasing, and adding/editing text/image/LaTeX are all undoable). They enable and disable as history
+  allows; opening a file starts fresh history.
 - **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
   from the Tool pop-up to pan with **one finger** (handy on a stylus).
-- **Zoom** — the **%** button in the bottom bar opens a zoom pop-up with **−** / **+** buttons;
+- **Zoom** — the **%** button on the rail opens a zoom pop-up with **−** / **+** buttons;
   tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways.
-- **Pages** — the document button (far right of the bottom bar) opens a pop-up to **Add page**
-  (a blank page, inheriting the current page's size and background, after the one in view) or
-  **Remove page** (the one in view; the last page is never removed). It also shows the page count.
-  Add and remove are undoable.
+- **Pages** — the document button on the rail opens the **page navigator**: it shows **Page N / M**
+  with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page inheriting the
+  current page's size and background, after the one in view) and **Remove page** (the one in view;
+  the last page is never removed). Add and remove are undoable.
 - **Settings** — the top-bar menu also opens a full-screen **Settings** page (placeholder for
   now); the back arrow returns to the editor.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
@@ -103,8 +113,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   element merged on top, then written to the location you pick. Use this to share an annotated
   copy; **Save** keeps the editable `.xopp`.
 - **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
-  preserving every page, layer, background, and element — including text, images, and LaTeX
-  images that aren't edited on-device yet.
+  preserving every page, layer, background, and element — strokes plus the text, images, and LaTeX
+  images you authored on-device.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 
@@ -116,7 +126,7 @@ The authoritative layout lives in [`docs/architecture.md`](docs/architecture.md)
 app/src/main/java/com/xopp/android/
   format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
   render/      # stylus canvas, page layout/rendering, PDF import & export
-  ui/          # Compose Material 3 editor screen, bottom toolbar pop-ups, settings, theme
+  ui/          # Compose Material 3 editor screen, left toolbar rail pop-ups, settings, theme
   MainActivity.kt
 app/src/test/  # JVM unit tests for the format and render layers
 Dockerfile, compose.yaml, scripts/build.sh   # containerized build

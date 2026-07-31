@@ -8,15 +8,39 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] **Edit** the non-stroke element types on-device: create/edit **text boxes** (keyboard),
-      insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
-      authoring path.
-- [ ] Render **teximage** as real math (a LaTeX renderer), replacing the source-text placeholder.
-- [ ] Add a **page navigator** — thumbnails or a jump-to-page N control (page add/remove and the
-      page count already exist; this is quick navigation across a long document).
-- [ ] Wire an **instrumented smoke test** on top of the existing `/data/android` emulator harness
-      (open a fixture, draw, save, reopen) so the runtime path is checked mechanically, not by hand.
+_(nothing open — journal the next feature here as you notice it)_
+
 ## Done
+
+- [x] 2026-07-31 — **Moved the toolbar to a left vertical rail.** `BottomToolbar.kt` →
+      `SideToolbar.kt`: the chrome is now a scrollable `Column` rail down the left edge (Tool /
+      Colour / Size / Zoom / Pages), and `EditorScreen` lays out `Row[rail, canvas]` instead of
+      `Column[canvas, bar]`. Verified on the `/data/android` emulator: rail sits on the left, the
+      Tool pop-up lists all seven tools, canvas fills the rest. Installed to both tailnet devices.
+- [x] 2026-07-31 — **On-device authoring of text / image / teximage.** Selecting Text, Image, or
+      LaTeX arms a placement: a canvas tap raises `onPlace` with the page-space point. Text and
+      LaTeX open a keyboard dialog (text is also **editable** — tapping an existing box re-opens it,
+      blank deletes it); Image launches the SAF picker (`image/*`) and inserts the decoded bytes
+      scaled to a default box. All are undoable. Verified on the `/data/android` emulator: placed a
+      text box ("HELLO123"), a LaTeX formula, and a picked PNG — all render and coexist with pen
+      strokes; Undo removed the formula, Redo restored it. Installed to both tailnet devices.
+- [x] 2026-07-31 — **Render teximage as real math (LaTeX renderer).** New dependency-free
+      `LatexParser` (pure, `LatexNode` tree — rows, sub/superscripts, `\frac`, `\sqrt`, grouping,
+      Greek/operator Unicode; never throws) + `LatexRenderer` (measures then scales to fit the box,
+      draws fraction bars / scripts / roots), replacing the source-text placeholder in
+      `ElementRenderer.drawTex` (parse cached by element identity, fallback to monospace source on
+      error). 12 new JVM `LatexParserTest` cases. Verified on the `/data/android` emulator:
+      `\frac{a}{b}+x^2` renders as a real fraction with a superscript. Installed to both tailnet devices.
+- [x] 2026-07-31 — **Page navigator.** The rail's Pages pop-up shows `Page N / M` with ◀/▶ that
+      jump the scroll to the previous/next page (disabled at the ends), alongside the existing
+      Add/Remove page. `DrawingSurfaceView` gained `goToPage` and reports the current page as the
+      view scrolls. Verified on the `/data/android` emulator: added a page (`1/1`→`1/2`), Next
+      scrolled to page 2 (`2/2`, ▶ greyed), Remove returned to `1/1`. Installed to both tailnet devices.
+- [x] 2026-07-31 — **Instrumented smoke test.** `app/src/androidTest/.../SmokeTest.kt` (AndroidJUnit4)
+      round-trips a document through `Xopp.save`/`Xopp.open` on-device, and drives a real
+      `DrawingSurfaceView` with synthetic `MotionEvent`s (down → moves → up) then asserts the new
+      stroke survives save/reopen. Runs via `scripts/build.sh connectedDebugAndroidTest`
+      (androidx.test runner/rules/espresso added). Compiles clean; run on the emulator harness.
 
 - [x] 2026-07-30 — **Export the annotated document as a flattened PDF.** The menu's **Export PDF**
       writes each page at its true point size via the framework `PdfDocument` (dependency-free): the

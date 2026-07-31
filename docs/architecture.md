@@ -243,7 +243,9 @@ app/
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
-      ElementRenderer.kt     # draws text boxes, images, and teximage placeholders
+      ElementRenderer.kt     # draws text boxes, images, and LaTeX images (real math)
+      LatexParser.kt         # LaTeX source -> node tree (pure, no Android deps)
+      LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
       PdfExporter.kt         # flattens a Document to a PDF (framework PdfDocument)
@@ -252,12 +254,13 @@ app/
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
       PageOps.kt             # insert / delete pages in a page list (pure)
     ui/                      # Compose Material 3
-      EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), canvas, bottom toolbar
-      BottomToolbar.kt       # Tool/Colour/Size buttons, each with a button-anchored pop-up
+      EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
+      SideToolbar.kt         # left vertical rail: Tool/Colour/Size/Zoom/Pages button-anchored pop-ups
       SettingsScreen.kt      # full-screen settings page (placeholder)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
-  src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid geometry
+  src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid/LaTeX geometry
+  src/androidTest/java/com/xopp/android/                   # on-device smoke test (load/draw/save/reopen)
 ```
 
 The **`format/` package is the heart** and is deliberately free of Android dependencies so the
@@ -282,10 +285,21 @@ gesture at a time (snapshots are cheap — immutable pages/layers share structur
 view-only and not recorded. Strokes are drawn by the view; text boxes, images, and LaTeX images
 are drawn by `ElementRenderer` (text baseline geometry lives in the pure, tested `TextBlock`; image
 bytes are decoded once and cached by element identity). A `<teximage>` carries only its LaTeX
-source in the model, so it renders as a best-effort placeholder — a faint box with the source text
-— until a real LaTeX renderer lands. The view keeps the loaded document intact and only appends, so
-every page, layer, and element round-trips through save. Editing the non-stroke elements is still
-to come (`TODO.md`).
+source in the model, so it is parsed once (cached by element identity) by the pure `LatexParser`
+into a node tree and drawn as **real math** by `LatexRenderer` — fractions (numerator over
+denominator with a rule), super/subscripts (smaller and shifted), square roots (radical + vinculum),
+and a Unicode table for Greek letters and common operators/relations; the tree is measured at a
+reference size then uniformly scaled to fit the element's box. Any parse/draw failure falls back to
+the raw source text, so a malformed formula can't crash a frame.
+
+**Authoring non-stroke elements.** With the **Text**, **Image**, or **LaTeX** tool active, the
+surface is in a *placement* mode (`placeKind`): a one-finger tap (not a drag) raises `onPlace` with
+the page-local point, which `EditorScreen` turns into a keyboard dialog (text/LaTeX) or, for images,
+an `onPickImage` callback up to `MainActivity`'s SAF picker. The chosen content is inserted via
+`insertText` / `insertTex` / `insertImage` — each a single undoable edit appended to the page's top
+layer. Tapping an existing text box reopens it for editing (clearing the content deletes it);
+matched by element identity. The view keeps the loaded document intact and only appends/edits, so
+every page, layer, and element round-trips through save.
 
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
@@ -300,14 +314,16 @@ elements — reusing `BackgroundRenderer`/`PageRenderer`/`StrokePainter` at scal
 output matches the editor. Stroke and page-element drawing were factored into the shared
 `StrokePainter` and `PageRenderer` precisely so the screen and the exporter render identically.
 
-**Chrome (`ui/`).** `EditorScreen` is the one editor screen: a top bar with undo/redo icon
-buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export PDF, Save, and
-Settings; the canvas;
-and a bottom **`BottomToolbar`** with five buttons — Tool, Colour, Size, Zoom, Pages. Each bottom
-button owns its own `DropdownMenu`, so the pop-up is anchored to that button rather than filling
-the screen or floating in the centre. The Tool pop-up lists Pen / Highlighter / Eraser / Hand as a
-UI-level `EditorTool` (Hand is view-only pan, not a document tool, so `EditorScreen.applyTool`
-toggles the surface's `handMode` for it and maps the other three to the document `Tool`). Choosing
-Settings from the ☰ menu swaps the whole screen for `SettingsScreen` (a full-screen page reserved
-for future settings; a back arrow returns to the editor). The pen palette constants (`PEN_COLORS`,
-`PEN_WIDTHS`) live in `BottomToolbar.kt`.
+**Chrome (`ui/`).** `EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
+icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export PDF, Save,
+and Settings; a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
+Pages; and the canvas filling the rest. Each rail button owns its own `DropdownMenu`, so the pop-up
+is anchored to that button (opening to the right of the rail) rather than filling the screen. The
+Tool pop-up lists Pen / Highlighter / Eraser / Hand / Text / Image / LaTeX as a UI-level
+`EditorTool` (Hand is view-only pan and Text/Image/LaTeX are placement modes, none a document tool,
+so `EditorScreen.applyTool` maps them to the surface's `handMode` / `placeKind` and maps the three
+drawing tools to the document `Tool`). The **Pages** pop-up is a page navigator: `Page N / M` with
+◀ / ▶ to jump to the previous/next page (`goToPage` scrolls the stack; the surface reports the page
+under the viewport centre via `onCurrentPageChanged`), plus Add / Remove page. Choosing Settings
+from the ☰ menu swaps in `SettingsScreen`. The pen palette constants (`PEN_COLORS`, `PEN_WIDTHS`)
+live in `SideToolbar.kt`.
