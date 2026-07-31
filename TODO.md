@@ -8,8 +8,10 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] Implement the remaining element types in the editor: **text boxes**, **images**, and
-      **teximage** (read + render + edit; the format layer already round-trips them).
+- [ ] **Edit** the non-stroke element types on-device: create/edit **text boxes** (keyboard),
+      insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
+      authoring path.
+- [ ] Render **teximage** as real math (a LaTeX renderer), replacing the source-text placeholder.
 - [ ] Implement the **eraser** tool behaviour (currently selectable but a no-op) and pen
       colour/width pickers in the Material 3 chrome.
 - [ ] Add pan/zoom to the canvas and a page navigator.
@@ -18,6 +20,14 @@ ones with a one-line why.
 
 ## Done
 
+- [x] 2026-07-30 — **Render text boxes, images, and teximage in the editor.** New `ElementRenderer`
+      draws `<text>` (via the pure, tested `TextBlock` line/baseline geometry), `<image>` (bytes
+      decoded once and cached by element identity), and `<teximage>` (best-effort placeholder box
+      with its LaTeX source). Wired into `DrawingSurfaceView` so every element in every layer
+      paints. 4 new JVM tests (26 total), `BUILD SUCCESSFUL`. Verified on the `/data/android`
+      emulator with `text-image.xopp`: text with decoded entities, the PNG image, and the teximage
+      placeholder all render, no crash. Also installed the debug APK on the two tailnet devices
+      (Pixel 8a, Tab S9 Ultra). Left: on-device authoring of these elements (next item).
 - [x] 2026-07-30 — **Multi-page + backgrounds + layers in the editor.** `DrawingSurfaceView` now
       holds the whole document and renders every page stacked top-to-bottom (`PageStacker`), each
       with its background ruling — plain/lined/ruled/graph/dotted (`BackgroundRenderer` +

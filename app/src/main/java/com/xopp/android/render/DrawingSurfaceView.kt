@@ -20,9 +20,9 @@ import com.xopp.android.format.model.Tool
  * The low-latency stylus canvas. Holds the whole [Document] and renders every page top-to-bottom,
  * each with its background ruling and all its layers, scaled to fit the view width (see
  * [PageStacker] / [BackgroundRenderer]). One finger draws; two fingers scroll the page stack.
- * Non-stroke elements (text/images) are kept in the model so they round-trip on save even though
- * they aren't drawn yet. Pressure is captured at the fidelity `.xopp` stores — this is where
- * round-trip safety starts (see `docs/architecture.md`).
+ * Strokes are drawn here; text boxes, images, and LaTeX images are drawn by [ElementRenderer].
+ * Pressure is captured at the fidelity `.xopp` stores — this is where round-trip safety starts
+ * (see `docs/architecture.md`).
  */
 class DrawingSurfaceView @JvmOverloads constructor(
     context: Context,
@@ -49,6 +49,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
+    private val elementRenderer = ElementRenderer()
 
     init {
         holder.addCallback(this)
@@ -186,7 +187,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             canvas.drawColor(BACKDROP)
             for (box in layout.visible(scrollY, height.toFloat())) {
                 BackgroundRenderer.draw(canvas, box, scrollY)
-                drawPageStrokes(canvas, box)
+                drawPageElements(canvas, box)
             }
             drawCurrent(canvas)
         } finally {
@@ -194,11 +195,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
-    private fun drawPageStrokes(canvas: Canvas, box: PageBox) {
+    private fun drawPageElements(canvas: Canvas, box: PageBox) {
         val offsetY = box.topPx - scrollY
         for (layer in box.page.layers) {
             for (element in layer.elements) {
-                if (element is Stroke) drawPoints(canvas, element.points, element.tool, element.color, box.scale, offsetY)
+                if (element is Stroke) {
+                    drawPoints(canvas, element.points, element.tool, element.color, box.scale, offsetY)
+                } else {
+                    elementRenderer.draw(canvas, element, box.scale, offsetY)
+                }
             }
         }
     }
