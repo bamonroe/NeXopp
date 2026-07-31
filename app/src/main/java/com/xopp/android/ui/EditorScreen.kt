@@ -38,8 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.runtime.LaunchedEffect
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.InputSettings
 import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
 
@@ -65,6 +67,13 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     }
 }
 
+/** Push the stylus/input [AppSettings] onto the surface (classifier settings, hover, pressure feel). */
+private fun DrawingSurfaceView.applySettings(s: AppSettings) {
+    inputSettings = InputSettings(fingerDraws = s.fingerDraws, barrelAction = s.barrelAction)
+    showHover = s.showHover
+    pressureGamma = s.sensitivity.gamma
+}
+
 /**
  * The single editor screen: a Material 3 top bar (undo/redo plus an overflow menu for open/save/
  * settings), a vertical control [SideToolbar] down the left edge, and the stylus canvas filling the
@@ -81,6 +90,8 @@ fun EditorScreen(
     onExportPdf: () -> Unit,
     onPickImage: (Placement) -> Unit,
     onSurfaceCreated: (DrawingSurfaceView) -> Unit,
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
 ) {
     var tool by remember { mutableStateOf(EditorTool.PEN) }
     var color by remember { mutableStateOf(PEN_COLORS.first()) }
@@ -141,6 +152,7 @@ fun EditorScreen(
                 factory = { ctx ->
                     DrawingSurfaceView(ctx).also {
                         it.applyTool(tool)
+                        it.applySettings(settings)
                         it.colorArgb = color
                         it.baseWidthPt = width
                         it.onHistoryChanged = { u, r -> canUndo = u; canRedo = r }
@@ -164,11 +176,18 @@ fun EditorScreen(
         }
     }
 
+        // Re-apply settings to the live surface whenever the user changes them in Settings.
+        LaunchedEffect(settings) { surface?.applySettings(settings) }
+
         // Settings is overlaid on top of the still-composed editor rather than replacing it, so the
         // AndroidView-hosted DrawingSurfaceView is never detached — the drawing (and undo history)
         // survives the round trip to Settings and back.
         if (showSettings) {
-            SettingsScreen(onBack = { showSettings = false })
+            SettingsScreen(
+                settings = settings,
+                onChange = onSettingsChange,
+                onBack = { showSettings = false },
+            )
         }
 
         // Contextual actions for the Select tool: shown only while something is selected.

@@ -254,12 +254,15 @@ app/
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
       Selection.kt           # ElementRef + SelectionTester: rect/tap picking, selection bounds (pure)
       SelectionOps.kt        # translate / delete selected elements on a page (pure)
+      InputClassifier.kt     # pointer kind + button + active tool + settings -> gesture intent (pure)
+      PressureCurve.kt       # pressure -> width multiplier + sensitivity presets (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
       PageOps.kt             # insert / delete pages in a page list (pure)
     ui/                      # Compose Material 3
       EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
       SideToolbar.kt         # left vertical rail: Tool/Colour/Size/Zoom/Pages button-anchored pop-ups
-      SettingsScreen.kt      # full-screen settings page (placeholder)
+      SettingsScreen.kt      # full-screen stylus settings (finger-draw, barrel, hover, pressure feel)
+      AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
   src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid/LaTeX geometry
@@ -352,39 +355,46 @@ mechanics are in [Selecting objects](#selecting-objects-render) above.
 
 ## Stylus & selection roadmap
 
-The app is meant to be **stylus-first**, but today input is treated generically: `onTouchEvent` maps
-**one finger (or pen) → draw / erase / select** and **two fingers → pan**, with no knowledge of
-*which* tool type produced a pointer. The pen's `MotionEvent.getPressure()` already feeds stroke
-width at full fidelity (the load-bearing round-trip choice), but everything else about the stylus is
-unexploited. This section is the design home for closing that gap and for finishing the selection
-tool to desktop parity; work items are journaled in `TODO.md`.
+The app is **stylus-first**. `DrawingSurfaceView.onTouchEvent` routes every pointer-down through the
+pure `InputClassifier`, so the pen hardware — not the on-screen toolbar — decides what a gesture does,
+matching desktop Xournal++. This section is the design home for the input layer and for finishing the
+selection tool to desktop parity; work items are journaled in `TODO.md`.
 
-**Stylus input — the plan.** Android reports the source of every pointer via
-`MotionEvent.getToolType(pointerIndex)` (`TOOL_TYPE_STYLUS`, `TOOL_TYPE_ERASER`, `TOOL_TYPE_FINGER`)
-and stylus side-buttons via `getButtonState()` (`BUTTON_STYLUS_PRIMARY` / `_SECONDARY`). The intended
-model, to be built as a small **pure `InputClassifier`** (tool type + button state + active-tool →
-gesture intent) so it is unit-testable off-device like the rest of the geometry:
+**Stylus input — implemented.** Android reports the source of every pointer via
+`MotionEvent.getToolType(pointerIndex)` (`TOOL_TYPE_STYLUS` / `_ERASER` / `_FINGER`) and stylus
+side-buttons via `getButtonState()` (`BUTTON_STYLUS_PRIMARY`). The view maps those onto the
+device-independent `PointerKind` and calls the pure, JVM-tested **`InputClassifier`** (`PointerKind` +
+barrel-pressed + `ActiveTool` + `InputSettings` → `GestureIntent`), keeping the decision logic off the
+Android surface so it's unit-testable (`InputClassifierTest`). Precedence, "pen hardware wins over the
+toolbar":
 
-- **Palm rejection.** When a stylus pointer is down, ignore new *finger* pointers for drawing (treat
-  finger only as pan/zoom). This lets the user rest a hand on the screen while writing — the single
-  most important stylus behaviour and the reason the current "one finger draws" default must become
-  "one *stylus* draws" once tool type is wired in. Gate it behind a Settings toggle (finger-draw
-  on/off) so non-stylus devices still work.
-- **Eraser end of the pen.** A `TOOL_TYPE_ERASER` pointer (the flip-to-erase tip many styli expose)
-  should erase regardless of the selected tool.
-- **Barrel-button mapping.** `BUTTON_STYLUS_PRIMARY` held during a stroke should invoke a
-  configurable action — default **erase**, with **select** as the likely second option — again
-  regardless of the on-screen tool, matching desktop Xournal++'s button bindings.
-- **Pressure curve & tilt.** The width mapping is currently linear (`0.4 + 0.6·pressure`). Expose a
-  sensitivity/curve setting, and capture `AXIS_TILT` / `AXIS_ORIENTATION` where available for future
-  calligraphic pens. The `.xopp` format only stores per-vertex width, so tilt is render-time only
-  unless we bake it into width.
-- **Hover.** `ACTION_HOVER_MOVE` from a stylus can drive a cursor/preview dot before the tip lands.
+1. **Eraser tip.** A `TOOL_TYPE_ERASER` pointer (the flipped-over tip) erases whatever the tool.
+2. **Barrel button.** `BUTTON_STYLUS_PRIMARY` held on a stylus invokes a configurable action while
+   held — default **erase**, or **select** / **none** (`BarrelAction`), whatever the on-screen tool.
+3. **Finger-draw gate.** With the Settings **"finger draws"** toggle off, a finger on a *drawing* tool
+   only pans (select/place/hand still work with a finger) — palm-safe writing on non-stylus devices.
+4. Otherwise the on-screen tool's default intent.
 
-None of these change the file format — they're all input-layer behaviour — so they can land
-incrementally behind the classifier without touching `format/`. The first concrete step is
-introducing the `InputClassifier` and routing `onTouchEvent` through it (finger-draw defaulting to
-today's behaviour so nothing regresses), then layering palm rejection on top.
+**Palm rejection** is the stateful half, handled in the view around the classifier: the active
+draw/erase gesture is *owned by a pointer id* (`gesturePointerId`) and only that pointer is sampled
+(`addSamples` reads `pointerIndex`, never pointer 0), so a resting palm — a different pointer — can't
+perturb the stroke. A stylus/eraser pointer arriving mid-gesture **takes over** any gesture a finger
+started (`onPointerDown` → `abandonInProgress`), and once a stylus owns the stroke (`stylusOwner`)
+extra finger/palm pointers are ignored rather than treated as a second-finger pan.
+
+**Pressure** feeds width through the pure `PressureCurve` (`min + (max−min)·pressure^gamma`); the
+`PressureSensitivity` presets (Soft/Linear/Firm) pick the exponent, and **Linear** reproduces the old
+hard-coded `0.4 + 0.6·pressure` exactly (`PressureCurveTest`). **Hover** (`ACTION_HOVER_MOVE` from a
+stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of these are settings in
+`AppSettings`, persisted by `SettingsStore` (SharedPreferences) and pushed live onto the surface by
+`EditorScreen.applySettings`; the on-device `StylusInputTest` drives synthetic tool-typed
+`MotionEvent`s to prove the wiring (eraser tip, barrel erase, finger-draw gate, palm rejection).
+
+**Not yet: tilt-driven width.** The `.xopp` format stores only per-vertex width, so **tilt /
+orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`) is render-time only and would need a calligraphic
+pen mode; it's deferred rather than baked speculatively into width (see `TODO.md`). None of the input
+layer changes the file format — it's all input-layer behaviour, so it lives entirely in `render/`/`ui/`
+without touching `format/`.
 
 **Selection — remaining desktop parity.** The current tool does rectangle/tap select, move, and
 delete. Still to match desktop: **resize** and **rotate** handles on the selection outline;

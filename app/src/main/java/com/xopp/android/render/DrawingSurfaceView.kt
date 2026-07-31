@@ -62,6 +62,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
     private var current: ArrayList<StrokePoint>? = null
     private var currentPage = 0
+    /** Pointer id owning the current draw/erase gesture, so a resting palm can't perturb it. */
+    private var gesturePointerId = -1
+    /** True while a stylus/eraser tip owns the current draw/erase gesture (drives palm rejection). */
+    private var stylusOwner = false
+    // Hover preview position (view px) and whether a stylus is currently hovering.
+    private var hovering = false
+    private var hoverX = 0f
+    private var hoverY = 0f
     private var scrolling = false
     private var erasing = false
     private var placing = false
@@ -94,6 +102,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var tool: Tool = Tool.PEN
     var colorArgb: Int = AndroidColor.BLACK
     var baseWidthPt: Float = 1.5f
+    /** Input-layer settings (finger-draw / barrel action) consulted by [InputClassifier]; from Settings. */
+    var inputSettings: InputSettings = InputSettings()
+    /** Pressure→width exponent (see [PressureCurve]); 1 = linear. Set from the sensitivity setting. */
+    var pressureGamma: Float = PressureSensitivity.LINEAR.gamma
+    /** When true, a hovering stylus shows a preview dot (from `ACTION_HOVER_MOVE`). */
+    var showHover: Boolean = true
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
     var handMode: Boolean = false
     /** When non-null, a one-finger tap places an element of this kind instead of drawing. */
@@ -141,6 +155,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = BAND_FILL
+    }
+    private val hoverPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
     }
 
     init {
@@ -475,66 +493,155 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun ptX(box: PageBox, vx: Float): Double = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
     private fun ptY(box: PageBox, vy: Float): Double = ((vy + scrollY - box.topPx) / box.scale).toDouble()
 
-    // --- touch: one finger draws (or erases), two fingers scroll -------------------------------
+    // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> when {
-                placeKind != null -> beginPlace(event)
-                handMode -> beginScroll(event)
-                selectMode -> beginSelect(event)
-                tool == Tool.ERASER -> startErase(event)
-                else -> startStroke(event)
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> beginScroll(event)
+            MotionEvent.ACTION_DOWN -> beginPointer(event, 0)
+            MotionEvent.ACTION_POINTER_DOWN -> onPointerDown(event)
             MotionEvent.ACTION_MOVE -> when {
                 scrolling -> doScroll(event)
                 erasing -> eraseMove(event)
                 placing -> placeMove(event)
                 movingSel -> moveSelect(event)
                 banding -> bandMove(event)
-                else -> extendStroke(event)
+                current != null -> extendStroke(event)
+                else -> Unit
             }
-            MotionEvent.ACTION_POINTER_UP -> {
-                lastFocusY = focusY(event, skip = event.actionIndex)
-                lastFocusX = focusX(event, skip = event.actionIndex)
-            }
+            MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
             MotionEvent.ACTION_UP -> endGesture()
-            MotionEvent.ACTION_CANCEL -> {
-                current = null; scrolling = false; erasing = false; placing = false
-                movingSel = false; banding = false; gestureStartDoc = null
-            }
+            MotionEvent.ACTION_CANCEL -> cancelGesture()
             else -> return super.onTouchEvent(event)
         }
         return true
     }
 
-    private fun startStroke(event: MotionEvent) {
+    /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */
+    override fun onHoverEvent(event: MotionEvent): Boolean {
+        val kind = pointerKindOf(event, 0)
+        if (!showHover || (kind != PointerKind.STYLUS && kind != PointerKind.ERASER_TIP)) {
+            if (hovering) { hovering = false; render() }
+            return super.onHoverEvent(event)
+        }
+        when (event.actionMasked) {
+            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
+                hovering = true; hoverX = event.x; hoverY = event.y; render()
+            }
+            MotionEvent.ACTION_HOVER_EXIT -> { hovering = false; render() }
+        }
+        return true
+    }
+
+    /** Map one event pointer's tool type to our device-independent [PointerKind]. */
+    private fun pointerKindOf(event: MotionEvent, pointerIndex: Int): PointerKind =
+        when (event.getToolType(pointerIndex)) {
+            MotionEvent.TOOL_TYPE_STYLUS -> PointerKind.STYLUS
+            MotionEvent.TOOL_TYPE_ERASER -> PointerKind.ERASER_TIP
+            MotionEvent.TOOL_TYPE_FINGER -> PointerKind.FINGER
+            else -> PointerKind.UNKNOWN
+        }
+
+    private fun barrelPressed(event: MotionEvent): Boolean =
+        (event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY) != 0
+
+    /** The on-screen tool collapsed to the classifier's [ActiveTool]. */
+    private fun activeTool(): ActiveTool = when {
+        placeKind != null -> ActiveTool.PLACE
+        handMode -> ActiveTool.HAND
+        selectMode -> ActiveTool.SELECT
+        tool == Tool.ERASER -> ActiveTool.ERASER
+        tool == Tool.HIGHLIGHTER -> ActiveTool.HIGHLIGHTER
+        else -> ActiveTool.PEN
+    }
+
+    /** Begin a gesture for the pointer at [pointerIndex], its intent decided by [InputClassifier]. */
+    private fun beginPointer(event: MotionEvent, pointerIndex: Int) {
+        val kind = pointerKindOf(event, pointerIndex)
+        val intent = InputClassifier.classify(kind, barrelPressed(event), activeTool(), inputSettings)
+        stylusOwner = (kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP) &&
+            (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE)
+        when (intent) {
+            GestureIntent.PLACE -> beginPlace(event, pointerIndex)
+            GestureIntent.PAN -> beginScroll(event)
+            GestureIntent.SELECT -> beginSelect(event)
+            GestureIntent.ERASE -> startErase(event, pointerIndex)
+            GestureIntent.DRAW -> startStroke(event, pointerIndex)
+            GestureIntent.IGNORE -> Unit
+        }
+    }
+
+    /**
+     * A second pointer arrived. A stylus/eraser tip takes over any in-progress finger gesture (so a
+     * palm that landed first can't block the pen); while a stylus already owns the gesture, extra
+     * finger/palm pointers are ignored (palm rejection); otherwise two fingers pan.
+     */
+    private fun onPointerDown(event: MotionEvent) {
+        val idx = event.actionIndex
+        val kind = pointerKindOf(event, idx)
+        when {
+            kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP -> {
+                abandonInProgress()
+                beginPointer(event, idx)
+            }
+            stylusOwner -> Unit // palm / finger resting while the pen writes: ignore
+            else -> beginScroll(event) // ordinary two-finger pan
+        }
+    }
+
+    /** If the pointer that lifted owns the draw/erase gesture, finish it; otherwise keep panning. */
+    private fun onPointerUp(event: MotionEvent) {
+        val upId = event.getPointerId(event.actionIndex)
+        if (upId == gesturePointerId && (current != null || erasing)) {
+            endGesture()
+            return
+        }
+        lastFocusY = focusY(event, skip = event.actionIndex)
+        lastFocusX = focusX(event, skip = event.actionIndex)
+    }
+
+    /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
+    private fun abandonInProgress() {
+        current = null; erasing = false; placing = false; banding = false; movingSel = false; scrolling = false
+    }
+
+    private fun cancelGesture() {
+        current = null; scrolling = false; erasing = false; placing = false
+        movingSel = false; banding = false; gestureStartDoc = null
+        gesturePointerId = -1; stylusOwner = false
+    }
+
+    private fun startStroke(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
         gestureStartDoc = doc
-        val box = layout.pageAt(event.y + scrollY) ?: run { current = null; return }
+        gesturePointerId = event.getPointerId(pointerIndex)
+        val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: run { current = null; return }
         currentPage = box.index
-        current = ArrayList<StrokePoint>().also { addSamples(event, box, it) }
+        current = ArrayList<StrokePoint>().also { addSamples(event, pointerIndex, box, it) }
     }
 
     private fun extendStroke(event: MotionEvent) {
+        val pointerIndex = event.findPointerIndex(gesturePointerId)
+        if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        current?.let { addSamples(event, box, it); render() }
+        current?.let { addSamples(event, pointerIndex, box, it); render() }
     }
 
-    /** The eraser: touch/drag deletes any stroke it passes over on the page under the finger. */
-    private fun startErase(event: MotionEvent) {
+    /** The eraser: touch/drag deletes any stroke it passes over on the page under the pointer. */
+    private fun startErase(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
         erasing = true
         gestureStartDoc = doc
-        val box = layout.pageAt(event.y + scrollY) ?: return
+        gesturePointerId = event.getPointerId(pointerIndex)
+        val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: return
         currentPage = box.index
-        eraseAt(box, event.x, event.y)
+        eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
     }
 
     private fun eraseMove(event: MotionEvent) {
+        val pointerIndex = event.findPointerIndex(gesturePointerId)
+        if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        eraseAt(box, event.x, event.y)
+        eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
     }
 
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
@@ -544,14 +651,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (eraseStrokes(currentPage, px, py, radius.toDouble())) render()
     }
 
-    /** A one-finger tap in a placement tool: remember where it went down; a small drag cancels it. */
-    private fun beginPlace(event: MotionEvent) {
+    /** A tap in a placement tool: remember where it went down; a small drag cancels it. */
+    private fun beginPlace(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
         erasing = false
         current = null
         placing = true
-        placeDownX = event.x
-        placeDownY = event.y
+        placeDownX = event.getX(pointerIndex)
+        placeDownY = event.getY(pointerIndex)
     }
 
     /** Moving past the tap slop turns a placement into a no-op (the user is scrubbing, not tapping). */
@@ -612,6 +719,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             !wasScrolling && !wasErasing -> commitCurrent()
         }
         finishGesture()
+        gesturePointerId = -1
+        stylusOwner = false
     }
 
     /** Record one undo step if this gesture actually changed the document. */
@@ -640,12 +749,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return if (n == 0) event.x else sum / n
     }
 
-    /** Append every sample in this event — historical first — as pressure-scaled page-local points. */
-    private fun addSamples(event: MotionEvent, box: PageBox, into: MutableList<StrokePoint>) {
+    /**
+     * Append every sample for the gesture's pointer — historical first — as pressure-scaled
+     * page-local points. Sampling only [pointerIndex] (not pointer 0) is what lets a resting palm
+     * coexist with the pen: the palm is a different pointer and is never read here.
+     */
+    private fun addSamples(event: MotionEvent, pointerIndex: Int, box: PageBox, into: MutableList<StrokePoint>) {
         for (h in 0 until event.historySize) {
-            into += point(box, event.getHistoricalX(h), event.getHistoricalY(h), event.getHistoricalPressure(h))
+            into += point(
+                box,
+                event.getHistoricalX(pointerIndex, h),
+                event.getHistoricalY(pointerIndex, h),
+                event.getHistoricalPressure(pointerIndex, h),
+            )
         }
-        into += point(box, event.x, event.y, event.pressure)
+        into += point(box, event.getX(pointerIndex), event.getY(pointerIndex), event.getPressure(pointerIndex))
     }
 
     private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
@@ -653,7 +771,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return StrokePoint(
             x = ((vx + scrollX - box.leftPx) / box.scale).toDouble(),
             y = ((vy + scrollY - box.topPx) / box.scale).toDouble(),
-            width = (baseWidthPt * (0.4f + 0.6f * p)).toDouble(),
+            width = (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble(),
         )
     }
 
@@ -727,6 +845,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             drawCurrent(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
             if (banding) drawBand(canvas)
+            if (hovering && showHover && current == null) drawHover(canvas)
         } finally {
             holder.unlockCanvasAndPost(canvas)
         }
@@ -764,6 +883,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
         canvas.drawRect(l, t, r, bot, selectionStrokePaint)
     }
 
+    /** Draw the hover preview: a ring in the pen colour at the stylus's current hover point. */
+    private fun drawHover(canvas: Canvas) {
+        val r = (baseWidthPt * 3f).coerceIn(6f, 28f)
+        hoverPaint.color = (colorArgb and 0x00FFFFFF) or HOVER_ALPHA
+        canvas.drawCircle(hoverX, hoverY, r, hoverPaint)
+    }
+
     /** Draw the live rubber-band marquee (view px). */
     private fun drawBand(canvas: Canvas) {
         val l = min(bandX0, bandX1)
@@ -789,6 +915,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val SELECTION_COLOR = 0xFF2060E0.toInt()
         const val SELECTION_FILL = 0x142060E0
         const val BAND_FILL = 0x222060E0
+        const val HOVER_ALPHA = 0xB0000000.toInt()
         const val TEX_W_PT = 120.0
         const val TEX_H_PT = 40.0
         const val IMG_MAX_PT = 240.0

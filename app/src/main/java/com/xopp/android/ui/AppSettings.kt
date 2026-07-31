@@ -1,0 +1,57 @@
+package com.xopp.android.ui
+
+import android.content.Context
+import com.xopp.android.render.BarrelAction
+import com.xopp.android.render.PressureSensitivity
+
+/**
+ * The app's user-adjustable preferences (the Settings screen edits these; [SettingsStore] persists
+ * them). Kept small and serialisable to `SharedPreferences` — these are input-layer behaviours only
+ * and never touch the `.xopp` format.
+ */
+data class AppSettings(
+    /** When false, fingers only pan/zoom — never draw (palm-safe for stylus users). */
+    val fingerDraws: Boolean = true,
+    /** What the stylus primary barrel-button does while held. */
+    val barrelAction: BarrelAction = BarrelAction.ERASE,
+    /** Show a preview ring where a hovering stylus will land. */
+    val showHover: Boolean = true,
+    /** How pen pressure maps to stroke width. */
+    val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
+)
+
+/** Reads/writes [AppSettings] to a small `SharedPreferences` file. */
+class SettingsStore(context: Context) {
+
+    private val prefs = context.getSharedPreferences("xopp_settings", Context.MODE_PRIVATE)
+
+    fun load(): AppSettings {
+        val d = AppSettings()
+        return AppSettings(
+            fingerDraws = prefs.getBoolean(KEY_FINGER_DRAWS, d.fingerDraws),
+            barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
+            showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
+            sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
+        )
+    }
+
+    fun save(s: AppSettings) {
+        prefs.edit()
+            .putBoolean(KEY_FINGER_DRAWS, s.fingerDraws)
+            .putString(KEY_BARREL, s.barrelAction.name)
+            .putBoolean(KEY_HOVER, s.showHover)
+            .putString(KEY_SENSITIVITY, s.sensitivity.name)
+            .apply()
+    }
+
+    private companion object {
+        const val KEY_FINGER_DRAWS = "finger_draws"
+        const val KEY_BARREL = "barrel_action"
+        const val KEY_HOVER = "show_hover"
+        const val KEY_SENSITIVITY = "sensitivity"
+
+        /** Parse an enum by name, falling back to [default] for missing/unknown values. */
+        inline fun <reified E : Enum<E>> enumOr(name: String?, default: E): E =
+            name?.let { runCatching { enumValueOf<E>(it) }.getOrNull() } ?: default
+    }
+}

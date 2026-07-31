@@ -8,17 +8,12 @@ ones with a one-line why.
 
 ## Active
 
-**Stylus input (stylus-first, design in `docs/architecture.md` → "Stylus & selection roadmap"):**
+**Stylus input — remaining (design in `docs/architecture.md` → "Stylus & selection roadmap"):**
 
-- [ ] Add a pure, JVM-tested **`InputClassifier`** (tool type + button state + active tool → gesture
-      intent) and route `DrawingSurfaceView.onTouchEvent` through it, defaulting to today's
-      finger-draw behaviour so nothing regresses.
-- [ ] **Palm rejection**: while a stylus pointer is down, ignore finger pointers for drawing (finger
-      = pan/zoom only). Behind a Settings "finger draws" toggle for non-stylus devices.
-- [ ] **Eraser tip** (`TOOL_TYPE_ERASER`) erases regardless of the selected tool.
-- [ ] **Barrel-button mapping** (`BUTTON_STYLUS_PRIMARY`) → configurable action (default erase).
-- [ ] **Pressure curve** setting (currently linear `0.4 + 0.6·pressure`); capture tilt/orientation
-      where available. Optional **hover** preview dot from `ACTION_HOVER_MOVE`.
+- [ ] **Tilt / orientation → width** (calligraphic pen). Capture is wired, but the `.xopp` format
+      stores no tilt, so this needs a render-time calligraphic mode; deferred as its own feature
+      rather than baked speculatively into width. The pressure-curve, hover, palm-rejection, eraser-
+      tip, and barrel-button items shipped 2026-07-31 (see Done).
 
 **Selection — remaining desktop parity (see the same doc section):**
 
@@ -28,6 +23,34 @@ ones with a one-line why.
 - [ ] Move a selection **across pages**; change selected strokes' **colour / width**.
 
 ## Done
+
+- [x] 2026-07-31 — **Stylus-first input layer.** Routed `DrawingSurfaceView.onTouchEvent` through a
+      new pure, JVM-tested **`InputClassifier`** (`PointerKind` + barrel state + `ActiveTool` +
+      `InputSettings` → `GestureIntent`), so pen hardware wins over the toolbar the way desktop
+      Xournal++ does: (1) the flipped-over **eraser tip** (`TOOL_TYPE_ERASER`) erases whatever the
+      tool; (2) the **barrel button** (`BUTTON_STYLUS_PRIMARY`) does a configurable action while held
+      (default erase, or select); (3) **palm rejection** — the gesture is owned by a pointer id and
+      only that pointer is sampled, a stylus takes over a gesture a resting finger/palm started, and
+      once a stylus owns the stroke extra finger/palm pointers are ignored; (4) a Settings **"finger
+      draws"** toggle makes fingers pan-only for non-stylus-safe writing; (5) a configurable
+      **pressure curve** (`PressureCurve`, Soft/Linear/Firm — Linear reproduces the old
+      `0.4+0.6·pressure` exactly) replacing the hard-coded response; and (6) a **hover** preview ring
+      from `ACTION_HOVER_MOVE`. New pure pieces `InputClassifier` + `PressureCurve` with JVM tests
+      (`InputClassifierTest`, `PressureCurveTest`), a real **Settings** screen (`AppSettings` +
+      `SettingsStore` SharedPreferences persistence, wired through `EditorScreen`/`MainActivity`), and
+      on-device `StylusInputTest` (eraser tip, barrel erase, finger-draw gate, palm rejection — driven
+      with synthetic tool-typed `MotionEvent`s). `BUILD SUCCESSFUL`; all JVM unit tests + all 6
+      instrumented tests pass on the `/data/android` emulator. Verified on-device: Settings screen
+      renders and its toggles persist across a force-stop/relaunch, finger drawing still works
+      (no regression from the touch rewrite), and the finger-draw toggle changes behaviour. Only
+      tilt-driven width remains (see Active — no format home). Installed to both tailnet devices.
+- [x] 2026-07-31 — **Fixed: `.xopp` saved with a `.gz` suffix.** The Save intent used the
+      `application/gzip` MIME, so the Storage Access Framework appended its own `.gz` extension
+      (`document.xopp.gz`), which desktop Xournal++ won't open by name. Switched the save MIME to
+      `application/octet-stream` (which the framework has no canonical extension for), so SAF keeps the
+      exact `document.xopp` name; the bytes are gzip either way (`Xopp.save` always gzips). Verified
+      on the emulator by driving the real Save dialog: the created file is exactly
+      `/sdcard/Download/document.xopp` (no `.gz`) with gzip magic `1f 8b`.
 
 - [x] 2026-07-31 — **Selection tool (rectangle + tap select, move, delete).** New **Select** tool on
       the rail (`EditorTool.SELECT` → the surface's `selectMode`) matching desktop Xournal++: a

@@ -87,7 +87,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   (S / M / L) from the other two pop-ups. New strokes land on the top layer of whichever page you
   draw on.
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each
-  stroke the eraser touches is removed whole.
+  stroke the eraser touches is removed whole. If your stylus has an **eraser tip** (the flip-over
+  end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
+  (configurable — see **Settings**).
+- **Stylus** — the app is stylus-first. Rest your **palm** on the screen while you write: once the pen
+  is down, finger/palm touches are ignored for drawing (a second finger still pans). A hovering stylus
+  shows a **preview ring** where the tip will land. Pen **pressure** sets stroke width, with a
+  configurable feel. All of this is tuned in **Settings** below.
 - **Select** — pick **Select** from the Tool pop-up to select objects the way desktop Xournal++
   does. **Drag a box** (rubber-band) and every object fully inside it is selected; or **tap** a
   single object to select just that one. Selected objects get a dashed outline. **Drag inside the
@@ -112,8 +118,15 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page inheriting the
   current page's size and background, after the one in view) and **Remove page** (the one in view;
   the last page is never removed). Add and remove are undoable.
-- **Settings** — the top-bar menu also opens a full-screen **Settings** page (placeholder for
-  now); the back arrow returns to the editor.
+- **Settings** — the top-bar menu opens a full-screen **Settings** page for the stylus (your choices
+  persist across restarts):
+  - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
+    (best on a stylus tablet where a palm would otherwise draw).
+  - **Hover preview** — show a ring where a hovering stylus will land.
+  - **Barrel button** — what the stylus side-button does while held: **Erase** (default), **Select**,
+    or **None**.
+  - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
+    a harder press).
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
   element merged on top, then written to the location you pick. Use this to share an annotated

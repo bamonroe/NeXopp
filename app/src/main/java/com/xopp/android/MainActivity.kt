@@ -7,12 +7,17 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.xopp.android.format.Xopp
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PdfImport
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.Placement
 import com.xopp.android.ui.EditorScreen
+import com.xopp.android.ui.SettingsStore
 import com.xopp.android.ui.theme.XoppTheme
 import java.io.File
 
@@ -55,8 +60,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val store = SettingsStore(this)
         setContent {
             XoppTheme {
+                var settings by remember { mutableStateOf(store.load()) }
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
                     onSave = { saveLauncher.launch("document.xopp") },
@@ -67,6 +74,8 @@ class MainActivity : ComponentActivity() {
                         pickImageLauncher.launch(arrayOf("image/*"))
                     },
                     onSurfaceCreated = { surface = it },
+                    settings = settings,
+                    onSettingsChange = { settings = it; store.save(it) },
                 )
             }
         }
@@ -131,7 +140,12 @@ class MainActivity : ComponentActivity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     private companion object {
-        const val XOPP_MIME = "application/gzip"
+        // Save with a MIME the framework has no canonical extension for, so the Storage Access
+        // Framework keeps the exact "document.xopp" name we ask for. Using "application/gzip" here
+        // made SAF append its own ".gz" extension (document.xopp.gz), which desktop Xournal++ won't
+        // open by name; the bytes are gzip either way (Xopp.save always gzips), only the on-disk name
+        // is at stake.
+        const val XOPP_MIME = "application/octet-stream"
         const val PDF_MIME = "application/pdf"
     }
 }
