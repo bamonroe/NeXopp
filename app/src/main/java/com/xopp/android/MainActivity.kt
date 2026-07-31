@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.xopp.android.format.Xopp
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PdfImport
@@ -60,6 +61,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // PDFBox needs its font/resource loader primed once before any PDF export can run.
+        PDFBoxResourceLoader.init(applicationContext)
         val store = SettingsStore(this)
         setContent {
             XoppTheme {

@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "preserve-vector-pdf-content-on-import-export"
+title = "Preserve vector PDF content on import/export"
+description = "Importing and immediately exporting an unchanged PDF can increase file size by roughly tenfold, likely because PDF pages are rasterized instead of preserved as vector content. Keep original/vector PDF page content when possible so no-op import/export does not bloat files or degrade fidelity."
+status = "finished"
+category = "bug"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["pdf", "export", "vector"]
+
+[[task]]
 id = "make-highlighter-render-differently-from-pen"
 title = "Make highlighter render differently from pen"
 description = "The highlighter tool currently appears to behave like the regular pen. Implement highlighter-specific rendering/serialization behavior so highlighted strokes are visually distinct and still round-trip through .xopp."

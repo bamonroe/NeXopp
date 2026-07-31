@@ -168,8 +168,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     glides at the speed you flicked), and higher values up to **10.0×** glide progressively further.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
-  element merged on top, then written to the location you pick. Use this to share an annotated
-  copy; **Save** keeps the editable `.xopp`.
+  element merged on top, then written to the location you pick. When a page came from an **imported
+  PDF**, its original page is **kept as vector content** and your annotations are laid over it as
+  vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
+  of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
+  editable `.xopp`.
 - **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — strokes plus the text, images, and LaTeX
   images you authored on-device.

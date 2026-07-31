@@ -171,6 +171,15 @@ native for stylus latency and platform fit).
   `java.util.zip.GZIPInputStream` / `GZIPOutputStream`; XML via Android's built-in streaming
   `XmlPullParser` (read) and `XmlSerializer` (write). Streaming keeps large documents off the
   heap and gives us exact control over attribute preservation (a fidelity requirement above).
+- **PDF export — PDFBox (`com.tom-roush:pdfbox-android`).** *Decision (2026-07-31):* the one
+  non-framework runtime dependency, taken deliberately. The framework `android.graphics.pdf`
+  writer (`PdfDocument`) can only paint onto a canvas, so exporting an imported PDF forced every
+  page through a raster bitmap — a no-op import→export bloated files ~10× and discarded vector
+  content. PDFBox is the only mature, permissively-licensed (Apache-2.0) library that can import
+  an existing PDF page **preserving its vector content** and append a vector overlay; iText's
+  AGPL licence ruled it out. Scope is contained to `PdfExporter`/`PdfVectorPainter`/
+  `PdfBackgroundPainter`; the `.xopp` I/O layer above stays dependency-free, and display still
+  uses the framework `PdfRenderer`.
 - **File access:** the Storage Access Framework (`ACTION_OPEN_DOCUMENT` /
   `ACTION_CREATE_DOCUMENT`) so a `.xopp` opens/saves in place on the device — the file on disk
   is the only source of truth (per `CLAUDE.md` non-goals: no cloud, no custom format).
@@ -252,7 +261,10 @@ app/
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
-      PdfExporter.kt         # flattens a Document to a PDF (framework PdfDocument)
+      PdfExporter.kt         # flattens a Document to a PDF (PDFBox; preserves source vector pages)
+      PdfVectorPainter.kt    # draws a page's strokes/text/images as vector overlay onto a PDFBox stream
+      PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
+      PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
@@ -350,11 +362,20 @@ not thread-safe — with a bounded, recycling bitmap cache keyed by page and tar
 plain sheet. **Import PDF** (`PdfImport`, invoked from `MainActivity`) copies the picked PDF into
 app cache and builds a fresh `Document` — one page per PDF page, sized from the PDF, with the
 `filename`+`domain` on page 1 only and `pageno` thereafter (the desktop on-disk convention). **Export
-PDF** (`PdfExporter`) flattens the document back out via the framework `PdfDocument`: each page is
-drawn at its true point size (the `.xopp` unit == the PDF unit, 1/72") — background then all
-elements — reusing `BackgroundRenderer`/`PageRenderer`/`StrokePainter` at scale 1 so the flattened
-output matches the editor. Stroke and page-element drawing were factored into the shared
-`StrokePainter` and `PageRenderer` precisely so the screen and the exporter render identically.
+PDF** (`PdfExporter`) flattens the document back out with **PDFBox** (`com.tom-roush:pdfbox-android`,
+the one non-framework runtime dependency — see the note below): a `pdf`-backed page whose source PDF
+is available (`PdfPageCache.source`, the cached import) is **imported verbatim so its original vector
+content is preserved** (`PDDocument.importPage`), and the annotations are appended over it as a
+**vector overlay** (`PdfVectorPainter`, an `APPEND`-mode content stream); every other page becomes a
+fresh sheet whose background ruling is drawn as vectors (`PdfBackgroundPainter`) with the same
+overlay. `PdfVectorPainter` mirrors the on-screen `StrokePainter`/`ElementRenderer` geometry at scale
+1 — the `.xopp` unit == the PDF unit (1/72") — flipping y into PDF's bottom-left space via
+`PdfPageTransform`; pen strokes taper per segment, the highlighter is one constant-width translucent
+path, text uses the base-14 fonts, and images embed losslessly. **Nothing is rasterised** except
+user bitmap images (already raster), so a no-op import→export round-trips a PDF at ~its original size
+and fidelity instead of bloating ~10× from a raster flatten. *Limitation:* the overlay assumes an
+unrotated source page (`/Rotate 0`) — a rotated source still keeps its vectors but the overlay may be
+misaligned (tracked in `TODO.toml`).
 
 **Chrome (`ui/`).** `EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
 icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export PDF, Save,

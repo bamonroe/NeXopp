@@ -1,54 +1,68 @@
 package com.xopp.android.render
 
-import android.graphics.Bitmap
-import android.graphics.pdf.PdfDocument
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.PDPage
+import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
+import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Page
 import java.io.OutputStream
-import kotlin.math.roundToInt
 
 /**
- * Flattens a [Document] to a PDF using the framework [PdfDocument] (dependency-free — see the goal
- * in `docs/architecture.md`). Each `.xopp` page becomes one PDF page in points (the `.xopp` unit ==
- * the PDF unit, 1/72"): the background is drawn first — a rasterised `pdf` page from [pdfSource], or
- * a solid sheet with its ruling — then every layer's strokes and elements on top, merging the
- * annotations and the original PDF into a single sheet. Reuses [BackgroundRenderer]/[PageRenderer]
- * at scale 1 so the output matches the editor.
+ * Flattens a [Document] to a PDF with **PDFBox** ([com.tom_roush]) so original PDF pages keep their
+ * **vector** content instead of being rasterised. For a `pdf`-backed page whose source is available
+ * ([pdfSource].source), the untouched source page is imported verbatim and the annotations are
+ * appended as a vector overlay; every other page becomes a fresh sheet with a vector background plus
+ * the same overlay. Nothing is rasterised except user-placed bitmap images, which are already
+ * raster. A no-op import→export therefore round-trips the PDF at ~its original size and fidelity.
+ *
+ * Limitation: annotation overlays assume an unrotated source page (`/Rotate 0`); a rotated source
+ * still preserves its vectors but the overlay may be misaligned (tracked in `TODO.toml`).
  */
 class PdfExporter(private val pdfSource: PdfPageCache?) {
 
-    private val strokes = StrokePainter()
-    private val elements = ElementRenderer()
+    private val painter = PdfVectorPainter()
 
     fun export(doc: Document, out: OutputStream) {
-        val pdf = PdfDocument()
+        val source = pdfSource?.source?.let { runCatching { PDDocument.load(it) }.getOrNull() }
+        val outDoc = PDDocument()
         try {
-            doc.pages.forEachIndexed { i, page -> writePage(pdf, page, i) }
-            pdf.writeTo(out)
+            doc.pages.forEach { page -> writePage(outDoc, source, page) }
+            outDoc.save(out)
         } finally {
-            pdf.close()
+            outDoc.close()
+            source?.close()
         }
     }
 
-    private fun writePage(pdf: PdfDocument, page: Page, index: Int) {
-        val w = page.width.roundToInt().coerceAtLeast(1)
-        val h = page.height.roundToInt().coerceAtLeast(1)
-        val pdfPage = pdf.startPage(PdfDocument.PageInfo.Builder(w, h, index + 1).create())
-        // A PageBox at scale 1, origin (0,0): view space == page point space for the export canvas.
-        val box = PageBox(index, 0f, 0f, page.height.toFloat(), 1f, page)
-        BackgroundRenderer.draw(pdfPage.canvas, box, 0f, 0f, pdfBitmapFor(page, w))
-        PageRenderer.drawElements(pdfPage.canvas, page, 1f, 0f, 0f, strokes, elements)
-        pdf.finishPage(pdfPage)
+    private fun writePage(outDoc: PDDocument, source: PDDocument?, page: Page) {
+        val bg = page.background
+        if (bg is Background.Pdf && source != null && bg.pageNo in 0 until source.numberOfPages) {
+            preservedPage(outDoc, source, bg.pageNo, page)
+        } else {
+            freshPage(outDoc, page)
+        }
     }
 
-    /** The `pdf` background rasterised at [EXPORT_SCALE]× the point width for a crisp flatten. */
-    private fun pdfBitmapFor(page: Page, widthPt: Int): Bitmap? {
-        val bg = page.background as? Background.Pdf ?: return null
-        return pdfSource?.render(bg.pageNo, widthPt * EXPORT_SCALE)
+    /** Import the original page's vector content unchanged, then append the annotation overlay. */
+    private fun preservedPage(outDoc: PDDocument, source: PDDocument, pageNo: Int, page: Page) {
+        val pdPage = outDoc.importPage(source.getPage(pageNo))
+        val crop = pdPage.cropBox
+        val transform = PdfPageTransform(crop.lowerLeftX, crop.lowerLeftY, crop.height)
+        PDPageContentStream(outDoc, pdPage, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+            painter.paint(outDoc, cs, page, transform)
+        }
     }
 
-    private companion object {
-        const val EXPORT_SCALE = 2
+    /** No source PDF page: a fresh sheet with a vector background plus the annotation overlay. */
+    private fun freshPage(outDoc: PDDocument, page: Page) {
+        val pdPage = PDPage(PDRectangle(page.width.toFloat(), page.height.toFloat()))
+        outDoc.addPage(pdPage)
+        val transform = PdfPageTransform(0f, 0f, page.height.toFloat())
+        PDPageContentStream(outDoc, pdPage).use { cs ->
+            PdfBackgroundPainter.draw(cs, page, transform)
+            painter.paint(outDoc, cs, page, transform)
+        }
     }
 }

@@ -14,9 +14,9 @@ import java.io.File
  * serialised on [lock]. Rendered pages are cached by (page, target-width bucket) so scrolling and
  * redraws don't re-rasterise; the cache is bounded and recycles evicted bitmaps.
  */
-class PdfPageCache(file: File) : Closeable {
+class PdfPageCache(val source: File) : Closeable {
 
-    private val descriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+    private val descriptor = ParcelFileDescriptor.open(source, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer = PdfRenderer(descriptor)
     private val lock = Any()
     private val cache = LinkedHashMap<Long, Bitmap>()

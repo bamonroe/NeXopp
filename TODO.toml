@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "preserve-vector-pdf-content-on-import-export"
-title = "Preserve vector PDF content on import/export"
-description = "Importing and immediately exporting an unchanged PDF can increase file size by roughly tenfold, likely because PDF pages are rasterized instead of preserved as vector content. Keep original/vector PDF page content when possible so no-op import/export does not bloat files or degrade fidelity."
-status = "active"
-category = "bug"
-urgency = "normal"
-order = 30
-created = 2026-07-31
-tags = ["pdf", "export", "vector"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "add-ocr-backed-text-selection-for-imported-pdfs"
 title = "Add OCR-backed text selection for imported PDFs"
 description = "Imported PDFs currently behave like top-level page images, so users cannot select underlying text. Incorporate OCR or extracted text metadata during PDF import so a text selection tool can select text from the imported document while preserving the annotation workflow."
@@ -56,5 +43,18 @@ urgency = "normal"
 order = 60
 created = 2026-07-31
 tags = ["panning", "settings", "gestures"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "align-annotation-overlay-on-rotated-pdf-pages"
+title = "Align annotation overlay on rotated PDF pages"
+description = "PdfExporter preserves a source PDF page's vectors via importPage, but the annotation overlay (PdfVectorPainter/PdfPageTransform) assumes an unrotated page (/Rotate 0). On a rotated source page the vectors are kept but the overlay may be misaligned. Apply a rotation-aware transform (translate + rotate matrix + crop origin) so strokes land correctly on 90/180/270-rotated pages."
+status = "active"
+category = "bug"
+urgency = "normal"
+order = 70
+created = 2026-07-31
+tags = ["pdf", "export"]
 rebuild = true
 emulator_debug = false
