@@ -59,6 +59,12 @@ XML layer. Builds run in a container per the Android pipeline in `docs/tools.md`
 file format — the `.xopp` file on disk is the only source of truth and the only interchange
 mechanism with the desktop.
 
+**Scope rule — the format is the boundary.** We only build features the `.xopp` format can
+represent on disk. If a capability can't round-trip through the file, it's out of scope — don't
+build it (and don't defer it speculatively either). Example: stylus **tilt / orientation** has no
+home in the format, so tilt-driven width is out, not "someday." When in doubt, check whether the
+result survives a save→reopen in desktop Xournal++; if it can't, it doesn't belong.
+
 ## Architecture — see `docs/architecture.md`
 
 The internals live in **`docs/architecture.md`**: [data-flow, key components, the repository

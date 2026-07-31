@@ -9,14 +9,11 @@ fully finished (built, tested, documented), **move** its checked, dated entry to
 
 ## Active
 
-**Stylus input — remaining (design in `docs/architecture.md` → "Stylus & selection roadmap"):**
+> **Scope rule:** we only build features the `.xopp` format can represent on disk. If a
+> capability can't round-trip through the file (e.g. tilt/orientation, which the format
+> doesn't store), it's out of scope — don't add it. See `CLAUDE.md` → "What this project is".
 
-- [ ] **Tilt / orientation → width** (calligraphic pen). Capture is wired, but the `.xopp` format
-      stores no tilt, so this needs a render-time calligraphic mode; deferred as its own feature
-      rather than baked speculatively into width. The pressure-curve, hover, palm-rejection, eraser-
-      tip, and barrel-button items shipped 2026-07-31 (see `FINISHED.md`).
-
-**Selection — remaining desktop parity (see the same doc section):**
+**Selection — remaining desktop parity (see `docs/architecture.md` → "Stylus & selection roadmap"):**
 
 - [ ] **Resize** and **rotate** handles on the selection outline (`SelectionOps.resize`/`rotate`).
 - [ ] **Cut / copy / paste / duplicate** of a selection.

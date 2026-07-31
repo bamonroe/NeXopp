@@ -390,11 +390,12 @@ stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of
 `EditorScreen.applySettings`; the on-device `StylusInputTest` drives synthetic tool-typed
 `MotionEvent`s to prove the wiring (eraser tip, barrel erase, finger-draw gate, palm rejection).
 
-**Not yet: tilt-driven width.** The `.xopp` format stores only per-vertex width, so **tilt /
-orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`) is render-time only and would need a calligraphic
-pen mode; it's deferred rather than baked speculatively into width (see `TODO.md`). None of the input
-layer changes the file format — it's all input-layer behaviour, so it lives entirely in `render/`/`ui/`
-without touching `format/`.
+**Out of scope: tilt / orientation.** The `.xopp` format stores only per-vertex width — it has no
+place for stylus **tilt / orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`), so tilt-driven width
+can't round-trip through the file and is **out of scope** per the project's scope rule (we only
+build features the `.xopp` format can represent — see `CLAUDE.md`). None of the input layer changes
+the file format — it's all input-layer behaviour, so it lives entirely in `render/`/`ui/` without
+touching `format/`.
 
 **Selection — remaining desktop parity.** The current tool does rectangle/tap select, move, and
 delete. Still to match desktop: **resize** and **rotate** handles on the selection outline;
