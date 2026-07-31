@@ -59,11 +59,15 @@ emulator you drive over `adb`, plus physical devices on the tailnet (see its `co
 change with a runtime surface must be installed and exercised on the emulator, not just built.
 
 - **Where it lives:** `/data/android/` — `docker-compose.yml` (the emulator container) and
-  `.claude/skills/android-dev/scripts/emulator.sh` (the driver). Full details in that
-  directory's `README.md`; don't duplicate them here.
-- **How to run it:** `emulator.sh up` / `status` to boot, then `emulator.sh install <apk>`,
-  `emulator.sh launch com.xopp.android`, `emulator.sh screenshot <png>`, `emulator.sh ui`.
-  Physical devices: `adb -s <ip>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
+  `.claude/skills/android-dev/scripts/emulator.sh` (the driver), alongside `adb-targets.sh`
+  which lists every target across the two isolated adb worlds (host adb → physical devices,
+  container adb → emulator). Full details in that directory's `README.md`; don't duplicate them here.
+- **How to run it:** `emulator.sh` dispatches `status | up | boot-wait | down | install <apk> |
+  launch <pkg> | screenshot [png] | ui | logcat | shell | adb` — so `emulator.sh up` to boot, then
+  `emulator.sh install <apk>`, `emulator.sh launch com.xopp.android`, `emulator.sh screenshot <png>`,
+  `emulator.sh ui`, and `emulator.sh logcat` for logs. Run `adb-targets.sh` to see which devices and
+  the emulator are reachable. Physical devices install via the host adb:
+  `adb -s <ip>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
 - **Testing a change on the emulator (the expected loop):** after a green
   `scripts/build.sh`, install the fresh APK and actually drive it:
   1. `emulator.sh install app/build/outputs/apk/debug/app-debug.apk` then

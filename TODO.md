@@ -38,7 +38,8 @@ ones with a one-line why.
       (Undo lit), no crash. Export to PDF is the remaining half — see Active.
 - [x] 2026-07-30 — **Emulator harness already scripted.** The AVD-create / headless-launch /
       install loop lives in `/data/android/.claude/skills/android-dev/scripts/emulator.sh`
-      (`up`/`boot-wait`/`install`/`launch`/`screenshot`/`ui`/`logcat`), driven by that repo's
+      (`status`/`up`/`boot-wait`/`down`/`install`/`launch`/`screenshot`/`ui`/`logcat`/`shell`/`adb`),
+      driven by that repo's
       `docker-compose.yml`; the pre-baked Android 14 container image *is* the AVD, so there's no
       separate create step. Documented in `docs/tools.md`. (An instrumented smoke test on top of
       this is still worth adding — see Active.)

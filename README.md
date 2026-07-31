@@ -11,8 +11,10 @@ Android reopens correctly on the desktop, and vice versa.
 - Build/emulator tooling: [`docs/tools.md`](docs/tools.md).
 - What's done and what's next: [`TODO.md`](TODO.md).
 
-> Status: early. The `.xopp` read/write core and its tests are in place; the Android editor is
-> a working scaffold (Material 3 chrome + a stylus drawing surface). See `TODO.md`.
+> Status: the `.xopp` read/write core and its tests are in place, and the Android editor is
+> functional — pen/highlighter/eraser drawing with pressure, colour and width pickers, undo/redo,
+> zoom, pan, add/remove page, multi-page documents with layers and backgrounds, and PDF import and
+> export. See `TODO.md` for what's next.
 
 ## Requirements
 
@@ -46,10 +48,12 @@ Outputs:
 - Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
 - Test report: `app/build/reports/tests/testDebugUnitTest/index.html`
 
-The unit tests cover the `.xopp` round-trip: the colour codec, every element type, XML
-escaping, model reserialization, and a gzip round-trip. If a real desktop-generated
-`udiff.xopp` is present at the repo root, an extra test round-trips it end to end (it
-self-skips when absent).
+The unit tests cover the `.xopp` round-trip (the colour codec, every element type, XML escaping,
+model reserialization, a gzip round-trip, the PDF-background on-disk shape, and a fixture-driven
+`FormatDriftTest` asserting schema coverage) plus the pure `render/` geometry (page layout,
+gridlines, page ops, eraser hit-testing, text layout, undo/redo history). If a real
+desktop-generated `udiff.xopp` is present at the repo root, an extra test round-trips it end to end
+(it self-skips when absent).
 
 ## Run on a device / emulator
 
@@ -74,8 +78,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   builds a fresh document with **one page per PDF page**, each PDF page rasterised and shown as the
   page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
-- **Draw** — the bottom bar has three buttons — **Tool**, **Colour**, **Size** — each opening a
-  small pop-up anchored to its own button. Pick **Pen** or **Highlighter** and draw with **one
+- **Draw** — three of the bottom bar's buttons — **Tool**, **Colour**, **Size** — each open a
+  small pop-up anchored to their own button (Zoom and Pages are the other two, below). Pick **Pen**
+  or **Highlighter** and draw with **one
   finger or the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base
   **width** (S / M / L) from the other two pop-ups. New strokes land on the top layer of whichever
   page you draw on.
@@ -110,9 +115,9 @@ The authoritative layout lives in [`docs/architecture.md`](docs/architecture.md)
 ```
 app/src/main/java/com/xopp/android/
   format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
-  render/      # DrawingSurfaceView — low-latency stylus canvas
+  render/      # stylus canvas, page layout/rendering, PDF import & export
   ui/          # Compose Material 3 editor screen, bottom toolbar pop-ups, settings, theme
   MainActivity.kt
-app/src/test/  # JVM unit tests for the format layer
+app/src/test/  # JVM unit tests for the format and render layers
 Dockerfile, compose.yaml, scripts/build.sh   # containerized build
 ```

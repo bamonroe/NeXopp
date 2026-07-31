@@ -4,10 +4,9 @@ Authoritative home for **how the system works internally**: the `.xopp` format m
 read/write data path, the core components, the repository layout, and the load-bearing design
 decisions. `CLAUDE.md` points here; the specifics live here.
 
-> Status: early. The Android stack and code layout are not built yet — this doc currently
-> holds the prior-art survey and the format notes that will ground the first implementation.
-> Fill in the remaining `[…]` as the code lands, and record design decisions here so they
-> aren't re-litigated.
+> Status: the lossless `.xopp` format core and the Compose/`SurfaceView` editor are implemented,
+> including PDF import and export. This doc is kept current as the code evolves; record design
+> decisions here so they aren't re-litigated.
 
 ## Prior art — has someone already done this?
 
@@ -146,6 +145,9 @@ is base64-encoded raw image bytes (PNG/JPEG as stored).
       styles, multi-page, layers, every element type, pressure vs. uniform width, highlighter
       alpha. A parser/writer change that would corrupt a real file, or drop a documented
       feature's coverage, fails the build (per `CLAUDE.md`'s code-derived-fact rule).
+      `FormatDriftTest` covers only `Background.Solid` styles; the `pdf` background on-disk
+      round-trip (filename+domain on page 1, `pageno`-only on later pages) is locked in
+      separately by `PdfBackgroundRoundTripTest`.
 
 ## Stack — pinned 2026-07-30
 
@@ -207,7 +209,7 @@ Colors are stored as Android `0xAARRGGBB` ints; the I/O layer converts to/from t
 `#RRGGBBAA`. Coordinates are stored in pt (document space); the view applies a pan/zoom
 transform to screen space.
 
-- [ ] Firm up the model once code lands; keep this list in sync with the Kotlin types.
+This list mirrors the Kotlin types in `format/model/` — keep the two in sync when the model changes.
 
 ## Repository layout
 
