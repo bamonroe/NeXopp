@@ -6,6 +6,20 @@ The archive of **completed** work for this project — the graveyard for done ta
 When a task is fully finished (built, tested, documented), move its checked, dated entry
 here from `TODO.md`. Newest first. This file only grows; nothing is removed from it.
 
+- [x] 2026-07-31 — **Resize/orientation data loss fixed — the loaded document survives rotate &
+      split-screen resize.** The parsed `.xopp` `Document` lives only in `DrawingSurfaceView.doc`
+      (an imperatively-created `SurfaceView` reached via a plain `remember{}` handle, with no
+      ViewModel/`rememberSaveable`/`onSaveInstanceState`). Previously a phone rotation or split-screen
+      resize triggered Activity recreation: `onCreate` re-ran, the `AndroidView` factory built a fresh
+      `DrawingSurfaceView` whose `doc` defaults to a single blank page, and the loaded document — held
+      only by the now-destroyed old view — was gone, so the canvas came back blank. Fix: add
+      `android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"`
+      to the `MainActivity` entry in `AndroidManifest.xml`, so Android keeps the same Activity,
+      composition, and `DrawingSurfaceView` instance across those config changes instead of recreating
+      it. On resize the existing `surfaceChanged` just re-runs `relayout(); render()`, re-stacking the
+      same `doc.pages` to the new width — document and undo history retained. Emulator-verified:
+      loaded a multi-page document, rotated portrait↔landscape and entered split-screen, and the
+      strokes/pages survived intact.
 - [x] 2026-07-31 — **Right-edge PDF-style scroll thumb for fast paging.** A draggable scroll thumb
       (`ScrollThumb.kt`, overlaid on the canvas as a `Box` sibling of the `AndroidView`) rides the
       right edge whenever the document is taller than the screen. The surface reports its vertical

@@ -16,4 +16,12 @@ fully finished (built, tested, documented), **move** its checked, dated entry to
 Tool-authoring polish: configurable pen sizes and colours. All shipped 2026-07-31 (text-tool
 styling, configurable pen sizes, and the custom-colour slot) — see `FINISHED.md`.
 
-_No active tasks — see `FINISHED.md` for the completed-work archive._
+- [ ] Add a small peninsula/outsert to the sidebar thumb so it is easier to grab.
+- [ ] Add a settings option for the default tool.
+- [ ] Add momentum scrolling so fast swipes continue moving pages after finger lift.
+- [ ] Add a settings option to configure scrolling momentum strength.
+- [ ] Add hand-tool double-tap page navigation: center double-tap toggles full-page view
+      by hiding/showing the sidebar and top bar, left-edge double-tap goes to the previous
+      page, and right-edge double-tap goes to the next page.
+- [ ] Improve pen tip size controls: add minus and plus buttons beside the slider for
+      small increments, and add a text input for entering an exact point size.
