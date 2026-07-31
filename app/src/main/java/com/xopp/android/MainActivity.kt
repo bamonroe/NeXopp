@@ -11,6 +11,7 @@ import com.xopp.android.format.Xopp
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PdfImport
 import com.xopp.android.render.PdfPageCache
+import com.xopp.android.render.Placement
 import com.xopp.android.ui.EditorScreen
 import com.xopp.android.ui.theme.XoppTheme
 import java.io.File
@@ -23,6 +24,14 @@ import java.io.File
 class MainActivity : ComponentActivity() {
 
     private var surface: DrawingSurfaceView? = null
+
+    /** Where a pending image-insert tap landed, kept until the SAF picker returns the image bytes. */
+    private var pendingImagePlacement: Placement? = null
+
+    private val pickImageLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            uri?.let(::insertPickedImage)
+        }
 
     private val openLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -53,6 +62,10 @@ class MainActivity : ComponentActivity() {
                     onSave = { saveLauncher.launch("document.xopp") },
                     onImportPdf = { importPdfLauncher.launch(arrayOf(PDF_MIME)) },
                     onExportPdf = { exportPdfLauncher.launch("document.pdf") },
+                    onPickImage = { placement ->
+                        pendingImagePlacement = placement
+                        pickImageLauncher.launch(arrayOf("image/*"))
+                    },
                     onSurfaceCreated = { surface = it },
                 )
             }
@@ -95,6 +108,17 @@ class MainActivity : ComponentActivity() {
             if (it.moveToFirst()) it.getString(0) else null
         }
     }.getOrNull()
+
+    /** Read the picked image's bytes and place it at the tap that started the pick. */
+    private fun insertPickedImage(uri: Uri) = runCatching {
+        val placement = pendingImagePlacement ?: return@runCatching
+        pendingImagePlacement = null
+        val bytes = contentResolver.openInputStream(uri).use { input ->
+            requireNotNull(input) { "could not open $uri" }
+            input.readBytes()
+        }
+        surface?.insertImage(placement, bytes)
+    }.onFailure { toast("Image insert failed: ${it.message}") }
 
     private fun saveDocument(uri: Uri) = runCatching {
         val doc = surface?.toDocument() ?: return@runCatching

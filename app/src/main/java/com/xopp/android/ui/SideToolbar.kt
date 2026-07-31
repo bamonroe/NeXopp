@@ -5,20 +5,29 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Functions
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.DropdownMenu
@@ -64,10 +73,10 @@ val PEN_WIDTHS: List<WidthOption> = listOf(
 
 /**
  * The editor's interaction modes. PEN/HIGHLIGHTER/ERASER map to the document [Tool]; HAND is a
- * view-only mode where one finger pans the canvas instead of drawing (useful on multi-page or
- * zoomed documents).
+ * view-only pan mode; TEXT/IMAGE/TEXIMAGE are authoring modes where a canvas tap places (or edits)
+ * that element (see [com.xopp.android.render.PlaceKind]).
  */
-enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND }
+enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND, TEXT, IMAGE, TEXIMAGE }
 
 private data class ToolInfo(val tool: EditorTool, val label: String, val icon: ImageVector)
 
@@ -76,15 +85,19 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.HIGHLIGHTER, "Highlighter", Icons.Filled.Brush),
     ToolInfo(EditorTool.ERASER, "Eraser", Icons.Filled.Delete),
     ToolInfo(EditorTool.HAND, "Hand (pan)", Icons.Filled.PanTool),
+    ToolInfo(EditorTool.TEXT, "Text", Icons.Filled.TextFields),
+    ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
+    ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),
 )
 
 /**
- * The bottom control bar: five buttons — Tool, Colour, Size, Zoom, Pages — each opening a small
- * [DropdownMenu] anchored to its own button (never full-screen, never centred). [EditorScreen]
- * pushes the picked value onto the [com.xopp.android.render.DrawingSurfaceView].
+ * The vertical control rail down the left edge: Tool, Colour, Size, Zoom, and a page navigator —
+ * each a button opening a small [DropdownMenu] anchored to its own button (which opens to the right
+ * of the rail). [EditorScreen] pushes the picked value onto the
+ * [com.xopp.android.render.DrawingSurfaceView].
  */
 @Composable
-fun BottomToolbar(
+fun SideToolbar(
     tool: EditorTool,
     onTool: (EditorTool) -> Unit,
     color: Int,
@@ -96,21 +109,25 @@ fun BottomToolbar(
     onZoomOut: () -> Unit,
     onZoomReset: () -> Unit,
     pageCount: Int,
+    currentPage: Int,
     onAddPage: () -> Unit,
     onRemovePage: () -> Unit,
+    onGoToPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(modifier = modifier, tonalElevation = 3.dp) {
-        Row(
-            modifier = Modifier.padding(4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
+    Surface(modifier = modifier.fillMaxHeight(), tonalElevation = 3.dp) {
+        Column(
+            modifier = Modifier
+                .padding(4.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ToolPopupButton(tool, onTool)
             ColorPopupButton(color, onColor)
             SizePopupButton(width, onWidth)
             ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
-            PagesPopupButton(pageCount, onAddPage, onRemovePage)
+            PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
         }
     }
 }
@@ -164,7 +181,7 @@ private fun SizePopupButton(width: Float, onWidth: (Float) -> Unit) {
     val current = PEN_WIDTHS.firstOrNull { it.pt == width }?.label ?: "?"
     Box {
         TextButton(onClick = { open = true }) {
-            Text("Size $current")
+            Text(current)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (w in PEN_WIDTHS) {
@@ -200,29 +217,51 @@ private fun ZoomPopupButton(zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> 
     }
 }
 
+/**
+ * The page navigator: shows the current page, jumps to the previous/next page, and adds or removes
+ * a page. [currentPage] is 0-based; the label and jump targets present it 1-based.
+ */
 @Composable
-private fun PagesPopupButton(pageCount: Int, onAddPage: () -> Unit, onRemovePage: () -> Unit) {
+private fun PagesPopupButton(
+    pageCount: Int,
+    currentPage: Int,
+    onAddPage: () -> Unit,
+    onRemovePage: () -> Unit,
+    onGoToPage: (Int) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Filled.Description, contentDescription = "Pages")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = { onGoToPage(currentPage - 1) },
+                    enabled = currentPage > 0,
+                ) { Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous page") }
+                Text(
+                    "Page ${(currentPage + 1).coerceAtMost(pageCount)} / $pageCount",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                IconButton(
+                    onClick = { onGoToPage(currentPage + 1) },
+                    enabled = currentPage < pageCount - 1,
+                ) { Icon(Icons.Filled.ChevronRight, contentDescription = "Next page") }
+            }
             DropdownMenuItem(
                 text = { Text("Add page") },
                 leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                onClick = { onAddPage(); open = false },
+                onClick = { onAddPage() },
             )
             DropdownMenuItem(
                 text = { Text("Remove page") },
                 leadingIcon = { Icon(Icons.Filled.Remove, contentDescription = null) },
                 enabled = pageCount > 1,
-                onClick = { onRemovePage(); open = false },
-            )
-            Text(
-                "$pageCount page${if (pageCount == 1) "" else "s"}",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.bodySmall,
+                onClick = { onRemovePage() },
             )
         }
     }
