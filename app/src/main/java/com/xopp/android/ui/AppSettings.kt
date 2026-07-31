@@ -2,7 +2,7 @@ package com.xopp.android.ui
 
 import android.content.Context
 import com.xopp.android.render.BarrelAction
-import com.xopp.android.render.MomentumStrength
+import com.xopp.android.render.Momentum
 import com.xopp.android.render.PressureSensitivity
 
 /**
@@ -25,8 +25,8 @@ data class AppSettings(
     val customColor: Int = DEFAULT_CUSTOM_COLOR,
     /** Which tool is active when a document first opens. */
     val defaultTool: EditorTool = EditorTool.PEN,
-    /** How far a released pan keeps gliding (momentum scrolling). */
-    val momentum: MomentumStrength = MomentumStrength.NORMAL,
+    /** How far a released pan keeps gliding — the momentum-strength factor (0 = off, 1 = normal). */
+    val momentum: Float = Momentum.NORMAL,
 ) {
     companion object {
         /** Factory defaults for the three pen-width slots — the old fixed S/M/L values. */
@@ -52,7 +52,7 @@ class SettingsStore(context: Context) {
             penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
             defaultTool = enumOr(prefs.getString(KEY_DEFAULT_TOOL, null), d.defaultTool),
-            momentum = enumOr(prefs.getString(KEY_MOMENTUM, null), d.momentum),
+            momentum = Momentum.coerce(prefs.getFloat(KEY_MOMENTUM, d.momentum)),
         )
     }
 
@@ -65,7 +65,7 @@ class SettingsStore(context: Context) {
         s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
         e.putInt(KEY_CUSTOM_COLOR, s.customColor)
         e.putString(KEY_DEFAULT_TOOL, s.defaultTool.name)
-        e.putString(KEY_MOMENTUM, s.momentum.name)
+        e.putFloat(KEY_MOMENTUM, s.momentum)
         e.apply()
     }
 
@@ -76,7 +76,9 @@ class SettingsStore(context: Context) {
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_CUSTOM_COLOR = "custom_color"
         const val KEY_DEFAULT_TOOL = "default_tool"
-        const val KEY_MOMENTUM = "momentum"
+        // Float-typed since the parameterized control replaced the old discrete enum; a fresh key
+        // avoids a ClassCastException on any pref still holding the old enum-name string.
+        const val KEY_MOMENTUM = "momentum_factor"
 
         /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
         fun keyPenWidth(i: Int): String = "pen_width_$i"

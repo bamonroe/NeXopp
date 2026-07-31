@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -28,7 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xopp.android.render.BarrelAction
-import com.xopp.android.render.MomentumStrength
+import com.xopp.android.render.Momentum
 import com.xopp.android.render.PressureSensitivity
 
 /**
@@ -106,13 +107,9 @@ fun SettingsScreen(
             )
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
-            OptionGroup(
-                title = "Momentum scrolling",
-                subtitle = "How far the canvas keeps gliding after you flick a pan.",
-                options = MomentumStrength.values().toList(),
-                selected = settings.momentum,
-                label = { it.label },
-                onSelect = { onChange(settings.copy(momentum = it)) },
+            MomentumSlider(
+                value = settings.momentum,
+                onChange = { onChange(settings.copy(momentum = it)) },
             )
         }
     }
@@ -136,6 +133,32 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
         }
         Spacer(Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/**
+ * The momentum-strength control: a single slider from [Momentum.OFF] to [Momentum.MAX], snapped to
+ * [Momentum.STEP]. 0 reads "Off" (a released pan stops dead); every other stop shows its factor.
+ */
+@Composable
+private fun MomentumSlider(value: Float, onChange: (Float) -> Unit) {
+    Text("Momentum scrolling", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+    Text(
+        "How far the canvas keeps gliding after you flick a pan. 0 turns momentum off; 1 is normal.",
+        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
+    val label = if (value <= Momentum.OFF) "Off" else "%.1f×".format(value)
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Slider(
+            value = value,
+            onValueChange = { onChange(Momentum.coerce(it)) },
+            valueRange = Momentum.OFF..Momentum.MAX,
+            steps = Momentum.SLIDER_STEPS,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(label, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
     }
 }
 

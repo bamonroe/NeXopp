@@ -93,7 +93,7 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     inputSettings = InputSettings(fingerDraws = s.fingerDraws, barrelAction = s.barrelAction)
     showHover = s.showHover
     pressureGamma = s.sensitivity.gamma
-    flingStrength = s.momentum.factor
+    flingStrength = s.momentum
 }
 
 /**

@@ -87,9 +87,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // Momentum scrolling: a released pan keeps gliding, decelerating, until it stalls or hits a bound.
     private val fling = Fling()
-    /** Scales the release velocity fed into a fling; 1 = as-flung, 0 disables momentum. From the
-     * momentum-strength setting via [MomentumStrength.factor]. */
-    var flingStrength = MomentumStrength.NORMAL.factor
+    /** Scales the release velocity fed into a fling; 1 = as-flung, 0 disables momentum. Driven by the
+     * momentum-strength setting (see [Momentum]). */
+    var flingStrength = Momentum.NORMAL
     private val choreographer = Choreographer.getInstance()
     private var flinging = false
     private var flingLastFrameNanos = 0L

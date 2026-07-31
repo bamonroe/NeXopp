@@ -61,20 +61,27 @@ class Fling(
 data class FlingStep(val dx: Float, val dy: Float)
 
 /**
- * User-facing momentum presets. Each scales the release velocity fed into a [Fling] via [factor]
- * (see `DrawingSurfaceView.flingStrength`): [OFF] disables the glide, [NORMAL] flings at the
- * as-released speed, and the others glide less or more far before stalling.
+ * The user-adjustable momentum strength: a single continuous factor that scales the release velocity
+ * fed into a [Fling] (see `DrawingSurfaceView.flingStrength`). [OFF] (0) disables the glide entirely,
+ * [NORMAL] (1.0, the default) flings at the as-released speed, and values up to [MAX] glide
+ * progressively further before stalling. The lower bound is always a dead stop, whatever the maximum.
  */
-enum class MomentumStrength(val factor: Float, val label: String) {
-    /** No glide — a released pan stops dead. */
-    OFF(0f, "Off"),
+object Momentum {
+    /** No carried momentum — a released pan stops dead. */
+    const val OFF = 0f
 
-    /** A short, quickly-settling glide. */
-    LIGHT(0.6f, "Light"),
+    /** Glides at the as-released speed — the default and historical behaviour. */
+    const val NORMAL = 1.0f
 
-    /** Glides at the as-released speed (the historical behaviour). */
-    NORMAL(1.0f, "Normal"),
+    /** The strongest glide the control allows. */
+    const val MAX = 3.0f
 
-    /** A longer, further-reaching glide. */
-    STRONG(1.5f, "Strong"),
+    /** Granularity of the strength control (both the slider snap and the persisted precision). */
+    const val STEP = 0.1f
+
+    /** Number of interior slider steps spanning [OFF]..[MAX] at [STEP] granularity. */
+    const val SLIDER_STEPS = ((MAX - OFF) / STEP).toInt() - 1
+
+    /** Clamp an arbitrary strength into the valid [OFF]..[MAX] range. */
+    fun coerce(value: Float): Float = value.coerceIn(OFF, MAX)
 }
