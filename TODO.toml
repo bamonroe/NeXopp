@@ -1,0 +1,87 @@
+# TODO — active task list for xopp_android.
+#
+# Single source of truth for active work (see CLAUDE.md -> documentation map).
+# Edit through the todo skill so ids, ordering, and metadata stay consistent:
+#   scripts/todo.sh <command>      (see .claude/skills/todo/SKILL.md)
+# Hand-editing works too — it is plain TOML — but the skill keeps it tidy.
+
+schema_version = 1
+
+[meta]
+title = "TODO"
+kind = "todo"
+purpose = "The live task list and journal for this project — active work only."
+documentation_map = "CLAUDE.md"
+archive = "FINISHED.toml"
+
+[meta.rules]
+add_proposed_work = "Add proposed work unchecked."
+remove_dropped_items = "Remove dropped items with a one-line why."
+finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
+scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "sidebar-thumb-outsert"
+title = "Add sidebar thumb outsert"
+description = "Add a small peninsula/outsert to the sidebar thumb so it is easier to grab."
+status = "active"
+category = "feature"
+urgency = "medium"
+order = 20
+created = 2026-07-31
+tags = []
+
+[[task]]
+id = "default-tool-setting"
+title = "Add default tool setting"
+description = "Add a settings option for the default tool."
+status = "active"
+category = "feature"
+urgency = "medium"
+order = 30
+created = 2026-07-31
+tags = []
+
+[[task]]
+id = "momentum-scrolling"
+title = "Add momentum scrolling"
+description = "Fast swipes should continue moving pages after finger lift."
+status = "active"
+category = "feature"
+urgency = "medium"
+order = 40
+created = 2026-07-31
+tags = []
+
+[[task]]
+id = "momentum-strength-setting"
+title = "Add momentum strength setting"
+description = "Add a settings option to configure scrolling momentum strength."
+status = "active"
+category = "feature"
+urgency = "medium"
+order = 50
+created = 2026-07-31
+tags = []
+
+[[task]]
+id = "hand-tool-double-tap-navigation"
+title = "Add hand-tool double-tap page navigation"
+description = "When the hand tool is selected, center double-tap toggles full-page view by hiding/showing the sidebar and top bar, left-edge double-tap goes to the previous page, and right-edge double-tap goes to the next page."
+status = "active"
+category = "feature"
+urgency = "medium"
+order = 60
+created = 2026-07-31
+tags = []
+
+[[task]]
+id = "pen-tip-size-controls"
+title = "Improve pen tip size controls"
+description = "Add minus and plus buttons beside the slider for small increments, and add a text input for entering an exact point size."
+status = "active"
+category = "feature"
+urgency = "medium"
+order = 70
+created = 2026-07-31
+tags = []

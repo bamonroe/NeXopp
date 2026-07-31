@@ -13,8 +13,8 @@ you pull in a spoke only when the task touches it, instead of reading everything
 
 | You want to know / change…                       | Authoritative home        |
 |--------------------------------------------------|---------------------------|
-| **What to do next** (active tasks only)          | `TODO.md`                 |
-| **What's already done** (completed-work archive) | `FINISHED.md`             |
+| **What to do next** (active tasks only)          | `TODO.toml` (via the `todo` skill) |
+| **What's already done** (completed-work archive) | `FINISHED.toml` (via the `todo` skill) |
 | **How to work here** (conventions, decisions)    | `CLAUDE.md` (this file)   |
 | **How the system works internally** (data flow, layout) | `docs/architecture.md` |
 | **How a user runs/uses it** (setup, build & run) | `README.md`               |
@@ -192,24 +192,33 @@ work, or immediately after — never defer it to "later," and never ship code wi
   such script from both `README.md` (how an operator runs it) and this file (how it fits).
   Nothing load-bearing should live only in someone's shell history.
 
-### `TODO.md` (active) + `FINISHED.md` (archive) — keep them current
+### `TODO.toml` (active) + `FINISHED.toml` (archive) — keep them current
 
-`TODO.md` (repo root) is the single source of truth for **active** work and the **journal
-for what to build next**; `FINISHED.md` is the archive of **completed** work. Splitting the
-two keeps `TODO.md` a short list of what's actually in flight instead of an ever-growing
+`TODO.toml` (repo root) is the single source of truth for **active** work and the **journal
+for what to build next**; `FINISHED.toml` is the archive of **completed** work. Splitting the
+two keeps `TODO.toml` a short list of what's actually in flight instead of an ever-growing
 pile of done items. Status lives in these two files only — not here and not in `README.md`
 (all link to them).
 
+Both are **TOML**, not Markdown, and each task carries structured metadata (`id`, `status`,
+`category`, `urgency`, `order`, `created`/`completed`, `tags`). **Drive them through the
+`todo` skill** (`scripts/todo.sh <command>`, documented in `.claude/skills/todo/SKILL.md`)
+rather than hand-editing, so ids, ordering, and metadata stay consistent and the files stay
+diff-friendly. The skill also answers the "how many tasks / bugs / features are left" kind
+of question (`scripts/todo.sh stats`).
+
 - **Update both in the same commit that changes the work they describe:** add proposed
-  features/tests to `TODO.md` **unchecked**; remove dropped items with a one-line why.
-- **When a task is fully finished** (built, tested, documented), **move** its entry out of
-  `TODO.md`'s Active list and into `FINISHED.md` — check it off, **date** it, and place it
-  newest-first. Don't leave completed items sitting in `TODO.md`, and don't delete the
-  history; `FINISHED.md` only grows.
-- Use `TODO.md` to journal next steps: when you finish something and notice the next feature,
-  write it down as an unchecked item rather than losing it. A future session reads `TODO.md`
-  first to know where to pick up, and `FINISHED.md` to see what already shipped.
-- A stale `TODO.md`/`FINISHED.md` means the change isn't done — same rule as the docs.
+  features/tests with `scripts/todo.sh add …`; drop dropped items with
+  `scripts/todo.sh remove <id> --reason "…"`.
+- **When a task is fully finished** (built, tested, documented), run
+  `scripts/todo.sh done <id>` to move it out of `TODO.toml` and into `FINISHED.toml`,
+  newest-first and dated. Don't leave completed items sitting in `TODO.toml`, and don't
+  delete the history; `FINISHED.toml` only grows.
+- Use `TODO.toml` to journal next steps: when you finish something and notice the next
+  feature, `add` it rather than losing it. A future session reads `TODO.toml` first to know
+  where to pick up, and `FINISHED.toml` to see what already shipped.
+- A stale `TODO.toml`/`FINISHED.toml` means the change isn't done — same rule as the docs.
+  Run `scripts/todo.sh validate` if you ever hand-edit them.
 
 ### Token discipline — keep the context small
 

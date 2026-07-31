@@ -159,7 +159,7 @@ native for stylus latency and platform fit).
 - **Language:** Kotlin, targeting the modern Android SDK.
 - **App chrome / UI:** **Jetpack Compose with Material 3** (Material You) for all app chrome —
   app bar, menus, dialogs, the tool palette. Satisfies the Material Design requirement in
-  `TODO.md`.
+  `TODO.toml`.
 - **Drawing surface:** a custom low-latency **`SurfaceView`** (not Compose `Canvas`) hosted in
   the Compose tree via `AndroidView`. Stylus input comes from raw **`MotionEvent`** with
   `getPressure()` / `getAxisValue(AXIS_PRESSURE)` and historical points
@@ -383,7 +383,7 @@ mechanics are in [Selecting objects](#selecting-objects-render) above.
 The app is **stylus-first**. `DrawingSurfaceView.onTouchEvent` routes every pointer-down through the
 pure `InputClassifier`, so the pen hardware — not the on-screen toolbar — decides what a gesture does,
 matching desktop Xournal++. This section is the design home for the input layer and for finishing the
-selection tool to desktop parity; work items are journaled in `TODO.md`.
+selection tool to desktop parity; work items are journaled in `TODO.toml` (via the `todo` skill).
 
 **Stylus input — implemented.** Android reports the source of every pointer via
 `MotionEvent.getToolType(pointerIndex)` (`TOOL_TYPE_STYLUS` / `_ERASER` / `_FINGER`) and stylus

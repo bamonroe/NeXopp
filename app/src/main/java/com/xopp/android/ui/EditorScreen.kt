@@ -468,7 +468,7 @@ private val TEXT_FAMILIES = listOf("Sans", "Serif", "Monospace")
  * The styled text-box editor: content plus the styling the `.xopp` `<text>` element can hold —
  * font family, bold/italic, point size, and colour. Confirms with all five so the caller can
  * compose the font description and place/replace the box. (Underline is intentionally absent —
- * the format can't store it; see `TODO.md`.)
+ * the format can't store it; see the scope rule in `CLAUDE.md`.)
  */
 @Composable
 private fun TextBoxDialog(

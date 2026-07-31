@@ -1,0 +1,305 @@
+# FINISHED — completed-work archive for xopp_android.
+#
+# Append-only, newest first (see CLAUDE.md -> documentation map). Tasks land
+# here when `scripts/todo.sh done <id>` moves them out of TODO.toml.
+
+schema_version = 1
+
+[meta]
+title = "Finished"
+kind = "finished"
+purpose = "The archive of completed work for this project."
+documentation_map = "CLAUDE.md"
+order = "newest first"
+
+[meta.rules]
+finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-only."
+growth = "This file only grows; nothing is removed from it."
+
+[[task]]
+id = "2026-07-31-resize-orientation-data-loss-fixed-the-loaded-document-survives-rotate-split-screen-resize-01"
+title = "Resize/orientation data loss fixed — the loaded document survives rotate & split-screen resize."
+description = "The parsed `.xopp` `Document` lives only in `DrawingSurfaceView.doc` (an imperatively-created `SurfaceView` reached via a plain `remember{}` handle, with no ViewModel/`rememberSaveable`/`onSaveInstanceState`). Previously a phone rotation or split-screen resize triggered Activity recreation: `onCreate` re-ran, the `AndroidView` factory built a fresh `DrawingSurfaceView` whose `doc` defaults to a single blank page, and the loaded document — held only by the now-destroyed old view — was gone, so the canvas came back blank. Fix: add `android:configChanges=\"orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize\"` to the `MainActivity` entry in `AndroidManifest.xml`, so Android keeps the same Activity, composition, and `DrawingSurfaceView` instance across those config changes instead of recreating it. On resize the existing `surfaceChanged` just re-runs `relayout(); render()`, re-stacking the same `doc.pages` to the new width — document and undo history retained. Emulator-verified: loaded a multi-page document, rotated portrait↔landscape and entered split-screen, and the strokes/pages survived intact."
+status = "finished"
+category = "bug"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-right-edge-pdf-style-scroll-thumb-for-fast-paging-02"
+title = "Right-edge PDF-style scroll thumb for fast paging."
+description = "A draggable scroll thumb (`ScrollThumb.kt`, overlaid on the canvas as a `Box` sibling of the `AndroidView`) rides the right edge whenever the document is taller than the screen. The surface reports its vertical scroll geometry via `onScrollChanged(scrollY, totalHeightPx, viewportPx)` (content px, zoom-scaled); the thumb sizes and positions itself from that ratio and dragging it drives `DrawingSurfaceView.scrollToY` for fast paging through long documents. The touch target is only the thumb *band*, not the whole right edge, so a stylus can still ink the page's right margin everywhere but the thumb. It sits faint when idle, brightens after a scroll, is brightest while dragged, and shows a page-number bubble beside it during a drag. A pure navigation affordance — no `.xopp` state, so nothing round-trips. Emulator-verified end-to-end: dragged the thumb up and down a 5-page graph-paper document and watched the page stack scroll with the \"N / 5\" bubble tracking the thumb."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-custom-colour-slot-with-a-long-press-hex-colour-picker-03"
+title = "Custom colour slot with a long-press hex/colour picker."
+description = "The Colour pop-up now ends with an editable custom slot (marked with a pencil) after the fixed `PEN_COLORS` palette. Tap it to draw with its current colour; long-press it to open a `CustomColorPickerDialog` (`ColorPicker.kt`) — a saturation/value square (tap or drag) over a hue slider, with a two-way `#RRGGBB` hex field and a live preview swatch — to set any colour. The chosen colour persists in `AppSettings.customColor` via `SettingsStore` (a single `custom_color` `SharedPreferences` int). Redefining the custom colour while it is the active pen colour re-applies it to the live canvas. Emulator-verified end-to-end: long-pressed the slot, dragged the square/hue to `#F60606` (hex updates live), Set it, selected the slot (rail button turned red), drew a red stroke, and confirmed the value survived a force-stop/relaunch. A dropdown caption (\"Tap to pick · long-press ✎ to edit\") surfaces the otherwise-hidden long-press gesture."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-pen-tip-size-3-configurable-slots-with-a-long-press-slider-04"
+title = "Pen tip size — 3 configurable slots with a long-press slider."
+description = "The Size pop-up's fixed S/M/L point values are now three user-configurable slots. Tap a slot to draw with it (as before); long-press a slot to open an `AlertDialog` with a slider (0.5 → 15 pt) that redefines that slot's width. The three widths persist in `AppSettings.penWidths` via `SettingsStore` (three `pen_width_{i}` `SharedPreferences` floats); the same slots also back the Select tool's re-width menu, so both pickers stay in lockstep. Resizing the currently-selected slot re-applies its new width to the live canvas. Emulator-verified end-to-end: long-pressed L, dragged the slider to 10.55 pt (updates live), drew a visibly thicker stroke, and confirmed the new value survived a force-stop/relaunch. A dropdown caption (\"Tap to pick · long-press to resize\") surfaces the otherwise-hidden long-press gesture."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-text-tool-styling-font-family-bold-italic-size-colour-05"
+title = "Text tool styling — font family, bold, italic, size, colour."
+description = "The text tool now opens a styled dialog instead of a bare content field: pick a font family (Sans / Serif / Monospace), toggle bold/italic, set a size (6–96 pt slider), and choose the box's own colour (its own swatch row, decoupled from the pen colour). Bold/italic encode into the `.xopp` `<text font>` value as Pango tokens (`Sans Bold Italic`) via the pure, JVM-tested `format/FontDescription.kt` (parse/compose are exact inverses); the renderer parses that back to a `Typeface` style and maps the family to an Android typeface, so styling round-trips to and from desktop Xournal++. Editing an existing box prefills every control from the element (`Placement` now carries the whole `TextElement`). Emulator-verified end-to-end: styled placement renders red bold-italic 38 pt and reopens with all controls prefilled. Underline is intentionally excluded — a Pango font description can't store it, so it can't round-trip (format-is-the-boundary rule)."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-selection-tool-to-desktop-parity-06"
+title = "Selection tool to desktop parity."
+description = "Extended the object-selection tool from rectangle-select + move + delete to the full desktop feature set, all as pure, JVM-tested `SelectionOps`/`SelectionTester` ops so the logic stays off the Android surface: (1) resize via four corner handles (uniform scale about the opposite corner, `SelectionOps.scale`, backed by a single `affine` primitive); (2) rotate via a top knob (`SelectionOps.rotate`) — *stroke only by the scope rule*, since a stroke bakes rotation into its vertex coordinates and round-trips but text/images have no rotation attribute in `.xopp`, so the knob is shown only for an all-stroke selection; (3) lasso (free-form) select alongside the rectangle (`SelectionTester.inPolygon`, wholly-enclosed semantics); (4) cut / copy / paste / duplicate through a view-held element clipboard (`elementsAt` + `addToTopLayer`, which reports the pasted refs so copies land selected; paste targets the visible page); (5) move across pages — dropping a move over another page re-homes the elements through both pages' pt frames (`SelectionOps.moveToPage`); and (6) recolour / re-width the selection (`SelectionOps.restyle`). New UI: a scrollable selection action bar (cut/copy/duplicate/palette/line-weight/delete/done) and a select-mode bar (Rectangle/Lasso chips + Paste). Tilt/orientation was dropped from the roadmap and a \"the format is the boundary\" scope rule recorded (`CLAUDE.md`) — we only build features `.xopp` can represent. Extended `SelectionTest` (resize/rotate/restyle/clipboard/ moveToPage/lasso) plus a new instrumented `SelectionInputTest` (synthetic finger gestures for lasso, copy/paste, cross-page move). `BUILD SUCCESSFUL`; all JVM unit tests + all 9 instrumented tests pass on the `/data/android` emulator, where select → resize/rotate handles, lasso, copy/paste and recolour were also confirmed live via screenshots with a clean logcat. Installed to the Tab S9 Ultra; the Pixel 8a was offline (install deferred)."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-stylus-first-input-layer-07"
+title = "Stylus-first input layer."
+description = "Routed `DrawingSurfaceView.onTouchEvent` through a new pure, JVM-tested `InputClassifier` (`PointerKind` + barrel state + `ActiveTool` + `InputSettings` → `GestureIntent`), so pen hardware wins over the toolbar the way desktop Xournal++ does: (1) the flipped-over eraser tip (`TOOL_TYPE_ERASER`) erases whatever the tool; (2) the barrel button (`BUTTON_STYLUS_PRIMARY`) does a configurable action while held (default erase, or select); (3) palm rejection — the gesture is owned by a pointer id and only that pointer is sampled, a stylus takes over a gesture a resting finger/palm started, and once a stylus owns the stroke extra finger/palm pointers are ignored; (4) a Settings \"finger draws\" toggle makes fingers pan-only for non-stylus-safe writing; (5) a configurable pressure curve (`PressureCurve`, Soft/Linear/Firm — Linear reproduces the old `0.4+0.6·pressure` exactly) replacing the hard-coded response; and (6) a hover preview ring from `ACTION_HOVER_MOVE`. New pure pieces `InputClassifier` + `PressureCurve` with JVM tests (`InputClassifierTest`, `PressureCurveTest`), a real Settings screen (`AppSettings` + `SettingsStore` SharedPreferences persistence, wired through `EditorScreen`/`MainActivity`), and on-device `StylusInputTest` (eraser tip, barrel erase, finger-draw gate, palm rejection — driven with synthetic tool-typed `MotionEvent`s). `BUILD SUCCESSFUL`; all JVM unit tests + all 6 instrumented tests pass on the `/data/android` emulator. Verified on-device: Settings screen renders and its toggles persist across a force-stop/relaunch, finger drawing still works (no regression from the touch rewrite), and the finger-draw toggle changes behaviour. Only tilt-driven width remains (see TODO Active — no format home). Installed to the Galaxy Tab S9 Ultra (SM-X920, S-Pen — the ideal target); the Pixel 8a was offline on the tailnet at install time (catch it up on the next build)."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-fixed-xopp-saved-with-a-gz-suffix-08"
+title = "Fixed: .xopp saved with a .gz suffix."
+description = "The Save intent used the `application/gzip` MIME, so the Storage Access Framework appended its own `.gz` extension (`document.xopp.gz`), which desktop Xournal++ won't open by name. Switched the save MIME to `application/octet-stream` (which the framework has no canonical extension for), so SAF keeps the exact `document.xopp` name; the bytes are gzip either way (`Xopp.save` always gzips). Verified on the emulator by driving the real Save dialog: the created file is exactly `/sdcard/Download/document.xopp` (no `.gz`) with gzip magic `1f 8b`."
+status = "finished"
+category = "bug"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-selection-tool-rectangle-tap-select-move-delete-09"
+title = "Selection tool (rectangle + tap select, move, delete)."
+description = "New Select tool on the rail (`EditorTool.SELECT` → the surface's `selectMode`) matching desktop Xournal++: a one-finger drag rubber-bands and selects every object wholly enclosed; a tap picks the topmost object; dragging inside the dashed outline moves the selection (live, undoable); a floating Delete / Deselect bar (`SelectionActionBar`) removes or clears it. Selection is per-page and addresses elements by position (`ElementRef`), stable across a drag. New pure, JVM-tested pieces: `ElementBounds` (+ `Bounds`), `SelectionTester` (rect/tap/union), `SelectionOps` (translate/ delete) — 2 new test files, `BUILD SUCCESSFUL`. Documented the mechanics and a stylus & selection roadmap in `docs/architecture.md` (+ README \"Select\"). Verified on the `/data/android` emulator: drew two strokes, band-selected one (outline wraps it, the other untouched, Delete/Deselect bar appears), dragged it to a new spot, Deleted it (gone), Undo restored it at the moved position, and tap-selected a single stroke. Caught and fixed a bug on-device where the rubber-band marquee persisted after release (`commitBand` rendered before the `banding` flag was cleared). Installed to the Galaxy Tab S9 Ultra; the Pixel 8a was offline on the tailnet at install time (catch it up on the next build)."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-moved-the-toolbar-to-a-left-vertical-rail-10"
+title = "Moved the toolbar to a left vertical rail."
+description = "`BottomToolbar.kt` → `SideToolbar.kt`: the chrome is now a scrollable `Column` rail down the left edge (Tool / Colour / Size / Zoom / Pages), and `EditorScreen` lays out `Row[rail, canvas]` instead of `Column[canvas, bar]`. Verified on the `/data/android` emulator: rail sits on the left, the Tool pop-up lists all seven tools, canvas fills the rest. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-on-device-authoring-of-text-image-teximage-11"
+title = "On-device authoring of text / image / teximage."
+description = "Selecting Text, Image, or LaTeX arms a placement: a canvas tap raises `onPlace` with the page-space point. Text and LaTeX open a keyboard dialog (text is also editable — tapping an existing box re-opens it, blank deletes it); Image launches the SAF picker (`image/*`) and inserts the decoded bytes scaled to a default box. All are undoable. Verified on the `/data/android` emulator: placed a text box (\"HELLO123\"), a LaTeX formula, and a picked PNG — all render and coexist with pen strokes; Undo removed the formula, Redo restored it. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-render-teximage-as-real-math-latex-renderer-12"
+title = "Render teximage as real math (LaTeX renderer)."
+description = "New dependency-free `LatexParser` (pure, `LatexNode` tree — rows, sub/superscripts, `\\frac`, `\\sqrt`, grouping, Greek/operator Unicode; never throws) + `LatexRenderer` (measures then scales to fit the box, draws fraction bars / scripts / roots), replacing the source-text placeholder in `ElementRenderer.drawTex` (parse cached by element identity, fallback to monospace source on error). 12 new JVM `LatexParserTest` cases. Verified on the `/data/android` emulator: `\\frac{a}{b}+x^2` renders as a real fraction with a superscript. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-page-navigator-13"
+title = "Page navigator."
+description = "The rail's Pages pop-up shows `Page N / M` with ◀/▶ that jump the scroll to the previous/next page (disabled at the ends), alongside the existing Add/Remove page. `DrawingSurfaceView` gained `goToPage` and reports the current page as the view scrolls. Verified on the `/data/android` emulator: added a page (`1/1`→`1/2`), Next scrolled to page 2 (`2/2`, ▶ greyed), Remove returned to `1/1`. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-31-instrumented-smoke-test-14"
+title = "Instrumented smoke test."
+description = "`app/src/androidTest/.../SmokeTest.kt` (AndroidJUnit4) round-trips a document through `Xopp.save`/`Xopp.open` on-device, and drives a real `DrawingSurfaceView` with synthetic `MotionEvent`s (down → moves → up) then asserts the new stroke survives save/reopen. Runs via `scripts/build.sh connectedDebugAndroidTest` (androidx.test runner/rules/espresso added). Both tests pass on the `/data/android` emulator (`am instrument` — Gradle's own adb can't see the emulator container)."
+status = "finished"
+category = "test"
+completed = 2026-07-31
+
+[[task]]
+id = "2026-07-30-export-the-annotated-document-as-a-flattened-pdf-15"
+title = "Export the annotated document as a flattened PDF."
+description = "The menu's Export PDF writes each page at its true point size via the framework `PdfDocument` (dependency-free): the background (a rasterised `pdf` page, or a solid sheet with its ruling) then every stroke and element on top, reusing `BackgroundRenderer`/`PageRenderer` at scale 1 so the output matches the editor. Extracted the shared `StrokePainter`/`PageRenderer` out of `DrawingSurfaceView` so screen and export draw identically. New JVM `PdfBackgroundRoundTripTest` (48 tests total), `BUILD SUCCESSFUL`. Verified on the `/data/android` emulator: imported a 2-page PDF, drew an X on page 1, exported, and confirmed the output PDF (via `pdftoppm`) shows the original PDF text plus the X on page 1 and clean page 2."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-import-a-pdf-as-an-annotatable-document-pdf-page-backgrounds-16"
+title = "Import a PDF as an annotatable document (PDF page backgrounds)."
+description = "The menu's Import PDF copies the picked PDF into app cache and builds a document with one page per PDF page; each page carries a `<background type=\"pdf\">` (filename+domain on page 1 only, `pageno` thereafter — the desktop convention). Pages are rasterised on demand by the framework `PdfRenderer` (dependency-free) in the new `PdfPageCache` (serialised, bounded bitmap cache), and `BackgroundRenderer` draws the page image; a `.xopp` whose PDF isn't present falls back to a plain sheet. `BUILD SUCCESSFUL`, 40 tests pass. Verified on the `/data/android` emulator: imported a 2-page PDF (both pages rendered with their text/border), drew an X over page 1 (Undo lit), no crash. Export to PDF is the remaining half — see Active."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-emulator-harness-already-scripted-17"
+title = "Emulator harness already scripted."
+description = "The AVD-create / headless-launch / install loop lives in `/data/android/.claude/skills/android-dev/scripts/emulator.sh` (`status`/`up`/`boot-wait`/`down`/`install`/`launch`/`screenshot`/`ui`/`logcat`/`shell`/`adb`), driven by that repo's `docker-compose.yml`; the pre-baked Android 14 container image *is* the AVD, so there's no separate create step. Documented in `docs/tools.md`. (An instrumented smoke test on top of this is still worth adding — see Active.)"
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-fixed-drawing-wiped-when-visiting-settings-18"
+title = "Fixed: drawing wiped when visiting Settings."
+description = "Opening Settings early-`return`ed from `EditorScreen`, tearing the `AndroidView`-hosted `DrawingSurfaceView` out of the composition; since strokes lived only in that view, coming back rebuilt a blank one. Settings now renders as an opaque overlay in a `Box` on top of the still-composed editor, so the surface is never detached — the drawing and undo history survive the round trip. `BUILD SUCCESSFUL`, 40 tests pass. Verified on the `/data/android` emulator: drew two strokes, entered Settings (canvas fully covered, no bleed-through), backed out — both strokes and the lit Undo button remained, no crash. Installed to both tailnet devices."
+status = "finished"
+category = "bug"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-hand-tool-zoom-and-add-remove-page-19"
+title = "Hand tool, zoom, and add/remove page."
+description = "The Tool pop-up gained a Hand mode (one-finger pan; two-finger pan works in every tool). A Zoom button opens a −/+/reset pop-up; zoom multiplies the fit-to-width scale in `PageStacker`, pages wider than the view pan horizontally, narrower pages centre (`PageBox.leftPx`). A Pages button adds a blank page (inheriting the current page's size/background, via the pure `PageOps`) or removes the page in view (never the last one), showing the page count; both are undoable. New pure tests for `PageOps` and `PageStacker` zoom/centering. `BUILD SUCCESSFUL`, all tests pass. Verified on the `/data/android` emulator: added a page (count 1→2, page break visible, Undo lit), zoomed to 156% (grid enlarged, live label), Hand-panned to the page break, removed a page (2→1), no crash. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-rearranged-the-chrome-into-pop-up-groups-an-overflow-menu-20"
+title = "Rearranged the chrome into pop-up groups + an overflow menu."
+description = "The bottom bar is now three buttons — Tool, Colour, Size — each opening a small `DropdownMenu` anchored to its own button (not full-screen, not centred); `ToolPalette`/`PenSettings` were folded into one `BottomToolbar.kt`. The top bar keeps undo/redo and gains a ☰ overflow menu with Open, Save, and a new full-screen `SettingsScreen` (placeholder). `BUILD SUCCESSFUL`, 38 tests pass. Verified on the `/data/android` emulator: opened each of the three bottom pop-ups (Tool checked, Colour swatch row, Size S/M/L), picked red, opened the ☰ menu, entered Settings and backed out — no crash. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-undo-redo-21"
+title = "Undo / redo."
+description = "Top-bar arrows undo and redo edits one draw/erase gesture at a time, enabling/disabling as history allows; opening a file resets history. Each gesture snapshots the whole document into the pure, tested generic `EditHistory` (6 new JVM tests, 38 total). Verified on the `/data/android` emulator: drew strokes, undid to empty (Undo greyed), redid to restore, no crash. Installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-pen-colour-and-width-pickers-22"
+title = "Pen colour and width pickers."
+description = "Added `PenSettings` to the Material 3 chrome — a scrollable row of colour swatches (black/red/blue/green/orange/yellow) and S/M/L width chips — wired to the surface's `colorArgb`/`baseWidthPt`. Verified on the `/data/android` emulator: picked red + L and drew a red, thicker stroke; installed to both tailnet devices."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-eraser-tool-delete-stroke-23"
+title = "Eraser tool (delete-stroke)."
+description = "Selecting Eraser and dragging now deletes any stroke the eraser disc touches on the page under the finger; hit geometry (point-to-segment distance, accounting for pen half-width) lives in the pure, tested `StrokeHitTester`. 6 new JVM tests (32 total), `BUILD SUCCESSFUL`. Verified on the `/data/android` emulator: drew a pen stroke, switched to Eraser, dragged over it, stroke gone, no crash."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-render-text-boxes-images-and-teximage-in-the-editor-24"
+title = "Render text boxes, images, and teximage in the editor."
+description = "New `ElementRenderer` draws `<text>` (via the pure, tested `TextBlock` line/baseline geometry), `<image>` (bytes decoded once and cached by element identity), and `<teximage>` (best-effort placeholder box with its LaTeX source). Wired into `DrawingSurfaceView` so every element in every layer paints. 4 new JVM tests (26 total), `BUILD SUCCESSFUL`. Verified on the `/data/android` emulator with `text-image.xopp`: text with decoded entities, the PNG image, and the teximage placeholder all render, no crash. Also installed the debug APK on the two tailnet devices (Pixel 8a, Tab S9 Ultra). Left: on-device authoring of these elements (next item)."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "2026-07-30-multi-page-backgrounds-layers-in-the-editor-25"
+title = "Multi-page + backgrounds + layers in the editor."
+description = "`DrawingSurfaceView` now holds the whole document and renders every page stacked top-to-bottom (`PageStacker`), each with its background ruling — plain/lined/ruled/graph/dotted (`BackgroundRenderer` + `BackgroundGrid`) — and all layers in z-order; one finger draws, two fingers scroll. Save no longer flattens to one page/layer — it preserves all pages, layers, and unmodelled elements. 7 new JVM geometry tests (22 total). Verified on the `/data/android` emulator: graph grid + pen drawing, and a loaded multi-page fixture showing plain then lined pages with their strokes. Caught and fixed a stale-layout bug (appended strokes weren't re-rendering) via on-device testing. Left: two-finger scroll gesture not yet auto-tested."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-added-a-format-drift-test-formatdrifttest-over-a-committed-set-of-26"
+title = "Added a format drift test (FormatDriftTest) over a committed set of desktop-format .xopp fixtures (a"
+description = "Added a format drift test (`FormatDriftTest`) over a committed set of desktop-format `.xopp` fixtures (`app/src/test/resources/fixtures/`, each validated to load in desktop Xournal++ 1.3.5): asserts model round-trip equality and that the set covers every background style, multi-page, layers, all element types, pressure vs. uniform width, and highlighter alpha. 15 unit tests pass (6 new), `BUILD SUCCESSFUL`."
+status = "finished"
+category = "test"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-switched-builds-to-the-shared-data-android-toolchain-baked-27"
+title = "Switched builds to the shared /data/android toolchain (baked android-builder:local); verified end to"
+description = "Switched builds to the shared `/data/android` toolchain (baked `android-builder:local`); verified end to end: `BUILD SUCCESSFUL`, `app-debug.apk` builds, and all 9 unit tests pass — including the real 3981-stroke `udiff.xopp` round-trip."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-documented-the-concrete-xopp-xml-schema-elements-attributes-units-28"
+title = "Documented the concrete .xopp XML schema (elements/attributes, units, coordinate system, colour enco"
+description = "Documented the concrete `.xopp` XML schema (elements/attributes, units, coordinate system, colour encoding, round-trip hazards) in `docs/architecture.md`, derived from `udiff.xopp` and the reference clone."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-pinned-the-stack-kotlin-compose-material-3-custom-surfaceview-for-29"
+title = "Pinned the stack (Kotlin + Compose Material 3, custom SurfaceView for stylus, built-in gzip + depend"
+description = "Pinned the stack (Kotlin + Compose Material 3, custom `SurfaceView` for stylus, built-in gzip + dependency-free XML) and recorded the data path, in-memory model, and repository layout in `docs/architecture.md`."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-scaffolded-the-single-module-gradle-kotlin-dsl-android-project-with-a-30"
+title = "Scaffolded the single-module Gradle (Kotlin DSL) Android project with a containerized Docker/Podman"
+description = "Scaffolded the single-module Gradle (Kotlin DSL) Android project with a containerized Docker/Podman build (`Dockerfile`, `compose.yaml`, `scripts/build.sh`, Gradle wrapper)."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-implemented-the-lossless-xopp-read-write-core-model-colour-codec-31"
+title = "Implemented the lossless .xopp read/write core (model, colour codec, pure-Kotlin XML reader/writer,"
+description = "Implemented the lossless `.xopp` read/write core (model, colour codec, pure-Kotlin XML reader/writer, gzip open/save) with JVM unit tests covering every element type, escaping, reserialization, gzip, and the real 3981-stroke sample."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-built-the-material-3-editor-ui-top-bar-tool-palette-material-you-theme-32"
+title = "Built the Material 3 editor UI (top bar, tool palette, Material You theme) and the low-latency stylu"
+description = "Built the Material 3 editor UI (top bar, tool palette, Material You theme) and the low-latency stylus `DrawingSurfaceView`; wired open/save via the Storage Access Framework in `MainActivity`."
+status = "finished"
+category = "feature"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-filled-the-remaining-claude-md-placeholders-stack-build-check-loop-and-33"
+title = "Filled the remaining CLAUDE.md placeholders (stack + build/check loop) and wrote README.md (setup, b"
+description = "Filled the remaining `CLAUDE.md` placeholders (stack + build/check loop) and wrote `README.md` (setup, build & run) and the real `docs/tools.md` build/emulator pipeline."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-scaffolded-project-from-base-template-claude-md-docs-tools-md-34"
+title = "Scaffolded project from base/ template: CLAUDE.md, docs/tools.md, TODO.md, git repo."
+description = "Scaffolded project from `base/` template: `CLAUDE.md`, `docs/tools.md`, `TODO.md`, git repo."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-filled-in-what-this-project-is-in-claude-md-stylus-first-android-app-35"
+title = "Filled in \"What this project is\" in CLAUDE.md: stylus-first Android app that round-trips Xournal++ ."
+description = "Filled in \"What this project is\" in `CLAUDE.md`: stylus-first Android app that round-trips Xournal++ `.xopp` files with desktop Xournal++ on Linux."
+status = "finished"
+category = "docs"
+completed = 2026-07-30
+
+[[task]]
+id = "undated-2026-07-30-prior-art-survey-no-maintained-native-xopp-editor-exists-recorded-in-36"
+title = "Prior-art survey (no maintained native .xopp editor exists) recorded in docs/architecture.md; cloned"
+description = "Prior-art survey (no maintained native `.xopp` editor exists) recorded in `docs/architecture.md`; cloned the archived Xournal++ Mobile to `reference/` (git-ignored) as a format reference."
+status = "finished"
+category = "docs"
+completed = 2026-07-30

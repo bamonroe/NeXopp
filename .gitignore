@@ -19,3 +19,7 @@ captures/
 
 # Build logs
 *.log
+
+# Python bytecode cache (todo skill)
+__pycache__/
+*.pyc

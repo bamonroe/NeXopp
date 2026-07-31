@@ -4,7 +4,8 @@ package com.xopp.android.format
  * The `.xopp` `<text font=…>` value is a Pango-style **font description**: a family name
  * followed by optional style tokens, e.g. `Sans`, `Sans Bold`, `Serif Italic`,
  * `Sans Bold Italic`. There is no underline token — underline is not representable in this
- * format (see `TODO.md` scope note), so this helper only models family + bold + italic.
+ * format (see the "format is the boundary" scope rule in `CLAUDE.md`), so this helper only
+ * models family + bold + italic.
  *
  * [parse] and [compose] are exact inverses for the canonical `Family [Bold] [Italic]` form,
  * which keeps text styling round-tripping losslessly to and from desktop Xournal++.

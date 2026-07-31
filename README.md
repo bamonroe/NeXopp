@@ -9,13 +9,13 @@ Android reopens correctly on the desktop, and vice versa.
 - What the project is and how to work in it: [`CLAUDE.md`](CLAUDE.md).
 - How it works internally (the `.xopp` schema, data path, model): [`docs/architecture.md`](docs/architecture.md).
 - Build/emulator tooling: [`docs/tools.md`](docs/tools.md).
-- What's next (active tasks): [`TODO.md`](TODO.md); what's already shipped: [`FINISHED.md`](FINISHED.md).
+- What's next (active tasks): [`TODO.toml`](TODO.toml); what's already shipped: [`FINISHED.toml`](FINISHED.toml). These are TOML task files driven by the `todo` skill — run `scripts/todo.sh list` or `scripts/todo.sh stats` to read them.
 
 > Status: the `.xopp` read/write core and its tests are in place, and the Android editor is
 > functional — pen/highlighter/eraser drawing with pressure, colour and width pickers, undo/redo,
 > zoom, pan, a page navigator (add/remove/jump), on-device authoring of text/image/LaTeX elements,
 > LaTeX math rendering, multi-page documents with layers and backgrounds, and PDF import and
-> export. The controls live in a vertical rail down the left edge. See `TODO.md` for what's next.
+> export. The controls live in a vertical rail down the left edge. Run `scripts/todo.sh list` for what's next.
 
 ## Requirements
 
