@@ -263,6 +263,7 @@ app/
     ui/                      # Compose Material 3
       EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
       SideToolbar.kt         # left vertical rail: Tool/Colour/Size/Zoom/Pages button-anchored pop-ups
+      ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       SettingsScreen.kt      # full-screen stylus settings (finger-draw, barrel, hover, pressure feel)
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
@@ -361,7 +362,16 @@ Tool pop-up lists Pen / Highlighter / Eraser / Hand / Text / Image / LaTeX as a 
 so `EditorScreen.applyTool` maps them to the surface's `handMode` / `placeKind` and maps the three
 drawing tools to the document `Tool`). The **Pages** pop-up is a page navigator: `Page N / M` with
 ◀ / ▶ to jump to the previous/next page (`goToPage` scrolls the stack; the surface reports the page
-under the viewport centre via `onCurrentPageChanged`), plus Add / Remove page. Choosing Settings
+under the viewport centre via `onCurrentPageChanged`), plus Add / Remove page. A **right-edge scroll
+thumb** (`ScrollThumb.kt`, overlaid on the canvas in a `Box` sibling of the `AndroidView`) gives
+PDF-style fast paging: the surface reports its vertical scroll geometry via
+`onScrollChanged(scrollY, totalHeightPx, viewportPx)` (all content px, already zoom-scaled), the thumb
+sizes/positions itself from that ratio and **dragging it** drives `DrawingSurfaceView.scrollToY`. The
+touch target is only the thumb *band* (a small region tracking the scroll position), not the full
+right edge, so a stylus can still draw over the page's right margin everywhere but the thumb; the
+thumb sits faint when idle, brightens after a scroll, and is brightest while dragged, showing a
+page-number bubble beside it. It is a pure navigation affordance — no `.xopp` state, so nothing
+round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in

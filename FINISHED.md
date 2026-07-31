@@ -6,6 +6,18 @@ The archive of **completed** work for this project — the graveyard for done ta
 When a task is fully finished (built, tested, documented), move its checked, dated entry
 here from `TODO.md`. Newest first. This file only grows; nothing is removed from it.
 
+- [x] 2026-07-31 — **Right-edge PDF-style scroll thumb for fast paging.** A draggable scroll thumb
+      (`ScrollThumb.kt`, overlaid on the canvas as a `Box` sibling of the `AndroidView`) rides the
+      right edge whenever the document is taller than the screen. The surface reports its vertical
+      scroll geometry via `onScrollChanged(scrollY, totalHeightPx, viewportPx)` (content px,
+      zoom-scaled); the thumb sizes and positions itself from that ratio and **dragging it** drives
+      `DrawingSurfaceView.scrollToY` for fast paging through long documents. The touch target is only
+      the thumb *band*, not the whole right edge, so a stylus can still ink the page's right margin
+      everywhere but the thumb. It sits faint when idle, brightens after a scroll, is brightest while
+      dragged, and shows a **page-number bubble** beside it during a drag. A pure navigation
+      affordance — no `.xopp` state, so nothing round-trips. Emulator-verified end-to-end: dragged the
+      thumb up and down a 5-page graph-paper document and watched the page stack scroll with the
+      "N / 5" bubble tracking the thumb.
 - [x] 2026-07-31 — **Custom colour slot with a long-press hex/colour picker.** The Colour pop-up now
       ends with an editable **custom slot** (marked with a pencil) after the fixed `PEN_COLORS`
       palette. **Tap** it to draw with its current colour; **long-press** it to open a

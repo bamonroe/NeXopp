@@ -16,12 +16,4 @@ fully finished (built, tested, documented), **move** its checked, dated entry to
 Tool-authoring polish: configurable pen sizes and colours. All shipped 2026-07-31 (text-tool
 styling, configurable pen sizes, and the custom-colour slot) — see `FINISHED.md`.
 
-### Navigation — right-hand-side scroll thumb for paging the document
-
-- [ ] Add a **right-hand-side scroll thumb** that scrolls through the document's pages just like a
-      PDF viewer's scrollbar. As the page stack scrolls, a draggable thumb tracks the current
-      position down the right edge; **dragging the thumb** scrolls the document to the matching
-      point (fast paging through a long document), and it should read naturally against the existing
-      Pages navigator (`goToPage` / `onCurrentPageChanged`). A pure navigation affordance — no `.xopp`
-      document state, so nothing to round-trip. Consider showing it only while scrolling/dragging
-      (auto-hide) and a page-number bubble beside the thumb while dragging, à la PDF viewers.
+_No active tasks — see `FINISHED.md` for the completed-work archive._

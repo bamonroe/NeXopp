@@ -120,6 +120,10 @@ fun EditorScreen(
     var zoom by remember { mutableStateOf(1f) }
     var pageCount by remember { mutableStateOf(1) }
     var currentPage by remember { mutableStateOf(0) }
+    // Vertical scroll geometry (content px) fed from the surface, driving the right-edge scroll thumb.
+    var scrollY by remember { mutableStateOf(0f) }
+    var contentHeight by remember { mutableStateOf(0f) }
+    var viewportHeight by remember { mutableStateOf(0f) }
     var canUndo by remember { mutableStateOf(false) }
     var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
@@ -191,6 +195,7 @@ fun EditorScreen(
                 onRemovePage = { surface?.removePage() },
                 onGoToPage = { surface?.goToPage(it) },
             )
+            Box(modifier = Modifier.fillMaxHeight().weight(1f)) {
             AndroidView(
                 factory = { ctx ->
                     DrawingSurfaceView(ctx).also {
@@ -202,6 +207,7 @@ fun EditorScreen(
                         it.onZoomChanged = { z -> zoom = z }
                         it.onPageCountChanged = { n -> pageCount = n }
                         it.onCurrentPageChanged = { p -> currentPage = p }
+                        it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
                         it.onSelectionChanged = { s -> hasSelection = s }
                         it.onClipboardChanged = { c -> hasClipboard = c }
                         it.lassoMode = lasso
@@ -216,8 +222,18 @@ fun EditorScreen(
                         onSurfaceCreated(it)
                     }
                 },
-                modifier = Modifier.fillMaxHeight().weight(1f),
+                modifier = Modifier.fillMaxSize(),
             )
+            ScrollThumb(
+                scrollY = scrollY,
+                totalHeightPx = contentHeight,
+                viewportPx = viewportHeight,
+                currentPage = currentPage,
+                pageCount = pageCount,
+                onScrollTo = { surface?.scrollToY(it) },
+                modifier = Modifier.matchParentSize(),
+            )
+            }
         }
     }
 

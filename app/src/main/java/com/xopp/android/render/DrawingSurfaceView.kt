@@ -84,6 +84,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var editingTarget: TextElement? = null
     /** Which page index was last reported to [onCurrentPageChanged], to suppress duplicate calls. */
     private var lastReportedPage = -1
+    /** Last (scrollY, totalHeightPx, viewportPx) reported to [onScrollChanged], to suppress duplicate calls. */
+    private var lastScrollReport = Triple(-1f, -1f, -1f)
 
     /** Undo/redo snapshots of the whole [Document] (cheap: immutable pages/layers share structure). */
     private val history = EditHistory<Document>()
@@ -98,6 +100,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onPageCountChanged: ((Int) -> Unit)? = null
     /** Notified with the index of the page nearest the viewport centre whenever it changes. */
     var onCurrentPageChanged: ((Int) -> Unit)? = null
+    /** Notified with (scrollY, totalHeightPx, viewportPx) whenever the vertical scroll or content extent changes — drives the right-edge scroll thumb. */
+    var onScrollChanged: ((Float, Float, Float) -> Unit)? = null
     /** Notified when a placement tap lands, so the editor can prompt for content / pick an image. */
     var onPlace: ((PlaceKind, Placement) -> Unit)? = null
 
@@ -316,6 +320,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
+    /** Set the vertical scroll offset to [y] px from the top, clamped (driven by the right-edge scroll thumb). */
+    fun scrollToY(y: Float) {
+        scrollY = y.coerceIn(0f, maxScrollY())
+        render()
+    }
+
     /** Emit [onCurrentPageChanged] if the page under the viewport centre changed since last time. */
     private fun reportCurrentPage() {
         if (doc.pages.isEmpty()) return
@@ -323,6 +333,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (idx != lastReportedPage) {
             lastReportedPage = idx
             onCurrentPageChanged?.invoke(idx)
+        }
+    }
+
+    /** Emit [onScrollChanged] if the scroll offset or content extent changed since last time. */
+    private fun reportScroll() {
+        val t = Triple(scrollY, layout.totalHeightPx, height.toFloat())
+        if (t != lastScrollReport) {
+            lastScrollReport = t
+            onScrollChanged?.invoke(t.first, t.second, t.third)
         }
     }
 
@@ -1071,6 +1090,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             holder.unlockCanvasAndPost(canvas)
         }
         reportCurrentPage()
+        reportScroll()
     }
 
     /** The rasterised background for a `pdf`-backed page at its on-screen width, or null. */
