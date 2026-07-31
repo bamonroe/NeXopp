@@ -81,6 +81,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var placeDownY = 0f
     private var lastFocusY = 0f
     private var lastFocusX = 0f
+    /** The two-finger span (mean pointer distance from the focus, view px) at the last pan frame,
+     * so a change in span drives a proportional pinch-zoom. 0 means "re-baseline on the next frame". */
+    private var lastSpan = 0f
 
     // Momentum scrolling: a released pan keeps gliding, decelerating, until it stalls or hits a bound.
     private val fling = Fling()
@@ -313,6 +316,24 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrollY = (yFrac * layout.totalHeightPx - height / 2f).coerceIn(0f, maxScrollY())
         scrollX = (xFrac * layout.contentWidthPx - width / 2f).coerceIn(0f, maxScrollX())
         render()
+        onZoomChanged?.invoke(zoom)
+    }
+
+    /**
+     * Multiply the zoom by [factor] (clamped) while keeping the content point under the viewport
+     * pixel ([focusVx], [focusVy]) fixed — the anchor for pinch-zoom. Unlike [setZoom] this does not
+     * render; the pan frame that drives it renders once at the end. No-op if the clamp bites.
+     */
+    private fun zoomAbout(focusVx: Float, focusVy: Float, factor: Float) {
+        val next = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
+        if (next == zoom) return
+        // Work in zoom-invariant fractions so the anchor survives the relayout (layout px scale with zoom).
+        val xFrac = if (layout.contentWidthPx > 0f) (scrollX + focusVx) / layout.contentWidthPx else 0f
+        val yFrac = if (layout.totalHeightPx > 0f) (scrollY + focusVy) / layout.totalHeightPx else 0f
+        zoom = next
+        relayout()
+        scrollX = (xFrac * layout.contentWidthPx - focusVx).coerceIn(0f, maxScrollX())
+        scrollY = (yFrac * layout.totalHeightPx - focusVy).coerceIn(0f, maxScrollY())
         onZoomChanged?.invoke(zoom)
     }
 
@@ -920,6 +941,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
         lastFocusY = focusY(event, skip = event.actionIndex)
         lastFocusX = focusX(event, skip = event.actionIndex)
+        // The span also jumps when a finger leaves; re-baseline it next frame so the drop isn't read as
+        // a pinch-out, mirroring the focus/velocity reset below.
+        lastSpan = 0f
         // The focus jumps when a finger leaves, so restart the estimate from the new baseline —
         // otherwise that discontinuity would read as a huge phantom flick.
         velocityEstimator.reset()
@@ -1013,6 +1037,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrolling = true
         lastFocusY = focusY(event, skip = -1)
         lastFocusX = focusX(event, skip = -1)
+        lastSpan = spanOf(event)
         velocityEstimator.reset()
         velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
     }
@@ -1024,6 +1049,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrollX = (scrollX + (lastFocusX - fx)).coerceIn(0f, maxScrollX())
         lastFocusY = fy
         lastFocusX = fx
+        // Two fingers also pinch-zoom: a change in span since the last frame scales zoom about the focus.
+        val span = spanOf(event)
+        if (lastSpan > PINCH_MIN_SPAN_PX && span > PINCH_MIN_SPAN_PX) zoomAbout(fx, fy, span / lastSpan)
+        lastSpan = span
         velocityEstimator.add(event.eventTime, fx, fy)
         render()
     }
@@ -1123,6 +1152,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
         var n = 0
         for (i in 0 until event.pointerCount) if (i != skip) { sum += event.getX(i); n++ }
         return if (n == 0) event.x else sum / n
+    }
+
+    /** Mean distance of every pointer from the touch focus (view px); a pinch's "size". 0 for <2 pointers. */
+    private fun spanOf(event: MotionEvent): Float {
+        if (event.pointerCount < 2) return 0f
+        val fx = focusX(event, skip = -1)
+        val fy = focusY(event, skip = -1)
+        var sum = 0f
+        for (i in 0 until event.pointerCount) sum += hypot(event.getX(i) - fx, event.getY(i) - fy)
+        return sum / event.pointerCount
     }
 
     /**
@@ -1313,6 +1352,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val ZOOM_STEP = 1.25f
         const val MIN_ZOOM = 0.25f
         const val MAX_ZOOM = 5f
+        /** Below this two-finger span (view px) the pinch ratio is too noisy to zoom by, so it's ignored. */
+        const val PINCH_MIN_SPAN_PX = 40f
         const val TAP_SLOP_PX = 16f
         const val SELECT_PAD_PX = 6f
         const val MOVE_GRAB_PAD = 8.0

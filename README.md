@@ -141,7 +141,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   quickly through a long document (a **page-number bubble** shows where you are as you drag). A small
   **grip** bulges out of its centre so it's easy to grab. It sits faint while idle and brightens as you
   scroll; only the thumb itself grabs touches, so the rest of the page's right margin still takes ink.
-- **Zoom** — the **%** button on the rail opens a zoom pop-up with **−** / **+** buttons;
+- **Zoom** — **pinch** with **two fingers** anywhere on the canvas to zoom in or out; the point
+  between your fingers stays put as the page grows or shrinks, and you can pan at the same time in
+  the one gesture. The **%** button on the rail also opens a zoom pop-up with **−** / **+** buttons;
   tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways.
 - **Pages** — the document button on the rail opens the **page navigator**: it shows **Page N / M**
   with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page inheriting the
