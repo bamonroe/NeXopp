@@ -31,8 +31,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** The working document; edits append strokes to it and [toDocument] returns it verbatim. */
     private var doc: Document = Document(pages = listOf(blankPage()))
-    private var layout: StackedLayout = StackedLayout(emptyList(), 0f)
+    private var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
     private var scrollY = 0f
+    private var scrollX = 0f
+    private var zoom = 1f
 
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
     private var current: ArrayList<StrokePoint>? = null
@@ -40,6 +42,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var scrolling = false
     private var erasing = false
     private var lastFocusY = 0f
+    private var lastFocusX = 0f
 
     /** Undo/redo snapshots of the whole [Document] (cheap: immutable pages/layers share structure). */
     private val history = EditHistory<Document>()
@@ -48,10 +51,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Notified with (canUndo, canRedo) whenever the history changes, so the chrome can enable buttons. */
     var onHistoryChanged: ((Boolean, Boolean) -> Unit)? = null
+    /** Notified with the current zoom factor whenever it changes, so the chrome can show the level. */
+    var onZoomChanged: ((Float) -> Unit)? = null
+    /** Notified with the page count whenever it changes (load, add, remove). */
+    var onPageCountChanged: ((Int) -> Unit)? = null
 
     var tool: Tool = Tool.PEN
     var colorArgb: Int = AndroidColor.BLACK
     var baseWidthPt: Float = 1.5f
+    /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
+    var handMode: Boolean = false
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -68,8 +77,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun load(doc: Document) {
         this.doc = if (doc.pages.isEmpty()) doc.copy(pages = listOf(blankPage())) else doc
         scrollY = 0f
+        scrollX = 0f
         history.clear()
         notifyHistory()
+        onPageCountChanged?.invoke(this.doc.pages.size)
         relayout()
         render()
     }
@@ -102,18 +113,77 @@ class DrawingSurfaceView @JvmOverloads constructor(
         onHistoryChanged?.invoke(history.canUndo, history.canRedo)
     }
 
+    // --- zoom ----------------------------------------------------------------------------------
+
+    fun zoomIn() = setZoom(zoom * ZOOM_STEP)
+    fun zoomOut() = setZoom(zoom / ZOOM_STEP)
+    fun resetZoom() = setZoom(1f)
+
+    /** Set the zoom factor (clamped), keeping the point at the viewport centre roughly fixed. */
+    private fun setZoom(target: Float) {
+        val next = target.coerceIn(MIN_ZOOM, MAX_ZOOM)
+        if (next == zoom) return
+        val yFrac = if (layout.totalHeightPx > 0f) (scrollY + height / 2f) / layout.totalHeightPx else 0f
+        val xFrac = if (layout.contentWidthPx > 0f) (scrollX + width / 2f) / layout.contentWidthPx else 0f
+        zoom = next
+        relayout()
+        scrollY = (yFrac * layout.totalHeightPx - height / 2f).coerceIn(0f, maxScrollY())
+        scrollX = (xFrac * layout.contentWidthPx - width / 2f).coerceIn(0f, maxScrollX())
+        render()
+        onZoomChanged?.invoke(zoom)
+    }
+
+    // --- pages ---------------------------------------------------------------------------------
+
+    /** Insert a blank page (same size/background as the current one) after the page in view. */
+    fun addPage() {
+        val at = currentPageIndex()
+        editPages(PageOps.addAfter(doc.pages, at))
+    }
+
+    /** Delete the page currently in view. No-op when only one page remains. */
+    fun removePage() {
+        val at = currentPageIndex()
+        editPages(PageOps.removeAt(doc.pages, at))
+    }
+
+    /** Apply a new page list as one undoable edit, if it actually differs. */
+    private fun editPages(pages: List<Page>) {
+        if (pages === doc.pages) return
+        val before = doc
+        doc = doc.copy(pages = pages)
+        history.record(before)
+        notifyHistory()
+        onPageCountChanged?.invoke(pages.size)
+        // keep the viewport valid, then keep zoom's centre-fraction sane
+        relayout()
+        scrollY = scrollY.coerceIn(0f, maxScrollY())
+        render()
+    }
+
+    /** Index of the page nearest the viewport centre — the one add/remove act on. */
+    private fun currentPageIndex(): Int =
+        layout.pageAt(scrollY + height / 2f)?.index ?: doc.pages.lastIndex.coerceAtLeast(0)
+
     // --- touch: one finger draws (or erases), two fingers scroll -------------------------------
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> if (tool == Tool.ERASER) startErase(event) else startStroke(event)
+            MotionEvent.ACTION_DOWN -> when {
+                handMode -> beginScroll(event)
+                tool == Tool.ERASER -> startErase(event)
+                else -> startStroke(event)
+            }
             MotionEvent.ACTION_POINTER_DOWN -> beginScroll(event)
             MotionEvent.ACTION_MOVE -> when {
                 scrolling -> doScroll(event)
                 erasing -> eraseMove(event)
                 else -> extendStroke(event)
             }
-            MotionEvent.ACTION_POINTER_UP -> lastFocusY = focusY(event, skip = event.actionIndex)
+            MotionEvent.ACTION_POINTER_UP -> {
+                lastFocusY = focusY(event, skip = event.actionIndex)
+                lastFocusX = focusX(event, skip = event.actionIndex)
+            }
             MotionEvent.ACTION_UP -> endGesture()
             MotionEvent.ACTION_CANCEL -> { current = null; scrolling = false; erasing = false; gestureStartDoc = null }
             else -> return super.onTouchEvent(event)
@@ -150,27 +220,33 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
-        val px = (vx / box.scale).toDouble()
+        val px = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
         val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
         val radius = ERASER_RADIUS_PX / box.scale
         if (eraseStrokes(currentPage, px, py, radius.toDouble())) render()
     }
 
-    /** A second finger touched down: abandon any partial stroke/erase and switch to scrolling. */
+    /** A second finger (or the Hand tool) started panning: abandon any partial stroke/erase. */
     private fun beginScroll(event: MotionEvent) {
         current = null
         erasing = false
         scrolling = true
         lastFocusY = focusY(event, skip = -1)
+        lastFocusX = focusX(event, skip = -1)
     }
 
     private fun doScroll(event: MotionEvent) {
         val fy = focusY(event, skip = -1)
-        val maxScroll = (layout.totalHeightPx - height).coerceAtLeast(0f)
-        scrollY = (scrollY + (lastFocusY - fy)).coerceIn(0f, maxScroll)
+        val fx = focusX(event, skip = -1)
+        scrollY = (scrollY + (lastFocusY - fy)).coerceIn(0f, maxScrollY())
+        scrollX = (scrollX + (lastFocusX - fx)).coerceIn(0f, maxScrollX())
         lastFocusY = fy
+        lastFocusX = fx
         render()
     }
+
+    private fun maxScrollY(): Float = (layout.totalHeightPx - height).coerceAtLeast(0f)
+    private fun maxScrollX(): Float = (layout.contentWidthPx - width).coerceAtLeast(0f)
 
     private fun endGesture() {
         if (!scrolling && !erasing) commitCurrent()
@@ -197,6 +273,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return if (n == 0) event.y else sum / n
     }
 
+    /** Mean X of all pointers except [skip] (an index being lifted), in view px. */
+    private fun focusX(event: MotionEvent, skip: Int): Float {
+        var sum = 0f
+        var n = 0
+        for (i in 0 until event.pointerCount) if (i != skip) { sum += event.getX(i); n++ }
+        return if (n == 0) event.x else sum / n
+    }
+
     /** Append every sample in this event — historical first — as pressure-scaled page-local points. */
     private fun addSamples(event: MotionEvent, box: PageBox, into: MutableList<StrokePoint>) {
         for (h in 0 until event.historySize) {
@@ -207,10 +291,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
         val p = if (pressure <= 0f) 1f else pressure
-        val contentY = vy + scrollY
         return StrokePoint(
-            x = (vx / box.scale).toDouble(),
-            y = ((contentY - box.topPx) / box.scale).toDouble(),
+            x = ((vx + scrollX - box.leftPx) / box.scale).toDouble(),
+            y = ((vy + scrollY - box.topPx) / box.scale).toDouble(),
             width = (baseWidthPt * (0.4f + 0.6f * p)).toDouble(),
         )
     }
@@ -268,9 +351,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
 
     private fun relayout() {
-        layout = PageStacker.stack(doc.pages, width, GAP_PX)
-        val maxScroll = (layout.totalHeightPx - height).coerceAtLeast(0f)
-        scrollY = scrollY.coerceIn(0f, maxScroll)
+        layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom)
+        scrollY = scrollY.coerceIn(0f, maxScrollY())
+        scrollX = scrollX.coerceIn(0f, maxScrollX())
     }
 
     private fun render() {
@@ -279,7 +362,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         try {
             canvas.drawColor(BACKDROP)
             for (box in layout.visible(scrollY, height.toFloat())) {
-                BackgroundRenderer.draw(canvas, box, scrollY)
+                BackgroundRenderer.draw(canvas, box, scrollX, scrollY)
                 drawPageElements(canvas, box)
             }
             drawCurrent(canvas)
@@ -289,13 +372,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun drawPageElements(canvas: Canvas, box: PageBox) {
+        val offsetX = box.leftPx - scrollX
         val offsetY = box.topPx - scrollY
         for (layer in box.page.layers) {
             for (element in layer.elements) {
                 if (element is Stroke) {
-                    drawPoints(canvas, element.points, element.tool, element.color, box.scale, offsetY)
+                    drawPoints(canvas, element.points, element.tool, element.color, box.scale, offsetX, offsetY)
                 } else {
-                    elementRenderer.draw(canvas, element, box.scale, offsetY)
+                    elementRenderer.draw(canvas, element, box.scale, offsetX, offsetY)
                 }
             }
         }
@@ -304,10 +388,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun drawCurrent(canvas: Canvas) {
         val pts = current ?: return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        drawPoints(canvas, pts, tool, strokeColor(), box.scale, box.topPx - scrollY)
+        drawPoints(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
     }
 
-    private fun drawPoints(canvas: Canvas, pts: List<StrokePoint>, tool: Tool, color: Int, scale: Float, offsetY: Float) {
+    private fun drawPoints(canvas: Canvas, pts: List<StrokePoint>, tool: Tool, color: Int, scale: Float, offsetX: Float, offsetY: Float) {
         if (pts.size < 2) return
         paint.color = renderColor(tool, color)
         for (i in 1 until pts.size) {
@@ -315,8 +399,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             val b = pts[i]
             paint.strokeWidth = ((a.width + b.width) / 2.0).toFloat() * scale
             canvas.drawLine(
-                (a.x * scale).toFloat(), offsetY + (a.y * scale).toFloat(),
-                (b.x * scale).toFloat(), offsetY + (b.y * scale).toFloat(),
+                offsetX + (a.x * scale).toFloat(), offsetY + (a.y * scale).toFloat(),
+                offsetX + (b.x * scale).toFloat(), offsetY + (b.y * scale).toFloat(),
                 paint,
             )
         }
@@ -332,6 +416,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val GAP_PX = 24f
         const val ERASER_RADIUS_PX = 18f
         const val BACKDROP = 0xFF3A3A3A.toInt()
+        const val ZOOM_STEP = 1.25f
+        const val MIN_ZOOM = 0.25f
+        const val MAX_ZOOM = 5f
 
         fun blankPage() = Page(A4_WIDTH_PT, A4_HEIGHT_PT, Background.Solid(AndroidColor.WHITE, "graph"), listOf(Layer(emptyList())))
     }

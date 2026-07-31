@@ -43,4 +43,29 @@ class PageStackerTest {
         assertTrue(PageStacker.stack(emptyList(), 100, 10f).boxes.isEmpty())
         assertTrue(PageStacker.stack(listOf(page(100.0, 200.0)), 0, 10f).boxes.isEmpty())
     }
+
+    @Test fun defaultZoomFitsWidthAndPageStartsAtLeftZero() {
+        val box = layout.boxes[0]
+        assertEquals(1f, box.scale, 1e-4f)
+        assertEquals(100f, box.widthPx, 1e-4f)
+        assertEquals(0f, box.leftPx, 1e-4f) // fits exactly, so no centring offset
+        assertEquals(100f, layout.contentWidthPx, 1e-4f)
+    }
+
+    @Test fun zoomScalesPagesAndWidensContent() {
+        val zoomed = PageStacker.stack(listOf(page(100.0, 200.0)), 100, 10f, zoom = 2f)
+        val box = zoomed.boxes[0]
+        assertEquals(2f, box.scale, 1e-4f)
+        assertEquals(200f, box.widthPx, 1e-4f) // twice as wide as the 100px view
+        assertEquals(200f, zoomed.contentWidthPx, 1e-4f)
+        assertEquals(0f, box.leftPx, 1e-4f) // widest page anchors the content band
+    }
+
+    @Test fun zoomedOutPageIsCentredInTheViewWidth() {
+        val out = PageStacker.stack(listOf(page(100.0, 200.0)), 100, 10f, zoom = 0.5f)
+        val box = out.boxes[0]
+        assertEquals(50f, box.widthPx, 1e-4f)
+        assertEquals(100f, out.contentWidthPx, 1e-4f) // view width, since the page is narrower
+        assertEquals(25f, box.leftPx, 1e-4f) // (100 - 50) / 2, centred
+    }
 }

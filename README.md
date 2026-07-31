@@ -79,7 +79,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   stroke the eraser touches is removed whole.
 - **Undo / Redo** — the arrows in the top bar undo and redo edits, one draw or erase gesture at
   a time. They enable and disable as history allows; opening a file starts fresh history.
-- **Scroll** — drag with **two fingers** to move up and down the page stack.
+- **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
+  from the Tool pop-up to pan with **one finger** (handy on a stylus).
+- **Zoom** — the **%** button in the bottom bar opens a zoom pop-up with **−** / **+** buttons;
+  tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways.
+- **Pages** — the document button (far right of the bottom bar) opens a pop-up to **Add page**
+  (a blank page, inheriting the current page's size and background, after the one in view) or
+  **Remove page** (the one in view; the last page is never removed). It also shows the page count.
+  Add and remove are undoable.
 - **Settings** — the top-bar menu also opens a full-screen **Settings** page (placeholder for
   now); the back arrow returns to the editor.
 - **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),

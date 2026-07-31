@@ -243,6 +243,7 @@ app/
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
+      PageOps.kt             # insert / delete pages in a page list (pure)
     ui/                      # Compose Material 3
       EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), canvas, bottom toolbar
       BottomToolbar.kt       # Tool/Colour/Size buttons, each with a button-anchored pop-up
@@ -263,21 +264,29 @@ plus all of its layers in z-order. The geometry (page placement, gridlines) is f
 `PageStacker`/`BackgroundGrid` precisely so it's unit-testable off-device. **One finger draws**
 (a new stroke lands on the top layer of the page under the touch) — or **erases** when the
 Eraser tool is active, deleting every stroke the eraser disc touches (hit geometry in the pure,
-tested `StrokeHitTester`); **two fingers scroll** the stack. Each draw or erase gesture snapshots
+tested `StrokeHitTester`), or **pans** when the Hand tool is active; **two fingers pan** in any
+tool. A **zoom** factor multiplies the fit-to-width scale (`PageStacker` takes it as a parameter);
+when a page is wider than the view the same pan gesture scrolls horizontally, and narrower pages
+are centred in the content band (`PageBox.leftPx`). Zoom keeps the viewport-centre point roughly
+fixed. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
-gesture at a time (snapshots are cheap — immutable pages/layers share structure). Strokes are
-drawn by the view; text boxes, images, and LaTeX images are drawn by
-`ElementRenderer` (text baseline geometry lives in the pure, tested `TextBlock`; image bytes are
-decoded once and cached by element identity). A `<teximage>` carries only its LaTeX source in the
-model, so it renders as a best-effort placeholder — a faint box with the source text — until a
-real LaTeX renderer lands. The view keeps the loaded document intact and only appends, so every
-page, layer, and element round-trips through save. Editing the non-stroke elements, plus pan/zoom,
-are still to come (`TODO.md`).
+gesture at a time (snapshots are cheap — immutable pages/layers share structure); pan and zoom are
+view-only and not recorded. Strokes are drawn by the view; text boxes, images, and LaTeX images
+are drawn by `ElementRenderer` (text baseline geometry lives in the pure, tested `TextBlock`; image
+bytes are decoded once and cached by element identity). A `<teximage>` carries only its LaTeX
+source in the model, so it renders as a best-effort placeholder — a faint box with the source text
+— until a real LaTeX renderer lands. The view keeps the loaded document intact and only appends, so
+every page, layer, and element round-trips through save. Editing the non-stroke elements is still
+to come (`TODO.md`).
 
 **Chrome (`ui/`).** `EditorScreen` is the one editor screen: a top bar with undo/redo icon
 buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Save, and Settings; the canvas;
-and a bottom **`BottomToolbar`** with three buttons — Tool, Colour, Size. Each bottom button owns
-its own `DropdownMenu`, so the pop-up is anchored to that button rather than filling the screen or
-floating in the centre. Choosing Settings swaps the whole screen for `SettingsScreen` (a
-full-screen page reserved for future settings; a back arrow returns to the editor). The pen
-palette constants (`PEN_COLORS`, `PEN_WIDTHS`) live in `BottomToolbar.kt`.
+and a bottom **`BottomToolbar`** with five buttons — Tool, Colour, Size, Zoom, Pages. Each bottom
+button owns its own `DropdownMenu`, so the pop-up is anchored to that button rather than filling
+the screen or floating in the centre. The Tool pop-up lists Pen / Highlighter / Eraser / Hand as a
+UI-level `EditorTool` (Hand is view-only pan, not a document tool, so `EditorScreen.applyTool`
+toggles the surface's `handMode` for it and maps the other three to the document `Tool`). Choosing
+Settings from the ☰ menu swaps the whole screen for `SettingsScreen` (a full-screen page reserved
+for future settings; a back arrow returns to the editor). The pen palette constants (`PEN_COLORS`,
+`PEN_WIDTHS`) live in `BottomToolbar.kt`.

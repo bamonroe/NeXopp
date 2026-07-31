@@ -10,14 +10,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.ZoomIn
+import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -34,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.Tool
+import kotlin.math.roundToInt
 
 /** One selectable pen width, labelled for the chip and carrying the pt value the canvas uses. */
 data class WidthOption(val label: String, val pt: Float)
@@ -54,49 +62,66 @@ val PEN_WIDTHS: List<WidthOption> = listOf(
     WidthOption("L", 2.6f),
 )
 
-private data class ToolInfo(val tool: Tool, val label: String, val icon: ImageVector)
+/**
+ * The editor's interaction modes. PEN/HIGHLIGHTER/ERASER map to the document [Tool]; HAND is a
+ * view-only mode where one finger pans the canvas instead of drawing (useful on multi-page or
+ * zoomed documents).
+ */
+enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND }
+
+private data class ToolInfo(val tool: EditorTool, val label: String, val icon: ImageVector)
 
 private val TOOLS: List<ToolInfo> = listOf(
-    ToolInfo(Tool.PEN, "Pen", Icons.Filled.Create),
-    ToolInfo(Tool.HIGHLIGHTER, "Highlighter", Icons.Filled.Brush),
-    ToolInfo(Tool.ERASER, "Eraser", Icons.Filled.Delete),
+    ToolInfo(EditorTool.PEN, "Pen", Icons.Filled.Create),
+    ToolInfo(EditorTool.HIGHLIGHTER, "Highlighter", Icons.Filled.Brush),
+    ToolInfo(EditorTool.ERASER, "Eraser", Icons.Filled.Delete),
+    ToolInfo(EditorTool.HAND, "Hand (pan)", Icons.Filled.PanTool),
 )
 
 /**
- * The bottom control bar: three buttons — Tool, Colour, Size — each opening a small [DropdownMenu]
- * anchored to its own button (never full-screen, never centred). [EditorScreen] pushes the picked
- * value onto the [com.xopp.android.render.DrawingSurfaceView].
+ * The bottom control bar: five buttons — Tool, Colour, Size, Zoom, Pages — each opening a small
+ * [DropdownMenu] anchored to its own button (never full-screen, never centred). [EditorScreen]
+ * pushes the picked value onto the [com.xopp.android.render.DrawingSurfaceView].
  */
 @Composable
 fun BottomToolbar(
-    tool: Tool,
-    onTool: (Tool) -> Unit,
+    tool: EditorTool,
+    onTool: (EditorTool) -> Unit,
     color: Int,
     onColor: (Int) -> Unit,
     width: Float,
     onWidth: (Float) -> Unit,
+    zoom: Float,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    onZoomReset: () -> Unit,
+    pageCount: Int,
+    onAddPage: () -> Unit,
+    onRemovePage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier, tonalElevation = 3.dp) {
         Row(
             modifier = Modifier.padding(4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             ToolPopupButton(tool, onTool)
             ColorPopupButton(color, onColor)
             SizePopupButton(width, onWidth)
+            ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
+            PagesPopupButton(pageCount, onAddPage, onRemovePage)
         }
     }
 }
 
 @Composable
-private fun ToolPopupButton(tool: Tool, onTool: (Tool) -> Unit) {
+private fun ToolPopupButton(tool: EditorTool, onTool: (EditorTool) -> Unit) {
     var open by remember { mutableStateOf(false) }
     val current = TOOLS.first { it.tool == tool }
     Box {
-        TextButton(onClick = { open = true }) {
-            Icon(current.icon, contentDescription = null)
-            Text("  ${current.label}")
+        IconButton(onClick = { open = true }) {
+            Icon(current.icon, contentDescription = "Tool: ${current.label}")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (info in TOOLS) {
@@ -117,9 +142,8 @@ private fun ToolPopupButton(tool: Tool, onTool: (Tool) -> Unit) {
 private fun ColorPopupButton(color: Int, onColor: (Int) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { open = true }) {
+        IconButton(onClick = { open = true }) {
             Icon(Icons.Filled.Circle, contentDescription = "Colour", tint = Color(color))
-            Text("  Colour")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             Row(
@@ -137,10 +161,10 @@ private fun ColorPopupButton(color: Int, onColor: (Int) -> Unit) {
 @Composable
 private fun SizePopupButton(width: Float, onWidth: (Float) -> Unit) {
     var open by remember { mutableStateOf(false) }
-    val current = PEN_WIDTHS.firstOrNull { it.pt == width }?.label ?: "Size"
+    val current = PEN_WIDTHS.firstOrNull { it.pt == width }?.label ?: "?"
     Box {
         TextButton(onClick = { open = true }) {
-            Text("Size: $current")
+            Text("Size $current")
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (w in PEN_WIDTHS) {
@@ -152,6 +176,54 @@ private fun SizePopupButton(width: Float, onWidth: (Float) -> Unit) {
                     onClick = { onWidth(w.pt); open = false },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ZoomPopupButton(zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> Unit, onZoomReset: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) {
+            Text("${(zoom * 100).roundToInt()}%")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onZoomOut) { Icon(Icons.Filled.ZoomOut, contentDescription = "Zoom out") }
+                TextButton(onClick = onZoomReset) { Text("${(zoom * 100).roundToInt()}%") }
+                IconButton(onClick = onZoomIn) { Icon(Icons.Filled.ZoomIn, contentDescription = "Zoom in") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PagesPopupButton(pageCount: Int, onAddPage: () -> Unit, onRemovePage: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(Icons.Filled.Description, contentDescription = "Pages")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("Add page") },
+                leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                onClick = { onAddPage(); open = false },
+            )
+            DropdownMenuItem(
+                text = { Text("Remove page") },
+                leadingIcon = { Icon(Icons.Filled.Remove, contentDescription = null) },
+                enabled = pageCount > 1,
+                onClick = { onRemovePage(); open = false },
+            )
+            Text(
+                "$pageCount page${if (pageCount == 1) "" else "s"}",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
     }
 }

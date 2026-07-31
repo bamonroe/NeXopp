@@ -25,49 +25,50 @@ object BackgroundRenderer {
         color = 0xFF8FB0D6.toInt(); style = Paint.Style.FILL
     }
 
-    fun draw(canvas: Canvas, box: PageBox, scrollY: Float) {
+    fun draw(canvas: Canvas, box: PageBox, scrollX: Float, scrollY: Float) {
+        val left = box.leftPx - scrollX
         val top = box.topPx - scrollY
         val solid = box.page.background as? Background.Solid
         fill.color = solid?.color ?: AndroidColor.WHITE
-        canvas.drawRect(0f, top, box.widthPx, top + box.heightPx, fill)
+        canvas.drawRect(left, top, left + box.widthPx, top + box.heightPx, fill)
         when (solid?.style) {
-            "lined" -> horizontals(canvas, box, top)
-            "ruled" -> { horizontals(canvas, box, top); marginLine(canvas, box, top) }
-            "graph" -> grid(canvas, box, top)
-            "dotted" -> dots(canvas, box, top)
+            "lined" -> horizontals(canvas, box, left, top)
+            "ruled" -> { horizontals(canvas, box, left, top); marginLine(canvas, box, left, top) }
+            "graph" -> grid(canvas, box, left, top)
+            "dotted" -> dots(canvas, box, left, top)
             else -> Unit // "plain", unknown, or non-solid: bare sheet
         }
     }
 
-    private fun horizontals(canvas: Canvas, box: PageBox, top: Float) {
+    private fun horizontals(canvas: Canvas, box: PageBox, left: Float, top: Float) {
         for (y in BackgroundGrid.lines(box.page.height, RULE_SPACING_PT)) {
             val py = top + (y * box.scale).toFloat()
-            canvas.drawLine(0f, py, box.widthPx, py, line)
+            canvas.drawLine(left, py, left + box.widthPx, py, line)
         }
     }
 
-    private fun marginLine(canvas: Canvas, box: PageBox, top: Float) {
-        val x = (MARGIN_PT * box.scale).toFloat()
+    private fun marginLine(canvas: Canvas, box: PageBox, left: Float, top: Float) {
+        val x = left + (MARGIN_PT * box.scale).toFloat()
         canvas.drawLine(x, top, x, top + box.heightPx, margin)
     }
 
-    private fun grid(canvas: Canvas, box: PageBox, top: Float) {
+    private fun grid(canvas: Canvas, box: PageBox, left: Float, top: Float) {
         for (y in BackgroundGrid.lines(box.page.height, GRID_SPACING_PT)) {
             val py = top + (y * box.scale).toFloat()
-            canvas.drawLine(0f, py, box.widthPx, py, line)
+            canvas.drawLine(left, py, left + box.widthPx, py, line)
         }
         for (x in BackgroundGrid.lines(box.page.width, GRID_SPACING_PT)) {
-            val px = (x * box.scale).toFloat()
+            val px = left + (x * box.scale).toFloat()
             canvas.drawLine(px, top, px, top + box.heightPx, line)
         }
     }
 
-    private fun dots(canvas: Canvas, box: PageBox, top: Float) {
+    private fun dots(canvas: Canvas, box: PageBox, left: Float, top: Float) {
         val radius = (box.scale).coerceIn(1f, 2.5f)
         for (y in BackgroundGrid.lines(box.page.height, GRID_SPACING_PT)) {
             val py = top + (y * box.scale).toFloat()
             for (x in BackgroundGrid.lines(box.page.width, GRID_SPACING_PT)) {
-                canvas.drawCircle((x * box.scale).toFloat(), py, radius, dot)
+                canvas.drawCircle(left + (x * box.scale).toFloat(), py, radius, dot)
             }
         }
     }

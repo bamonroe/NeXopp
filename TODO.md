@@ -12,11 +12,23 @@ ones with a one-line why.
       insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
       authoring path.
 - [ ] Render **teximage** as real math (a LaTeX renderer), replacing the source-text placeholder.
-- [ ] Add pan/zoom to the canvas and a page navigator.
+- [ ] Add a **page navigator** — thumbnails or a jump-to-page N control (page add/remove and the
+      page count already exist; this is quick navigation across a long document).
 - [ ] Script the **emulator harness** (AVD create + headless launch + install) per
       `docs/tools.md`; wire an instrumented smoke test.
 
 ## Done
+
+- [x] 2026-07-30 — **Hand tool, zoom, and add/remove page.** The Tool pop-up gained a **Hand**
+      mode (one-finger pan; two-finger pan works in every tool). A **Zoom** button opens a −/+/reset
+      pop-up; zoom multiplies the fit-to-width scale in `PageStacker`, pages wider than the view pan
+      horizontally, narrower pages centre (`PageBox.leftPx`). A **Pages** button adds a blank page
+      (inheriting the current page's size/background, via the pure `PageOps`) or removes the page in
+      view (never the last one), showing the page count; both are undoable. New pure tests for
+      `PageOps` and `PageStacker` zoom/centering. `BUILD SUCCESSFUL`, all tests pass. Verified on the
+      `/data/android` emulator: added a page (count 1→2, page break visible, Undo lit), zoomed to
+      156% (grid enlarged, live label), Hand-panned to the page break, removed a page (2→1), no
+      crash. Installed to both tailnet devices.
 
 - [x] 2026-07-30 — **Rearranged the chrome into pop-up groups + an overflow menu.** The bottom bar
       is now three buttons — Tool, Colour, Size — each opening a small `DropdownMenu` **anchored to
