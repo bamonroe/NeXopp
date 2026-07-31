@@ -6,6 +6,26 @@ The archive of **completed** work for this project — the graveyard for done ta
 When a task is fully finished (built, tested, documented), move its checked, dated entry
 here from `TODO.md`. Newest first. This file only grows; nothing is removed from it.
 
+- [x] 2026-07-31 — **Selection tool to desktop parity.** Extended the object-selection tool from
+      rectangle-select + move + delete to the full desktop feature set, all as pure, JVM-tested
+      `SelectionOps`/`SelectionTester` ops so the logic stays off the Android surface: (1) **resize**
+      via four corner handles (uniform scale about the opposite corner, `SelectionOps.scale`, backed
+      by a single `affine` primitive); (2) **rotate** via a top knob (`SelectionOps.rotate`) — *stroke
+      only by the scope rule*, since a stroke bakes rotation into its vertex coordinates and
+      round-trips but text/images have no rotation attribute in `.xopp`, so the knob is shown only for
+      an all-stroke selection; (3) **lasso** (free-form) select alongside the rectangle
+      (`SelectionTester.inPolygon`, wholly-enclosed semantics); (4) **cut / copy / paste / duplicate**
+      through a view-held element clipboard (`elementsAt` + `addToTopLayer`, which reports the pasted
+      refs so copies land selected; paste targets the visible page); (5) **move across pages** —
+      dropping a move over another page re-homes the elements through both pages' pt frames
+      (`SelectionOps.moveToPage`); and (6) **recolour / re-width** the selection (`SelectionOps.restyle`).
+      New UI: a scrollable selection action bar (cut/copy/duplicate/palette/line-weight/delete/done)
+      and a select-mode bar (Rectangle/Lasso chips + Paste). Tilt/orientation was dropped from the
+      roadmap and a **"the format is the boundary" scope rule** recorded (`CLAUDE.md`) — we only build
+      features `.xopp` can represent. Extended `SelectionTest` (resize/rotate/restyle/clipboard/
+      moveToPage/lasso); `BUILD SUCCESSFUL`, all JVM unit tests pass. Verified on the `/data/android`
+      emulator (select → resize/rotate handles, lasso, copy/paste, recolour) and installed to the
+      Pixel 8a and Tab S9 Ultra.
 - [x] 2026-07-31 — **Stylus-first input layer.** Routed `DrawingSurfaceView.onTouchEvent` through a
       new pure, JVM-tested **`InputClassifier`** (`PointerKind` + barrel state + `ActiveTool` +
       `InputSettings` → `GestureIntent`), so pen hardware wins over the toolbar the way desktop

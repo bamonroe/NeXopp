@@ -13,9 +13,5 @@ fully finished (built, tested, documented), **move** its checked, dated entry to
 > capability can't round-trip through the file (e.g. tilt/orientation, which the format
 > doesn't store), it's out of scope — don't add it. See `CLAUDE.md` → "What this project is".
 
-**Selection — remaining desktop parity (see `docs/architecture.md` → "Stylus & selection roadmap"):**
-
-- [ ] **Resize** and **rotate** handles on the selection outline (`SelectionOps.resize`/`rotate`).
-- [ ] **Cut / copy / paste / duplicate** of a selection.
-- [ ] **Lasso** (free-form) select in addition to the rectangle.
-- [ ] Move a selection **across pages**; change selected strokes' **colour / width**.
+_No active tasks. The selection tool reached desktop parity on 2026-07-31 (resize/rotate handles,
+cut/copy/paste/duplicate, lasso, cross-page move, recolour/re-width) — see `FINISHED.md`._

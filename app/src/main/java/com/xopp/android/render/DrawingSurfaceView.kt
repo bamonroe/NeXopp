@@ -22,6 +22,8 @@ import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
+import android.graphics.Path
+import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
@@ -119,11 +121,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
             if (!value) clearSelection()
         }
 
+    /** When true, the Select tool's marquee is a free-form lasso instead of a rectangle. */
+    var lassoMode: Boolean = false
+
     /** Notified whenever the selection appears or clears, so the chrome can show contextual actions. */
     var onSelectionChanged: ((Boolean) -> Unit)? = null
 
+    /** Notified when the copy/cut clipboard gains or loses content (drives the Paste affordance). */
+    var onClipboardChanged: ((Boolean) -> Unit)? = null
+
     /** The current selection (a page index + the refs of its selected elements), or null. */
     private var selection: ActiveSelection? = null
+
+    /** Copied/cut elements, ready to paste onto the visible page. */
+    private var clipboard: List<Element> = emptyList()
 
     // Live rubber-band marquee (view px) and the page it selects within.
     private var banding = false
@@ -132,12 +143,27 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var bandY0 = 0f
     private var bandX1 = 0f
     private var bandY1 = 0f
+    // Free-form lasso path (view px, x/y interleaved) captured while banding in lasso mode.
+    private val lassoPts = ArrayList<Float>()
 
-    // Live move of the current selection.
+    // Live move of the current selection (also the base snapshot for resize/rotate, so a live
+    // transform recomputes from the gesture-start document each frame and never drifts).
     private var movingSel = false
     private var moveStartDoc: Document? = null
     private var moveStartPtX = 0.0
     private var moveStartPtY = 0.0
+
+    // Live uniform resize about a fixed anchor (the opposite corner), in page-local pt.
+    private var resizing = false
+    private var resizeAnchorX = 0.0
+    private var resizeAnchorY = 0.0
+    private var resizeStartDist = 1.0
+
+    // Live rotate about the selection centre (pt); strokes only.
+    private var rotating = false
+    private var rotatePivotX = 0.0
+    private var rotatePivotY = 0.0
+    private var rotateStartAngle = 0.0
 
     private val strokePainter = StrokePainter()
     private val elementRenderer = ElementRenderer()
@@ -152,6 +178,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
         style = Paint.Style.FILL
         color = SELECTION_FILL
     }
+    private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = SELECTION_COLOR
+    }
+    private val handleArmPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = SELECTION_COLOR
+    }
+    private val lassoPath = Path()
     private val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = BAND_FILL
@@ -391,25 +427,62 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** A live selection: the page it lives on and the position-addressed elements it holds. */
     private data class ActiveSelection(val pageIndex: Int, val refs: Set<ElementRef>)
 
-    /** Down in Select mode: grab an existing selection to move it, else start a rubber-band. */
+    /**
+     * Down in Select mode. With a live selection, a touch near a corner **resizes**, near the top
+     * rotate knob (strokes only) **rotates**, and inside the outline **moves**; otherwise it starts
+     * a new rubber-band (or lasso). The handle hit-tests run in view px against the drawn outline.
+     */
     private fun beginSelect(event: MotionEvent) {
         scrolling = false
         erasing = false
         placing = false
         current = null
         val sel = selection
-        if (sel != null) {
-            val box = layout.boxes.getOrNull(sel.pageIndex)
-            val page = doc.pages.getOrNull(sel.pageIndex)
-            val bounds = if (page != null) SelectionTester.boundsOf(page, sel.refs) else null
-            if (box != null && bounds != null &&
-                bounds.expand(MOVE_GRAB_PAD).contains(ptX(box, event.x), ptY(box, event.y))
-            ) {
-                beginMove(event, sel, box)
-                return
+        if (sel != null && dispatchHandle(event, sel)) return
+        beginBand(event)
+    }
+
+    /** Try to start a resize/rotate/move for [sel] from a down at (event.x, event.y); else false. */
+    private fun dispatchHandle(event: MotionEvent, sel: ActiveSelection): Boolean {
+        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return false
+        val page = doc.pages.getOrNull(sel.pageIndex) ?: return false
+        val b = SelectionTester.boundsOf(page, sel.refs) ?: return false
+        // Rotate knob (top-centre), offered only when every selected element is a stroke.
+        if (isAllStrokes(sel)) {
+            val midX = ((b.left + b.right) / 2 * box.scale + box.leftPx - scrollX).toFloat()
+            val topY = (b.top * box.scale + box.topPx - scrollY).toFloat() - SELECT_PAD_PX - ROTATE_ARM_PX
+            if (hypot(event.x - midX, event.y - topY) <= HANDLE_HIT_PX) {
+                beginRotate(event, box, (b.left + b.right) / 2, (b.top + b.bottom) / 2)
+                return true
             }
         }
-        beginBand(event)
+        // Four corner resize handles; the anchor is the diagonally-opposite corner.
+        val cornersPt = arrayOf(b.left to b.top, b.right to b.top, b.right to b.bottom, b.left to b.bottom)
+        for (i in 0..3) {
+            val padX = if (cornersPt[i].first == b.left) -SELECT_PAD_PX else SELECT_PAD_PX
+            val padY = if (cornersPt[i].second == b.top) -SELECT_PAD_PX else SELECT_PAD_PX
+            val hx = (cornersPt[i].first * box.scale + box.leftPx - scrollX).toFloat() + padX
+            val hy = (cornersPt[i].second * box.scale + box.topPx - scrollY).toFloat() + padY
+            if (hypot(event.x - hx, event.y - hy) <= HANDLE_HIT_PX) {
+                val anchor = cornersPt[(i + 2) % 4]
+                beginResize(event, box, anchor.first, anchor.second)
+                return true
+            }
+        }
+        // Inside the outline: move.
+        if (b.expand(MOVE_GRAB_PAD).contains(ptX(box, event.x), ptY(box, event.y))) {
+            beginMove(event, sel, box)
+            return true
+        }
+        return false
+    }
+
+    /** True if every element in [sel] is a stroke (the only element whose rotation round-trips). */
+    private fun isAllStrokes(sel: ActiveSelection): Boolean {
+        val page = doc.pages.getOrNull(sel.pageIndex) ?: return false
+        return sel.refs.isNotEmpty() && sel.refs.all {
+            page.layers.getOrNull(it.layerIndex)?.elements?.getOrNull(it.elementIndex) is Stroke
+        }
     }
 
     private fun beginMove(event: MotionEvent, sel: ActiveSelection, box: PageBox) {
@@ -418,6 +491,68 @@ class DrawingSurfaceView @JvmOverloads constructor(
         moveStartDoc = doc
         moveStartPtX = ptX(box, event.x)
         moveStartPtY = ptY(box, event.y)
+    }
+
+    private fun beginResize(event: MotionEvent, box: PageBox, anchorX: Double, anchorY: Double) {
+        resizing = true
+        gestureStartDoc = doc
+        moveStartDoc = doc
+        resizeAnchorX = anchorX
+        resizeAnchorY = anchorY
+        resizeStartDist = hypot(ptX(box, event.x) - anchorX, ptY(box, event.y) - anchorY).coerceAtLeast(1e-3)
+    }
+
+    /** Resize the selection: a uniform scale by (current distance / start distance) about the anchor. */
+    private fun resizeSelect(event: MotionEvent) {
+        val sel = selection ?: return
+        val start = moveStartDoc ?: return
+        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
+        val dist = hypot(ptX(box, event.x) - resizeAnchorX, ptY(box, event.y) - resizeAnchorY)
+        val factor = (dist / resizeStartDist).coerceIn(MIN_RESIZE, MAX_RESIZE)
+        doc = doc.copy(pages = SelectionOps.scale(start.pages, sel.pageIndex, sel.refs, factor, resizeAnchorX, resizeAnchorY))
+        relayout()
+        render()
+    }
+
+    private fun beginRotate(event: MotionEvent, box: PageBox, pivotX: Double, pivotY: Double) {
+        rotating = true
+        gestureStartDoc = doc
+        moveStartDoc = doc
+        rotatePivotX = pivotX
+        rotatePivotY = pivotY
+        rotateStartAngle = atan2(ptY(box, event.y) - pivotY, ptX(box, event.x) - pivotX)
+    }
+
+    /** Rotate the selection's strokes by the angle swept around the pivot since the gesture start. */
+    private fun rotateSelect(event: MotionEvent) {
+        val sel = selection ?: return
+        val start = moveStartDoc ?: return
+        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
+        val angle = atan2(ptY(box, event.y) - rotatePivotY, ptX(box, event.x) - rotatePivotX) - rotateStartAngle
+        doc = doc.copy(pages = SelectionOps.rotate(start.pages, sel.pageIndex, sel.refs, angle, rotatePivotX, rotatePivotY))
+        relayout()
+        render()
+    }
+
+    /**
+     * Finish a move: if the selection's centre now sits over a different page, re-home the elements
+     * onto that page's top layer (mapping through both pages' pt frames so they land where they're
+     * dropped). The whole move records as one undoable edit via [finishGesture].
+     */
+    private fun commitMove() {
+        val sel = selection ?: return
+        val srcBox = layout.boxes.getOrNull(sel.pageIndex) ?: return
+        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
+        val b = SelectionTester.boundsOf(page, sel.refs) ?: return
+        val centreYContent = ((b.top + b.bottom) / 2 * srcBox.scale + srcBox.topPx).toFloat()
+        val target = layout.pageAt(centreYContent) ?: return
+        if (target.index == sel.pageIndex) return
+        val s = srcBox.scale.toDouble() / target.scale.toDouble()
+        val dx = (srcBox.leftPx - target.leftPx) / target.scale.toDouble()
+        val dy = (srcBox.topPx - target.topPx) / target.scale.toDouble()
+        val (pages, refs) = SelectionOps.moveToPage(doc.pages, sel.pageIndex, target.index, sel.refs, s, dx, dy)
+        doc = doc.copy(pages = pages)
+        selection = ActiveSelection(target.index, refs)
     }
 
     /** Drag the selection: translate the elements from their gesture-start positions, live. */
@@ -441,27 +576,41 @@ class DrawingSurfaceView @JvmOverloads constructor(
         bandPage = layout.pageAt(event.y + scrollY)?.index ?: 0
         bandX0 = event.x; bandY0 = event.y
         bandX1 = event.x; bandY1 = event.y
+        lassoPts.clear()
+        if (lassoMode) { lassoPts.add(event.x); lassoPts.add(event.y) }
         render()
     }
 
     private fun bandMove(event: MotionEvent) {
         bandX1 = event.x
         bandY1 = event.y
+        if (lassoMode) { lassoPts.add(event.x); lassoPts.add(event.y) }
         render()
     }
 
-    /** Up from a rubber-band: a tap picks the topmost element, a drag selects everything enclosed. */
+    /**
+     * Up from a marquee: a tap (no real drag) picks the topmost element; a rectangle drag selects
+     * everything wholly enclosed; a lasso drag selects everything wholly inside the traced polygon.
+     */
     private fun commitBand() {
         val box = layout.boxes.getOrNull(bandPage) ?: return
         val page = doc.pages.getOrNull(bandPage) ?: return
-        val refs: Set<ElementRef> = if (hypot(bandX1 - bandX0, bandY1 - bandY0) <= TAP_SLOP_PX) {
-            SelectionTester.pickTopmost(page, ptX(box, bandX0), ptY(box, bandY0))?.let { setOf(it) } ?: emptySet()
-        } else {
-            val rect = Bounds(
-                min(ptX(box, bandX0), ptX(box, bandX1)), min(ptY(box, bandY0), ptY(box, bandY1)),
-                max(ptX(box, bandX0), ptX(box, bandX1)), max(ptY(box, bandY0), ptY(box, bandY1)),
-            )
-            SelectionTester.inRect(page, rect)
+        val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= TAP_SLOP_PX
+        val refs: Set<ElementRef> = when {
+            isTap -> SelectionTester.pickTopmost(page, ptX(box, bandX0), ptY(box, bandY0))?.let { setOf(it) } ?: emptySet()
+            lassoMode -> {
+                val poly = ArrayList<Vec2>(lassoPts.size / 2)
+                var i = 0
+                while (i < lassoPts.size) { poly.add(Vec2(ptX(box, lassoPts[i]), ptY(box, lassoPts[i + 1]))); i += 2 }
+                SelectionTester.inPolygon(page, poly)
+            }
+            else -> {
+                val rect = Bounds(
+                    min(ptX(box, bandX0), ptX(box, bandX1)), min(ptY(box, bandY0), ptY(box, bandY1)),
+                    max(ptX(box, bandX0), ptX(box, bandX1)), max(ptY(box, bandY0), ptY(box, bandY1)),
+                )
+                SelectionTester.inRect(page, rect)
+            }
         }
         selection = if (refs.isEmpty()) null else ActiveSelection(bandPage, refs)
         onSelectionChanged?.invoke(selection != null)
@@ -489,6 +638,70 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
+    /** Recolour and/or re-width the selected elements as one undoable edit (selection stays). */
+    fun restyleSelection(color: Int?, widthPt: Double?) {
+        val sel = selection ?: return
+        val before = doc
+        val pages = SelectionOps.restyle(doc.pages, sel.pageIndex, sel.refs, color, widthPt)
+        if (pages === doc.pages) return
+        doc = doc.copy(pages = pages)
+        history.record(before)
+        notifyHistory()
+        relayout()
+        render()
+    }
+
+    /** Copy the selected elements to the clipboard (leaves the document and selection unchanged). */
+    fun copySelection() {
+        val sel = selection ?: return
+        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
+        clipboard = SelectionOps.elementsAt(page, sel.refs)
+        onClipboardChanged?.invoke(clipboard.isNotEmpty())
+    }
+
+    /** Copy then delete the selection (one undoable edit via [deleteSelection]). */
+    fun cutSelection() {
+        if (selection == null) return
+        copySelection()
+        deleteSelection()
+    }
+
+    /** Whether the clipboard currently holds anything to paste. */
+    fun hasClipboard(): Boolean = clipboard.isNotEmpty()
+
+    /** Paste the clipboard onto the visible page (offset a little), selecting the pasted copies. */
+    fun pasteClipboard() {
+        if (clipboard.isEmpty()) return
+        val target = visiblePageIndex()
+        pasteOnto(target, clipboard.map { SelectionOps.translate(it, PASTE_OFFSET_PT, PASTE_OFFSET_PT) })
+    }
+
+    /** Duplicate the selection in place (offset a little), selecting the duplicates. */
+    fun duplicateSelection() {
+        val sel = selection ?: return
+        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
+        val copies = SelectionOps.elementsAt(page, sel.refs).map { SelectionOps.translate(it, PASTE_OFFSET_PT, PASTE_OFFSET_PT) }
+        pasteOnto(sel.pageIndex, copies)
+    }
+
+    /** Append [elements] to [pageIndex]'s top layer as one undoable edit and select them. */
+    private fun pasteOnto(pageIndex: Int, elements: List<Element>) {
+        if (elements.isEmpty()) return
+        val before = doc
+        val (pages, refs) = SelectionOps.addToTopLayer(doc.pages, pageIndex, elements)
+        if (refs.isEmpty()) return
+        doc = doc.copy(pages = pages)
+        selection = ActiveSelection(pageIndex, refs)
+        onSelectionChanged?.invoke(true)
+        history.record(before)
+        notifyHistory()
+        relayout()
+        render()
+    }
+
+    /** The page nearest the viewport centre — the target for a paste. */
+    private fun visiblePageIndex(): Int = layout.pageAt(scrollY + height / 2f)?.index ?: currentPage
+
     /** View px -> page-local pt for [box]. */
     private fun ptX(box: PageBox, vx: Float): Double = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
     private fun ptY(box: PageBox, vy: Float): Double = ((vy + scrollY - box.topPx) / box.scale).toDouble()
@@ -503,6 +716,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 scrolling -> doScroll(event)
                 erasing -> eraseMove(event)
                 placing -> placeMove(event)
+                resizing -> resizeSelect(event)
+                rotating -> rotateSelect(event)
                 movingSel -> moveSelect(event)
                 banding -> bandMove(event)
                 current != null -> extendStroke(event)
@@ -601,12 +816,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
     private fun abandonInProgress() {
-        current = null; erasing = false; placing = false; banding = false; movingSel = false; scrolling = false
+        current = null; erasing = false; placing = false; banding = false
+        movingSel = false; resizing = false; rotating = false; scrolling = false
     }
 
     private fun cancelGesture() {
         current = null; scrolling = false; erasing = false; placing = false
-        movingSel = false; banding = false; gestureStartDoc = null
+        movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
         gesturePointerId = -1; stylusOwner = false
     }
 
@@ -706,18 +922,23 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasErasing = erasing
         val wasPlacing = placing
         val wasMoving = movingSel
+        val wasTransforming = resizing || rotating
         val wasBanding = banding
         scrolling = false
         erasing = false
         placing = false
         movingSel = false
+        resizing = false
+        rotating = false
         banding = false
         when {
             wasPlacing -> commitPlace()
-            wasMoving -> moveStartDoc = null // translation was applied live; finishGesture records it
+            wasMoving -> commitMove() // translation applied live; re-home if dropped on another page
+            wasTransforming -> Unit  // resize/rotate applied live; finishGesture records them
             wasBanding -> commitBand()
             !wasScrolling && !wasErasing -> commitCurrent()
         }
+        moveStartDoc = null
         finishGesture()
         gesturePointerId = -1
         stylusOwner = false
@@ -870,7 +1091,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         strokePainter.draw(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
     }
 
-    /** Draw the dashed selection outline (padded a little) around the selected elements' bounds. */
+    /** Draw the dashed selection outline (padded a little), the four resize handles, and — for an
+     * all-stroke selection — the top rotate knob. */
     private fun drawSelectionBox(canvas: Canvas, sel: ActiveSelection) {
         val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
         val page = doc.pages.getOrNull(sel.pageIndex) ?: return
@@ -881,6 +1103,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + SELECT_PAD_PX
         canvas.drawRect(l, t, r, bot, selectionFillPaint)
         canvas.drawRect(l, t, r, bot, selectionStrokePaint)
+        // Corner resize handles.
+        for (hx in floatArrayOf(l, r)) for (hy in floatArrayOf(t, bot)) {
+            canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, handlePaint)
+        }
+        // Rotate knob above the top edge (strokes only).
+        if (isAllStrokes(sel)) {
+            val midX = (l + r) / 2f
+            val knobY = t - ROTATE_ARM_PX
+            canvas.drawLine(midX, t, midX, knobY, handleArmPaint)
+            canvas.drawCircle(midX, knobY, HANDLE_DRAW_PX, handlePaint)
+        }
     }
 
     /** Draw the hover preview: a ring in the pen colour at the stylus's current hover point. */
@@ -890,8 +1123,18 @@ class DrawingSurfaceView @JvmOverloads constructor(
         canvas.drawCircle(hoverX, hoverY, r, hoverPaint)
     }
 
-    /** Draw the live rubber-band marquee (view px). */
+    /** Draw the live marquee (view px): a rectangle, or the traced lasso path in lasso mode. */
     private fun drawBand(canvas: Canvas) {
+        if (lassoMode && lassoPts.size >= 4) {
+            lassoPath.reset()
+            lassoPath.moveTo(lassoPts[0], lassoPts[1])
+            var i = 2
+            while (i < lassoPts.size) { lassoPath.lineTo(lassoPts[i], lassoPts[i + 1]); i += 2 }
+            lassoPath.close()
+            canvas.drawPath(lassoPath, bandFillPaint)
+            canvas.drawPath(lassoPath, selectionStrokePaint)
+            return
+        }
         val l = min(bandX0, bandX1)
         val t = min(bandY0, bandY1)
         val r = max(bandX0, bandX1)
@@ -912,6 +1155,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val TAP_SLOP_PX = 16f
         const val SELECT_PAD_PX = 6f
         const val MOVE_GRAB_PAD = 8.0
+        const val HANDLE_HIT_PX = 30f      // touch radius for grabbing a resize/rotate handle
+        const val HANDLE_DRAW_PX = 7f      // drawn radius of a handle dot
+        const val ROTATE_ARM_PX = 40f      // gap from the top edge up to the rotate knob
+        const val MIN_RESIZE = 0.05        // clamp on the live uniform-resize factor
+        const val MAX_RESIZE = 20.0
+        const val PASTE_OFFSET_PT = 12.0   // paste/duplicate nudge so copies don't hide the original
         const val SELECTION_COLOR = 0xFF2060E0.toInt()
         const val SELECTION_FILL = 0x142060E0
         const val BAND_FILL = 0x222060E0

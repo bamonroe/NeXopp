@@ -322,8 +322,19 @@ the selection outline translates the elements live (recomputing from the gesture
 frame so there's no drift) and commits as **one undoable edit**; a floating **Delete / Deselect** bar
 (`EditorScreen.SelectionActionBar`, shown via `onSelectionChanged`) deletes (undoable) or clears the
 selection. The dashed outline and marquee are drawn by the view over the page stack. Two-finger pan still
-works in Select mode (it abandons the in-progress selection gesture). Rotate/resize handles and
-cut/copy/paste are not yet implemented — see [Stylus & selection roadmap](#stylus--selection-roadmap).
+works in Select mode (it abandons the in-progress selection gesture).
+
+Beyond move/delete, the outline carries **four corner resize handles** (a uniform scale about the
+opposite corner, `SelectionOps.scale`) and — for an all-stroke selection only — a **top rotate knob**
+(`SelectionOps.rotate`, which bakes the angle into stroke vertices). A **lasso** marquee
+(`lassoMode`) selects everything wholly inside a traced polygon (`SelectionTester.inPolygon`),
+alongside the rectangle. **Cut / copy / paste / duplicate** run through a view-held element clipboard
+(`SelectionOps.elementsAt` + `addToTopLayer`, which reports the pasted refs so the copies are
+selected); paste lands on the visible page. Dropping a move over a **different page** re-homes the
+elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' pt frames). The
+floating action bar also **recolours / re-widths** the selection (`SelectionOps.restyle`). The scope
+and round-trip reasoning for what rotate/resize can touch lives in
+[Stylus & selection roadmap](#stylus--selection-roadmap).
 
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
@@ -397,9 +408,13 @@ build features the `.xopp` format can represent — see `CLAUDE.md`). None of th
 the file format — it's all input-layer behaviour, so it lives entirely in `render/`/`ui/` without
 touching `format/`.
 
-**Selection — remaining desktop parity.** The current tool does rectangle/tap select, move, and
-delete. Still to match desktop: **resize** and **rotate** handles on the selection outline;
-**cut / copy / paste / duplicate**; **lasso** (free-form) select in addition to the rectangle;
-moving a selection **across pages**; and changing the **colour / width** of the selected strokes.
-The pure `SelectionOps` is the natural home for the transforms (add `resize`/`rotate`/`restyle`
-alongside `translate`/`delete`), keeping them JVM-tested.
+**Selection — desktop parity (shipped).** The tool now covers rectangle **and** lasso select,
+tap-pick, move (including **across pages**), on-canvas **resize** (uniform, corner handles) and
+**rotate** (top knob), **cut / copy / paste / duplicate**, and **recolour / re-width**. Every
+transform is a pure `SelectionOps` op (`scale`/`rotate`/`restyle`/`moveToPage`/`addToTopLayer`
+alongside `translate`/`delete`) and lasso containment is `SelectionTester.inPolygon`, all
+JVM-tested. **Rotate is stroke-only by the scope rule:** a stroke bakes rotation into its vertex
+coordinates and round-trips, but text/images have no rotation attribute and axis-aligned boxes, so
+`rotate` leaves them untouched and the view shows the rotate knob only for an all-stroke selection.
+Non-uniform resize is likewise avoided (a text box's font size is a single scalar), so resize is a
+uniform scale that keeps every element representable.

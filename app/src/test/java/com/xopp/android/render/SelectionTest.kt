@@ -6,12 +6,15 @@ import com.xopp.android.format.model.Layer
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
+import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.PI
 
 class SelectionTest {
 
@@ -92,5 +95,122 @@ class SelectionTest {
         val pages = listOf(p)
         assertTrue(SelectionOps.translate(pages, 0, emptySet(), 5.0, 5.0) === pages)
         assertTrue(SelectionOps.delete(pages, 0, emptySet()) === pages)
+        assertTrue(SelectionOps.scale(pages, 0, emptySet(), 2.0, 0.0, 0.0) === pages)
+        assertTrue(SelectionOps.rotate(pages, 0, emptySet(), 1.0, 0.0, 0.0) === pages)
+        assertTrue(SelectionOps.restyle(pages, 0, emptySet(), 0xFFFF0000.toInt(), 3.0) === pages)
+        // A no-op factor / angle / all-null restyle is also identity.
+        assertSame(pages, SelectionOps.scale(pages, 0, setOf(ElementRef(0, 0)), 1.0, 0.0, 0.0))
+        assertSame(pages, SelectionOps.rotate(pages, 0, setOf(ElementRef(0, 0)), 0.0, 0.0, 0.0))
+        assertSame(pages, SelectionOps.restyle(pages, 0, setOf(ElementRef(0, 0)), null, null))
+    }
+
+    // --- resize (affine scale about an anchor) ---------------------------------------------------
+
+    private fun wide(w: Double, vararg pts: Pair<Double, Double>) =
+        Stroke(Tool.PEN, 0xFF000000.toInt(), "round", pts.map { StrokePoint(it.first, it.second, w) }, true)
+
+    @Test fun scaleGrowsStrokeAboutAnchorAndScalesWidth() {
+        val s = wide(2.0, 10.0 to 10.0, 20.0 to 20.0)
+        val pg = page(Layer(listOf(s)))
+        // Double about the anchor (0,0): coords and width both double.
+        val out = SelectionOps.scale(listOf(pg), 0, setOf(ElementRef(0, 0)), 2.0, 0.0, 0.0)
+        val r = out[0].layers[0].elements[0] as Stroke
+        assertEquals(20.0, r.points[0].x, 1e-9)
+        assertEquals(40.0, r.points[1].y, 1e-9)
+        assertEquals(4.0, r.points[0].width, 1e-9)
+    }
+
+    @Test fun scaleKeepsAnchorCornerFixed() {
+        // Scaling about (100,100) leaves a vertex sitting on the anchor unmoved.
+        val s = wide(1.0, 100.0 to 100.0, 60.0 to 60.0)
+        val pg = page(Layer(listOf(s)))
+        val out = SelectionOps.scale(listOf(pg), 0, setOf(ElementRef(0, 0)), 0.5, 100.0, 100.0)
+        val r = out[0].layers[0].elements[0] as Stroke
+        assertEquals(100.0, r.points[0].x, 1e-9)
+        assertEquals(80.0, r.points[1].x, 1e-9) // 100 + (60-100)*0.5
+    }
+
+    @Test fun scaleTextScalesFontSize() {
+        val t = TextElement("Sans", 10.0, 20.0, 20.0, 0xFF000000.toInt(), "hi")
+        val out = SelectionOps.scale(listOf(page(Layer(listOf(t)))), 0, setOf(ElementRef(0, 0)), 3.0, 0.0, 0.0)
+        val r = out[0].layers[0].elements[0] as TextElement
+        assertEquals(30.0, r.size, 1e-9)
+        assertEquals(60.0, r.x, 1e-9)
+    }
+
+    // --- rotate (strokes only) -------------------------------------------------------------------
+
+    @Test fun rotateStroke90AboutOrigin() {
+        val s = stroke(10.0 to 0.0, 0.0 to 10.0)
+        val out = SelectionOps.rotate(listOf(page(Layer(listOf(s)))), 0, setOf(ElementRef(0, 0)), PI / 2, 0.0, 0.0)
+        val r = out[0].layers[0].elements[0] as Stroke
+        // (10,0) -> (0,10); (0,10) -> (-10,0) for a +90° (x→y, y→-x in y-down space)
+        assertEquals(0.0, r.points[0].x, 1e-9)
+        assertEquals(10.0, r.points[0].y, 1e-9)
+        assertEquals(-10.0, r.points[1].x, 1e-9)
+        assertEquals(0.0, r.points[1].y, 1e-9)
+    }
+
+    @Test fun rotateLeavesNonStrokeElementsUntouched() {
+        val img = ImageElement(0.0, 0.0, 10.0, 10.0, ByteArray(0))
+        val out = SelectionOps.rotate(img, PI / 3, 5.0, 5.0)
+        assertSame(img, out) // no rotation representation in .xopp -> unchanged
+    }
+
+    // --- restyle (colour / width) ----------------------------------------------------------------
+
+    @Test fun restyleRecoloursAndReWidthsStroke() {
+        val s = wide(1.0, 0.0 to 0.0, 5.0 to 5.0)
+        val out = SelectionOps.restyle(listOf(page(Layer(listOf(s)))), 0, setOf(ElementRef(0, 0)), 0xFFFF0000.toInt(), 4.0)
+        val r = out[0].layers[0].elements[0] as Stroke
+        assertEquals(0xFFFF0000.toInt(), r.color)
+        assertTrue(r.uniformWidth)
+        assertTrue(r.points.all { it.width == 4.0 })
+    }
+
+    @Test fun restyleColoursTextButNotImage() {
+        val t = SelectionOps.restyle(TextElement("Sans", 10.0, 0.0, 0.0, 0xFF000000.toInt(), "x"), 0xFF00FF00.toInt(), null) as TextElement
+        assertEquals(0xFF00FF00.toInt(), t.color)
+        val img = ImageElement(0.0, 0.0, 1.0, 1.0, ByteArray(0))
+        assertSame(img, SelectionOps.restyle(img, 0xFF00FF00.toInt(), 5.0))
+    }
+
+    // --- clipboard: elementsAt / addToTopLayer / moveToPage --------------------------------------
+
+    @Test fun elementsAtResolvesInStableOrder() {
+        val els = SelectionOps.elementsAt(p, setOf(ElementRef(0, 2), ElementRef(0, 0)))
+        assertEquals(listOf<Any>(near, straddle), els) // sorted by index: 0 then 2
+    }
+
+    @Test fun addToTopLayerAppendsAndReportsRefs() {
+        val extra = stroke(1.0 to 1.0)
+        val (pages, refs) = SelectionOps.addToTopLayer(listOf(p), 0, listOf(extra))
+        assertEquals(4, pages[0].layers[0].elements.size)
+        assertEquals(setOf(ElementRef(0, 3)), refs)
+        assertSame(extra, pages[0].layers[0].elements[3])
+    }
+
+    @Test fun moveToPageRemovesFromSourceAndAppendsToTarget() {
+        val two = listOf(page(Layer(listOf(near, far))), page(Layer(emptyList())))
+        // Shift by (100,0) with unit scale onto page 1.
+        val (pages, refs) = SelectionOps.moveToPage(two, 0, 1, setOf(ElementRef(0, 0)), 1.0, 100.0, 0.0)
+        assertEquals(1, pages[0].layers[0].elements.size)       // `near` left page 0
+        assertEquals(setOf(ElementRef(0, 0)), refs)             // landed as page 1's first element
+        val moved = pages[1].layers[0].elements[0] as Stroke
+        assertEquals(110.0, moved.points[0].x, 1e-9)            // 10 + 100
+    }
+
+    // --- lasso (polygon) select ------------------------------------------------------------------
+
+    @Test fun inPolygonSelectsWhollyEnclosed() {
+        // A right triangle x+y<=70 in the top-left: near (max corner sum 60) is wholly inside;
+        // straddle (corner sums >=80) and far are not.
+        val triangle = listOf(Vec2(0.0, 0.0), Vec2(70.0, 0.0), Vec2(0.0, 70.0))
+        val refs = SelectionTester.inPolygon(p, triangle)
+        assertEquals(setOf(ElementRef(0, 0)), refs)
+    }
+
+    @Test fun inPolygonDegenerateSelectsNothing() {
+        assertTrue(SelectionTester.inPolygon(p, listOf(Vec2(0.0, 0.0), Vec2(1.0, 1.0))).isEmpty())
     }
 }

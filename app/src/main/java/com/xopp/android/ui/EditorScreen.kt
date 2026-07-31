@@ -1,7 +1,14 @@
 package com.xopp.android.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,8 +17,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.LibraryAdd
+import androidx.compose.material.icons.filled.LineWeight
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
@@ -27,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -36,6 +50,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.LaunchedEffect
@@ -103,6 +119,8 @@ fun EditorScreen(
     var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
+    var hasClipboard by remember { mutableStateOf(false) }
+    var lasso by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
     var textPlacement by remember { mutableStateOf<Placement?>(null) }
     var texPlacement by remember { mutableStateOf<Placement?>(null) }
@@ -160,6 +178,8 @@ fun EditorScreen(
                         it.onPageCountChanged = { n -> pageCount = n }
                         it.onCurrentPageChanged = { p -> currentPage = p }
                         it.onSelectionChanged = { s -> hasSelection = s }
+                        it.onClipboardChanged = { c -> hasClipboard = c }
+                        it.lassoMode = lasso
                         it.onPlace = { kind, placement ->
                             when (kind) {
                                 PlaceKind.TEXT -> textPlacement = placement
@@ -179,6 +199,9 @@ fun EditorScreen(
         // Re-apply settings to the live surface whenever the user changes them in Settings.
         LaunchedEffect(settings) { surface?.applySettings(settings) }
 
+        // Push the rectangle/lasso marquee choice onto the live surface.
+        LaunchedEffect(lasso) { surface?.lassoMode = lasso }
+
         // Settings is overlaid on top of the still-composed editor rather than replacing it, so the
         // AndroidView-hosted DrawingSurfaceView is never detached — the drawing (and undo history)
         // survives the round trip to Settings and back.
@@ -190,11 +213,25 @@ fun EditorScreen(
             )
         }
 
-        // Contextual actions for the Select tool: shown only while something is selected.
+        // Contextual actions for the Select tool: the full action bar while something is selected,
+        // otherwise (in Select mode) a small bar to pick the marquee shape and paste.
         if (hasSelection) {
             SelectionActionBar(
+                onCut = { surface?.cutSelection() },
+                onCopy = { surface?.copySelection() },
+                onDuplicate = { surface?.duplicateSelection() },
                 onDelete = { surface?.deleteSelection() },
+                onRecolor = { c -> surface?.restyleSelection(c, null) },
+                onReWidth = { w -> surface?.restyleSelection(null, w.toDouble()) },
                 onDeselect = { surface?.clearSelection() },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+            )
+        } else if (tool == EditorTool.SELECT) {
+            SelectModeBar(
+                lasso = lasso,
+                onLasso = { lasso = it },
+                canPaste = hasClipboard,
+                onPaste = { surface?.pasteClipboard() },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
             )
         }
@@ -221,13 +258,96 @@ fun EditorScreen(
 }
 
 /**
- * The Select tool's contextual action bar: a small floating pill offering Delete and Deselect,
- * shown only while a selection is active (see [DrawingSurfaceView.onSelectionChanged]).
+ * The Select tool's contextual action bar, shown while a selection is active: cut / copy /
+ * duplicate / delete, recolour and re-width the selected strokes, and deselect. Horizontally
+ * scrollable so it fits narrow screens. (Resize and rotate are on-canvas handles, not buttons.)
  */
 @Composable
 private fun SelectionActionBar(
+    onCut: () -> Unit,
+    onCopy: () -> Unit,
+    onDuplicate: () -> Unit,
     onDelete: () -> Unit,
+    onRecolor: (Int) -> Unit,
+    onReWidth: (Float) -> Unit,
     onDeselect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onCut) { Icon(Icons.Filled.ContentCut, contentDescription = "Cut") }
+            IconButton(onClick = onCopy) { Icon(Icons.Filled.ContentCopy, contentDescription = "Copy") }
+            IconButton(onClick = onDuplicate) { Icon(Icons.Filled.LibraryAdd, contentDescription = "Duplicate") }
+            RecolorMenu(onRecolor)
+            ReWidthMenu(onReWidth)
+            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
+            TextButton(onClick = onDeselect) { Text("Done") }
+        }
+    }
+}
+
+/** A palette drop-down that recolours the selection. */
+@Composable
+private fun RecolorMenu(onRecolor: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Filled.Palette, contentDescription = "Recolour") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                for (c in PEN_COLORS) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(Color(c))
+                            .clickable { onRecolor(c); open = false },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A width drop-down that re-widths the selected strokes. */
+@Composable
+private fun ReWidthMenu(onReWidth: (Float) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) { Icon(Icons.Filled.LineWeight, contentDescription = "Width") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for (w in PEN_WIDTHS) {
+                DropdownMenuItem(
+                    text = { Text("${w.label}  (${w.pt} pt)") },
+                    onClick = { onReWidth(w.pt); open = false },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Shown in Select mode when nothing is selected: choose the marquee shape (rectangle vs lasso)
+ * and paste the clipboard onto the visible page.
+ */
+@Composable
+private fun SelectModeBar(
+    lasso: Boolean,
+    onLasso: (Boolean) -> Unit,
+    canPaste: Boolean,
+    onPaste: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -239,13 +359,17 @@ private fun SelectionActionBar(
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TextButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Delete")
+            FilterChip(selected = !lasso, onClick = { onLasso(false) }, label = { Text("Rectangle") })
+            FilterChip(selected = lasso, onClick = { onLasso(true) }, label = { Text("Lasso") })
+            if (canPaste) {
+                TextButton(onClick = onPaste) {
+                    Icon(Icons.Filled.ContentPaste, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Paste")
+                }
             }
-            TextButton(onClick = onDeselect) { Text("Deselect") }
         }
     }
 }

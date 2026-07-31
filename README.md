@@ -95,11 +95,20 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   shows a **preview ring** where the tip will land. Pen **pressure** sets stroke width, with a
   configurable feel. All of this is tuned in **Settings** below.
 - **Select** — pick **Select** from the Tool pop-up to select objects the way desktop Xournal++
-  does. **Drag a box** (rubber-band) and every object fully inside it is selected; or **tap** a
-  single object to select just that one. Selected objects get a dashed outline. **Drag inside the
-  outline** to move them, and a floating **Delete / Deselect** bar appears at the bottom — Delete
-  removes the selection, Deselect clears it. Move and delete are undoable. (Selection is per page;
-  two-finger pan still works.)
+  does. Choose the marquee shape from the bottom bar: **Rectangle** (drag a box; every object fully
+  inside is selected) or **Lasso** (trace a free-form loop; everything wholly inside is selected).
+  Or **tap** a single object to select just that one. Selected objects get a dashed outline with
+  handles:
+  - **Drag inside the outline** to move them — drag onto a **different page** to move them there.
+  - **Drag a corner handle** to resize (uniform scale).
+  - **Drag the round knob above the top edge** to rotate — shown only when the selection is *all
+    strokes* (text and images have no rotation in the `.xopp` format, so they can't be rotated).
+  - The floating action bar offers **Cut**, **Copy**, **Duplicate**, a **palette** to recolour and
+    a **line-weight** menu to re-width the selection, **Delete**, and **Done** (deselect).
+  - **Paste** appears in the bottom bar (when nothing is selected) and drops the copied objects onto
+    the page you're viewing.
+
+  All of these are undoable. (Selection is per page; two-finger pan still works.)
 - **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
   takes the content from the keyboard. Tapping an existing text box reopens it for editing (clearing
   the text deletes the box). New text uses the current pen colour.

@@ -9,6 +9,9 @@ import com.xopp.android.format.model.Page
  */
 data class ElementRef(val layerIndex: Int, val elementIndex: Int)
 
+/** A point in page-local pt space — the vertices of a lasso polygon. */
+data class Vec2(val x: Double, val y: Double)
+
 /**
  * Pure queries that turn a page + a gesture into a set of [ElementRef]s: rectangle-select
  * containment and single-tap topmost pick, plus the combined bounds of a selection. Free of
@@ -29,6 +32,43 @@ object SelectionTester {
             }
         }
         return hits
+    }
+
+    /**
+     * Every element on [page] whose bounds lie wholly inside the lasso [polygon] (page-local pt) —
+     * the free-form analogue of [inRect], using the same "wholly enclosed" rule (all four corners of
+     * the element's bounding box inside the polygon). A degenerate polygon (< 3 points) selects
+     * nothing.
+     */
+    fun inPolygon(page: Page, polygon: List<Vec2>): Set<ElementRef> {
+        if (polygon.size < 3) return emptySet()
+        val hits = LinkedHashSet<ElementRef>()
+        page.layers.forEachIndexed { li, layer ->
+            layer.elements.forEachIndexed { ei, el ->
+                val b = ElementBounds.of(el)
+                if (contains(polygon, b.left, b.top) && contains(polygon, b.right, b.top) &&
+                    contains(polygon, b.right, b.bottom) && contains(polygon, b.left, b.bottom)
+                ) {
+                    hits += ElementRef(li, ei)
+                }
+            }
+        }
+        return hits
+    }
+
+    /** Even-odd ray-cast point-in-polygon test (pt space). */
+    private fun contains(poly: List<Vec2>, x: Double, y: Double): Boolean {
+        var inside = false
+        var j = poly.size - 1
+        for (i in poly.indices) {
+            val a = poly[i]; val b = poly[j]
+            if ((a.y > y) != (b.y > y)) {
+                val xCross = a.x + (y - a.y) / (b.y - a.y) * (b.x - a.x)
+                if (x < xCross) inside = !inside
+            }
+            j = i
+        }
+        return inside
     }
 
     /** The topmost (last-drawn) element whose padded bounds contain (x, y), or null. */
