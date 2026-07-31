@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xopp.android.render.BarrelAction
 import com.xopp.android.render.Momentum
+import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 
@@ -111,6 +112,15 @@ fun SettingsScreen(
             MomentumSlider(
                 value = settings.momentum,
                 onChange = { onChange(settings.copy(momentum = it)) },
+            )
+            OptionGroup(
+                title = "Momentum curve",
+                subtitle = "How sharply a faster flick coasts farther: Linear is even, " +
+                    "Exponential rewards fast swipes the most.",
+                options = MomentumCurve.values().toList(),
+                selected = settings.momentumCurve,
+                label = { it.label },
+                onSelect = { onChange(settings.copy(momentumCurve = it)) },
             )
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))

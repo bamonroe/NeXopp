@@ -92,6 +92,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Scales the release velocity fed into a fling; 1 = as-flung, 0 disables momentum. Driven by the
      * momentum-strength setting (see [Momentum]). */
     var flingStrength = Momentum.NORMAL
+    /** The velocity→coast response shape for momentum (see [MomentumCurve]); driven by the setting. */
+    var momentumCurve = MomentumCurve.QUADRATIC
     /** Scales how far the document moves per unit of pan travel; 1 = one-to-one, 0 freezes it under a
      * pan, >1 pans faster than the finger. Driven by the panning-sensitivity setting (see
      * [PanSensitivity]). Also scales the released velocity so a fling glides at the same visual rate. */
@@ -1206,7 +1208,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * swipe flies; [panSensitivity] then scales the glide to match the visual pan gain. */
     private fun startFlingIfFast() {
         if (maxScrollY() <= 0f && maxScrollX() <= 0f) return // nothing to scroll
-        val (seedX, seedY) = Momentum.seed(releaseVx, releaseVy, flingStrength)
+        val (seedX, seedY) = Momentum.seed(releaseVx, releaseVy, flingStrength, momentumCurve)
         fling.start(seedX * panSensitivity, seedY * panSensitivity)
         if (!fling.isMoving) return
         flinging = true

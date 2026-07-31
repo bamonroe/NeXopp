@@ -172,11 +172,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
     **Eraser**, or **Hand (pan)**.
   - **Momentum scrolling** — a slider setting how far a **one-finger** pan keeps gliding after you
-    flick it. The coast grows with the **square** of the flick speed, so a tiny flick barely drifts
-    while a fast corner-to-corner swipe flies many pages. **0** turns momentum off (a released pan
-    stops dead), **1.0** is normal (the default — a moderate flick coasts at about the speed you
-    flicked), and higher values up to **10.0×** stretch every coast farther. Two-finger pans never
-    glide, whatever this is set to.
+    flick it. **0** turns momentum off (a released pan stops dead), **1.0** is normal (the default —
+    a moderate flick coasts at about the speed you flicked), and higher values up to **10.0×** stretch
+    every coast farther. Two-finger pans never glide, whatever this is set to.
+  - **Momentum curve** — picks how sharply a *faster* flick coasts *farther*: **Linear** (even),
+    **Quadratic** (the default — coast grows with the square of flick speed), **Cubic**, or
+    **Exponential** (rewards fast swipes the most, so a tiny flick barely drifts while a hard swipe
+    flies many pages). All four meet at the same moderate-flick reference, so this only changes how
+    small flicks fall off and fast ones take off — the slider above still sets the overall strength.
   - **Panning sensitivity** — a slider setting how far the canvas moves per unit of pan travel. **1.0**
     is one-to-one (the default — the page tracks your finger exactly), values **below 1** pan slower
     than your finger, values up to **4.0×** pan faster, and **0** turns panning off entirely. The gain

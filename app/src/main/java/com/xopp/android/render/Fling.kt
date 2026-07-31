@@ -63,11 +63,11 @@ data class FlingStep(val dx: Float, val dy: Float)
 
 /**
  * The user-adjustable momentum strength and the velocity→coast response that gives a pan its
- * throw-a-rock feel. [seed] maps a release velocity to the velocity fed into a [Fling]: coast distance
- * grows with the *square* of release speed, so a tiny flick barely drifts while a fast swipe flies
- * many pages — the dynamic range a plain linear scale lacked. [OFF] (0) disables the glide entirely,
- * [NORMAL] (1.0, the default) coasts at ~the release speed for a moderate ([REFERENCE_SPEED_PX]) flick,
- * and values up to [MAX] stretch every coast farther. The lower bound is always a dead stop.
+ * throw-a-rock feel. [seed] maps a release velocity to the velocity fed into a [Fling], shaping how
+ * hard a fast flick is rewarded via a selectable [MomentumCurve] (linear … exponential). [OFF] (0)
+ * disables the glide entirely, [NORMAL] (1.0, the default) coasts at ~the release speed for a moderate
+ * ([REFERENCE_SPEED_PX]) flick whatever the curve, and values up to [MAX] stretch every coast farther.
+ * The lower bound is always a dead stop.
  */
 object Momentum {
     /** No carried momentum — a released pan stops dead. */
@@ -97,17 +97,49 @@ object Momentum {
     fun snap(value: Float): Float = (round(value / STEP) * STEP).coerceIn(OFF, MAX)
 
     /**
-     * Map a pan release velocity ([vx]/[vy], px/s) to the velocity to seed a [Fling] with at the given
-     * [strength]. Direction is preserved; magnitude is scaled by `strength · speed / REFERENCE_SPEED_PX`
-     * so the resulting coast distance (∝ seed speed) is proportional to the **square** of release speed.
-     * A flick at [REFERENCE_SPEED_PX] and [NORMAL] seeds at its own speed (the linear reference point);
-     * slower flicks fall away quadratically and faster ones grow quadratically. Zero at [OFF] or no motion.
+     * Map a pan release velocity ([vx]/[vy], px/s) to the velocity to seed a [Fling] with, at the given
+     * [strength] and response [curve]. Direction is preserved; the magnitude is
+     * `strength · REFERENCE_SPEED_PX · curve.factor(speed / REFERENCE_SPEED_PX)`. Because every curve
+     * passes through `factor(1) = 1`, a flick at [REFERENCE_SPEED_PX] and [NORMAL] always seeds at its
+     * own speed (the shared reference point); the curve only sets how the coast falls off below that
+     * speed and grows above it. Zero at [OFF] or no motion.
      */
-    fun seed(vx: Float, vy: Float, strength: Float): Pair<Float, Float> {
+    fun seed(vx: Float, vy: Float, strength: Float, curve: MomentumCurve): Pair<Float, Float> {
         val speed = hypot(vx, vy)
         if (speed <= 0f || strength <= OFF) return 0f to 0f
-        val scale = strength * (speed / REFERENCE_SPEED_PX)
-        return vx * scale to vy * scale
+        val magnitude = strength * REFERENCE_SPEED_PX * curve.factor(speed / REFERENCE_SPEED_PX)
+        val rescale = magnitude / speed // stretch the release vector to the shaped magnitude, direction intact
+        return vx * rescale to vy * rescale
+    }
+}
+
+/**
+ * The velocity→coast response shape for momentum (see [Momentum.seed]). Each curve maps a *normalized*
+ * release speed `u = speed / Momentum.REFERENCE_SPEED_PX` to a unitless coast [factor], and every curve
+ * is pinned to `factor(0) = 0` and `factor(1) = 1` so switching curves keeps the reference feel and the
+ * strength scale comparable — only the aggressiveness of the reward for a fast flick changes.
+ */
+enum class MomentumCurve(val label: String) {
+    /** Coast grows in step with flick speed — the gentlest, most even spread. */
+    LINEAR("Linear") { override fun factor(u: Float): Float = u },
+
+    /** Coast grows with the square of flick speed — the balanced default. */
+    QUADRATIC("Quadratic") { override fun factor(u: Float): Float = u * u },
+
+    /** Coast grows with the cube of flick speed — small flicks damped hard, fast ones fly. */
+    CUBIC("Cubic") { override fun factor(u: Float): Float = u * u * u },
+
+    /** Coast grows exponentially past the reference speed — the most aggressive reward for a fast flick. */
+    EXPONENTIAL("Exponential") {
+        override fun factor(u: Float): Float = (exp(EXP_STEEPNESS * u) - 1f) / (exp(EXP_STEEPNESS) - 1f)
+    };
+
+    /** Unitless coast multiplier for normalized release speed [u]; `factor(0)=0`, `factor(1)=1`. */
+    abstract fun factor(u: Float): Float
+
+    companion object {
+        /** Steepness of [EXPONENTIAL]: larger = sharper take-off above the reference speed. */
+        const val EXP_STEEPNESS = 2.5f
     }
 }
 

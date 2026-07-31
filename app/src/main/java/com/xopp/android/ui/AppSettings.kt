@@ -3,6 +3,7 @@ package com.xopp.android.ui
 import android.content.Context
 import com.xopp.android.render.BarrelAction
 import com.xopp.android.render.Momentum
+import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 
@@ -28,6 +29,8 @@ data class AppSettings(
     val defaultTool: EditorTool = EditorTool.PEN,
     /** How far a released pan keeps gliding — the momentum-strength factor (0 = off, 1 = normal). */
     val momentum: Float = Momentum.NORMAL,
+    /** The velocity→coast response shape for momentum (linear … exponential). */
+    val momentumCurve: MomentumCurve = MomentumCurve.QUADRATIC,
     /** How far the document moves per unit of pan travel (0 = frozen, 1 = one-to-one, >1 = faster). */
     val panSensitivity: Float = PanSensitivity.NORMAL,
 ) {
@@ -56,6 +59,7 @@ class SettingsStore(context: Context) {
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
             defaultTool = enumOr(prefs.getString(KEY_DEFAULT_TOOL, null), d.defaultTool),
             momentum = Momentum.coerce(prefs.getFloat(KEY_MOMENTUM, d.momentum)),
+            momentumCurve = enumOr(prefs.getString(KEY_MOMENTUM_CURVE, null), d.momentumCurve),
             panSensitivity = PanSensitivity.coerce(prefs.getFloat(KEY_PAN_SENSITIVITY, d.panSensitivity)),
         )
     }
@@ -70,6 +74,7 @@ class SettingsStore(context: Context) {
         e.putInt(KEY_CUSTOM_COLOR, s.customColor)
         e.putString(KEY_DEFAULT_TOOL, s.defaultTool.name)
         e.putFloat(KEY_MOMENTUM, s.momentum)
+        e.putString(KEY_MOMENTUM_CURVE, s.momentumCurve.name)
         e.putFloat(KEY_PAN_SENSITIVITY, s.panSensitivity)
         e.apply()
     }
@@ -84,6 +89,7 @@ class SettingsStore(context: Context) {
         // Float-typed since the parameterized control replaced the old discrete enum; a fresh key
         // avoids a ClassCastException on any pref still holding the old enum-name string.
         const val KEY_MOMENTUM = "momentum_factor"
+        const val KEY_MOMENTUM_CURVE = "momentum_curve"
         const val KEY_PAN_SENSITIVITY = "pan_sensitivity"
 
         /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
