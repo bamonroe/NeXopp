@@ -465,12 +465,17 @@ stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of
 `AppSettings` also carries the **default tool** (`DEFAULT_TOOL_CHOICES` — pen/highlighter/eraser/hand),
 which seeds `EditorScreen`'s active-tool state so a document opens in the user's chosen mode.
 
-**Momentum scrolling.** A pan (two-finger, or one-finger Hand) feeds each focus sample to the pure
-`VelocityEstimator`; on release the view seeds the pure `Fling` with that velocity (content-space,
-opposite the finger, clamped to the platform max) and drives a `Choreographer` frame loop that decays
-the velocity exponentially, scrolls `scrollY`/`scrollX` by each frame's step (clamped by
-`maxScrollY()`/`maxScrollX()`), and re-`render()`s. It stops when the speed drops below a threshold or
-both axes pin to a bound; a fresh touch, cancel, or detach halts it at once. Both `Fling` and
+**Momentum scrolling.** A pan feeds each focus sample to the pure `VelocityEstimator`; on release the
+view runs the release velocity (content-space, opposite the finger, clamped to the platform max)
+through `Momentum.seed` and seeds the pure `Fling` with the result, then drives a `Choreographer` frame
+loop that decays the velocity exponentially, scrolls `scrollY`/`scrollX` by each frame's step (clamped
+by `maxScrollY()`/`maxScrollX()`), and re-`render()`s. It stops when the speed drops below a threshold
+or both axes pin to a bound; a fresh touch, cancel, or detach halts it at once. `Momentum.seed` scales
+the seed magnitude by `strength · speed / REFERENCE_SPEED_PX`, so **coast distance is quadratic in
+release speed** — a tiny flick barely drifts, a fast swipe flies many pages (the wide dynamic range a
+linear scale lacked). **Only a one-finger pan flings:** a two-finger release resets the estimator when
+the first finger lifts (to dodge the focus-point jump), so its near-motionless single-finger tail
+carries no momentum — the intended feel. Both `Fling` and
 `VelocityEstimator` are Android-free (we roll our own estimator because `VelocityTracker` returns
 nothing for the synthetic events used in tests), so the kinematics are unit-tested on the JVM
 (`FlingTest`, `VelocityEstimatorTest`) and stay frame-rate independent. Because `render()` re-emits

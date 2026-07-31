@@ -153,7 +153,8 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
 private fun MomentumSlider(value: Float, onChange: (Float) -> Unit) {
     Text("Momentum scrolling", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
     Text(
-        "How far the canvas keeps gliding after you flick a pan. 0 turns momentum off; 1 is normal.",
+        "How far a one-finger pan keeps gliding after you flick it — the faster you flick, the much " +
+            "farther it coasts. 0 turns momentum off; 1 is normal. (Two-finger pans never glide.)",
         style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(bottom = 4.dp),
     )

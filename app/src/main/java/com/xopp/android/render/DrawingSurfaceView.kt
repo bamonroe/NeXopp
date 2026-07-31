@@ -899,10 +899,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return true
     }
 
-    /** Fold the final release focus into the estimator and adopt that velocity as the fling seed —
-     * but only if this last segment carried a real flick. Lifting the last finger of a two-finger pan
-     * leaves an almost-motionless single-finger tail; overriding there would erase the flick already
-     * latched at the earlier finger-lift ([onPointerUp]) and is what made momentum ignore pan speed. */
+    /** Read the pan's release velocity and adopt it as the fling seed, but only when the release was a
+     * real flick (>= [Fling.MIN_SPEED_PX]); a slow drift, or the near-motionless single-finger tail of
+     * a two-finger release, stays at the zero seeded by [beginScroll], so only a genuine one-finger
+     * flick coasts. The magnitude→coast response is shaped later by [Momentum.seed]. */
     private fun captureReleaseVelocity(event: MotionEvent) {
         velocityEstimator.add(event.eventTime, focusX(event, skip = -1), focusY(event, skip = -1))
         val v = velocityEstimator.velocity()
@@ -1045,10 +1045,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // a pinch-out, mirroring the focus/velocity reset below.
         lastSpan = 0f
         // The focus jumps when a finger leaves, so restart the estimate from the new baseline —
-        // otherwise that discontinuity would read as a huge phantom flick. But first latch the pan's
-        // real velocity from the pre-jump samples: it's the flick the user just made, and the brief
-        // single-finger tail that follows a two-finger release usually can't recover it.
-        if (scrolling) setReleaseVelocity(velocityEstimator.velocity())
+        // otherwise that discontinuity would read as a huge phantom flick. A side effect is that a
+        // two-finger release carries no momentum (its near-motionless single-finger tail is all that
+        // survives the reset), which is the intended feel — only a one-finger pan flings.
         velocityEstimator.reset()
         velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
     }
@@ -1202,10 +1201,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (wasScrolling) startFlingIfFast()
     }
 
-    /** Launch a decelerating glide from the just-captured release velocity, if it's fast enough. */
+    /** Launch a decelerating glide from the just-captured release velocity, if it's fast enough. The
+     * seed runs through [Momentum.seed]'s quadratic response so a slow flick barely coasts while a fast
+     * swipe flies; [panSensitivity] then scales the glide to match the visual pan gain. */
     private fun startFlingIfFast() {
         if (maxScrollY() <= 0f && maxScrollX() <= 0f) return // nothing to scroll
-        fling.start(releaseVx * flingStrength * panSensitivity, releaseVy * flingStrength * panSensitivity)
+        val (seedX, seedY) = Momentum.seed(releaseVx, releaseVy, flingStrength)
+        fling.start(seedX * panSensitivity, seedY * panSensitivity)
         if (!fling.isMoving) return
         flinging = true
         flingLastFrameNanos = 0L

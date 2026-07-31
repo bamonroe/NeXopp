@@ -62,16 +62,18 @@ class Fling(
 data class FlingStep(val dx: Float, val dy: Float)
 
 /**
- * The user-adjustable momentum strength: a single continuous factor that scales the release velocity
- * fed into a [Fling] (see `DrawingSurfaceView.flingStrength`). [OFF] (0) disables the glide entirely,
- * [NORMAL] (1.0, the default) flings at the as-released speed, and values up to [MAX] glide
- * progressively further before stalling. The lower bound is always a dead stop, whatever the maximum.
+ * The user-adjustable momentum strength and the velocity→coast response that gives a pan its
+ * throw-a-rock feel. [seed] maps a release velocity to the velocity fed into a [Fling]: coast distance
+ * grows with the *square* of release speed, so a tiny flick barely drifts while a fast swipe flies
+ * many pages — the dynamic range a plain linear scale lacked. [OFF] (0) disables the glide entirely,
+ * [NORMAL] (1.0, the default) coasts at ~the release speed for a moderate ([REFERENCE_SPEED_PX]) flick,
+ * and values up to [MAX] stretch every coast farther. The lower bound is always a dead stop.
  */
 object Momentum {
     /** No carried momentum — a released pan stops dead. */
     const val OFF = 0f
 
-    /** Glides at the as-released speed — the default and historical behaviour. */
+    /** The reference feel: a moderate ([REFERENCE_SPEED_PX]) flick coasts at ~its release speed. */
     const val NORMAL = 1.0f
 
     /** The strongest glide the control allows — a long, far-reaching coast. */
@@ -80,12 +82,33 @@ object Momentum {
     /** Granularity the strength snaps to (the persisted precision and the slider's effective grid). */
     const val STEP = 0.1f
 
+    /**
+     * The release speed (px/s) at which momentum coasts linearly — a moderate swipe. Below it the
+     * quadratic [seed] response damps small/slow flicks toward nothing; above it fast swipes coast
+     * disproportionately farther. The pivot of the whole velocity→coast curve.
+     */
+    const val REFERENCE_SPEED_PX = 2000f
+
     /** Clamp an arbitrary strength into the valid [OFF]..[MAX] range. */
     fun coerce(value: Float): Float = value.coerceIn(OFF, MAX)
 
     /** Snap to the [STEP] grid and clamp — the continuous slider rounds through this so the stored
      * value stays a clean multiple of [STEP] even without discrete slider stops. */
     fun snap(value: Float): Float = (round(value / STEP) * STEP).coerceIn(OFF, MAX)
+
+    /**
+     * Map a pan release velocity ([vx]/[vy], px/s) to the velocity to seed a [Fling] with at the given
+     * [strength]. Direction is preserved; magnitude is scaled by `strength · speed / REFERENCE_SPEED_PX`
+     * so the resulting coast distance (∝ seed speed) is proportional to the **square** of release speed.
+     * A flick at [REFERENCE_SPEED_PX] and [NORMAL] seeds at its own speed (the linear reference point);
+     * slower flicks fall away quadratically and faster ones grow quadratically. Zero at [OFF] or no motion.
+     */
+    fun seed(vx: Float, vy: Float, strength: Float): Pair<Float, Float> {
+        val speed = hypot(vx, vy)
+        if (speed <= 0f || strength <= OFF) return 0f to 0f
+        val scale = strength * (speed / REFERENCE_SPEED_PX)
+        return vx * scale to vy * scale
+    }
 }
 
 /**

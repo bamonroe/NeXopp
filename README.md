@@ -139,8 +139,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   erasing, and adding/editing text/image/LaTeX are all undoable). They enable and disable as history
   allows; opening a file starts fresh history.
 - **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
-  from the Tool pop-up to pan with **one finger** (handy on a stylus). A quick **flick** keeps the
-  pages **gliding** with momentum and coasts to a stop; touch down again to halt it at once. With the
+  from the Tool pop-up to pan with **one finger** (handy on a stylus). A quick **one-finger flick**
+  keeps the pages **gliding** with momentum and coasts to a stop — the faster the flick, the much
+  farther it carries — while a **two-finger** pan stops the instant you lift. Touch down again to halt
+  a glide at once. With the
   Hand tool, a **double-tap** navigates: tap twice on the **left edge** to jump to the previous page,
   on the **right edge** for the next page, or in the **centre** to toggle **full-page view** (hides
   the top bar and side toolbar for a distraction-free canvas; double-tap the centre again to restore
@@ -169,9 +171,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     a harder press).
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
     **Eraser**, or **Hand (pan)**.
-  - **Momentum scrolling** — a slider setting how far the canvas keeps gliding after you flick a
-    pan. **0** turns momentum off (a released pan stops dead), **1.0** is normal (the default —
-    glides at the speed you flicked), and higher values up to **10.0×** glide progressively further.
+  - **Momentum scrolling** — a slider setting how far a **one-finger** pan keeps gliding after you
+    flick it. The coast grows with the **square** of the flick speed, so a tiny flick barely drifts
+    while a fast corner-to-corner swipe flies many pages. **0** turns momentum off (a released pan
+    stops dead), **1.0** is normal (the default — a moderate flick coasts at about the speed you
+    flicked), and higher values up to **10.0×** stretch every coast farther. Two-finger pans never
+    glide, whatever this is set to.
   - **Panning sensitivity** — a slider setting how far the canvas moves per unit of pan travel. **1.0**
     is one-to-one (the default — the page tracks your finger exactly), values **below 1** pan slower
     than your finger, values up to **4.0×** pan faster, and **0** turns panning off entirely. The gain
