@@ -40,7 +40,8 @@ _(nothing open — journal the next feature here as you notice it)_
       round-trips a document through `Xopp.save`/`Xopp.open` on-device, and drives a real
       `DrawingSurfaceView` with synthetic `MotionEvent`s (down → moves → up) then asserts the new
       stroke survives save/reopen. Runs via `scripts/build.sh connectedDebugAndroidTest`
-      (androidx.test runner/rules/espresso added). Compiles clean; run on the emulator harness.
+      (androidx.test runner/rules/espresso added). Both tests pass on the `/data/android`
+      emulator (`am instrument` — Gradle's own adb can't see the emulator container).
 
 - [x] 2026-07-30 — **Export the annotated document as a flattened PDF.** The menu's **Export PDF**
       writes each page at its true point size via the framework `PdfDocument` (dependency-free): the
