@@ -4,6 +4,7 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.tom_roush.pdfbox.util.Matrix
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Page
@@ -17,8 +18,9 @@ import java.io.OutputStream
  * the same overlay. Nothing is rasterised except user-placed bitmap images, which are already
  * raster. A no-op import→export therefore round-trips the PDF at ~its original size and fidelity.
  *
- * Limitation: annotation overlays assume an unrotated source page (`/Rotate 0`); a rotated source
- * still preserves its vectors but the overlay may be misaligned (tracked in `TODO.toml`).
+ * Rotated source pages (`/Rotate` 90/180/270) are handled: the overlay is authored in the page's
+ * visual space, so a [PdfOverlayMatrix] pre-transforms the content stream into the page's unrotated
+ * space and the viewer's `/Rotate` cancels back to the drawn position (see [preservedPage]).
  */
 class PdfExporter(private val pdfSource: PdfPageCache?) {
 
@@ -49,8 +51,13 @@ class PdfExporter(private val pdfSource: PdfPageCache?) {
     private fun preservedPage(outDoc: PDDocument, source: PDDocument, pageNo: Int, page: Page) {
         val pdPage = outDoc.importPage(source.getPage(pageNo))
         val crop = pdPage.cropBox
-        val transform = PdfPageTransform(crop.lowerLeftX, crop.lowerLeftY, crop.height)
+        // importPage copies the source /Rotate; map the visual-space overlay into unrotated content
+        // space so the viewer's rotation lands it where it was drawn. For /Rotate 0 this is just the
+        // crop-origin shift, so the per-point transform runs at the origin.
+        val m = PdfOverlayMatrix.forPage(crop.lowerLeftX, crop.lowerLeftY, crop.width, crop.height, pdPage.rotation)
+        val transform = PdfPageTransform(0f, 0f, m.visualHeight)
         PDPageContentStream(outDoc, pdPage, PDPageContentStream.AppendMode.APPEND, true, true).use { cs ->
+            cs.transform(Matrix(m.a, m.b, m.c, m.d, m.e, m.f))
             painter.paint(outDoc, cs, page, transform)
         }
     }

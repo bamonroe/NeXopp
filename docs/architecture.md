@@ -267,6 +267,7 @@ app/
       PdfVectorPainter.kt    # draws a page's strokes/text/images as vector overlay onto a PDFBox stream
       PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
       PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
+      PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
@@ -375,9 +376,13 @@ overlay. `PdfVectorPainter` mirrors the on-screen `StrokePainter`/`ElementRender
 `PdfPageTransform`; pen strokes taper per segment, the highlighter is one constant-width translucent
 path, text uses the base-14 fonts, and images embed losslessly. **Nothing is rasterised** except
 user bitmap images (already raster), so a no-op import→export round-trips a PDF at ~its original size
-and fidelity instead of bloating ~10× from a raster flatten. *Limitation:* the overlay assumes an
-unrotated source page (`/Rotate 0`) — a rotated source still keeps its vectors but the overlay may be
-misaligned (tracked in `TODO.toml`).
+and fidelity instead of bloating ~10× from a raster flatten. **Rotated source pages** (`/Rotate`
+90/180/270) are handled: since the on-screen renderer already applies `/Rotate`, annotations are
+authored in the page's *visual* space, so `PdfExporter` pre-multiplies the overlay content stream by
+a `PdfOverlayMatrix` (a pure, unit-tested `cm` matrix — the inverse of the display rotation, with the
+crop-box origin folded in) that maps visual coordinates into the page's unrotated content space; the
+viewer's `/Rotate` then cancels back to the drawn position, so strokes, text, and images all land
+correctly. For `/Rotate 0` the matrix is just the crop-origin shift.
 
 **PDF text selection.** An imported PDF's **text layer** is extracted on import (off the UI thread)
 by `PdfTextExtractor` — a `PDFTextStripper` subclass that turns each positioned glyph into a
