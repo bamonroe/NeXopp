@@ -65,21 +65,24 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 
 ## Using the app
 
-- **Open** — the folder/open action in the top bar launches the system file picker; choose a
-  `.xopp` file. It's read in place via the Storage Access Framework. Every page is shown, one
-  above the next, each drawn with its own background ruling (plain, lined, ruled, graph, or
-  dotted) and all of its layers — including strokes, text boxes, and images. LaTeX images show
-  their source in a placeholder box until math rendering is added.
-- **Draw** — pick **Pen** or **Highlighter** from the tool palette and draw with **one finger or
-  the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base **width**
-  (S / M / L) from the settings row above the palette. New strokes land on the top layer of
-  whichever page you draw on.
-- **Erase** — pick **Eraser** and drag over strokes to delete them; each stroke the eraser
-  touches is removed whole.
+- **Open** — the top-bar **menu** (the ☰ button, top right) has **Open**; it launches the system
+  file picker; choose a `.xopp` file. It's read in place via the Storage Access Framework. Every
+  page is shown, one above the next, each drawn with its own background ruling (plain, lined,
+  ruled, graph, or dotted) and all of its layers — including strokes, text boxes, and images.
+  LaTeX images show their source in a placeholder box until math rendering is added.
+- **Draw** — the bottom bar has three buttons — **Tool**, **Colour**, **Size** — each opening a
+  small pop-up anchored to its own button. Pick **Pen** or **Highlighter** and draw with **one
+  finger or the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base
+  **width** (S / M / L) from the other two pop-ups. New strokes land on the top layer of whichever
+  page you draw on.
+- **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each
+  stroke the eraser touches is removed whole.
 - **Undo / Redo** — the arrows in the top bar undo and redo edits, one draw or erase gesture at
   a time. They enable and disable as history allows; opening a file starts fresh history.
 - **Scroll** — drag with **two fingers** to move up and down the page stack.
-- **Save** — the save action writes the whole document back out as a `.xopp` file (gzip + XML),
+- **Settings** — the top-bar menu also opens a full-screen **Settings** page (placeholder for
+  now); the back arrow returns to the editor.
+- **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — including text, images, and LaTeX
   images that aren't edited on-device yet.
 
@@ -93,7 +96,7 @@ The authoritative layout lives in [`docs/architecture.md`](docs/architecture.md)
 app/src/main/java/com/xopp/android/
   format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
   render/      # DrawingSurfaceView — low-latency stylus canvas
-  ui/          # Compose Material 3 editor screen, tool palette, theme
+  ui/          # Compose Material 3 editor screen, bottom toolbar pop-ups, settings, theme
   MainActivity.kt
 app/src/test/  # JVM unit tests for the format layer
 Dockerfile, compose.yaml, scripts/build.sh   # containerized build

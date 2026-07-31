@@ -8,7 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,9 +30,11 @@ import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
 
 /**
- * The single editor screen: a Material 3 top bar (open/save), the stylus canvas, and the tool
- * palette. The canvas is a classic [DrawingSurfaceView] hosted via [AndroidView] for low-latency
- * stylus rendering (see `docs/architecture.md` for why it isn't a Compose `Canvas`).
+ * The single editor screen: a Material 3 top bar (undo/redo plus an overflow menu for open/save/
+ * settings), the stylus canvas, and the bottom control bar. The canvas is a classic
+ * [DrawingSurfaceView] hosted via [AndroidView] for low-latency stylus rendering (see
+ * `docs/architecture.md` for why it isn't a Compose `Canvas`). Choosing Settings swaps the whole
+ * screen for [SettingsScreen].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +48,13 @@ fun EditorScreen(
     var width by remember { mutableStateOf(PEN_WIDTHS[1].pt) }
     var canUndo by remember { mutableStateOf(false) }
     var canRedo by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
+
+    if (showSettings) {
+        SettingsScreen(onBack = { showSettings = false })
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -55,12 +67,11 @@ fun EditorScreen(
                     IconButton(onClick = { surface?.redo() }, enabled = canRedo) {
                         Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
                     }
-                    IconButton(onClick = onOpen) {
-                        Icon(Icons.Filled.FileOpen, contentDescription = "Open .xopp")
-                    }
-                    IconButton(onClick = onSave) {
-                        Icon(Icons.Filled.Save, contentDescription = "Save")
-                    }
+                    OverflowMenu(
+                        onOpen = onOpen,
+                        onSave = onSave,
+                        onSettings = { showSettings = true },
+                    )
                 },
             )
         },
@@ -79,21 +90,45 @@ fun EditorScreen(
                 },
                 modifier = Modifier.fillMaxWidth().weight(1f),
             )
-            PenSettings(
-                selectedColor = color,
+            BottomToolbar(
+                tool = tool,
+                onTool = { tool = it; surface?.tool = it },
+                color = color,
                 onColor = { color = it; surface?.colorArgb = it },
-                selectedWidth = width,
+                width = width,
                 onWidth = { width = it; surface?.baseWidthPt = it },
                 modifier = Modifier.fillMaxWidth(),
             )
-            ToolPalette(
-                selected = tool,
-                onSelect = {
-                    tool = it
-                    surface?.tool = it
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
+    }
+}
+
+/** The top-bar overflow ("hamburger") menu: open, save, and the settings page. */
+@Composable
+private fun OverflowMenu(
+    onOpen: () -> Unit,
+    onSave: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }) {
+        Icon(Icons.Filled.Menu, contentDescription = "Menu")
+    }
+    DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        DropdownMenuItem(
+            text = { Text("Open") },
+            leadingIcon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
+            onClick = { open = false; onOpen() },
+        )
+        DropdownMenuItem(
+            text = { Text("Save") },
+            leadingIcon = { Icon(Icons.Filled.Save, contentDescription = null) },
+            onClick = { open = false; onSave() },
+        )
+        DropdownMenuItem(
+            text = { Text("Settings") },
+            leadingIcon = { Icon(Icons.Filled.Settings, contentDescription = null) },
+            onClick = { open = false; onSettings() },
+        )
     }
 }

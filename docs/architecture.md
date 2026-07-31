@@ -244,7 +244,9 @@ app/
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
     ui/                      # Compose Material 3
-      EditorScreen.kt, ToolPalette.kt, PenSettings.kt
+      EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), canvas, bottom toolbar
+      BottomToolbar.kt       # Tool/Colour/Size buttons, each with a button-anchored pop-up
+      SettingsScreen.kt      # full-screen settings page (placeholder)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
   src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid geometry
@@ -271,3 +273,11 @@ model, so it renders as a best-effort placeholder — a faint box with the sourc
 real LaTeX renderer lands. The view keeps the loaded document intact and only appends, so every
 page, layer, and element round-trips through save. Editing the non-stroke elements, plus pan/zoom,
 are still to come (`TODO.md`).
+
+**Chrome (`ui/`).** `EditorScreen` is the one editor screen: a top bar with undo/redo icon
+buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Save, and Settings; the canvas;
+and a bottom **`BottomToolbar`** with three buttons — Tool, Colour, Size. Each bottom button owns
+its own `DropdownMenu`, so the pop-up is anchored to that button rather than filling the screen or
+floating in the centre. Choosing Settings swaps the whole screen for `SettingsScreen` (a
+full-screen page reserved for future settings; a back arrow returns to the editor). The pen
+palette constants (`PEN_COLORS`, `PEN_WIDTHS`) live in `BottomToolbar.kt`.

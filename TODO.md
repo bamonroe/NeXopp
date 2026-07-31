@@ -18,6 +18,14 @@ ones with a one-line why.
 
 ## Done
 
+- [x] 2026-07-30 — **Rearranged the chrome into pop-up groups + an overflow menu.** The bottom bar
+      is now three buttons — Tool, Colour, Size — each opening a small `DropdownMenu` **anchored to
+      its own button** (not full-screen, not centred); `ToolPalette`/`PenSettings` were folded into
+      one `BottomToolbar.kt`. The top bar keeps undo/redo and gains a **☰ overflow menu** with Open,
+      Save, and a new full-screen **`SettingsScreen`** (placeholder). `BUILD SUCCESSFUL`, 38 tests
+      pass. Verified on the `/data/android` emulator: opened each of the three bottom pop-ups (Tool
+      checked, Colour swatch row, Size S/M/L), picked red, opened the ☰ menu, entered Settings and
+      backed out — no crash. Installed to both tailnet devices.
 - [x] 2026-07-30 — **Undo / redo.** Top-bar arrows undo and redo edits one draw/erase gesture at a
       time, enabling/disabling as history allows; opening a file resets history. Each gesture
       snapshots the whole document into the pure, tested generic `EditHistory` (6 new JVM tests, 38
