@@ -77,5 +77,13 @@ change with a runtime surface must be installed and exercised on the emulator, n
      drawing, tool selection, open/save, and other interactions end-to-end.
   Report what the screenshots and logs actually showed; a change isn't verified until it's
   been run this way on the emulator.
+- **Standing rule — promote to the owner's devices once it passes:** after unit tests pass and
+  the change is verified on the emulator, install the same APK to the two physical devices on
+  the tailnet so they stay on the current build:
+  - Pixel 8a (phone) — `adb -s 100.64.0.3:5555 install -r app/build/outputs/apk/debug/app-debug.apk`
+  - Galaxy Tab S9 Ultra (`SM-X920`) — `adb -s 100.64.0.8:5555 install -r app/build/outputs/apk/debug/app-debug.apk`
+  These reach the devices through the host `adb` (not the emulator container's). If a device is
+  `offline`, `adb disconnect <ip>:5555 && adb connect <ip>:5555` to wake it. Don't force-wake
+  the screens — install works with them asleep.
 - **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS). Wiring a
   `.xopp` round-trip smoke test on the emulator is still a TODO (see `TODO.md`).
