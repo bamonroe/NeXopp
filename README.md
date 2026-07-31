@@ -172,6 +172,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Momentum scrolling** — a slider setting how far the canvas keeps gliding after you flick a
     pan. **0** turns momentum off (a released pan stops dead), **1.0** is normal (the default —
     glides at the speed you flicked), and higher values up to **10.0×** glide progressively further.
+  - **Panning sensitivity** — a slider setting how far the canvas moves per unit of pan travel. **1.0**
+    is one-to-one (the default — the page tracks your finger exactly), values **below 1** pan slower
+    than your finger, values up to **4.0×** pan faster, and **0** turns panning off entirely. The gain
+    also scales the fling, so a released pan coasts at the same visual rate it was moving.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
   element merged on top, then written to the location you pick. When a page came from an **imported

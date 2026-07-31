@@ -87,3 +87,30 @@ object Momentum {
      * value stays a clean multiple of [STEP] even without discrete slider stops. */
     fun snap(value: Float): Float = (round(value / STEP) * STEP).coerceIn(OFF, MAX)
 }
+
+/**
+ * The user-adjustable panning gain: a single continuous factor scaling how far the document moves per
+ * unit of finger/stylus pan travel (see `DrawingSurfaceView.panSensitivity`). [OFF] (0) freezes the
+ * document under a pan, [NORMAL] (1.0, the default) tracks the finger one-to-one, values below 1 pan
+ * slower than the input and values up to [MAX] pan faster. The gain also scales the released velocity
+ * so a fling glides at the same visual rate as the pan that launched it.
+ */
+object PanSensitivity {
+    /** Panning input produces no document movement. */
+    const val OFF = 0f
+
+    /** One-to-one: the document tracks the finger exactly — the default. */
+    const val NORMAL = 1.0f
+
+    /** The fastest pan the control allows — the document races ahead of the finger. */
+    const val MAX = 4.0f
+
+    /** Granularity the gain snaps to (the persisted precision and the slider's effective grid). */
+    const val STEP = 0.1f
+
+    /** Clamp an arbitrary gain into the valid [OFF]..[MAX] range. */
+    fun coerce(value: Float): Float = value.coerceIn(OFF, MAX)
+
+    /** Snap to the [STEP] grid and clamp — mirrors [Momentum.snap] for the continuous slider. */
+    fun snap(value: Float): Float = (round(value / STEP) * STEP).coerceIn(OFF, MAX)
+}

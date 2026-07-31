@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-parameterized-panning-sensitivity"
+title = "Add parameterized panning sensitivity"
+description = "Add a panning sensitivity setting with a continuous/parameterized value. A value of 1.0 should mean one-to-one document movement with the finger/stylus pan distance. A value of 0 should mean panning input produces no document movement. Values between 0 and 1 should pan slower than the input movement, and values greater than 1 should pan faster than the input movement."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["panning", "settings", "gestures"]
+
+[[task]]
 id = "add-ocr-backed-text-selection-for-imported-pdfs"
 title = "Add OCR-backed text selection for imported PDFs"
 description = "Imported PDFs currently behave like top-level page images, so users cannot select underlying text. Incorporate OCR or extracted text metadata during PDF import so a text selection tool can select text from the imported document while preserving the annotation workflow."

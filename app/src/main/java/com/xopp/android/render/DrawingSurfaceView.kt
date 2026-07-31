@@ -92,6 +92,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Scales the release velocity fed into a fling; 1 = as-flung, 0 disables momentum. Driven by the
      * momentum-strength setting (see [Momentum]). */
     var flingStrength = Momentum.NORMAL
+    /** Scales how far the document moves per unit of pan travel; 1 = one-to-one, 0 freezes it under a
+     * pan, >1 pans faster than the finger. Driven by the panning-sensitivity setting (see
+     * [PanSensitivity]). Also scales the released velocity so a fling glides at the same visual rate. */
+    var panSensitivity = PanSensitivity.NORMAL
     private val choreographer = Choreographer.getInstance()
     private var flinging = false
     private var flingLastFrameNanos = 0L
@@ -1134,8 +1138,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun doScroll(event: MotionEvent) {
         val fy = focusY(event, skip = -1)
         val fx = focusX(event, skip = -1)
-        scrollY = (scrollY + (lastFocusY - fy)).coerceIn(0f, maxScrollY())
-        scrollX = (scrollX + (lastFocusX - fx)).coerceIn(0f, maxScrollX())
+        // Pan gain: 1 tracks the finger one-to-one, <1 pans slower, >1 faster, 0 freezes the document.
+        scrollY = (scrollY + (lastFocusY - fy) * panSensitivity).coerceIn(0f, maxScrollY())
+        scrollX = (scrollX + (lastFocusX - fx) * panSensitivity).coerceIn(0f, maxScrollX())
         lastFocusY = fy
         lastFocusX = fx
         // Two fingers also pinch-zoom: a change in span since the last frame scales zoom about the focus.
@@ -1185,7 +1190,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Launch a decelerating glide from the just-captured release velocity, if it's fast enough. */
     private fun startFlingIfFast() {
         if (maxScrollY() <= 0f && maxScrollX() <= 0f) return // nothing to scroll
-        fling.start(releaseVx * flingStrength, releaseVy * flingStrength)
+        fling.start(releaseVx * flingStrength * panSensitivity, releaseVy * flingStrength * panSensitivity)
         if (!fling.isMoving) return
         flinging = true
         flingLastFrameNanos = 0L

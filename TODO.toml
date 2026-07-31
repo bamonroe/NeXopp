@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "add-parameterized-panning-sensitivity"
-title = "Add parameterized panning sensitivity"
-description = "Add a panning sensitivity setting with a continuous/parameterized value. A value of 1.0 should mean one-to-one document movement with the finger/stylus pan distance. A value of 0 should mean panning input produces no document movement. Values between 0 and 1 should pan slower than the input movement, and values greater than 1 should pan faster than the input movement."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 60
-created = 2026-07-31
-tags = ["panning", "settings", "gestures"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "align-annotation-overlay-on-rotated-pdf-pages"
 title = "Align annotation overlay on rotated PDF pages"
 description = "PdfExporter preserves a source PDF page's vectors via importPage, but the annotation overlay (PdfVectorPainter/PdfPageTransform) assumes an unrotated page (/Rotate 0). On a rotated source page the vectors are kept but the overlay may be misaligned. Apply a rotation-aware transform (translate + rotate matrix + crop origin) so strokes land correctly on 90/180/270-rotated pages."

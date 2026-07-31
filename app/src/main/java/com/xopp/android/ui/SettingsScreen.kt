@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xopp.android.render.BarrelAction
 import com.xopp.android.render.Momentum
+import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 
 /**
@@ -111,6 +112,12 @@ fun SettingsScreen(
                 value = settings.momentum,
                 onChange = { onChange(settings.copy(momentum = it)) },
             )
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            PanSensitivitySlider(
+                value = settings.panSensitivity,
+                onChange = { onChange(settings.copy(panSensitivity = it)) },
+            )
         }
     }
 }
@@ -156,6 +163,33 @@ private fun MomentumSlider(value: Float, onChange: (Float) -> Unit) {
             value = value,
             onValueChange = { onChange(Momentum.snap(it)) },
             valueRange = Momentum.OFF..Momentum.MAX,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(label, modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
+    }
+}
+
+/**
+ * The panning-sensitivity control: a continuous slider from [PanSensitivity.OFF] to
+ * [PanSensitivity.MAX], snapped to the [PanSensitivity.STEP] grid. 1 tracks the finger one-to-one
+ * (the default); below 1 the canvas pans slower than the finger, above 1 it pans faster. 0 reads
+ * "Off" (a pan gesture moves nothing).
+ */
+@Composable
+private fun PanSensitivitySlider(value: Float, onChange: (Float) -> Unit) {
+    Text("Panning sensitivity", style = androidx.compose.material3.MaterialTheme.typography.bodyLarge)
+    Text(
+        "How far the canvas moves as you pan. 1 matches your finger; lower is slower, higher is faster; 0 turns panning off.",
+        style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
+    val label = if (value <= PanSensitivity.OFF) "Off" else "%.1f×".format(value)
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Slider(
+            value = value,
+            onValueChange = { onChange(PanSensitivity.snap(it)) },
+            valueRange = PanSensitivity.OFF..PanSensitivity.MAX,
             modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(12.dp))

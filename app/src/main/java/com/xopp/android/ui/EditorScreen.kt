@@ -95,6 +95,7 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     showHover = s.showHover
     pressureGamma = s.sensitivity.gamma
     flingStrength = s.momentum
+    panSensitivity = s.panSensitivity
 }
 
 /**

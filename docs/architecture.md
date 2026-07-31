@@ -469,7 +469,11 @@ both axes pin to a bound; a fresh touch, cancel, or detach halts it at once. Bot
 `VelocityEstimator` are Android-free (we roll our own estimator because `VelocityTracker` returns
 nothing for the synthetic events used in tests), so the kinematics are unit-tested on the JVM
 (`FlingTest`, `VelocityEstimatorTest`) and stay frame-rate independent. Because `render()` re-emits
-`onScrollChanged`, the scroll thumb tracks the glide live.
+`onScrollChanged`, the scroll thumb tracks the glide live. A `panSensitivity` gain (the
+`PanSensitivity` object in `Fling.kt`, default `1.0`) multiplies each pan delta before it hits
+`scrollX`/`scrollY` — 1 tracks the finger one-to-one, `<1` pans slower, `>1` faster, `0` freezes the
+document — and the same factor scales the seeded release velocity so the fling coasts at the pan's
+visual rate.
 
 **Out of scope: tilt / orientation.** The `.xopp` format stores only per-vertex width — it has no
 place for stylus **tilt / orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`), so tilt-driven width
