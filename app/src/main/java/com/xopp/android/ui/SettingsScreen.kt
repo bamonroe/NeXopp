@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.xopp.android.render.BarrelAction
+import com.xopp.android.render.MomentumStrength
 import com.xopp.android.render.PressureSensitivity
 
 /**
@@ -102,6 +103,16 @@ fun SettingsScreen(
                 selected = settings.defaultTool,
                 label = { it.label },
                 onSelect = { onChange(settings.copy(defaultTool = it)) },
+            )
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            OptionGroup(
+                title = "Momentum scrolling",
+                subtitle = "How far the canvas keeps gliding after you flick a pan.",
+                options = MomentumStrength.values().toList(),
+                selected = settings.momentum,
+                label = { it.label },
+                onSelect = { onChange(settings.copy(momentum = it)) },
             )
         }
     }

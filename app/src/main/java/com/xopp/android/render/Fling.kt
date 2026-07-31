@@ -59,3 +59,22 @@ class Fling(
 
 /** The px delta a single [Fling.advance] frame contributes, per axis. */
 data class FlingStep(val dx: Float, val dy: Float)
+
+/**
+ * User-facing momentum presets. Each scales the release velocity fed into a [Fling] via [factor]
+ * (see `DrawingSurfaceView.flingStrength`): [OFF] disables the glide, [NORMAL] flings at the
+ * as-released speed, and the others glide less or more far before stalling.
+ */
+enum class MomentumStrength(val factor: Float, val label: String) {
+    /** No glide — a released pan stops dead. */
+    OFF(0f, "Off"),
+
+    /** A short, quickly-settling glide. */
+    LIGHT(0.6f, "Light"),
+
+    /** Glides at the as-released speed (the historical behaviour). */
+    NORMAL(1.0f, "Normal"),
+
+    /** A longer, further-reaching glide. */
+    STRONG(1.5f, "Strong"),
+}
