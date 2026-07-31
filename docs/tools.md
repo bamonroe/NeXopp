@@ -89,5 +89,14 @@ change with a runtime surface must be installed and exercised on the emulator, n
   These reach the devices through the host `adb` (not the emulator container's). If a device is
   `offline`, `adb disconnect <ip>:5555 && adb connect <ip>:5555` to wake it. Don't force-wake
   the screens — install works with them asleep.
-- **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS). Wiring a
-  `.xopp` round-trip smoke test on the emulator is still a TODO (see `TODO.md`).
+- **Running the instrumented (`androidTest`) suite:** use `scripts/connected-test.sh`
+  (wrapper over `/data/android/.claude/skills/android-dev/scripts/connected-test.sh`), **not**
+  Gradle's `connectedDebugAndroidTest`. Gradle's task starts an adb server inside the throwaway
+  build container — a different adb world than the emulator — so it dies with "No connected
+  devices!". The wrapper instead builds the app + `androidTest` APKs in the builder, reads the
+  instrumentation component from the test APK's manifest, then installs and runs it through the
+  emulator container's own adb; its exit status is the test result (non-zero if any test fails).
+  - `scripts/connected-test.sh` — build + run the whole `SmokeTest` suite on the emulator.
+  - `scripts/connected-test.sh -e class com.xopp.android.SmokeTest` — extra args pass through to
+    `am instrument` (class/method/size filters, etc.).
+- **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS).
