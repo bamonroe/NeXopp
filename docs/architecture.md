@@ -241,6 +241,7 @@ app/
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted)
       ElementRenderer.kt     # draws text boxes, images, and teximage placeholders
       TextBlock.kt           # text line-split + baseline geometry (pure)
+      StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
     ui/                      # Compose Material 3
       EditorScreen.kt, ToolPalette.kt
       theme/                 # XoppTheme (Material You), Color
@@ -257,8 +258,9 @@ page in a single vertical stack, each page scaled to fit the view width via `Pag
 drawn with its background ruling (`BackgroundRenderer`, using the pure `BackgroundGrid` offsets)
 plus all of its layers in z-order. The geometry (page placement, gridlines) is factored into
 `PageStacker`/`BackgroundGrid` precisely so it's unit-testable off-device. **One finger draws**
-(a new stroke lands on the top layer of the page under the touch); **two fingers scroll** the
-stack. Strokes are drawn by the view; text boxes, images, and LaTeX images are drawn by
+(a new stroke lands on the top layer of the page under the touch) — or **erases** when the
+Eraser tool is active, deleting every stroke the eraser disc touches (hit geometry in the pure,
+tested `StrokeHitTester`); **two fingers scroll** the stack. Strokes are drawn by the view; text boxes, images, and LaTeX images are drawn by
 `ElementRenderer` (text baseline geometry lives in the pure, tested `TextBlock`; image bytes are
 decoded once and cached by element identity). A `<teximage>` carries only its LaTeX source in the
 model, so it renders as a best-effort placeholder — a faint box with the source text — until a

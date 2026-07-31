@@ -12,14 +12,19 @@ ones with a one-line why.
       insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
       authoring path.
 - [ ] Render **teximage** as real math (a LaTeX renderer), replacing the source-text placeholder.
-- [ ] Implement the **eraser** tool behaviour (currently selectable but a no-op) and pen
-      colour/width pickers in the Material 3 chrome.
+- [ ] Add pen **colour and width pickers** to the Material 3 chrome (the surface already exposes
+      `colorArgb`/`baseWidthPt`; the UI just hardcodes black at 1.5 pt).
 - [ ] Add pan/zoom to the canvas and a page navigator.
 - [ ] Script the **emulator harness** (AVD create + headless launch + install) per
       `docs/tools.md`; wire an instrumented smoke test.
 
 ## Done
 
+- [x] 2026-07-30 — **Eraser tool (delete-stroke).** Selecting Eraser and dragging now deletes any
+      stroke the eraser disc touches on the page under the finger; hit geometry (point-to-segment
+      distance, accounting for pen half-width) lives in the pure, tested `StrokeHitTester`. 6 new
+      JVM tests (32 total), `BUILD SUCCESSFUL`. Verified on the `/data/android` emulator: drew a
+      pen stroke, switched to Eraser, dragged over it, stroke gone, no crash.
 - [x] 2026-07-30 — **Render text boxes, images, and teximage in the editor.** New `ElementRenderer`
       draws `<text>` (via the pure, tested `TextBlock` line/baseline geometry), `<image>` (bytes
       decoded once and cached by element identity), and `<teximage>` (best-effort placeholder box

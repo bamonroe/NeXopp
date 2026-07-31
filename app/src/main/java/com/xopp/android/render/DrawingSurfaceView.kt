@@ -38,6 +38,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var current: ArrayList<StrokePoint>? = null
     private var currentPage = 0
     private var scrolling = false
+    private var erasing = false
     private var lastFocusY = 0f
 
     var tool: Tool = Tool.PEN
@@ -66,16 +67,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** The current working document — every page, layer, and preserved element, ready to save. */
     fun toDocument(): Document = doc
 
-    // --- touch: one finger draws, two fingers scroll -------------------------------------------
+    // --- touch: one finger draws (or erases), two fingers scroll -------------------------------
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> startStroke(event)
+            MotionEvent.ACTION_DOWN -> if (tool == Tool.ERASER) startErase(event) else startStroke(event)
             MotionEvent.ACTION_POINTER_DOWN -> beginScroll(event)
-            MotionEvent.ACTION_MOVE -> if (scrolling) doScroll(event) else extendStroke(event)
+            MotionEvent.ACTION_MOVE -> when {
+                scrolling -> doScroll(event)
+                erasing -> eraseMove(event)
+                else -> extendStroke(event)
+            }
             MotionEvent.ACTION_POINTER_UP -> lastFocusY = focusY(event, skip = event.actionIndex)
             MotionEvent.ACTION_UP -> endGesture()
-            MotionEvent.ACTION_CANCEL -> { current = null; scrolling = false }
+            MotionEvent.ACTION_CANCEL -> { current = null; scrolling = false; erasing = false }
             else -> return super.onTouchEvent(event)
         }
         return true
@@ -93,9 +98,31 @@ class DrawingSurfaceView @JvmOverloads constructor(
         current?.let { addSamples(event, box, it); render() }
     }
 
-    /** A second finger touched down: abandon any partial stroke and switch to scrolling. */
+    /** The eraser: touch/drag deletes any stroke it passes over on the page under the finger. */
+    private fun startErase(event: MotionEvent) {
+        scrolling = false
+        erasing = true
+        val box = layout.pageAt(event.y + scrollY) ?: return
+        currentPage = box.index
+        eraseAt(box, event.x, event.y)
+    }
+
+    private fun eraseMove(event: MotionEvent) {
+        val box = layout.boxes.getOrNull(currentPage) ?: return
+        eraseAt(box, event.x, event.y)
+    }
+
+    private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
+        val px = (vx / box.scale).toDouble()
+        val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
+        val radius = ERASER_RADIUS_PX / box.scale
+        if (eraseStrokes(currentPage, px, py, radius.toDouble())) render()
+    }
+
+    /** A second finger touched down: abandon any partial stroke/erase and switch to scrolling. */
     private fun beginScroll(event: MotionEvent) {
         current = null
+        erasing = false
         scrolling = true
         lastFocusY = focusY(event, skip = -1)
     }
@@ -109,8 +136,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun endGesture() {
-        if (!scrolling) commitCurrent()
+        if (!scrolling && !erasing) commitCurrent()
         scrolling = false
+        erasing = false
     }
 
     /** Mean Y of all pointers except [skip] (an index being lifted), in view px. */
@@ -164,6 +192,23 @@ class DrawingSurfaceView @JvmOverloads constructor(
         pages[pageIndex] = page.copy(layers = layers)
         doc = doc.copy(pages = pages)
         relayout() // rebuild boxes so they reference the updated pages, not stale ones
+    }
+
+    /** Delete every stroke on page [pageIndex] hit by the eraser disc; returns true if any went. */
+    private fun eraseStrokes(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
+        val page = doc.pages.getOrNull(pageIndex) ?: return false
+        var removed = false
+        val layers = page.layers.map { layer ->
+            val kept = layer.elements.filterNot { it is Stroke && StrokeHitTester.hits(it, px, py, radius) }
+            if (kept.size != layer.elements.size) removed = true
+            if (kept.size == layer.elements.size) layer else Layer(kept)
+        }
+        if (!removed) return false
+        val pages = doc.pages.toMutableList()
+        pages[pageIndex] = page.copy(layers = layers)
+        doc = doc.copy(pages = pages)
+        relayout()
+        return true
     }
 
     // --- surface + rendering -------------------------------------------------------------------
@@ -237,6 +282,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val A4_WIDTH_PT = 595.276
         const val A4_HEIGHT_PT = 841.89
         const val GAP_PX = 24f
+        const val ERASER_RADIUS_PX = 18f
         const val BACKDROP = 0xFF3A3A3A.toInt()
 
         fun blankPage() = Page(A4_WIDTH_PT, A4_HEIGHT_PT, Background.Solid(AndroidColor.WHITE, "graph"), listOf(Layer(emptyList())))

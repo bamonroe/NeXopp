@@ -70,9 +70,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   above the next, each drawn with its own background ruling (plain, lined, ruled, graph, or
   dotted) and all of its layers — including strokes, text boxes, and images. LaTeX images show
   their source in a placeholder box until math rendering is added.
-- **Draw** — pick **Pen**, **Highlighter**, or **Eraser** from the tool palette and draw with
-  **one finger or the stylus**; pen pressure sets stroke width. New strokes land on the top
-  layer of whichever page you draw on.
+- **Draw** — pick **Pen** or **Highlighter** from the tool palette and draw with **one finger or
+  the stylus**; pen pressure sets stroke width. New strokes land on the top layer of whichever
+  page you draw on.
+- **Erase** — pick **Eraser** and drag over strokes to delete them; each stroke the eraser
+  touches is removed whole.
 - **Scroll** — drag with **two fingers** to move up and down the page stack.
 - **Save** — the save action writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — including text, images, and LaTeX
