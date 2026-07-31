@@ -362,8 +362,10 @@ so `EditorScreen.applyTool` maps them to the surface's `handMode` / `placeKind` 
 drawing tools to the document `Tool`). The **Pages** pop-up is a page navigator: `Page N / M` with
 ◀ / ▶ to jump to the previous/next page (`goToPage` scrolls the stack; the surface reports the page
 under the viewport centre via `onCurrentPageChanged`), plus Add / Remove page. Choosing Settings
-from the ☰ menu swaps in `SettingsScreen`. The pen palette constants (`PEN_COLORS`, `PEN_WIDTHS`)
-live in `SideToolbar.kt`. The **Select** tool adds a rail entry and a floating action bar; its
+from the ☰ menu swaps in `SettingsScreen`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
+lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
+persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in
+`ColorPicker.kt`. The **Select** tool adds a rail entry and a floating action bar; its
 mechanics are in [Selecting objects](#selecting-objects-render) above.
 
 ## Stylus & selection roadmap

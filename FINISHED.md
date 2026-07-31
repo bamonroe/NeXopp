@@ -6,6 +6,17 @@ The archive of **completed** work for this project — the graveyard for done ta
 When a task is fully finished (built, tested, documented), move its checked, dated entry
 here from `TODO.md`. Newest first. This file only grows; nothing is removed from it.
 
+- [x] 2026-07-31 — **Custom colour slot with a long-press hex/colour picker.** The Colour pop-up now
+      ends with an editable **custom slot** (marked with a pencil) after the fixed `PEN_COLORS`
+      palette. **Tap** it to draw with its current colour; **long-press** it to open a
+      `CustomColorPickerDialog` (`ColorPicker.kt`) — a saturation/value square (tap or drag) over a hue
+      slider, with a two-way `#RRGGBB` hex field and a live preview swatch — to set any colour. The
+      chosen colour persists in `AppSettings.customColor` via `SettingsStore` (a single `custom_color`
+      `SharedPreferences` int). Redefining the custom colour while it is the active pen colour re-applies
+      it to the live canvas. Emulator-verified end-to-end: long-pressed the slot, dragged the square/hue
+      to `#F60606` (hex updates live), Set it, selected the slot (rail button turned red), drew a red
+      stroke, and confirmed the value survived a force-stop/relaunch. A dropdown caption ("Tap to pick ·
+      long-press ✎ to edit") surfaces the otherwise-hidden long-press gesture.
 - [x] 2026-07-31 — **Pen tip size — 3 configurable slots with a long-press slider.** The Size pop-up's
       fixed S/M/L point values are now three **user-configurable** slots. **Tap** a slot to draw with
       it (as before); **long-press** a slot to open an `AlertDialog` with a slider (0.5 → 15 pt) that

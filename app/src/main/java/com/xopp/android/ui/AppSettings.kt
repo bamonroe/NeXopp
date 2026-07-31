@@ -20,10 +20,15 @@ data class AppSettings(
     val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
     /** The three user-configurable pen-tip widths (pt) behind the S/M/L size slots, in slot order. */
     val penWidths: List<Float> = DEFAULT_PEN_WIDTHS,
+    /** The user-defined colour (opaque ARGB) behind the palette's editable custom slot. */
+    val customColor: Int = DEFAULT_CUSTOM_COLOR,
 ) {
     companion object {
         /** Factory defaults for the three pen-width slots — the old fixed S/M/L values. */
         val DEFAULT_PEN_WIDTHS: List<Float> = listOf(0.85f, 1.5f, 2.6f)
+
+        /** Factory default for the custom colour slot — a violet not already in the fixed palette. */
+        val DEFAULT_CUSTOM_COLOR: Int = 0xFF9C27B0.toInt()
     }
 }
 
@@ -40,6 +45,7 @@ class SettingsStore(context: Context) {
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
+            customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
         )
     }
 
@@ -50,6 +56,7 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_HOVER, s.showHover)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
         s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
+        e.putInt(KEY_CUSTOM_COLOR, s.customColor)
         e.apply()
     }
 
@@ -58,6 +65,7 @@ class SettingsStore(context: Context) {
         const val KEY_BARREL = "barrel_action"
         const val KEY_HOVER = "show_hover"
         const val KEY_SENSITIVITY = "sensitivity"
+        const val KEY_CUSTOM_COLOR = "custom_color"
 
         /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
         fun keyPenWidth(i: Int): String = "pen_width_$i"

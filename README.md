@@ -84,9 +84,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   **Colour**, **Size**, **Zoom**, **Pages** — each open a small pop-up anchored to their own button
   (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with **one finger or
   the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base **width**
-  from the other two pop-ups. The Size pop-up offers three width **slots** (**S / M / L**): **tap** a
-  slot to draw with it, or **long-press** a slot to open a slider (0.5 → 15 pt) that redefines that
-  slot's width. The three widths are remembered across restarts. New strokes land on the top layer of
+  from the other two pop-ups. The Colour pop-up ends with an editable **custom slot** (marked with a
+  pencil): **tap** it to draw with its current colour, or **long-press** it to open a picker —
+  a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any colour. The Size
+  pop-up offers three width **slots** (**S / M / L**): **tap** a slot to draw with it, or
+  **long-press** a slot to open a slider (0.5 → 15 pt) that redefines that slot's width. The custom
+  colour and the three widths are remembered across restarts. New strokes land on the top layer of
   whichever page you draw on.
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each
   stroke the eraser touches is removed whole. If your stylus has an **eraser tip** (the flip-over

@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.HighlightAlt
 import androidx.compose.material.icons.filled.Image
@@ -54,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.Tool
@@ -113,6 +115,8 @@ fun SideToolbar(
     onTool: (EditorTool) -> Unit,
     color: Int,
     onColor: (Int) -> Unit,
+    customColor: Int,
+    onRedefineCustom: (Int) -> Unit,
     width: Float,
     onWidth: (Float) -> Unit,
     widthSlots: List<Float>,
@@ -137,7 +141,7 @@ fun SideToolbar(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ToolPopupButton(tool, onTool)
-            ColorPopupButton(color, onColor)
+            ColorPopupButton(color, onColor, customColor, onRedefineCustom)
             SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
             ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
             PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
@@ -168,14 +172,32 @@ private fun ToolPopupButton(tool: EditorTool, onTool: (EditorTool) -> Unit) {
     }
 }
 
+/**
+ * The colour picker: the fixed [PEN_COLORS] palette followed by one editable **custom** slot (marked
+ * with a pencil). Tapping any swatch selects it; **long-pressing the custom slot** opens a
+ * [CustomColorPickerDialog] whose result the parent persists via [onRedefineCustom].
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ColorPopupButton(color: Int, onColor: (Int) -> Unit) {
+private fun ColorPopupButton(
+    color: Int,
+    onColor: (Int) -> Unit,
+    customColor: Int,
+    onRedefineCustom: (Int) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Filled.Circle, contentDescription = "Colour", tint = Color(color))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            Text(
+                "Tap to pick · long-press ✎ to edit",
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -183,8 +205,22 @@ private fun ColorPopupButton(color: Int, onColor: (Int) -> Unit) {
                 for (c in PEN_COLORS) {
                     Swatch(color = c, selected = c == color, onClick = { onColor(c); open = false })
                 }
+                Swatch(
+                    color = customColor,
+                    selected = customColor == color,
+                    onClick = { onColor(customColor); open = false },
+                    onLongClick = { editing = true; open = false },
+                    editable = true,
+                )
             }
         }
+    }
+    if (editing) {
+        CustomColorPickerDialog(
+            initial = customColor,
+            onConfirm = { newColor -> onRedefineCustom(newColor); editing = false },
+            onDismiss = { editing = false },
+        )
     }
 }
 
@@ -343,17 +379,40 @@ private fun PagesPopupButton(
     }
 }
 
+/**
+ * A colour swatch: a filled circle with a selection ring. Passing [onLongClick] makes it respond to a
+ * long-press (used by the editable custom slot); [editable] overlays a small pencil to mark that slot.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Swatch(color: Int, selected: Boolean, onClick: () -> Unit) {
+private fun Swatch(
+    color: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    editable: Boolean = false,
+) {
     val ring = if (selected) MaterialTheme.colorScheme.primary else Color(0x33000000)
     val ringWidth = if (selected) 3.dp else 1.dp
+    val clickModifier = if (onLongClick != null)
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    else Modifier.clickable(onClick = onClick)
     Box(
         modifier = Modifier
             .size(32.dp)
             .clip(CircleShape)
             .background(Color(color))
             .border(ringWidth, ring, CircleShape)
-            .clickable(onClick = onClick),
+            .then(clickModifier),
         contentAlignment = Alignment.Center,
-    ) {}
+    ) {
+        if (editable) {
+            Icon(
+                Icons.Filled.Edit,
+                contentDescription = "Edit custom colour",
+                tint = if (Color(color).luminance() < 0.5f) Color.White else Color.Black,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
 }

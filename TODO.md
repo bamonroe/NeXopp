@@ -13,11 +13,7 @@ fully finished (built, tested, documented), **move** its checked, dated entry to
 > capability can't round-trip through the file (e.g. tilt/orientation, which the format
 > doesn't store), it's out of scope — don't add it. See `CLAUDE.md` → "What this project is".
 
-Tool-authoring polish: configurable pen sizes and colours. Ordered — do top to bottom.
-(Text tool styling and configurable pen sizes shipped 2026-07-31 — see `FINISHED.md`.)
+Tool-authoring polish: configurable pen sizes and colours. All shipped 2026-07-31 (text-tool
+styling, configurable pen sizes, and the custom-colour slot) — see `FINISHED.md`.
 
-### 1. Colours — custom colour slot with a long-press hex/colour picker
-
-Add a **custom colour** slot at the end of the palette. Tap it to select its current colour;
-**long-press** it to open a colour-square / hex picker for an arbitrary colour. Persist the
-chosen custom colour in `AppSettings`/`SettingsStore`.
+_No active tasks. Add the next feature here, unchecked, when one is chosen._

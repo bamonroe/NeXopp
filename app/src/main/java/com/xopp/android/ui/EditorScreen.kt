@@ -165,6 +165,13 @@ fun EditorScreen(
                 onTool = { tool = it; surface?.applyTool(it) },
                 color = color,
                 onColor = { color = it; surface?.colorArgb = it },
+                customColor = settings.customColor,
+                onRedefineCustom = { newColor ->
+                    val old = settings.customColor
+                    onSettingsChange(settings.copy(customColor = newColor))
+                    // Keep the canvas in sync if the custom colour was the one currently selected.
+                    if (color == old) { color = newColor; surface?.colorArgb = newColor }
+                },
                 width = width,
                 onWidth = { width = it; surface?.baseWidthPt = it },
                 widthSlots = settings.penWidths,
