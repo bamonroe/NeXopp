@@ -43,7 +43,9 @@ ones with a one-line why.
       instrumented tests pass on the `/data/android` emulator. Verified on-device: Settings screen
       renders and its toggles persist across a force-stop/relaunch, finger drawing still works
       (no regression from the touch rewrite), and the finger-draw toggle changes behaviour. Only
-      tilt-driven width remains (see Active — no format home). Installed to both tailnet devices.
+      tilt-driven width remains (see Active — no format home). Installed to the Galaxy Tab S9 Ultra
+      (SM-X920, S-Pen — the ideal target); the Pixel 8a was offline on the tailnet at install time
+      (catch it up on the next build).
 - [x] 2026-07-31 — **Fixed: `.xopp` saved with a `.gz` suffix.** The Save intent used the
       `application/gzip` MIME, so the Storage Access Framework appended its own `.gz` extension
       (`document.xopp.gz`), which desktop Xournal++ won't open by name. Switched the save MIME to
