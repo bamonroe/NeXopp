@@ -83,7 +83,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Draw** — the controls live in a **vertical rail down the left edge**. Its buttons — **Tool**,
   **Colour**, **Size**, **Zoom**, **Pages** — each open a small pop-up anchored to their own button
   (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with **one finger or
-  the stylus**; pen pressure sets stroke width. Choose a **colour** (swatches) and a base **width**
+  the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
+  constant-width translucent band** (pressure-independent, ~6× the pen width) that shows the page
+  through it — it saves as a `highlighter` stroke and reopens the same way in desktop Xournal++.
+  Choose a **colour** (swatches) and a base **width**
   from the other two pop-ups. The Colour pop-up ends with an editable **custom slot** (marked with a
   pencil): **tap** it to draw with its current colour, or **long-press** it to open a picker —
   a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any colour. The Size

@@ -108,8 +108,10 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 `<image>`, `<teximage>`. **Document order is z-order** and must be preserved on round-trip.
 
 **`<stroke>`** — the core drawable. Attributes:
-- `tool` ∈ `pen | highlighter | eraser` (highlighter is drawn semi-transparent; eraser
-  strokes exist in the format but desktop rarely persists them).
+- `tool` ∈ `pen | highlighter | eraser`. The highlighter renders distinctly from the pen: a
+  broad, **constant-width** band (authored at ~6× the pen width, pressure-independent → a single
+  `width` value) drawn as one **semi-transparent** path so its alpha doesn't bead at self-overlaps
+  (`StrokePainter.drawBand`). Eraser strokes exist in the format but desktop rarely persists them.
 - `color` — hex/named as above.
 - `width` — **space-separated list of doubles (pt)**. The **first value is the nominal stroke
   width**; the remaining values (if present) are the **per-vertex pressure widths**. A single

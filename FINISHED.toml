@@ -17,6 +17,36 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "make-highlighter-render-differently-from-pen"
+title = "Make highlighter render differently from pen"
+description = "The highlighter tool currently appears to behave like the regular pen. Implement highlighter-specific rendering/serialization behavior so highlighted strokes are visually distinct and still round-trip through .xopp."
+status = "finished"
+category = "bug"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["drawing", "tools"]
+
+[[task]]
+id = "parameterize-scroll-momentum-strength"
+title = "Parameterize scroll momentum strength"
+description = "Replace the current three discrete scrolling momentum choices with a parameterized strength control. The default should be normal momentum at 1.0, level 0 should mean absolutely no carried momentum, and higher values should allow progressively more momentum without changing the lower bound behavior."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["scrolling", "settings", "momentum"]
+
+[[task]]
+id = "support-pinch-zoom-throughout-the-app"
+title = "Support pinch zoom throughout the app"
+description = "Pinch-to-zoom should be available essentially everywhere it makes sense, not only in a narrow editor path. Audit touch handling and route two-finger zoom gestures consistently across document viewing/editing surfaces without breaking stylus-first drawing."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["gestures", "zoom"]
+
+[[task]]
 id = "hand-tool-double-tap-navigation"
 title = "Add hand-tool double-tap page navigation"
 description = "When the hand tool is selected, center double-tap toggles full-page view by hiding/showing the sidebar and top bar, left-edge double-tap goes to the previous page, and right-edge double-tap goes to the next page."

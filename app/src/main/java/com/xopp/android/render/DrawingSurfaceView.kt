@@ -1182,18 +1182,29 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
-        val p = if (pressure <= 0f) 1f else pressure
+        // A highlighter lays down a broad, constant-width band and ignores pressure; the pen
+        // tapers with pressure. (Both persist per-vertex, but the highlighter's values are equal.)
+        val width = if (tool == Tool.HIGHLIGHTER) {
+            (baseWidthPt * HIGHLIGHTER_WIDTH_FACTOR).toDouble()
+        } else {
+            val p = if (pressure <= 0f) 1f else pressure
+            (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
+        }
         return StrokePoint(
             x = ((vx + scrollX - box.leftPx) / box.scale).toDouble(),
             y = ((vy + scrollY - box.topPx) / box.scale).toDouble(),
-            width = (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble(),
+            width = width,
         )
     }
 
     private fun commitCurrent() {
         val pts = current ?: return
         current = null
-        if (pts.size >= 2) appendStroke(currentPage, Stroke(tool, strokeColor(), "round", pts, uniformWidth = false))
+        if (pts.size >= 2) {
+            // Highlighter is constant-width → store a single width; the pen keeps its per-vertex pressure.
+            val stroke = Stroke(tool, strokeColor(), "round", pts, uniformWidth = tool == Tool.HIGHLIGHTER)
+            appendStroke(currentPage, stroke)
+        }
         render()
     }
 
@@ -1348,6 +1359,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val A4_HEIGHT_PT = 841.89
         const val GAP_PX = 24f
         const val ERASER_RADIUS_PX = 18f
+        /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
+        const val HIGHLIGHTER_WIDTH_FACTOR = 6f
         const val BACKDROP = 0xFF3A3A3A.toInt()
         const val ZOOM_STEP = 1.25f
         const val MIN_ZOOM = 0.25f
