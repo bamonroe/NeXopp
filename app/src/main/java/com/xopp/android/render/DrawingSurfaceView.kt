@@ -8,9 +8,11 @@ import android.graphics.Color as AndroidColor
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.view.Choreographer
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.ViewConfiguration
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Element
@@ -79,6 +81,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var placeDownY = 0f
     private var lastFocusY = 0f
     private var lastFocusX = 0f
+
+    // Momentum scrolling: a released pan keeps gliding, decelerating, until it stalls or hits a bound.
+    private val fling = Fling()
+    /** Scales the release velocity fed into a fling; 1 = as-flung, 0 disables momentum. */
+    private var flingStrength = 1f
+    private val choreographer = Choreographer.getInstance()
+    private var flinging = false
+    private var flingLastFrameNanos = 0L
+    /** Release velocity of the just-ended pan (content-space px/s), captured on the final ACTION_UP. */
+    private var releaseVx = 0f
+    private var releaseVy = 0f
+    /** Estimates the pan's velocity from its focus samples so [endGesture] can launch a fling. */
+    private val velocityEstimator = VelocityEstimator()
+    private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity.toFloat()
+    private val flingCallback = Choreographer.FrameCallback { frameTimeNanos -> onFlingFrame(frameTimeNanos) }
 
     /** The text box a placement tap hit, awaiting an edit-or-delete from the editor. */
     private var editingTarget: TextElement? = null
@@ -729,7 +746,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> beginPointer(event, 0)
+            MotionEvent.ACTION_DOWN -> { stopFling(); beginPointer(event, 0) }
             MotionEvent.ACTION_POINTER_DOWN -> onPointerDown(event)
             MotionEvent.ACTION_MOVE -> when {
                 scrolling -> doScroll(event)
@@ -743,11 +760,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 else -> Unit
             }
             MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
-            MotionEvent.ACTION_UP -> endGesture()
+            MotionEvent.ACTION_UP -> { captureReleaseVelocity(event); endGesture() }
             MotionEvent.ACTION_CANCEL -> cancelGesture()
             else -> return super.onTouchEvent(event)
         }
         return true
+    }
+
+    /** Fold the release focus into the estimator and read out the release velocity (content moves
+     * opposite the finger), clamped to the platform's max fling speed. */
+    private fun captureReleaseVelocity(event: MotionEvent) {
+        velocityEstimator.add(event.eventTime, focusX(event, skip = -1), focusY(event, skip = -1))
+        val v = velocityEstimator.velocity()
+        releaseVx = (-v.vx).coerceIn(-maxFlingVelocity, maxFlingVelocity)
+        releaseVy = (-v.vy).coerceIn(-maxFlingVelocity, maxFlingVelocity)
     }
 
     /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */
@@ -831,6 +857,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
         lastFocusY = focusY(event, skip = event.actionIndex)
         lastFocusX = focusX(event, skip = event.actionIndex)
+        // The focus jumps when a finger leaves, so restart the estimate from the new baseline —
+        // otherwise that discontinuity would read as a huge phantom flick.
+        velocityEstimator.reset()
+        velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
     }
 
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
@@ -840,6 +870,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun cancelGesture() {
+        stopFling()
         current = null; scrolling = false; erasing = false; placing = false
         movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
         gesturePointerId = -1; stylusOwner = false
@@ -919,6 +950,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrolling = true
         lastFocusY = focusY(event, skip = -1)
         lastFocusX = focusX(event, skip = -1)
+        velocityEstimator.reset()
+        velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
     }
 
     private fun doScroll(event: MotionEvent) {
@@ -928,6 +961,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrollX = (scrollX + (lastFocusX - fx)).coerceIn(0f, maxScrollX())
         lastFocusY = fy
         lastFocusX = fx
+        velocityEstimator.add(event.eventTime, fx, fy)
         render()
     }
 
@@ -961,6 +995,45 @@ class DrawingSurfaceView @JvmOverloads constructor(
         finishGesture()
         gesturePointerId = -1
         stylusOwner = false
+        if (wasScrolling) startFlingIfFast()
+    }
+
+    /** Launch a decelerating glide from the just-captured release velocity, if it's fast enough. */
+    private fun startFlingIfFast() {
+        if (maxScrollY() <= 0f && maxScrollX() <= 0f) return // nothing to scroll
+        fling.start(releaseVx * flingStrength, releaseVy * flingStrength)
+        if (!fling.isMoving) return
+        flinging = true
+        flingLastFrameNanos = 0L
+        choreographer.postFrameCallback(flingCallback)
+    }
+
+    /** One animation frame of the glide: decay velocity, scroll by the step, stop when done/stuck. */
+    private fun onFlingFrame(frameTimeNanos: Long) {
+        if (!flinging) return
+        // First frame seeds the clock; later frames use the real elapsed time so the glide is
+        // frame-rate independent. Clamp big gaps (e.g. after a stall) so one step can't teleport.
+        val dt = if (flingLastFrameNanos == 0L) 0f
+        else ((frameTimeNanos - flingLastFrameNanos) / 1e9f).coerceIn(0f, 0.05f)
+        flingLastFrameNanos = frameTimeNanos
+        val step = fling.advance(dt)
+        val prevY = scrollY
+        val prevX = scrollX
+        scrollY = (scrollY + step.dy).coerceIn(0f, maxScrollY())
+        scrollX = (scrollX + step.dx).coerceIn(0f, maxScrollX())
+        render()
+        // Stop once too slow, or when both axes are pinned at a bound (nowhere left to glide).
+        val stuck = scrollY == prevY && scrollX == prevX && dt > 0f
+        if (!fling.isMoving || stuck) stopFling() else choreographer.postFrameCallback(flingCallback)
+    }
+
+    /** Halt any in-flight glide (a new touch, a cancel, or detachment). */
+    private fun stopFling() {
+        if (flinging) {
+            flinging = false
+            choreographer.removeFrameCallback(flingCallback)
+        }
+        fling.stop()
     }
 
     /** Record one undo step if this gesture actually changed the document. */
@@ -1065,7 +1138,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
         relayout(); render()
     }
-    override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+    override fun surfaceDestroyed(holder: SurfaceHolder) = stopFling()
+
+    override fun onDetachedFromWindow() {
+        stopFling()
+        super.onDetachedFromWindow()
+    }
 
     private fun relayout() {
         layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom)

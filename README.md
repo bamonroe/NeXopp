@@ -128,7 +128,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   erasing, and adding/editing text/image/LaTeX are all undoable). They enable and disable as history
   allows; opening a file starts fresh history.
 - **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
-  from the Tool pop-up to pan with **one finger** (handy on a stylus). A PDF-style **scroll thumb**
+  from the Tool pop-up to pan with **one finger** (handy on a stylus). A quick **flick** keeps the
+  pages **gliding** with momentum and coasts to a stop; touch down again to halt it at once. A
+  PDF-style **scroll thumb**
   rides the **right edge** whenever the document is taller than the screen: **drag it** to page
   quickly through a long document (a **page-number bubble** shows where you are as you drag). A small
   **grip** bulges out of its centre so it's easy to grab. It sits faint while idle and brightens as you

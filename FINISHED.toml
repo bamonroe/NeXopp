@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "momentum-scrolling"
+title = "Add momentum scrolling"
+description = "Fast swipes should continue moving pages after finger lift."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = []
+
+[[task]]
 id = "default-tool-setting"
 title = "Add default tool setting"
 description = "Add a settings option for the default tool."

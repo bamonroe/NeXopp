@@ -258,6 +258,8 @@ app/
       SelectionOps.kt        # translate / delete selected elements on a page (pure)
       InputClassifier.kt     # pointer kind + button + active tool + settings -> gesture intent (pure)
       PressureCurve.kt       # pressure -> width multiplier + sensitivity presets (pure)
+      Fling.kt               # decelerating two-axis momentum-scroll kinematics (pure)
+      VelocityEstimator.kt   # pan release-velocity from a trailing sample window (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
       PageOps.kt             # insert / delete pages in a page list (pure)
     ui/                      # Compose Material 3
@@ -417,6 +419,17 @@ stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of
 `MotionEvent`s to prove the wiring (eraser tip, barrel erase, finger-draw gate, palm rejection).
 `AppSettings` also carries the **default tool** (`DEFAULT_TOOL_CHOICES` — pen/highlighter/eraser/hand),
 which seeds `EditorScreen`'s active-tool state so a document opens in the user's chosen mode.
+
+**Momentum scrolling.** A pan (two-finger, or one-finger Hand) feeds each focus sample to the pure
+`VelocityEstimator`; on release the view seeds the pure `Fling` with that velocity (content-space,
+opposite the finger, clamped to the platform max) and drives a `Choreographer` frame loop that decays
+the velocity exponentially, scrolls `scrollY`/`scrollX` by each frame's step (clamped by
+`maxScrollY()`/`maxScrollX()`), and re-`render()`s. It stops when the speed drops below a threshold or
+both axes pin to a bound; a fresh touch, cancel, or detach halts it at once. Both `Fling` and
+`VelocityEstimator` are Android-free (we roll our own estimator because `VelocityTracker` returns
+nothing for the synthetic events used in tests), so the kinematics are unit-tested on the JVM
+(`FlingTest`, `VelocityEstimatorTest`) and stay frame-rate independent. Because `render()` re-emits
+`onScrollChanged`, the scroll thumb tracks the glide live.
 
 **Out of scope: tilt / orientation.** The `.xopp` format stores only per-vertex width — it has no
 place for stylus **tilt / orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`), so tilt-driven width
