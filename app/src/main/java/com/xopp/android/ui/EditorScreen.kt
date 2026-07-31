@@ -1,5 +1,6 @@
 package com.xopp.android.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -64,11 +65,7 @@ fun EditorScreen(
     var showSettings by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
 
-    if (showSettings) {
-        SettingsScreen(onBack = { showSettings = false })
-        return
-    }
-
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -121,6 +118,14 @@ fun EditorScreen(
                 onRemovePage = { surface?.removePage() },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+
+        // Settings is overlaid on top of the still-composed editor rather than replacing it, so the
+        // AndroidView-hosted DrawingSurfaceView is never detached — the drawing (and undo history)
+        // survives the round trip to Settings and back.
+        if (showSettings) {
+            SettingsScreen(onBack = { showSettings = false })
         }
     }
 }

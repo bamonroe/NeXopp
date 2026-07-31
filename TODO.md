@@ -8,6 +8,8 @@ ones with a one-line why.
 
 ## Active
 
+- [ ] **Import & export PDF.** Open a PDF as a document (each page a background, à la desktop
+      Xournal++ PDF annotation) and export the annotated document back out as a flattened PDF.
 - [ ] **Edit** the non-stroke element types on-device: create/edit **text boxes** (keyboard),
       insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
       authoring path.
@@ -18,6 +20,15 @@ ones with a one-line why.
       `docs/tools.md`; wire an instrumented smoke test.
 
 ## Done
+
+- [x] 2026-07-30 — **Fixed: drawing wiped when visiting Settings.** Opening Settings early-`return`ed
+      from `EditorScreen`, tearing the `AndroidView`-hosted `DrawingSurfaceView` out of the
+      composition; since strokes lived only in that view, coming back rebuilt a blank one. Settings
+      now renders as an opaque overlay in a `Box` on top of the still-composed editor, so the surface
+      is never detached — the drawing **and** undo history survive the round trip. `BUILD SUCCESSFUL`,
+      40 tests pass. Verified on the `/data/android` emulator: drew two strokes, entered Settings
+      (canvas fully covered, no bleed-through), backed out — both strokes and the lit Undo button
+      remained, no crash. Installed to both tailnet devices.
 
 - [x] 2026-07-30 — **Hand tool, zoom, and add/remove page.** The Tool pop-up gained a **Hand**
       mode (one-finger pan; two-finger pan works in every tool). A **Zoom** button opens a −/+/reset
