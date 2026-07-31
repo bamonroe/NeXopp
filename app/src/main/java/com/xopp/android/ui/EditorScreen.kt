@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +40,8 @@ fun EditorScreen(
     var tool by remember { mutableStateOf(Tool.PEN) }
     var color by remember { mutableStateOf(PEN_COLORS.first()) }
     var width by remember { mutableStateOf(PEN_WIDTHS[1].pt) }
+    var canUndo by remember { mutableStateOf(false) }
+    var canRedo by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
 
     Scaffold(
@@ -45,6 +49,12 @@ fun EditorScreen(
             TopAppBar(
                 title = { Text("Xopp") },
                 actions = {
+                    IconButton(onClick = { surface?.undo() }, enabled = canUndo) {
+                        Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+                    }
+                    IconButton(onClick = { surface?.redo() }, enabled = canRedo) {
+                        Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
+                    }
                     IconButton(onClick = onOpen) {
                         Icon(Icons.Filled.FileOpen, contentDescription = "Open .xopp")
                     }
@@ -62,6 +72,7 @@ fun EditorScreen(
                         it.tool = tool
                         it.colorArgb = color
                         it.baseWidthPt = width
+                        it.onHistoryChanged = { u, r -> canUndo = u; canRedo = r }
                         surface = it
                         onSurfaceCreated(it)
                     }

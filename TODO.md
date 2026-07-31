@@ -18,6 +18,11 @@ ones with a one-line why.
 
 ## Done
 
+- [x] 2026-07-30 — **Undo / redo.** Top-bar arrows undo and redo edits one draw/erase gesture at a
+      time, enabling/disabling as history allows; opening a file resets history. Each gesture
+      snapshots the whole document into the pure, tested generic `EditHistory` (6 new JVM tests, 38
+      total). Verified on the `/data/android` emulator: drew strokes, undid to empty (Undo greyed),
+      redid to restore, no crash. Installed to both tailnet devices.
 - [x] 2026-07-30 — **Pen colour and width pickers.** Added `PenSettings` to the Material 3 chrome
       — a scrollable row of colour swatches (black/red/blue/green/orange/yellow) and S/M/L width
       chips — wired to the surface's `colorArgb`/`baseWidthPt`. Verified on the `/data/android`

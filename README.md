@@ -76,6 +76,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   whichever page you draw on.
 - **Erase** — pick **Eraser** and drag over strokes to delete them; each stroke the eraser
   touches is removed whole.
+- **Undo / Redo** — the arrows in the top bar undo and redo edits, one draw or erase gesture at
+  a time. They enable and disable as history allows; opening a file starts fresh history.
 - **Scroll** — drag with **two fingers** to move up and down the page stack.
 - **Save** — the save action writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — including text, images, and LaTeX

@@ -41,6 +41,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var erasing = false
     private var lastFocusY = 0f
 
+    /** Undo/redo snapshots of the whole [Document] (cheap: immutable pages/layers share structure). */
+    private val history = EditHistory<Document>()
+    /** The document as it was when the current gesture began, so one gesture is one undo step. */
+    private var gestureStartDoc: Document? = null
+
+    /** Notified with (canUndo, canRedo) whenever the history changes, so the chrome can enable buttons. */
+    var onHistoryChanged: ((Boolean, Boolean) -> Unit)? = null
+
     var tool: Tool = Tool.PEN
     var colorArgb: Int = AndroidColor.BLACK
     var baseWidthPt: Float = 1.5f
@@ -60,12 +68,39 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun load(doc: Document) {
         this.doc = if (doc.pages.isEmpty()) doc.copy(pages = listOf(blankPage())) else doc
         scrollY = 0f
+        history.clear()
+        notifyHistory()
         relayout()
         render()
     }
 
     /** The current working document — every page, layer, and preserved element, ready to save. */
     fun toDocument(): Document = doc
+
+    // --- undo / redo ---------------------------------------------------------------------------
+
+    /** Revert the most recent edit (stroke or erase gesture). No-op when there's nothing to undo. */
+    fun undo() {
+        doc = history.undo(doc) ?: return
+        afterHistoryMove()
+    }
+
+    /** Re-apply the most recently undone edit. No-op when there's nothing to redo. */
+    fun redo() {
+        doc = history.redo(doc) ?: return
+        afterHistoryMove()
+    }
+
+    private fun afterHistoryMove() {
+        current = null
+        relayout()
+        render()
+        notifyHistory()
+    }
+
+    private fun notifyHistory() {
+        onHistoryChanged?.invoke(history.canUndo, history.canRedo)
+    }
 
     // --- touch: one finger draws (or erases), two fingers scroll -------------------------------
 
@@ -80,7 +115,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             }
             MotionEvent.ACTION_POINTER_UP -> lastFocusY = focusY(event, skip = event.actionIndex)
             MotionEvent.ACTION_UP -> endGesture()
-            MotionEvent.ACTION_CANCEL -> { current = null; scrolling = false; erasing = false }
+            MotionEvent.ACTION_CANCEL -> { current = null; scrolling = false; erasing = false; gestureStartDoc = null }
             else -> return super.onTouchEvent(event)
         }
         return true
@@ -88,6 +123,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun startStroke(event: MotionEvent) {
         scrolling = false
+        gestureStartDoc = doc
         val box = layout.pageAt(event.y + scrollY) ?: run { current = null; return }
         currentPage = box.index
         current = ArrayList<StrokePoint>().also { addSamples(event, box, it) }
@@ -102,6 +138,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun startErase(event: MotionEvent) {
         scrolling = false
         erasing = true
+        gestureStartDoc = doc
         val box = layout.pageAt(event.y + scrollY) ?: return
         currentPage = box.index
         eraseAt(box, event.x, event.y)
@@ -139,6 +176,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!scrolling && !erasing) commitCurrent()
         scrolling = false
         erasing = false
+        finishGesture()
+    }
+
+    /** Record one undo step if this gesture actually changed the document. */
+    private fun finishGesture() {
+        val start = gestureStartDoc ?: return
+        gestureStartDoc = null
+        if (doc !== start) {
+            history.record(start)
+            notifyHistory()
+        }
     }
 
     /** Mean Y of all pointers except [skip] (an index being lifted), in view px. */

@@ -242,6 +242,7 @@ app/
       ElementRenderer.kt     # draws text boxes, images, and teximage placeholders
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
+      EditHistory.kt         # generic undo/redo over document snapshots (pure)
     ui/                      # Compose Material 3
       EditorScreen.kt, ToolPalette.kt, PenSettings.kt
       theme/                 # XoppTheme (Material You), Color
@@ -260,7 +261,10 @@ plus all of its layers in z-order. The geometry (page placement, gridlines) is f
 `PageStacker`/`BackgroundGrid` precisely so it's unit-testable off-device. **One finger draws**
 (a new stroke lands on the top layer of the page under the touch) — or **erases** when the
 Eraser tool is active, deleting every stroke the eraser disc touches (hit geometry in the pure,
-tested `StrokeHitTester`); **two fingers scroll** the stack. Strokes are drawn by the view; text boxes, images, and LaTeX images are drawn by
+tested `StrokeHitTester`); **two fingers scroll** the stack. Each draw or erase gesture snapshots
+the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
+gesture at a time (snapshots are cheap — immutable pages/layers share structure). Strokes are
+drawn by the view; text boxes, images, and LaTeX images are drawn by
 `ElementRenderer` (text baseline geometry lives in the pure, tested `TextBlock`; image bytes are
 decoded once and cached by element identity). A `<teximage>` carries only its LaTeX source in the
 model, so it renders as a best-effort placeholder — a faint box with the source text — until a
