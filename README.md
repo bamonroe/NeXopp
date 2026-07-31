@@ -148,6 +148,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     or **None**.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
+  - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
+    **Eraser**, or **Hand (pan)**.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
   element merged on top, then written to the location you pick. Use this to share an annotated

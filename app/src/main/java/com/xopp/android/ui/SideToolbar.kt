@@ -103,6 +103,17 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),
 )
 
+/** Human-readable label for a tool (the same text the rail's tool menu shows). */
+val EditorTool.label: String get() = TOOLS.first { it.tool == this }.label
+
+/**
+ * The tools that make sense to *start* a document in, offered by the "Default tool" setting. The
+ * place-modes (TEXT/IMAGE/TEXIMAGE) and SELECT aren't here: opening straight into them would strand
+ * the user in a mode with nothing to act on, so a default is one of the four drawing/pan tools.
+ */
+val DEFAULT_TOOL_CHOICES: List<EditorTool> =
+    listOf(EditorTool.PEN, EditorTool.HIGHLIGHTER, EditorTool.ERASER, EditorTool.HAND)
+
 /**
  * The vertical control rail down the left edge: Tool, Colour, Size, Zoom, and a page navigator —
  * each a button opening a small [DropdownMenu] anchored to its own button (which opens to the right

@@ -415,6 +415,8 @@ stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of
 `AppSettings`, persisted by `SettingsStore` (SharedPreferences) and pushed live onto the surface by
 `EditorScreen.applySettings`; the on-device `StylusInputTest` drives synthetic tool-typed
 `MotionEvent`s to prove the wiring (eraser tip, barrel erase, finger-draw gate, palm rejection).
+`AppSettings` also carries the **default tool** (`DEFAULT_TOOL_CHOICES` — pen/highlighter/eraser/hand),
+which seeds `EditorScreen`'s active-tool state so a document opens in the user's chosen mode.
 
 **Out of scope: tilt / orientation.** The `.xopp` format stores only per-vertex width — it has no
 place for stylus **tilt / orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`), so tilt-driven width

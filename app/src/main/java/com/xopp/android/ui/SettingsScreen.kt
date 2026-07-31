@@ -31,9 +31,10 @@ import com.xopp.android.render.BarrelAction
 import com.xopp.android.render.PressureSensitivity
 
 /**
- * Full-screen settings page for the **stylus** input layer: palm rejection (finger-draw), the
- * barrel-button action, the hover preview, and the pressure "feel". Edits are pushed live to the
- * canvas and persisted via [SettingsStore] (see `MainActivity`). Reached from the top-bar menu.
+ * Full-screen settings page for the input layer: stylus behaviours (palm rejection, barrel-button
+ * action, hover preview, pressure "feel") plus editor preferences (the default tool a document opens
+ * in). Edits are pushed live to the canvas and persisted via [SettingsStore] (see `MainActivity`).
+ * Reached from the top-bar menu.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +91,17 @@ fun SettingsScreen(
                 selected = settings.sensitivity,
                 label = { it.label },
                 onSelect = { onChange(settings.copy(sensitivity = it)) },
+            )
+
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            SectionHeader("Editor")
+            OptionGroup(
+                title = "Default tool",
+                subtitle = "Which tool is active when a document opens.",
+                options = DEFAULT_TOOL_CHOICES,
+                selected = settings.defaultTool,
+                label = { it.label },
+                onSelect = { onChange(settings.copy(defaultTool = it)) },
             )
         }
     }

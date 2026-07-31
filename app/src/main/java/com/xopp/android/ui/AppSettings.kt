@@ -22,6 +22,8 @@ data class AppSettings(
     val penWidths: List<Float> = DEFAULT_PEN_WIDTHS,
     /** The user-defined colour (opaque ARGB) behind the palette's editable custom slot. */
     val customColor: Int = DEFAULT_CUSTOM_COLOR,
+    /** Which tool is active when a document first opens. */
+    val defaultTool: EditorTool = EditorTool.PEN,
 ) {
     companion object {
         /** Factory defaults for the three pen-width slots — the old fixed S/M/L values. */
@@ -46,6 +48,7 @@ class SettingsStore(context: Context) {
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
+            defaultTool = enumOr(prefs.getString(KEY_DEFAULT_TOOL, null), d.defaultTool),
         )
     }
 
@@ -57,6 +60,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
         s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
         e.putInt(KEY_CUSTOM_COLOR, s.customColor)
+        e.putString(KEY_DEFAULT_TOOL, s.defaultTool.name)
         e.apply()
     }
 
@@ -66,6 +70,7 @@ class SettingsStore(context: Context) {
         const val KEY_HOVER = "show_hover"
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_CUSTOM_COLOR = "custom_color"
+        const val KEY_DEFAULT_TOOL = "default_tool"
 
         /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
         fun keyPenWidth(i: Int): String = "pen_width_$i"

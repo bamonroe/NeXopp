@@ -114,7 +114,7 @@ fun EditorScreen(
     settings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit,
 ) {
-    var tool by remember { mutableStateOf(EditorTool.PEN) }
+    var tool by remember { mutableStateOf(settings.defaultTool) }
     var color by remember { mutableStateOf(PEN_COLORS.first()) }
     var width by remember { mutableStateOf(settings.penWidths[1]) }
     var zoom by remember { mutableStateOf(1f) }

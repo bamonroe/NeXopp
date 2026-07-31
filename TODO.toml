@@ -21,17 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "default-tool-setting"
-title = "Add default tool setting"
-description = "Add a settings option for the default tool."
-status = "active"
-category = "feature"
-urgency = "medium"
-order = 30
-created = 2026-07-31
-tags = []
-
-[[task]]
 id = "momentum-scrolling"
 title = "Add momentum scrolling"
 description = "Fast swipes should continue moving pages after finger lift."
