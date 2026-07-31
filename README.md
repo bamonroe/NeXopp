@@ -88,7 +88,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   pencil): **tap** it to draw with its current colour, or **long-press** it to open a picker —
   a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any colour. The Size
   pop-up offers three width **slots** (**S / M / L**): **tap** a slot to draw with it, or
-  **long-press** a slot to open a slider (0.5 → 15 pt) that redefines that slot's width. The custom
+  **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines that slot's width — drag
+  the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at a time, or type an exact
+  point size into the **text field**. The custom
   colour and the three widths are remembered across restarts. New strokes land on the top layer of
   whichever page you draw on.
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each

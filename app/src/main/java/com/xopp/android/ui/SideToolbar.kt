@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -42,6 +43,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -57,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.Tool
 import kotlin.math.roundToInt
@@ -67,6 +70,9 @@ val PEN_WIDTH_LABELS: List<String> = listOf("S", "M", "L")
 /** Bounds of the long-press slot-resize slider, in points. */
 const val PEN_WIDTH_MIN: Float = 0.5f
 const val PEN_WIDTH_MAX: Float = 15f
+
+/** Increment for the −/+ fine-adjust buttons in the slot-resize dialog, in points. */
+const val PEN_WIDTH_STEP: Float = 0.1f
 
 /** Format a pen width for display: at most two decimals, trailing zeros trimmed (e.g. 1.50 → "1.5"). */
 fun ptLabel(pt: Float): String =
@@ -293,7 +299,11 @@ private fun SizePopupButton(
     }
 }
 
-/** A slider dialog (0.5 → 15 pt) that redefines one pen-width slot; opened by long-pressing the slot. */
+/**
+ * A dialog (0.5 → 15 pt) that redefines one pen-width slot; opened by long-pressing the slot. Offers
+ * three ways to dial in a width: the slider for a broad sweep, the −/+ buttons for fine
+ * [PEN_WIDTH_STEP]-pt nudges, and a text field for typing an exact value.
+ */
 @Composable
 private fun WidthSlotSliderDialog(
     label: String,
@@ -302,15 +312,45 @@ private fun WidthSlotSliderDialog(
     onDismiss: () -> Unit,
 ) {
     var value by remember { mutableStateOf(initial.coerceIn(PEN_WIDTH_MIN, PEN_WIDTH_MAX)) }
+    // The text field is edited freely as a string so mid-edit values ("", ".", "1.") don't fight the
+    // user; a valid, in-range parse flows back into [value], and any programmatic change re-syncs it.
+    var text by remember { mutableStateOf(ptLabel(value)) }
+    fun setValue(pt: Float) {
+        value = pt.coerceIn(PEN_WIDTH_MIN, PEN_WIDTH_MAX)
+        text = ptLabel(value)
+    }
+    // Snap −/+ nudges to a clean [PEN_WIDTH_STEP] grid so repeated taps don't accumulate float drift.
+    fun nudge(delta: Float) = setValue(((value + delta) / PEN_WIDTH_STEP).roundToInt() * PEN_WIDTH_STEP)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Slot $label width") },
         text = {
             Column {
-                Text("Width: ${ptLabel(value)} pt")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    IconButton(onClick = { nudge(-PEN_WIDTH_STEP) }) {
+                        Icon(Icons.Filled.Remove, contentDescription = "Thinner")
+                    }
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { entered ->
+                            text = entered
+                            entered.toFloatOrNull()?.let { value = it.coerceIn(PEN_WIDTH_MIN, PEN_WIDTH_MAX) }
+                        },
+                        singleLine = true,
+                        suffix = { Text("pt") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.width(120.dp),
+                    )
+                    IconButton(onClick = { nudge(PEN_WIDTH_STEP) }) {
+                        Icon(Icons.Filled.Add, contentDescription = "Thicker")
+                    }
+                }
                 Slider(
                     value = value,
-                    onValueChange = { value = it },
+                    onValueChange = { setValue(it) },
                     valueRange = PEN_WIDTH_MIN..PEN_WIDTH_MAX,
                 )
             }

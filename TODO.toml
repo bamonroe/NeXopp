@@ -32,16 +32,3 @@ created = 2026-07-31
 tags = []
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "pen-tip-size-controls"
-title = "Improve pen tip size controls"
-description = "Add minus and plus buttons beside the slider for small increments, and add a text input for entering an exact point size."
-status = "active"
-category = "feature"
-urgency = "medium"
-order = 70
-created = 2026-07-31
-tags = []
-rebuild = true
-emulator_debug = true
