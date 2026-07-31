@@ -23,9 +23,11 @@ here from `TODO.md`. Newest first. This file only grows; nothing is removed from
       and a select-mode bar (Rectangle/Lasso chips + Paste). Tilt/orientation was dropped from the
       roadmap and a **"the format is the boundary" scope rule** recorded (`CLAUDE.md`) — we only build
       features `.xopp` can represent. Extended `SelectionTest` (resize/rotate/restyle/clipboard/
-      moveToPage/lasso); `BUILD SUCCESSFUL`, all JVM unit tests pass. Verified on the `/data/android`
-      emulator (select → resize/rotate handles, lasso, copy/paste, recolour) and installed to the
-      Pixel 8a and Tab S9 Ultra.
+      moveToPage/lasso) plus a new instrumented `SelectionInputTest` (synthetic finger gestures for
+      lasso, copy/paste, cross-page move). `BUILD SUCCESSFUL`; all JVM unit tests + all 9 instrumented
+      tests pass on the `/data/android` emulator, where select → resize/rotate handles, lasso,
+      copy/paste and recolour were also confirmed live via screenshots with a clean logcat. Installed
+      to the Tab S9 Ultra; the Pixel 8a was offline (install deferred).
 - [x] 2026-07-31 — **Stylus-first input layer.** Routed `DrawingSurfaceView.onTouchEvent` through a
       new pure, JVM-tested **`InputClassifier`** (`PointerKind` + barrel state + `ActiveTool` +
       `InputSettings` → `GestureIntent`), so pen hardware wins over the toolbar the way desktop
