@@ -18,19 +18,18 @@ import java.util.IdentityHashMap
  * page's top-left offset (`offsetX`, `offsetY`, px) so elements land in the same space as the strokes.
  *
  * Decoded image bitmaps are cached by element identity so a large PNG isn't re-decoded every frame.
- * A `<teximage>` carries only its LaTeX source in our model (no rendered glyphs), so it is drawn as
- * a best-effort placeholder — a faint box with the source text — until a real LaTeX renderer lands.
+ * A `<teximage>` carries only its LaTeX source in our model (no rendered glyphs), so the source is
+ * parsed once (cached by element identity, like the bitmap cache) into a [LatexNode] tree and drawn
+ * as real math by [LatexRenderer]. Any parse/draw failure falls back to the raw source text so a
+ * malformed formula can never crash a frame.
  */
 class ElementRenderer {
 
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val boxPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 1f
-        color = 0x33000000
-    }
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
     private val bitmapCache = IdentityHashMap<ImageElement, Bitmap?>()
+    private val latexRenderer = LatexRenderer()
+    private val texCache = IdentityHashMap<TexImageElement, LatexNode?>()
 
     fun draw(canvas: Canvas, element: Element, scale: Float, offsetX: Float, offsetY: Float) {
         when (element) {
@@ -62,8 +61,28 @@ class ElementRenderer {
     }
 
     private fun drawTex(canvas: Canvas, tex: TexImageElement, scale: Float, offsetX: Float, offsetY: Float) {
+        if (tex.latex.isBlank()) return
         val dst = rect(tex.left, tex.top, tex.right, tex.bottom, scale, offsetX, offsetY)
-        canvas.drawRect(dst, boxPaint)
+        // Parse the LaTeX source once and cache the tree by element identity (like the bitmap cache).
+        val node = try {
+            texCache.getOrPut(tex) { LatexParser.parse(tex.latex) }
+        } catch (_: Throwable) {
+            null
+        }
+        if (node != null) {
+            try {
+                // Cap the font so a single glyph never balloons past the box; fit does the rest.
+                latexRenderer.draw(canvas, node, dst, tex.color, dst.height())
+                return
+            } catch (_: Throwable) {
+                // fall through to the raw-source fallback below
+            }
+        }
+        drawTexFallback(canvas, tex, dst, scale)
+    }
+
+    /** Last-resort rendering: draw the raw LaTeX source as monospace text, clipped to the box. */
+    private fun drawTexFallback(canvas: Canvas, tex: TexImageElement, dst: RectF, scale: Float) {
         textPaint.color = tex.color
         textPaint.typeface = Typeface.MONOSPACE
         textPaint.textSize = (dst.height() * 0.5f).coerceIn(8f, 14f * scale)
