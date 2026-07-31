@@ -16,10 +16,16 @@ ones with a one-line why.
 - [ ] Render **teximage** as real math (a LaTeX renderer), replacing the source-text placeholder.
 - [ ] Add a **page navigator** — thumbnails or a jump-to-page N control (page add/remove and the
       page count already exist; this is quick navigation across a long document).
-- [ ] Script the **emulator harness** (AVD create + headless launch + install) per
-      `docs/tools.md`; wire an instrumented smoke test.
-
+- [ ] Wire an **instrumented smoke test** on top of the existing `/data/android` emulator harness
+      (open a fixture, draw, save, reopen) so the runtime path is checked mechanically, not by hand.
 ## Done
+
+- [x] 2026-07-30 — **Emulator harness already scripted.** The AVD-create / headless-launch /
+      install loop lives in `/data/android/.claude/skills/android-dev/scripts/emulator.sh`
+      (`up`/`boot-wait`/`install`/`launch`/`screenshot`/`ui`/`logcat`), driven by that repo's
+      `docker-compose.yml`; the pre-baked Android 14 container image *is* the AVD, so there's no
+      separate create step. Documented in `docs/tools.md`. (An instrumented smoke test on top of
+      this is still worth adding — see Active.)
 
 - [x] 2026-07-30 — **Fixed: drawing wiped when visiting Settings.** Opening Settings early-`return`ed
       from `EditorScreen`, tearing the `AndroidView`-hosted `DrawingSurfaceView` out of the
