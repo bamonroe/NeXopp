@@ -39,6 +39,11 @@ class MainActivity : ComponentActivity() {
             uri?.let(::importPdf)
         }
 
+    private val exportPdfLauncher =
+        registerForActivityResult(ActivityResultContracts.CreateDocument(PDF_MIME)) { uri ->
+            uri?.let(::exportPdf)
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -47,6 +52,7 @@ class MainActivity : ComponentActivity() {
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
                     onSave = { saveLauncher.launch("document.xopp") },
                     onImportPdf = { importPdfLauncher.launch(arrayOf(PDF_MIME)) },
+                    onExportPdf = { exportPdfLauncher.launch("document.pdf") },
                     onSurfaceCreated = { surface = it },
                 )
             }
@@ -74,6 +80,14 @@ class MainActivity : ComponentActivity() {
         surface?.setPdfSource(cache)
         surface?.load(doc)
     }.onFailure { toast("PDF import failed: ${it.message}") }
+
+    /** Flatten the current document to a PDF at the chosen location (backgrounds + annotations). */
+    private fun exportPdf(uri: Uri) = runCatching {
+        contentResolver.openOutputStream(uri, "w").use { output ->
+            requireNotNull(output) { "could not write $uri" }
+            surface?.exportPdf(output)
+        }
+    }.onFailure { toast("PDF export failed: ${it.message}") }
 
     /** The user-visible file name behind a SAF [uri], for the `pdf` background's `filename`. */
     private fun displayName(uri: Uri): String? = runCatching {

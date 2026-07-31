@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
-import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.SurfaceHolder
@@ -66,11 +65,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
     var handMode: Boolean = false
 
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-        strokeJoin = Paint.Join.ROUND
-    }
+    private val strokePainter = StrokePainter()
     private val elementRenderer = ElementRenderer()
 
     init {
@@ -101,6 +96,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         pdfSource?.close()
         pdfSource = source
     }
+
+    /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
+    fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource).export(doc, out)
 
     // --- undo / redo ---------------------------------------------------------------------------
 
@@ -392,43 +390,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun drawPageElements(canvas: Canvas, box: PageBox) {
-        val offsetX = box.leftPx - scrollX
-        val offsetY = box.topPx - scrollY
-        for (layer in box.page.layers) {
-            for (element in layer.elements) {
-                if (element is Stroke) {
-                    drawPoints(canvas, element.points, element.tool, element.color, box.scale, offsetX, offsetY)
-                } else {
-                    elementRenderer.draw(canvas, element, box.scale, offsetX, offsetY)
-                }
-            }
-        }
+        PageRenderer.drawElements(
+            canvas, box.page, box.scale, box.leftPx - scrollX, box.topPx - scrollY, strokePainter, elementRenderer,
+        )
     }
 
     private fun drawCurrent(canvas: Canvas) {
         val pts = current ?: return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        drawPoints(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
+        strokePainter.draw(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
     }
-
-    private fun drawPoints(canvas: Canvas, pts: List<StrokePoint>, tool: Tool, color: Int, scale: Float, offsetX: Float, offsetY: Float) {
-        if (pts.size < 2) return
-        paint.color = renderColor(tool, color)
-        for (i in 1 until pts.size) {
-            val a = pts[i - 1]
-            val b = pts[i]
-            paint.strokeWidth = ((a.width + b.width) / 2.0).toFloat() * scale
-            canvas.drawLine(
-                offsetX + (a.x * scale).toFloat(), offsetY + (a.y * scale).toFloat(),
-                offsetX + (b.x * scale).toFloat(), offsetY + (b.y * scale).toFloat(),
-                paint,
-            )
-        }
-    }
-
-    /** Highlighter always paints translucent even if the stored colour is opaque. */
-    private fun renderColor(tool: Tool, color: Int): Int =
-        if (tool == Tool.HIGHLIGHTER && (color ushr 24) == 0xFF) (color and 0x00FFFFFF) or 0x80000000.toInt() else color
 
     private companion object {
         const val A4_WIDTH_PT = 595.276

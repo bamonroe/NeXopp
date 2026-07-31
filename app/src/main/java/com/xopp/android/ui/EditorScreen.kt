@@ -55,6 +55,7 @@ fun EditorScreen(
     onOpen: () -> Unit,
     onSave: () -> Unit,
     onImportPdf: () -> Unit,
+    onExportPdf: () -> Unit,
     onSurfaceCreated: (DrawingSurfaceView) -> Unit,
 ) {
     var tool by remember { mutableStateOf(EditorTool.PEN) }
@@ -83,6 +84,7 @@ fun EditorScreen(
                         onOpen = onOpen,
                         onSave = onSave,
                         onImportPdf = onImportPdf,
+                        onExportPdf = onExportPdf,
                         onSettings = { showSettings = true },
                     )
                 },
@@ -139,6 +141,7 @@ private fun OverflowMenu(
     onOpen: () -> Unit,
     onSave: () -> Unit,
     onImportPdf: () -> Unit,
+    onExportPdf: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -155,6 +158,11 @@ private fun OverflowMenu(
             text = { Text("Import PDF") },
             leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
             onClick = { open = false; onImportPdf() },
+        )
+        DropdownMenuItem(
+            text = { Text("Export PDF") },
+            leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
+            onClick = { open = false; onExportPdf() },
         )
         DropdownMenuItem(
             text = { Text("Save") },

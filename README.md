@@ -93,6 +93,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   Add and remove are undoable.
 - **Settings** — the top-bar menu also opens a full-screen **Settings** page (placeholder for
   now); the back arrow returns to the editor.
+- **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
+  drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
+  element merged on top, then written to the location you pick. Use this to share an annotated
+  copy; **Save** keeps the editable `.xopp`.
 - **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — including text, images, and LaTeX
   images that aren't edited on-device yet.

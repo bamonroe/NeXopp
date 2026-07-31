@@ -8,8 +8,6 @@ ones with a one-line why.
 
 ## Active
 
-- [ ] **Export PDF.** Flatten the annotated document (PDF/solid backgrounds + all strokes and
-      elements) back out to a PDF via the framework `android.graphics.pdf.PdfDocument`.
 - [ ] **Edit** the non-stroke element types on-device: create/edit **text boxes** (keyboard),
       insert **images** (via SAF), and place **teximage**. Rendering already works; this is the
       authoring path.
@@ -20,6 +18,15 @@ ones with a one-line why.
       (open a fixture, draw, save, reopen) so the runtime path is checked mechanically, not by hand.
 ## Done
 
+- [x] 2026-07-30 — **Export the annotated document as a flattened PDF.** The menu's **Export PDF**
+      writes each page at its true point size via the framework `PdfDocument` (dependency-free): the
+      background (a rasterised `pdf` page, or a solid sheet with its ruling) then every stroke and
+      element on top, reusing `BackgroundRenderer`/`PageRenderer` at scale 1 so the output matches
+      the editor. Extracted the shared `StrokePainter`/`PageRenderer` out of `DrawingSurfaceView` so
+      screen and export draw identically. New JVM `PdfBackgroundRoundTripTest` (48 tests total),
+      `BUILD SUCCESSFUL`. Verified on the `/data/android` emulator: imported a 2-page PDF, drew an X
+      on page 1, exported, and confirmed the output PDF (via `pdftoppm`) shows the original PDF text
+      plus the X on page 1 and clean page 2.
 - [x] 2026-07-30 — **Import a PDF as an annotatable document (PDF page backgrounds).** The menu's
       **Import PDF** copies the picked PDF into app cache and builds a document with one page per PDF
       page; each page carries a `<background type="pdf">` (filename+domain on page 1 only, `pageno`

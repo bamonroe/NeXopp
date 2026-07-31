@@ -1,0 +1,44 @@
+package com.xopp.android.format
+
+import com.xopp.android.format.model.Background
+import com.xopp.android.format.model.Document
+import com.xopp.android.format.model.Layer
+import com.xopp.android.format.model.Page
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+/**
+ * Locks in that a PDF-annotation document — the shape "Import PDF" builds (see `PdfImport`) — writes
+ * and reads back unchanged: the first page carries `filename`+`domain`, later pages reference the
+ * same PDF by `pageno` alone. This is the on-disk contract that lets an annotated PDF round-trip to
+ * desktop Xournal++; the rasterisation itself is Android-only and exercised on the emulator.
+ */
+class PdfBackgroundRoundTripTest {
+
+    private fun pdfDoc(): Document = Document(
+        pages = listOf(
+            Page(595.0, 842.0, Background.Pdf(filename = "notes.pdf", pageNo = 0, domain = "absolute"), listOf(Layer(emptyList()))),
+            Page(595.0, 842.0, Background.Pdf(filename = null, pageNo = 1, domain = null), listOf(Layer(emptyList()))),
+        ),
+    )
+
+    @Test fun pdfBackgroundSurvivesReserialize() {
+        val doc = pdfDoc()
+        assertEquals(doc, Xopp.parseXml(Xopp.toXml(doc)))
+    }
+
+    @Test fun firstPageKeepsFilenameLaterPagesJustPageno() {
+        val doc = Xopp.parseXml(Xopp.toXml(pdfDoc()))
+
+        val first = doc.pages[0].background as Background.Pdf
+        assertEquals("notes.pdf", first.filename)
+        assertEquals("absolute", first.domain)
+        assertEquals(0, first.pageNo)
+
+        val second = doc.pages[1].background as Background.Pdf
+        assertNull("later pages inherit the PDF; only pageno is written", second.filename)
+        assertNull(second.domain)
+        assertEquals(1, second.pageNo)
+    }
+}

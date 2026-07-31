@@ -238,8 +238,13 @@ app/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
       BackgroundGrid.kt      # ruling line/dot offsets in pt (pure geometry)
-      BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted)
+      BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
+      StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
+      PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
       ElementRenderer.kt     # draws text boxes, images, and teximage placeholders
+      PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
+      PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
+      PdfExporter.kt         # flattens a Document to a PDF (framework PdfDocument)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
@@ -280,8 +285,22 @@ source in the model, so it renders as a best-effort placeholder — a faint box 
 every page, layer, and element round-trips through save. Editing the non-stroke elements is still
 to come (`TODO.md`).
 
+**PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
+`PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
+not thread-safe — with a bounded, recycling bitmap cache keyed by page and target-width bucket) and
+`BackgroundRenderer` draws the rasterised page; a `.xopp` whose PDF isn't present falls back to a
+plain sheet. **Import PDF** (`PdfImport`, invoked from `MainActivity`) copies the picked PDF into
+app cache and builds a fresh `Document` — one page per PDF page, sized from the PDF, with the
+`filename`+`domain` on page 1 only and `pageno` thereafter (the desktop on-disk convention). **Export
+PDF** (`PdfExporter`) flattens the document back out via the framework `PdfDocument`: each page is
+drawn at its true point size (the `.xopp` unit == the PDF unit, 1/72") — background then all
+elements — reusing `BackgroundRenderer`/`PageRenderer`/`StrokePainter` at scale 1 so the flattened
+output matches the editor. Stroke and page-element drawing were factored into the shared
+`StrokePainter` and `PageRenderer` precisely so the screen and the exporter render identically.
+
 **Chrome (`ui/`).** `EditorScreen` is the one editor screen: a top bar with undo/redo icon
-buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Save, and Settings; the canvas;
+buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export PDF, Save, and
+Settings; the canvas;
 and a bottom **`BottomToolbar`** with five buttons — Tool, Colour, Size, Zoom, Pages. Each bottom
 button owns its own `DropdownMenu`, so the pop-up is anchored to that button rather than filling
 the screen or floating in the centre. The Tool pop-up lists Pen / Highlighter / Eraser / Hand as a
