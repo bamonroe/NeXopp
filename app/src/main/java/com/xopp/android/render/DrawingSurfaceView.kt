@@ -899,11 +899,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return true
     }
 
-    /** Fold the release focus into the estimator and read out the release velocity (content moves
-     * opposite the finger), clamped to the platform's max fling speed. */
+    /** Fold the final release focus into the estimator and adopt that velocity as the fling seed —
+     * but only if this last segment carried a real flick. Lifting the last finger of a two-finger pan
+     * leaves an almost-motionless single-finger tail; overriding there would erase the flick already
+     * latched at the earlier finger-lift ([onPointerUp]) and is what made momentum ignore pan speed. */
     private fun captureReleaseVelocity(event: MotionEvent) {
         velocityEstimator.add(event.eventTime, focusX(event, skip = -1), focusY(event, skip = -1))
         val v = velocityEstimator.velocity()
+        if (hypot(v.vx, v.vy) >= Fling.MIN_SPEED_PX) setReleaseVelocity(v)
+    }
+
+    /** Latch [v] as the release velocity: content glides opposite the finger, clamped to the platform's
+     * max fling speed. */
+    private fun setReleaseVelocity(v: Velocity) {
         releaseVx = (-v.vx).coerceIn(-maxFlingVelocity, maxFlingVelocity)
         releaseVy = (-v.vy).coerceIn(-maxFlingVelocity, maxFlingVelocity)
     }
@@ -1037,7 +1045,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // a pinch-out, mirroring the focus/velocity reset below.
         lastSpan = 0f
         // The focus jumps when a finger leaves, so restart the estimate from the new baseline —
-        // otherwise that discontinuity would read as a huge phantom flick.
+        // otherwise that discontinuity would read as a huge phantom flick. But first latch the pan's
+        // real velocity from the pre-jump samples: it's the flick the user just made, and the brief
+        // single-finger tail that follows a two-finger release usually can't recover it.
+        if (scrolling) setReleaseVelocity(velocityEstimator.velocity())
         velocityEstimator.reset()
         velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
     }
@@ -1131,6 +1142,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         lastFocusY = focusY(event, skip = -1)
         lastFocusX = focusX(event, skip = -1)
         lastSpan = spanOf(event)
+        // A fresh pan starts with no carried flick — otherwise a near-motionless release could keep a
+        // latched velocity from the previous gesture (see [captureReleaseVelocity]).
+        releaseVx = 0f
+        releaseVy = 0f
         velocityEstimator.reset()
         velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
     }
