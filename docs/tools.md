@@ -81,14 +81,12 @@ change with a runtime surface must be installed and exercised on the emulator, n
      drawing, tool selection, open/save, and other interactions end-to-end.
   Report what the screenshots and logs actually showed; a change isn't verified until it's
   been run this way on the emulator.
-- **Standing rule — promote to the owner's devices once it passes:** after unit tests pass and
-  the change is verified on the emulator, install the same APK to the two physical devices on
-  the tailnet so they stay on the current build:
-  - Pixel 8a (phone) — `adb -s 100.64.0.3:5555 install -r app/build/outputs/apk/debug/app-debug.apk`
-  - Galaxy Tab S9 Ultra (`SM-X920`) — `adb -s 100.64.0.8:5555 install -r app/build/outputs/apk/debug/app-debug.apk`
-  These reach the devices through the host `adb` (not the emulator container's). If a device is
-  `offline`, `adb disconnect <ip>:5555 && adb connect <ip>:5555` to wake it. Don't force-wake
-  the screens — install works with them asleep.
+- **Promoting to the owner's physical devices — not our job.** Emulator verification is where
+  our loop ends. The owner's Android tooling picks up the built APK and moves it into the **BAM
+  store**, and the physical devices (Pixel 8a, Galaxy Tab S9 Ultra) install the current build from
+  there. Don't `adb install` to those devices as a routine step. (Manual `adb -s <ip>:5555 install
+  -r …` over the tailnet still works if you ever need a one-off, but it isn't part of the standard
+  flow.)
 - **Running the instrumented (`androidTest`) suite:** use `scripts/connected-test.sh`
   (wrapper over `/data/android/.claude/skills/android-dev/scripts/connected-test.sh`), **not**
   Gradle's `connectedDebugAndroidTest`. Gradle's task starts an adb server inside the throwaway
