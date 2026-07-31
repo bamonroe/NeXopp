@@ -14,15 +14,9 @@ fully finished (built, tested, documented), **move** its checked, dated entry to
 > doesn't store), it's out of scope — don't add it. See `CLAUDE.md` → "What this project is".
 
 Tool-authoring polish: configurable pen sizes and colours. Ordered — do top to bottom.
-(Text tool styling shipped 2026-07-31 — see `FINISHED.md`.)
+(Text tool styling and configurable pen sizes shipped 2026-07-31 — see `FINISHED.md`.)
 
-### 1. Pen tip size — 3 configurable slots with a long-press slider
-
-Replace the fixed S/M/L point values with three **user-configurable** slots. Tap a slot to
-select it (as today); **long-press** a slot to open a slider (0.5 pt → 15 pt) that redefines
-that slot's width. Persist the three configured widths in `AppSettings`/`SettingsStore`.
-
-### 2. Colours — custom colour slot with a long-press hex/colour picker
+### 1. Colours — custom colour slot with a long-press hex/colour picker
 
 Add a **custom colour** slot at the end of the palette. Tap it to select its current colour;
 **long-press** it to open a colour-square / hex picker for an arbitrary colour. Persist the

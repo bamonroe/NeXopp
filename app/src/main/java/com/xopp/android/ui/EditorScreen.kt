@@ -116,7 +116,7 @@ fun EditorScreen(
 ) {
     var tool by remember { mutableStateOf(EditorTool.PEN) }
     var color by remember { mutableStateOf(PEN_COLORS.first()) }
-    var width by remember { mutableStateOf(PEN_WIDTHS[1].pt) }
+    var width by remember { mutableStateOf(settings.penWidths[1]) }
     var zoom by remember { mutableStateOf(1f) }
     var pageCount by remember { mutableStateOf(1) }
     var currentPage by remember { mutableStateOf(0) }
@@ -167,6 +167,13 @@ fun EditorScreen(
                 onColor = { color = it; surface?.colorArgb = it },
                 width = width,
                 onWidth = { width = it; surface?.baseWidthPt = it },
+                widthSlots = settings.penWidths,
+                onRedefineSlot = { i, newPt ->
+                    val old = settings.penWidths[i]
+                    onSettingsChange(settings.copy(penWidths = settings.penWidths.toMutableList().also { it[i] = newPt }))
+                    // Keep the canvas in sync if the slot being resized is the one currently selected.
+                    if (width == old) { width = newPt; surface?.baseWidthPt = newPt }
+                },
                 zoom = zoom,
                 onZoomIn = { surface?.zoomIn() },
                 onZoomOut = { surface?.zoomOut() },
@@ -234,6 +241,7 @@ fun EditorScreen(
                 onDelete = { surface?.deleteSelection() },
                 onRecolor = { c -> surface?.restyleSelection(c, null) },
                 onReWidth = { w -> surface?.restyleSelection(null, w.toDouble()) },
+                widthSlots = settings.penWidths,
                 onDeselect = { surface?.clearSelection() },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
             )
@@ -294,6 +302,7 @@ private fun SelectionActionBar(
     onDelete: () -> Unit,
     onRecolor: (Int) -> Unit,
     onReWidth: (Float) -> Unit,
+    widthSlots: List<Float>,
     onDeselect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -313,7 +322,7 @@ private fun SelectionActionBar(
             IconButton(onClick = onCopy) { Icon(Icons.Filled.ContentCopy, contentDescription = "Copy") }
             IconButton(onClick = onDuplicate) { Icon(Icons.Filled.LibraryAdd, contentDescription = "Duplicate") }
             RecolorMenu(onRecolor)
-            ReWidthMenu(onReWidth)
+            ReWidthMenu(widthSlots, onReWidth)
             IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
             TextButton(onClick = onDeselect) { Text("Done") }
         }
@@ -345,17 +354,17 @@ private fun RecolorMenu(onRecolor: (Int) -> Unit) {
     }
 }
 
-/** A width drop-down that re-widths the selected strokes. */
+/** A width drop-down that re-widths the selected strokes, using the same configurable slots as the pen. */
 @Composable
-private fun ReWidthMenu(onReWidth: (Float) -> Unit) {
+private fun ReWidthMenu(widthSlots: List<Float>, onReWidth: (Float) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.LineWeight, contentDescription = "Width") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for (w in PEN_WIDTHS) {
+            widthSlots.forEachIndexed { i, pt ->
                 DropdownMenuItem(
-                    text = { Text("${w.label}  (${w.pt} pt)") },
-                    onClick = { onReWidth(w.pt); open = false },
+                    text = { Text("${PEN_WIDTH_LABELS[i]}  (${ptLabel(pt)} pt)") },
+                    onClick = { onReWidth(pt); open = false },
                 )
             }
         }

@@ -6,6 +6,16 @@ The archive of **completed** work for this project — the graveyard for done ta
 When a task is fully finished (built, tested, documented), move its checked, dated entry
 here from `TODO.md`. Newest first. This file only grows; nothing is removed from it.
 
+- [x] 2026-07-31 — **Pen tip size — 3 configurable slots with a long-press slider.** The Size pop-up's
+      fixed S/M/L point values are now three **user-configurable** slots. **Tap** a slot to draw with
+      it (as before); **long-press** a slot to open an `AlertDialog` with a slider (0.5 → 15 pt) that
+      redefines that slot's width. The three widths persist in `AppSettings.penWidths` via
+      `SettingsStore` (three `pen_width_{i}` `SharedPreferences` floats); the same slots also back the
+      Select tool's re-width menu, so both pickers stay in lockstep. Resizing the currently-selected
+      slot re-applies its new width to the live canvas. Emulator-verified end-to-end: long-pressed L,
+      dragged the slider to 10.55 pt (updates live), drew a visibly thicker stroke, and confirmed the
+      new value survived a force-stop/relaunch. A dropdown caption ("Tap to pick · long-press to
+      resize") surfaces the otherwise-hidden long-press gesture.
 - [x] 2026-07-31 — **Text tool styling — font family, bold, italic, size, colour.** The text tool
       now opens a styled dialog instead of a bare content field: pick a **font family** (Sans / Serif /
       Monospace), toggle **bold**/**italic**, set a **size** (6–96 pt slider), and choose the box's own

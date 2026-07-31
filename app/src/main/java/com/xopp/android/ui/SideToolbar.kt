@@ -1,15 +1,19 @@
 package com.xopp.android.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -31,11 +35,13 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -53,8 +59,16 @@ import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.Tool
 import kotlin.math.roundToInt
 
-/** One selectable pen width, labelled for the chip and carrying the pt value the canvas uses. */
-data class WidthOption(val label: String, val pt: Float)
+/** Fixed labels for the three configurable pen-width slots (the widths themselves live in [AppSettings]). */
+val PEN_WIDTH_LABELS: List<String> = listOf("S", "M", "L")
+
+/** Bounds of the long-press slot-resize slider, in points. */
+const val PEN_WIDTH_MIN: Float = 0.5f
+const val PEN_WIDTH_MAX: Float = 15f
+
+/** Format a pen width for display: at most two decimals, trailing zeros trimmed (e.g. 1.50 → "1.5"). */
+fun ptLabel(pt: Float): String =
+    String.format(java.util.Locale.US, "%.2f", pt).trimEnd('0').trimEnd('.')
 
 /** The pen palette offered in the chrome. Colours are opaque ARGB; highlighter renders them translucent. */
 val PEN_COLORS: List<Int> = listOf(
@@ -64,12 +78,6 @@ val PEN_COLORS: List<Int> = listOf(
     0xFF1E9E1E.toInt(), // green
     0xFFF08000.toInt(), // orange
     0xFFF0D000.toInt(), // yellow
-)
-
-val PEN_WIDTHS: List<WidthOption> = listOf(
-    WidthOption("S", 0.85f),
-    WidthOption("M", 1.5f),
-    WidthOption("L", 2.6f),
 )
 
 /**
@@ -107,6 +115,8 @@ fun SideToolbar(
     onColor: (Int) -> Unit,
     width: Float,
     onWidth: (Float) -> Unit,
+    widthSlots: List<Float>,
+    onRedefineSlot: (Int, Float) -> Unit,
     zoom: Float,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
@@ -128,7 +138,7 @@ fun SideToolbar(
         ) {
             ToolPopupButton(tool, onTool)
             ColorPopupButton(color, onColor)
-            SizePopupButton(width, onWidth)
+            SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
             ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
             PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
         }
@@ -178,26 +188,89 @@ private fun ColorPopupButton(color: Int, onColor: (Int) -> Unit) {
     }
 }
 
+/**
+ * The pen-size slot picker: three configurable width slots ([widthSlots], labelled S/M/L). A tap
+ * selects a slot's width; a **long-press** opens a [WidthSlotSliderDialog] that redefines that slot's
+ * width (the parent persists it via [onRedefineSlot]). The button face shows the active slot's label,
+ * or "?" when the active width matches no slot (e.g. right after a re-width).
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SizePopupButton(width: Float, onWidth: (Float) -> Unit) {
+private fun SizePopupButton(
+    width: Float,
+    widthSlots: List<Float>,
+    onWidth: (Float) -> Unit,
+    onRedefineSlot: (Int, Float) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
-    val current = PEN_WIDTHS.firstOrNull { it.pt == width }?.label ?: "?"
+    var editing by remember { mutableStateOf(-1) }
+    val currentLabel = widthSlots.indexOfFirst { it == width }
+        .let { if (it >= 0) PEN_WIDTH_LABELS[it] else "?" }
     Box {
         TextButton(onClick = { open = true }) {
-            Text(current)
+            Text(currentLabel)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for (w in PEN_WIDTHS) {
-                DropdownMenuItem(
-                    text = { Text("${w.label}  (${w.pt} pt)") },
-                    trailingIcon = {
-                        if (w.pt == width) Icon(Icons.Filled.Check, contentDescription = "selected")
-                    },
-                    onClick = { onWidth(w.pt); open = false },
-                )
+            Text(
+                "Tap to pick · long-press to resize",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            widthSlots.forEachIndexed { i, pt ->
+                Row(
+                    modifier = Modifier
+                        .combinedClickable(
+                            onClick = { onWidth(pt); open = false },
+                            onLongClick = { editing = i; open = false },
+                        )
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("${PEN_WIDTH_LABELS[i]}  (${ptLabel(pt)} pt)")
+                    if (pt == width) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(Icons.Filled.Check, contentDescription = "selected")
+                    }
+                }
             }
         }
     }
+    if (editing in widthSlots.indices) {
+        WidthSlotSliderDialog(
+            label = PEN_WIDTH_LABELS[editing],
+            initial = widthSlots[editing],
+            onConfirm = { newPt -> onRedefineSlot(editing, newPt); editing = -1 },
+            onDismiss = { editing = -1 },
+        )
+    }
+}
+
+/** A slider dialog (0.5 → 15 pt) that redefines one pen-width slot; opened by long-pressing the slot. */
+@Composable
+private fun WidthSlotSliderDialog(
+    label: String,
+    initial: Float,
+    onConfirm: (Float) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var value by remember { mutableStateOf(initial.coerceIn(PEN_WIDTH_MIN, PEN_WIDTH_MAX)) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Slot $label width") },
+        text = {
+            Column {
+                Text("Width: ${ptLabel(value)} pt")
+                Slider(
+                    value = value,
+                    onValueChange = { value = it },
+                    valueRange = PEN_WIDTH_MIN..PEN_WIDTH_MAX,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(value) }) { Text("Set") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

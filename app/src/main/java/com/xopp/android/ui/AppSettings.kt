@@ -18,7 +18,14 @@ data class AppSettings(
     val showHover: Boolean = true,
     /** How pen pressure maps to stroke width. */
     val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
-)
+    /** The three user-configurable pen-tip widths (pt) behind the S/M/L size slots, in slot order. */
+    val penWidths: List<Float> = DEFAULT_PEN_WIDTHS,
+) {
+    companion object {
+        /** Factory defaults for the three pen-width slots — the old fixed S/M/L values. */
+        val DEFAULT_PEN_WIDTHS: List<Float> = listOf(0.85f, 1.5f, 2.6f)
+    }
+}
 
 /** Reads/writes [AppSettings] to a small `SharedPreferences` file. */
 class SettingsStore(context: Context) {
@@ -32,16 +39,18 @@ class SettingsStore(context: Context) {
             barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
+            penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
         )
     }
 
     fun save(s: AppSettings) {
-        prefs.edit()
+        val e = prefs.edit()
             .putBoolean(KEY_FINGER_DRAWS, s.fingerDraws)
             .putString(KEY_BARREL, s.barrelAction.name)
             .putBoolean(KEY_HOVER, s.showHover)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
-            .apply()
+        s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
+        e.apply()
     }
 
     private companion object {
@@ -49,6 +58,9 @@ class SettingsStore(context: Context) {
         const val KEY_BARREL = "barrel_action"
         const val KEY_HOVER = "show_hover"
         const val KEY_SENSITIVITY = "sensitivity"
+
+        /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
+        fun keyPenWidth(i: Int): String = "pen_width_$i"
 
         /** Parse an enum by name, falling back to [default] for missing/unknown values. */
         inline fun <reified E : Enum<E>> enumOr(name: String?, default: E): E =
