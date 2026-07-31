@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import android.graphics.DashPathEffect
+import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.SurfaceHolder
@@ -21,6 +23,8 @@ import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
 import kotlin.math.hypot
+import kotlin.math.max
+import kotlin.math.min
 
 /** What a canvas tap places when a placement tool is active (see [DrawingSurfaceView.placeKind]). */
 enum class PlaceKind { TEXT, IMAGE, TEX }
@@ -94,9 +98,50 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var handMode: Boolean = false
     /** When non-null, a one-finger tap places an element of this kind instead of drawing. */
     var placeKind: PlaceKind? = null
+    /** When true, one finger rubber-band-selects (or moves an existing selection) instead of drawing. */
+    var selectMode: Boolean = false
+        set(value) {
+            field = value
+            if (!value) clearSelection()
+        }
+
+    /** Notified whenever the selection appears or clears, so the chrome can show contextual actions. */
+    var onSelectionChanged: ((Boolean) -> Unit)? = null
+
+    /** The current selection (a page index + the refs of its selected elements), or null. */
+    private var selection: ActiveSelection? = null
+
+    // Live rubber-band marquee (view px) and the page it selects within.
+    private var banding = false
+    private var bandPage = 0
+    private var bandX0 = 0f
+    private var bandY0 = 0f
+    private var bandX1 = 0f
+    private var bandY1 = 0f
+
+    // Live move of the current selection.
+    private var movingSel = false
+    private var moveStartDoc: Document? = null
+    private var moveStartPtX = 0.0
+    private var moveStartPtY = 0.0
 
     private val strokePainter = StrokePainter()
     private val elementRenderer = ElementRenderer()
+
+    private val selectionStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = SELECTION_COLOR
+        pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f)
+    }
+    private val selectionFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = SELECTION_FILL
+    }
+    private val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = BAND_FILL
+    }
 
     init {
         holder.addCallback(this)
@@ -107,6 +152,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         this.doc = if (doc.pages.isEmpty()) doc.copy(pages = listOf(blankPage())) else doc
         scrollY = 0f
         scrollX = 0f
+        selection = null
+        onSelectionChanged?.invoke(false)
         history.clear()
         notifyHistory()
         onPageCountChanged?.invoke(this.doc.pages.size)
@@ -321,6 +368,113 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return xPt >= t.x - 4 && xPt <= t.x + w + 4 && yPt >= t.y - 4 && yPt <= t.y + h + 4
     }
 
+    // --- selection: rubber-band / tap to select, drag to move, delete --------------------------
+
+    /** A live selection: the page it lives on and the position-addressed elements it holds. */
+    private data class ActiveSelection(val pageIndex: Int, val refs: Set<ElementRef>)
+
+    /** Down in Select mode: grab an existing selection to move it, else start a rubber-band. */
+    private fun beginSelect(event: MotionEvent) {
+        scrolling = false
+        erasing = false
+        placing = false
+        current = null
+        val sel = selection
+        if (sel != null) {
+            val box = layout.boxes.getOrNull(sel.pageIndex)
+            val page = doc.pages.getOrNull(sel.pageIndex)
+            val bounds = if (page != null) SelectionTester.boundsOf(page, sel.refs) else null
+            if (box != null && bounds != null &&
+                bounds.expand(MOVE_GRAB_PAD).contains(ptX(box, event.x), ptY(box, event.y))
+            ) {
+                beginMove(event, sel, box)
+                return
+            }
+        }
+        beginBand(event)
+    }
+
+    private fun beginMove(event: MotionEvent, sel: ActiveSelection, box: PageBox) {
+        movingSel = true
+        gestureStartDoc = doc
+        moveStartDoc = doc
+        moveStartPtX = ptX(box, event.x)
+        moveStartPtY = ptY(box, event.y)
+    }
+
+    /** Drag the selection: translate the elements from their gesture-start positions, live. */
+    private fun moveSelect(event: MotionEvent) {
+        val sel = selection ?: return
+        val start = moveStartDoc ?: return
+        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
+        val dx = ptX(box, event.x) - moveStartPtX
+        val dy = ptY(box, event.y) - moveStartPtY
+        doc = doc.copy(pages = SelectionOps.translate(start.pages, sel.pageIndex, sel.refs, dx, dy))
+        relayout()
+        render()
+    }
+
+    private fun beginBand(event: MotionEvent) {
+        if (selection != null) {
+            selection = null
+            onSelectionChanged?.invoke(false)
+        }
+        banding = true
+        bandPage = layout.pageAt(event.y + scrollY)?.index ?: 0
+        bandX0 = event.x; bandY0 = event.y
+        bandX1 = event.x; bandY1 = event.y
+        render()
+    }
+
+    private fun bandMove(event: MotionEvent) {
+        bandX1 = event.x
+        bandY1 = event.y
+        render()
+    }
+
+    /** Up from a rubber-band: a tap picks the topmost element, a drag selects everything enclosed. */
+    private fun commitBand() {
+        val box = layout.boxes.getOrNull(bandPage) ?: return
+        val page = doc.pages.getOrNull(bandPage) ?: return
+        val refs: Set<ElementRef> = if (hypot(bandX1 - bandX0, bandY1 - bandY0) <= TAP_SLOP_PX) {
+            SelectionTester.pickTopmost(page, ptX(box, bandX0), ptY(box, bandY0))?.let { setOf(it) } ?: emptySet()
+        } else {
+            val rect = Bounds(
+                min(ptX(box, bandX0), ptX(box, bandX1)), min(ptY(box, bandY0), ptY(box, bandY1)),
+                max(ptX(box, bandX0), ptX(box, bandX1)), max(ptY(box, bandY0), ptY(box, bandY1)),
+            )
+            SelectionTester.inRect(page, rect)
+        }
+        selection = if (refs.isEmpty()) null else ActiveSelection(bandPage, refs)
+        onSelectionChanged?.invoke(selection != null)
+        render()
+    }
+
+    /** Delete every selected element as one undoable edit. */
+    fun deleteSelection() {
+        val sel = selection ?: return
+        val before = doc
+        doc = doc.copy(pages = SelectionOps.delete(doc.pages, sel.pageIndex, sel.refs))
+        selection = null
+        onSelectionChanged?.invoke(false)
+        history.record(before)
+        notifyHistory()
+        relayout()
+        render()
+    }
+
+    /** Drop the current selection (a view-only change; not recorded in history). */
+    fun clearSelection() {
+        if (selection == null) return
+        selection = null
+        onSelectionChanged?.invoke(false)
+        render()
+    }
+
+    /** View px -> page-local pt for [box]. */
+    private fun ptX(box: PageBox, vx: Float): Double = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
+    private fun ptY(box: PageBox, vy: Float): Double = ((vy + scrollY - box.topPx) / box.scale).toDouble()
+
     // --- touch: one finger draws (or erases), two fingers scroll -------------------------------
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -328,6 +482,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> when {
                 placeKind != null -> beginPlace(event)
                 handMode -> beginScroll(event)
+                selectMode -> beginSelect(event)
                 tool == Tool.ERASER -> startErase(event)
                 else -> startStroke(event)
             }
@@ -336,6 +491,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 scrolling -> doScroll(event)
                 erasing -> eraseMove(event)
                 placing -> placeMove(event)
+                movingSel -> moveSelect(event)
+                banding -> bandMove(event)
                 else -> extendStroke(event)
             }
             MotionEvent.ACTION_POINTER_UP -> {
@@ -343,7 +500,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 lastFocusX = focusX(event, skip = event.actionIndex)
             }
             MotionEvent.ACTION_UP -> endGesture()
-            MotionEvent.ACTION_CANCEL -> { current = null; scrolling = false; erasing = false; placing = false; gestureStartDoc = null }
+            MotionEvent.ACTION_CANCEL -> {
+                current = null; scrolling = false; erasing = false; placing = false
+                movingSel = false; banding = false; gestureStartDoc = null
+            }
             else -> return super.onTouchEvent(event)
         }
         return true
@@ -433,13 +593,24 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun maxScrollX(): Float = (layout.contentWidthPx - width).coerceAtLeast(0f)
 
     private fun endGesture() {
-        when {
-            placing -> commitPlace()
-            !scrolling && !erasing -> commitCurrent()
-        }
+        // Snapshot then clear the mode flags first, so any render() inside a commit (e.g. the
+        // rubber-band) sees the gesture already ended and doesn't paint a stale marquee/overlay.
+        val wasScrolling = scrolling
+        val wasErasing = erasing
+        val wasPlacing = placing
+        val wasMoving = movingSel
+        val wasBanding = banding
         scrolling = false
         erasing = false
         placing = false
+        movingSel = false
+        banding = false
+        when {
+            wasPlacing -> commitPlace()
+            wasMoving -> moveStartDoc = null // translation was applied live; finishGesture records it
+            wasBanding -> commitBand()
+            !wasScrolling && !wasErasing -> commitCurrent()
+        }
         finishGesture()
     }
 
@@ -554,6 +725,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 drawPageElements(canvas, box)
             }
             drawCurrent(canvas)
+            selection?.let { drawSelectionBox(canvas, it) }
+            if (banding) drawBand(canvas)
         } finally {
             holder.unlockCanvasAndPost(canvas)
         }
@@ -578,6 +751,29 @@ class DrawingSurfaceView @JvmOverloads constructor(
         strokePainter.draw(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
     }
 
+    /** Draw the dashed selection outline (padded a little) around the selected elements' bounds. */
+    private fun drawSelectionBox(canvas: Canvas, sel: ActiveSelection) {
+        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
+        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
+        val b = SelectionTester.boundsOf(page, sel.refs) ?: return
+        val l = (b.left * box.scale + box.leftPx - scrollX).toFloat() - SELECT_PAD_PX
+        val t = (b.top * box.scale + box.topPx - scrollY).toFloat() - SELECT_PAD_PX
+        val r = (b.right * box.scale + box.leftPx - scrollX).toFloat() + SELECT_PAD_PX
+        val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + SELECT_PAD_PX
+        canvas.drawRect(l, t, r, bot, selectionFillPaint)
+        canvas.drawRect(l, t, r, bot, selectionStrokePaint)
+    }
+
+    /** Draw the live rubber-band marquee (view px). */
+    private fun drawBand(canvas: Canvas) {
+        val l = min(bandX0, bandX1)
+        val t = min(bandY0, bandY1)
+        val r = max(bandX0, bandX1)
+        val bot = max(bandY0, bandY1)
+        canvas.drawRect(l, t, r, bot, bandFillPaint)
+        canvas.drawRect(l, t, r, bot, selectionStrokePaint)
+    }
+
     private companion object {
         const val A4_WIDTH_PT = 595.276
         const val A4_HEIGHT_PT = 841.89
@@ -588,6 +784,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val MIN_ZOOM = 0.25f
         const val MAX_ZOOM = 5f
         const val TAP_SLOP_PX = 16f
+        const val SELECT_PAD_PX = 6f
+        const val MOVE_GRAB_PAD = 8.0
+        const val SELECTION_COLOR = 0xFF2060E0.toInt()
+        const val SELECTION_FILL = 0x142060E0
+        const val BAND_FILL = 0x222060E0
         const val TEX_W_PT = 120.0
         const val TEX_H_PT = 40.0
         const val IMG_MAX_PT = 240.0

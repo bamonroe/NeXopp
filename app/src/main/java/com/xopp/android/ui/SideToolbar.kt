@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Functions
+import androidx.compose.material.icons.filled.HighlightAlt
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.Remove
@@ -73,10 +74,11 @@ val PEN_WIDTHS: List<WidthOption> = listOf(
 
 /**
  * The editor's interaction modes. PEN/HIGHLIGHTER/ERASER map to the document [Tool]; HAND is a
- * view-only pan mode; TEXT/IMAGE/TEXIMAGE are authoring modes where a canvas tap places (or edits)
- * that element (see [com.xopp.android.render.PlaceKind]).
+ * view-only pan mode; SELECT rubber-band-selects objects to move/delete them; TEXT/IMAGE/TEXIMAGE
+ * are authoring modes where a canvas tap places (or edits) that element
+ * (see [com.xopp.android.render.PlaceKind]).
  */
-enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND, TEXT, IMAGE, TEXIMAGE }
+enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT, IMAGE, TEXIMAGE }
 
 private data class ToolInfo(val tool: EditorTool, val label: String, val icon: ImageVector)
 
@@ -85,6 +87,7 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.HIGHLIGHTER, "Highlighter", Icons.Filled.Brush),
     ToolInfo(EditorTool.ERASER, "Eraser", Icons.Filled.Delete),
     ToolInfo(EditorTool.HAND, "Hand (pan)", Icons.Filled.PanTool),
+    ToolInfo(EditorTool.SELECT, "Select", Icons.Filled.HighlightAlt),
     ToolInfo(EditorTool.TEXT, "Text", Icons.Filled.TextFields),
     ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
     ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),

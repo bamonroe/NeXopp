@@ -251,6 +251,9 @@ app/
       PdfExporter.kt         # flattens a Document to a PDF (framework PdfDocument)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
+      ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
+      Selection.kt           # ElementRef + SelectionTester: rect/tap picking, selection bounds (pure)
+      SelectionOps.kt        # translate / delete selected elements on a page (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
       PageOps.kt             # insert / delete pages in a page list (pure)
     ui/                      # Compose Material 3
@@ -301,6 +304,24 @@ layer. Tapping an existing text box reopens it for editing (clearing the content
 matched by element identity. The view keeps the loaded document intact and only appends/edits, so
 every page, layer, and element round-trips through save.
 
+**Selecting objects (`render/`).** The **Select** tool (`EditorTool.SELECT`, mapped to the surface's
+`selectMode`) mirrors desktop Xournal++'s object selection. A one-finger **drag** draws a rubber-band
+marquee and selects every element **wholly enclosed** by it (desktop's rectangle-select semantics); a
+one-finger **tap** picks the single topmost element under the point. Selection is **per page** —
+anchored to the page the gesture started on — and elements are addressed by position, not identity, via
+`ElementRef(layerIndex, elementIndex)`: a move rewrites the element objects but never reorders them, so
+the refs stay valid across a live drag. The picking is pure and JVM-tested — `ElementBounds.of` gives
+each element's pt bounding box (strokes grown by half-width, images/teximages are their box, text is the
+same rough content-extent metric used for tap-to-edit), `SelectionTester` does rect-containment / topmost
+tap / union-bounds, and `SelectionOps` translates or deletes the addressed elements on a page list
+(returning a new list; immutable pages/layers share structure so a snapshot stays cheap). Dragging inside
+the selection outline translates the elements live (recomputing from the gesture-start document each
+frame so there's no drift) and commits as **one undoable edit**; a floating **Delete / Deselect** bar
+(`EditorScreen.SelectionActionBar`, shown via `onSelectionChanged`) deletes (undoable) or clears the
+selection. The dashed outline and marquee are drawn by the view over the page stack. Two-finger pan still
+works in Select mode (it abandons the in-progress selection gesture). Rotate/resize handles and
+cut/copy/paste are not yet implemented — see [Stylus & selection roadmap](#stylus--selection-roadmap).
+
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
 not thread-safe — with a bounded, recycling bitmap cache keyed by page and target-width bucket) and
@@ -326,4 +347,48 @@ drawing tools to the document `Tool`). The **Pages** pop-up is a page navigator:
 ◀ / ▶ to jump to the previous/next page (`goToPage` scrolls the stack; the surface reports the page
 under the viewport centre via `onCurrentPageChanged`), plus Add / Remove page. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`. The pen palette constants (`PEN_COLORS`, `PEN_WIDTHS`)
-live in `SideToolbar.kt`.
+live in `SideToolbar.kt`. The **Select** tool adds a rail entry and a floating action bar; its
+mechanics are in [Selecting objects](#selecting-objects-render) above.
+
+## Stylus & selection roadmap
+
+The app is meant to be **stylus-first**, but today input is treated generically: `onTouchEvent` maps
+**one finger (or pen) → draw / erase / select** and **two fingers → pan**, with no knowledge of
+*which* tool type produced a pointer. The pen's `MotionEvent.getPressure()` already feeds stroke
+width at full fidelity (the load-bearing round-trip choice), but everything else about the stylus is
+unexploited. This section is the design home for closing that gap and for finishing the selection
+tool to desktop parity; work items are journaled in `TODO.md`.
+
+**Stylus input — the plan.** Android reports the source of every pointer via
+`MotionEvent.getToolType(pointerIndex)` (`TOOL_TYPE_STYLUS`, `TOOL_TYPE_ERASER`, `TOOL_TYPE_FINGER`)
+and stylus side-buttons via `getButtonState()` (`BUTTON_STYLUS_PRIMARY` / `_SECONDARY`). The intended
+model, to be built as a small **pure `InputClassifier`** (tool type + button state + active-tool →
+gesture intent) so it is unit-testable off-device like the rest of the geometry:
+
+- **Palm rejection.** When a stylus pointer is down, ignore new *finger* pointers for drawing (treat
+  finger only as pan/zoom). This lets the user rest a hand on the screen while writing — the single
+  most important stylus behaviour and the reason the current "one finger draws" default must become
+  "one *stylus* draws" once tool type is wired in. Gate it behind a Settings toggle (finger-draw
+  on/off) so non-stylus devices still work.
+- **Eraser end of the pen.** A `TOOL_TYPE_ERASER` pointer (the flip-to-erase tip many styli expose)
+  should erase regardless of the selected tool.
+- **Barrel-button mapping.** `BUTTON_STYLUS_PRIMARY` held during a stroke should invoke a
+  configurable action — default **erase**, with **select** as the likely second option — again
+  regardless of the on-screen tool, matching desktop Xournal++'s button bindings.
+- **Pressure curve & tilt.** The width mapping is currently linear (`0.4 + 0.6·pressure`). Expose a
+  sensitivity/curve setting, and capture `AXIS_TILT` / `AXIS_ORIENTATION` where available for future
+  calligraphic pens. The `.xopp` format only stores per-vertex width, so tilt is render-time only
+  unless we bake it into width.
+- **Hover.** `ACTION_HOVER_MOVE` from a stylus can drive a cursor/preview dot before the tip lands.
+
+None of these change the file format — they're all input-layer behaviour — so they can land
+incrementally behind the classifier without touching `format/`. The first concrete step is
+introducing the `InputClassifier` and routing `onTouchEvent` through it (finger-draw defaulting to
+today's behaviour so nothing regresses), then layering palm rejection on top.
+
+**Selection — remaining desktop parity.** The current tool does rectangle/tap select, move, and
+delete. Still to match desktop: **resize** and **rotate** handles on the selection outline;
+**cut / copy / paste / duplicate**; **lasso** (free-form) select in addition to the rectangle;
+moving a selection **across pages**; and changing the **colour / width** of the selected strokes.
+The pure `SelectionOps` is the natural home for the transforms (add `resize`/`rotate`/`restyle`
+alongside `translate`/`delete`), keeping them JVM-tested.

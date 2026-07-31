@@ -88,6 +88,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   draw on.
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each
   stroke the eraser touches is removed whole.
+- **Select** — pick **Select** from the Tool pop-up to select objects the way desktop Xournal++
+  does. **Drag a box** (rubber-band) and every object fully inside it is selected; or **tap** a
+  single object to select just that one. Selected objects get a dashed outline. **Drag inside the
+  outline** to move them, and a floating **Delete / Deselect** bar appears at the bottom — Delete
+  removes the selection, Deselect clears it. Move and delete are undoable. (Selection is per page;
+  two-finger pan still works.)
 - **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
   takes the content from the keyboard. Tapping an existing text box reopens it for editing (clearing
   the text deletes the box). New text uses the current pen colour.

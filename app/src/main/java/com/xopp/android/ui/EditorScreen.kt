@@ -2,12 +2,15 @@ package com.xopp.android.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PictureAsPdf
@@ -19,8 +22,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -29,7 +34,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
@@ -43,6 +50,7 @@ import com.xopp.android.render.Placement
  */
 private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     handMode = tool == EditorTool.HAND
+    selectMode = tool == EditorTool.SELECT
     placeKind = when (tool) {
         EditorTool.TEXT -> PlaceKind.TEXT
         EditorTool.IMAGE -> PlaceKind.IMAGE
@@ -83,6 +91,7 @@ fun EditorScreen(
     var canUndo by remember { mutableStateOf(false) }
     var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var hasSelection by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
     var textPlacement by remember { mutableStateOf<Placement?>(null) }
     var texPlacement by remember { mutableStateOf<Placement?>(null) }
@@ -138,6 +147,7 @@ fun EditorScreen(
                         it.onZoomChanged = { z -> zoom = z }
                         it.onPageCountChanged = { n -> pageCount = n }
                         it.onCurrentPageChanged = { p -> currentPage = p }
+                        it.onSelectionChanged = { s -> hasSelection = s }
                         it.onPlace = { kind, placement ->
                             when (kind) {
                                 PlaceKind.TEXT -> textPlacement = placement
@@ -161,6 +171,15 @@ fun EditorScreen(
             SettingsScreen(onBack = { showSettings = false })
         }
 
+        // Contextual actions for the Select tool: shown only while something is selected.
+        if (hasSelection) {
+            SelectionActionBar(
+                onDelete = { surface?.deleteSelection() },
+                onDeselect = { surface?.clearSelection() },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+            )
+        }
+
         textPlacement?.let { p ->
             TextInputDialog(
                 title = if (p.existingText != null) "Edit text" else "Add text",
@@ -178,6 +197,36 @@ fun EditorScreen(
                 onConfirm = { latex -> surface?.insertTex(p, latex, color); texPlacement = null },
                 onDismiss = { texPlacement = null },
             )
+        }
+    }
+}
+
+/**
+ * The Select tool's contextual action bar: a small floating pill offering Delete and Deselect,
+ * shown only while a selection is active (see [DrawingSurfaceView.onSelectionChanged]).
+ */
+@Composable
+private fun SelectionActionBar(
+    onDelete: () -> Unit,
+    onDeselect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onDelete) {
+                Icon(Icons.Filled.Delete, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Delete")
+            }
+            TextButton(onClick = onDeselect) { Text("Deselect") }
         }
     }
 }

@@ -8,9 +8,42 @@ ones with a one-line why.
 
 ## Active
 
-_(nothing open — journal the next feature here as you notice it)_
+**Stylus input (stylus-first, design in `docs/architecture.md` → "Stylus & selection roadmap"):**
+
+- [ ] Add a pure, JVM-tested **`InputClassifier`** (tool type + button state + active tool → gesture
+      intent) and route `DrawingSurfaceView.onTouchEvent` through it, defaulting to today's
+      finger-draw behaviour so nothing regresses.
+- [ ] **Palm rejection**: while a stylus pointer is down, ignore finger pointers for drawing (finger
+      = pan/zoom only). Behind a Settings "finger draws" toggle for non-stylus devices.
+- [ ] **Eraser tip** (`TOOL_TYPE_ERASER`) erases regardless of the selected tool.
+- [ ] **Barrel-button mapping** (`BUTTON_STYLUS_PRIMARY`) → configurable action (default erase).
+- [ ] **Pressure curve** setting (currently linear `0.4 + 0.6·pressure`); capture tilt/orientation
+      where available. Optional **hover** preview dot from `ACTION_HOVER_MOVE`.
+
+**Selection — remaining desktop parity (see the same doc section):**
+
+- [ ] **Resize** and **rotate** handles on the selection outline (`SelectionOps.resize`/`rotate`).
+- [ ] **Cut / copy / paste / duplicate** of a selection.
+- [ ] **Lasso** (free-form) select in addition to the rectangle.
+- [ ] Move a selection **across pages**; change selected strokes' **colour / width**.
 
 ## Done
+
+- [x] 2026-07-31 — **Selection tool (rectangle + tap select, move, delete).** New **Select** tool on
+      the rail (`EditorTool.SELECT` → the surface's `selectMode`) matching desktop Xournal++: a
+      one-finger drag rubber-bands and selects every object wholly enclosed; a tap picks the topmost
+      object; dragging inside the dashed outline moves the selection (live, undoable); a floating
+      **Delete / Deselect** bar (`SelectionActionBar`) removes or clears it. Selection is per-page and
+      addresses elements by position (`ElementRef`), stable across a drag. New pure, JVM-tested pieces:
+      `ElementBounds` (+ `Bounds`), `SelectionTester` (rect/tap/union), `SelectionOps` (translate/
+      delete) — 2 new test files, `BUILD SUCCESSFUL`. Documented the mechanics and a **stylus &
+      selection roadmap** in `docs/architecture.md` (+ README "Select"). Verified on the
+      `/data/android` emulator: drew two strokes, band-selected one (outline wraps it, the other
+      untouched, Delete/Deselect bar appears), dragged it to a new spot, Deleted it (gone), Undo
+      restored it at the moved position, and tap-selected a single stroke. Caught and fixed a bug
+      on-device where the rubber-band marquee persisted after release (`commitBand` rendered before
+      the `banding` flag was cleared). Installed to the Galaxy Tab S9 Ultra; the Pixel 8a was offline
+      on the tailnet at install time (catch it up on the next build).
 
 - [x] 2026-07-31 — **Moved the toolbar to a left vertical rail.** `BottomToolbar.kt` →
       `SideToolbar.kt`: the chrome is now a scrollable `Column` rail down the left edge (Tool /
