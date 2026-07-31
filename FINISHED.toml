@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-ocr-backed-text-selection-for-imported-pdfs"
+title = "Add OCR-backed text selection for imported PDFs"
+description = "Imported PDFs currently behave like top-level page images, so users cannot select underlying text. Incorporate OCR or extracted text metadata during PDF import so a text selection tool can select text from the imported document while preserving the annotation workflow."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["pdf", "ocr", "selection"]
+
+[[task]]
 id = "preserve-vector-pdf-content-on-import-export"
 title = "Preserve vector PDF content on import/export"
 description = "Importing and immediately exporting an unchanged PDF can increase file size by roughly tenfold, likely because PDF pages are rasterized instead of preserved as vector content. Keep original/vector PDF page content when possible so no-op import/export does not bloat files or degrade fidelity."

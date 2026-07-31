@@ -80,6 +80,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   builds a fresh document with **one page per PDF page**, each PDF page rasterised and shown as the
   page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
+- **Select text (PDF)** — for an imported PDF that carries a real text layer (i.e. not a pure scan),
+  the Tool pop-up's **Select text (PDF)** tool lets you **drag across the page to select the
+  underlying text**; the selected words highlight, and a **Copy** button puts them on the system
+  clipboard to paste elsewhere. It reads the PDF's own text — no OCR — so scanned image-only PDFs
+  have nothing to select (OCR for those is planned). The selection is view-only and doesn't change
+  the document.
 - **Draw** — the controls live in a **vertical rail down the left edge**. Its buttons — **Tool**,
   **Colour**, **Size**, **Zoom**, **Pages** — each open a small pop-up anchored to their own button
   (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with **one finger or

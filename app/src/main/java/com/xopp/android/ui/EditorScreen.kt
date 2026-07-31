@@ -74,6 +74,7 @@ import kotlin.math.roundToInt
 private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     handMode = tool == EditorTool.HAND
     selectMode = tool == EditorTool.SELECT
+    textSelectMode = tool == EditorTool.TEXT_SELECT
     placeKind = when (tool) {
         EditorTool.TEXT -> PlaceKind.TEXT
         EditorTool.IMAGE -> PlaceKind.IMAGE
@@ -131,6 +132,7 @@ fun EditorScreen(
     // Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar.
     var fullPage by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
+    var hasTextSelection by remember { mutableStateOf(false) }
     var hasClipboard by remember { mutableStateOf(false) }
     var lasso by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
@@ -216,6 +218,7 @@ fun EditorScreen(
                         it.onCurrentPageChanged = { p -> currentPage = p }
                         it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
                         it.onSelectionChanged = { s -> hasSelection = s }
+                        it.onTextSelectionChanged = { s -> hasTextSelection = s }
                         it.onClipboardChanged = { c -> hasClipboard = c }
                         it.onToggleFullPage = { fullPage = !fullPage }
                         it.lassoMode = lasso
@@ -282,6 +285,15 @@ fun EditorScreen(
                 onLasso = { lasso = it },
                 canPaste = hasClipboard,
                 onPaste = { surface?.pasteClipboard() },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
+            )
+        }
+
+        // Copy affordance for a PDF-text selection (the text-select tool).
+        if (hasTextSelection) {
+            TextSelectionBar(
+                onCopy = { surface?.copyTextSelection() },
+                onDeselect = { surface?.clearTextSelection() },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
             )
         }
@@ -434,6 +446,34 @@ private fun SelectModeBar(
                     Text("Paste")
                 }
             }
+        }
+    }
+}
+
+/** Shown while PDF text is selected: copy the selection to the system clipboard, or deselect. */
+@Composable
+private fun TextSelectionBar(
+    onCopy: () -> Unit,
+    onDeselect: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(onClick = onCopy) {
+                Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Copy")
+            }
+            TextButton(onClick = onDeselect) { Text("Deselect") }
         }
     }
 }

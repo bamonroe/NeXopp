@@ -16,6 +16,7 @@ import com.xopp.android.format.Xopp
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PdfImport
 import com.xopp.android.render.PdfPageCache
+import com.xopp.android.render.PdfTextExtractor
 import com.xopp.android.render.Placement
 import com.xopp.android.ui.EditorScreen
 import com.xopp.android.ui.SettingsStore
@@ -90,6 +91,7 @@ class MainActivity : ComponentActivity() {
             Xopp.open(input)
         }
         surface?.setPdfSource(null) // a plain .xopp brings no PDF of its own
+        surface?.setPdfTextIndex(null)
         surface?.load(doc)
     }.onFailure { toast("Open failed: ${it.message}") }
 
@@ -103,7 +105,13 @@ class MainActivity : ComponentActivity() {
         val cache = PdfPageCache(file)
         val doc = PdfImport.documentFor(cache, displayName(uri) ?: file.name)
         surface?.setPdfSource(cache)
+        surface?.setPdfTextIndex(null) // cleared until extraction below finishes
         surface?.load(doc)
+        // Extract the text layer off the UI thread (it can be slow on big PDFs), then attach it.
+        Thread {
+            val index = PdfTextExtractor().extract(file)
+            surface?.post { surface?.setPdfTextIndex(index) }
+        }.start()
     }.onFailure { toast("PDF import failed: ${it.message}") }
 
     /** Flatten the current document to a PDF at the chosen location (backgrounds + annotations). */

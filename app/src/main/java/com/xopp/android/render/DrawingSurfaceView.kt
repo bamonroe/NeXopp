@@ -1,5 +1,7 @@
 package com.xopp.android.render
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -188,6 +190,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // Free-form lasso path (view px, x/y interleaved) captured while banding in lasso mode.
     private val lassoPts = ArrayList<Float>()
 
+    /** When true, a one-finger/stylus drag selects text over an imported PDF's extracted text layer. */
+    var textSelectMode: Boolean = false
+        set(value) {
+            field = value
+            if (!value) clearTextSelection()
+        }
+
+    /** The imported PDF's positioned text layer, or null when no PDF (or no text) is loaded. */
+    private var pdfTextIndex: PdfTextIndex? = null
+
+    /** Notified when a PDF-text selection appears or clears, so the chrome can offer Copy. */
+    var onTextSelectionChanged: ((Boolean) -> Unit)? = null
+
+    // Live/committed PDF-text selection: a page and an inclusive reading-order word range.
+    private var textSelecting = false
+    private var textSelPage = -1
+    private var textSelAnchor = -1
+    private var textSelFocus = -1
+
     // Live move of the current selection (also the base snapshot for resize/rotate, so a live
     // transform recomputes from the gesture-start document each frame and never drifts).
     private var movingSel = false
@@ -238,6 +259,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         style = Paint.Style.STROKE
         strokeWidth = 2f
     }
+    private val textSelectPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = TEXT_SELECT_FILL
+    }
 
     init {
         holder.addCallback(this)
@@ -270,6 +295,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         pdfSource?.close()
         pdfSource = source
     }
+
+    /** Supply the imported PDF's extracted text layer for the text-select tool, or null to clear it. */
+    fun setPdfTextIndex(index: PdfTextIndex?) {
+        pdfTextIndex = index
+        clearTextSelection()
+    }
+
+    /** True when the PDF has a usable text layer, so the chrome can enable the text-select tool. */
+    fun hasPdfText(): Boolean = pdfTextIndex?.hasAnyText == true
 
     /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
     fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource).export(doc, out)
@@ -692,6 +726,57 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
+    // --- PDF text selection ---------------------------------------------------------------------
+
+    /** Down with the text-select tool: anchor the selection at the word nearest the touch. */
+    private fun beginTextSelect(event: MotionEvent) {
+        scrolling = false; erasing = false; placing = false; current = null
+        val index = pdfTextIndex ?: return
+        val pageIndex = layout.pageAt(event.y + scrollY)?.index ?: return
+        val box = layout.boxes.getOrNull(pageIndex) ?: return
+        val anchor = index.anchorWord(pageIndex, ptX(box, event.x), ptY(box, event.y)) ?: return
+        textSelecting = true
+        textSelPage = pageIndex
+        textSelAnchor = anchor
+        textSelFocus = anchor
+        onTextSelectionChanged?.invoke(true)
+        render()
+    }
+
+    /** Drag: extend the selection to the word nearest the touch (kept on the anchor's page). */
+    private fun textSelectMove(event: MotionEvent) {
+        val index = pdfTextIndex ?: return
+        val box = layout.boxes.getOrNull(textSelPage) ?: return
+        val focus = index.anchorWord(textSelPage, ptX(box, event.x), ptY(box, event.y)) ?: return
+        if (focus != textSelFocus) { textSelFocus = focus; render() }
+    }
+
+    /** True while a PDF-text selection is active (drives the Copy affordance). */
+    fun hasTextSelection(): Boolean = textSelPage >= 0 && textSelAnchor >= 0
+
+    /** Copy the selected PDF text to the Android system clipboard. */
+    fun copyTextSelection() {
+        val index = pdfTextIndex ?: return
+        if (!hasTextSelection()) return
+        val text = index.rangeText(textSelPage, textSelAnchor, textSelFocus)
+        if (text.isEmpty()) return
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+        clipboard.setPrimaryClip(ClipData.newPlainText("PDF text", text))
+    }
+
+    /** Drop the current PDF-text selection (view-only). */
+    fun clearTextSelection() {
+        val had = textSelPage >= 0
+        textSelecting = false
+        textSelPage = -1
+        textSelAnchor = -1
+        textSelFocus = -1
+        if (had) {
+            onTextSelectionChanged?.invoke(false)
+            render()
+        }
+    }
+
     /** Delete every selected element as one undoable edit. */
     fun deleteSelection() {
         val sel = selection ?: return
@@ -797,6 +882,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                     rotating -> rotateSelect(event)
                     movingSel -> moveSelect(event)
                     banding -> bandMove(event)
+                    textSelecting -> textSelectMove(event)
                     current != null -> extendStroke(event)
                     else -> Unit
                 }
@@ -892,6 +978,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun activeTool(): ActiveTool = when {
         placeKind != null -> ActiveTool.PLACE
         handMode -> ActiveTool.HAND
+        textSelectMode -> ActiveTool.TEXT_SELECT
         selectMode -> ActiveTool.SELECT
         tool == Tool.ERASER -> ActiveTool.ERASER
         tool == Tool.HIGHLIGHTER -> ActiveTool.HIGHLIGHTER
@@ -908,6 +995,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             GestureIntent.PLACE -> beginPlace(event, pointerIndex)
             GestureIntent.PAN -> beginScroll(event)
             GestureIntent.SELECT -> beginSelect(event)
+            GestureIntent.SELECT_TEXT -> beginTextSelect(event)
             GestureIntent.ERASE -> startErase(event, pointerIndex)
             GestureIntent.DRAW -> startStroke(event, pointerIndex)
             GestureIntent.IGNORE -> Unit
@@ -953,13 +1041,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
     private fun abandonInProgress() {
         current = null; erasing = false; placing = false; banding = false
-        movingSel = false; resizing = false; rotating = false; scrolling = false
+        movingSel = false; resizing = false; rotating = false; scrolling = false; textSelecting = false
     }
 
     private fun cancelGesture() {
         stopFling()
         current = null; scrolling = false; erasing = false; placing = false
         movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
+        textSelecting = false
         gesturePointerId = -1; stylusOwner = false
     }
 
@@ -1069,6 +1158,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasMoving = movingSel
         val wasTransforming = resizing || rotating
         val wasBanding = banding
+        val wasTextSelecting = textSelecting
         scrolling = false
         erasing = false
         placing = false
@@ -1076,11 +1166,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
         resizing = false
         rotating = false
         banding = false
+        textSelecting = false
         when {
             wasPlacing -> commitPlace()
             wasMoving -> commitMove() // translation applied live; re-home if dropped on another page
             wasTransforming -> Unit  // resize/rotate applied live; finishGesture records them
             wasBanding -> commitBand()
+            wasTextSelecting -> Unit // the word range is updated live; the selection just stays put
             !wasScrolling && !wasErasing -> commitCurrent()
         }
         moveStartDoc = null
@@ -1274,6 +1366,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 drawPageElements(canvas, box)
             }
             drawCurrent(canvas)
+            drawTextSelection(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
             if (banding) drawBand(canvas)
             if (hovering && showHover && current == null) drawHover(canvas)
@@ -1300,6 +1393,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val pts = current ?: return
         val box = layout.boxes.getOrNull(currentPage) ?: return
         strokePainter.draw(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
+    }
+
+    /** Highlight the selected PDF-text word boxes (the same frame as strokes, so it tracks scroll/zoom). */
+    private fun drawTextSelection(canvas: Canvas) {
+        val index = pdfTextIndex ?: return
+        if (textSelPage < 0 || textSelAnchor < 0) return
+        val box = layout.boxes.getOrNull(textSelPage) ?: return
+        for (w in index.rangeBoxes(textSelPage, textSelAnchor, textSelFocus)) {
+            val l = (w.left * box.scale + box.leftPx - scrollX).toFloat()
+            val t = (w.top * box.scale + box.topPx - scrollY).toFloat()
+            val r = (w.right * box.scale + box.leftPx - scrollX).toFloat()
+            val b = (w.bottom * box.scale + box.topPx - scrollY).toFloat()
+            canvas.drawRect(l, t, r, b, textSelectPaint)
+        }
     }
 
     /** Draw the dashed selection outline (padded a little), the four resize handles, and — for an
@@ -1379,6 +1486,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val SELECTION_COLOR = 0xFF2060E0.toInt()
         const val SELECTION_FILL = 0x142060E0
         const val BAND_FILL = 0x222060E0
+        /** Translucent blue wash over selected PDF-text word boxes (like a text highlight). */
+        const val TEXT_SELECT_FILL = 0x552196F3
         const val HOVER_ALPHA = 0xB0000000.toInt()
         const val TEX_W_PT = 120.0
         const val TEX_H_PT = 40.0

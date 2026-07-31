@@ -28,6 +28,7 @@ enum class ActiveTool {
     HIGHLIGHTER,
     ERASER,
     SELECT,
+    TEXT_SELECT,
     HAND,
     PLACE;
 
@@ -39,6 +40,7 @@ enum class ActiveTool {
         PEN, HIGHLIGHTER -> GestureIntent.DRAW
         ERASER -> GestureIntent.ERASE
         SELECT -> GestureIntent.SELECT
+        TEXT_SELECT -> GestureIntent.SELECT_TEXT
         HAND -> GestureIntent.PAN
         PLACE -> GestureIntent.PLACE
     }
@@ -57,7 +59,7 @@ enum class BarrelAction {
 }
 
 /** The gesture a pointer-down should begin. */
-enum class GestureIntent { DRAW, ERASE, PAN, SELECT, PLACE, IGNORE }
+enum class GestureIntent { DRAW, ERASE, PAN, SELECT, SELECT_TEXT, PLACE, IGNORE }
 
 /** Input-layer preferences the classifier consults (owned by the app's settings). */
 data class InputSettings(

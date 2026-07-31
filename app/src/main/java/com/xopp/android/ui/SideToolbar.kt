@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.HighlightAlt
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
@@ -94,7 +95,7 @@ val PEN_COLORS: List<Int> = listOf(
  * are authoring modes where a canvas tap places (or edits) that element
  * (see [com.xopp.android.render.PlaceKind]).
  */
-enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT, IMAGE, TEXIMAGE }
+enum class EditorTool { PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE }
 
 private data class ToolInfo(val tool: EditorTool, val label: String, val icon: ImageVector)
 
@@ -104,6 +105,7 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.ERASER, "Eraser", Icons.Filled.Delete),
     ToolInfo(EditorTool.HAND, "Hand (pan)", Icons.Filled.PanTool),
     ToolInfo(EditorTool.SELECT, "Select", Icons.Filled.HighlightAlt),
+    ToolInfo(EditorTool.TEXT_SELECT, "Select text (PDF)", Icons.Filled.SelectAll),
     ToolInfo(EditorTool.TEXT, "Text", Icons.Filled.TextFields),
     ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
     ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),

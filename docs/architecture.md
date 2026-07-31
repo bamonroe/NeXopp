@@ -261,6 +261,8 @@ app/
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
+      PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
+      PdfTextExtractor.kt    # pulls a PDF's positioned text layer via PDFBox PDFTextStripper
       PdfExporter.kt         # flattens a Document to a PDF (PDFBox; preserves source vector pages)
       PdfVectorPainter.kt    # draws a page's strokes/text/images as vector overlay onto a PDFBox stream
       PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
@@ -376,6 +378,21 @@ user bitmap images (already raster), so a no-op import→export round-trips a PD
 and fidelity instead of bloating ~10× from a raster flatten. *Limitation:* the overlay assumes an
 unrotated source page (`/Rotate 0`) — a rotated source still keeps its vectors but the overlay may be
 misaligned (tracked in `TODO.toml`).
+
+**PDF text selection.** An imported PDF's **text layer** is extracted on import (off the UI thread)
+by `PdfTextExtractor` — a `PDFTextStripper` subclass that turns each positioned glyph into a
+`CharBox` and groups them into `PdfWord`s (`PdfWordGrouper`, breaking on whitespace, wide gaps, and
+line changes) — into a `PdfTextIndex` threaded to the surface via `setPdfTextIndex` (mirroring
+`setPdfSource`). This reuses the **same PDFBox dependency** as export, so **no OCR engine** is needed
+for born-digital PDFs; a scanned image-only page yields no words (`hasAnyText` false), and OCR for
+that case is a tracked follow-up. Boxes are page-local top-left points (the `.xopp` frame), so they
+map to the screen through a `PageBox` exactly like strokes. The **Select text (PDF)** tool
+(`EditorTool.TEXT_SELECT` → `ActiveTool.TEXT_SELECT` → `GestureIntent.SELECT_TEXT`) drags to select
+an inclusive reading-order word range: `beginTextSelect`/`textSelectMove` resolve pointer positions
+to word indices (`PdfTextIndex.anchorWord`), the range is highlighted (`drawTextSelection`), and the
+`TextSelectionBar`'s Copy puts the text on the Android system clipboard (`copyTextSelection`). The
+selection is a **view-only** overlay derived from the PDF — it isn't part of the `.xopp` document, so
+it doesn't affect round-trip (matching how desktop selects a PDF background's text).
 
 **Chrome (`ui/`).** `EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
 icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export PDF, Save,
