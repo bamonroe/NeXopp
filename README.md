@@ -162,7 +162,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     **Eraser**, or **Hand (pan)**.
   - **Momentum scrolling** — a slider setting how far the canvas keeps gliding after you flick a
     pan. **0** turns momentum off (a released pan stops dead), **1.0** is normal (the default —
-    glides at the speed you flicked), and higher values up to **3.0×** glide progressively further.
+    glides at the speed you flicked), and higher values up to **10.0×** glide progressively further.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
   element merged on top, then written to the location you pick. Use this to share an annotated

@@ -2,6 +2,7 @@ package com.xopp.android.render
 
 import kotlin.math.exp
 import kotlin.math.hypot
+import kotlin.math.round
 
 /**
  * Pure two-axis fling kinematics: after a pan is released with a velocity, [advance] decays that
@@ -73,15 +74,16 @@ object Momentum {
     /** Glides at the as-released speed — the default and historical behaviour. */
     const val NORMAL = 1.0f
 
-    /** The strongest glide the control allows. */
-    const val MAX = 3.0f
+    /** The strongest glide the control allows — a long, far-reaching coast. */
+    const val MAX = 10.0f
 
-    /** Granularity of the strength control (both the slider snap and the persisted precision). */
+    /** Granularity the strength snaps to (the persisted precision and the slider's effective grid). */
     const val STEP = 0.1f
-
-    /** Number of interior slider steps spanning [OFF]..[MAX] at [STEP] granularity. */
-    const val SLIDER_STEPS = ((MAX - OFF) / STEP).toInt() - 1
 
     /** Clamp an arbitrary strength into the valid [OFF]..[MAX] range. */
     fun coerce(value: Float): Float = value.coerceIn(OFF, MAX)
+
+    /** Snap to the [STEP] grid and clamp — the continuous slider rounds through this so the stored
+     * value stays a clean multiple of [STEP] even without discrete slider stops. */
+    fun snap(value: Float): Float = (round(value / STEP) * STEP).coerceIn(OFF, MAX)
 }

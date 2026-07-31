@@ -137,8 +137,10 @@ private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheck
 }
 
 /**
- * The momentum-strength control: a single slider from [Momentum.OFF] to [Momentum.MAX], snapped to
- * [Momentum.STEP]. 0 reads "Off" (a released pan stops dead); every other stop shows its factor.
+ * The momentum-strength control: a continuous slider from [Momentum.OFF] to [Momentum.MAX] whose
+ * value is snapped to the [Momentum.STEP] grid. Left continuous (no discrete stops) so the wide
+ * 0..10 range doesn't render a thicket of tick marks. 0 reads "Off" (a released pan stops dead);
+ * every other value shows its factor.
  */
 @Composable
 private fun MomentumSlider(value: Float, onChange: (Float) -> Unit) {
@@ -152,13 +154,12 @@ private fun MomentumSlider(value: Float, onChange: (Float) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Slider(
             value = value,
-            onValueChange = { onChange(Momentum.coerce(it)) },
+            onValueChange = { onChange(Momentum.snap(it)) },
             valueRange = Momentum.OFF..Momentum.MAX,
-            steps = Momentum.SLIDER_STEPS,
             modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(12.dp))
-        Text(label, modifier = Modifier.width(52.dp), textAlign = TextAlign.End)
+        Text(label, modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
     }
 }
 
