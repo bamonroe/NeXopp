@@ -30,8 +30,8 @@ urgency = "normal"
 order = 10
 created = 2026-08-01
 tags = ["stylus", "fidelity"]
-rebuild = true
-emulator_debug = true
+rebuild = false
+emulator_debug = false
 
 [[task]]
 id = "eraser-mode-whole-stroke-and-partial-erase"
@@ -43,8 +43,8 @@ urgency = "normal"
 order = 20
 created = 2026-08-01
 tags = ["tools"]
-rebuild = true
-emulator_debug = true
+rebuild = false
+emulator_debug = false
 
 [[task]]
 id = "undo-redo-stack-with-adequate-depth"
@@ -56,8 +56,8 @@ urgency = "normal"
 order = 30
 created = 2026-08-01
 tags = ["editing"]
-rebuild = true
-emulator_debug = true
+rebuild = false
+emulator_debug = false
 
 [[task]]
 id = "pen-palette-presets-and-recent-colors"
@@ -69,8 +69,8 @@ urgency = "normal"
 order = 40
 created = 2026-08-01
 tags = ["ui"]
-rebuild = true
-emulator_debug = true
+rebuild = false
+emulator_debug = false
 
 [[task]]
 id = "speed-up-rendering-of-long-pdf-backed-documents"
@@ -82,8 +82,8 @@ urgency = "normal"
 order = 50
 created = 2026-08-01
 tags = ["performance"]
-rebuild = true
-emulator_debug = true
+rebuild = false
+emulator_debug = false
 
 [[task]]
 id = "round-trip-test-save-reload-xml-equality"
