@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "resolve-attached-pdf-background-when-reopening-an-attach-saved-xopp-in-xopp"
-title = "Resolve attached PDF background when reopening an attach-saved .xopp in Xopp"
-description = "A .xopp saved with domain=\"attach\" stores filename=\"bg.pdf\" and a sibling <name>.xopp.bg.pdf. Desktop resolves it; Xopp's own Open uses a single-file SAF picker with no folder access, so the sibling can't be found and those pages open blank. Options: open via a folder/tree picker, or record/persist the sibling location so reopen can rasterise it."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 30
-created = 2026-08-01
-tags = ["pdf", "save"]
-rebuild = true
-emulator_debug = true

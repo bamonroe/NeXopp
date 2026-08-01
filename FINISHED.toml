@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "resolve-attached-pdf-background-when-reopening-an-attach-saved-xopp-in-xopp"
+title = "Resolve attached PDF background when reopening an attach-saved .xopp in Xopp"
+description = "A .xopp saved with domain=\"attach\" stores filename=\"bg.pdf\" and a sibling <name>.xopp.bg.pdf. Desktop resolves it; Xopp's own Open uses a single-file SAF picker with no folder access, so the sibling can't be found and those pages open blank. Options: open via a folder/tree picker, or record/persist the sibling location so reopen can rasterise it."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["pdf", "save"]
+
+[[task]]
+id = "embed-pdf-inside-a-zip-format-xopp-true-single-file-package"
+title = "Embed PDF inside a ZIP-format .xopp (true single-file package)"
+description = "Add a third Save As option that writes the newer ZIP-based .xopp package instead of gzip, so the PDF (and later images/audio) live INSIDE the file as archive entries — a genuinely self-contained single file, versus today's attach which drops a sibling <name>.xopp.bg.pdf next to it. Needs a small zip-container writer alongside XoppWriter: a stored 'mimetype' entry, 'META-INF/version', 'content.xml' (uncompressed XML, not gzipped), and the PDF as an entry; background uses domain=attach with filename pointing at the in-zip entry. Confirmed readable by desktop Xournal++ 1.3.5 (LoadHandler opens the .xopp as a zip: mimetype/version/content.xml + readZipAttachment for the PDF). Keep gzip as the default; expose embed as a Save As choice. This also fixes the reopen-in-Xopp gap since the PDF travels inside the single file."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["pdf", "save"]
+
+[[task]]
 id = "save-as-dialog-choose-pdf-background-domain-absolute-attach-clone"
 title = "Save As dialog: choose PDF background domain (absolute/attach/clone)"
 description = "Add a Save As action that opens a dialog letting the user pick how the PDF background is referenced: absolute (path on disk), attach (bundle the PDF with the .xopp so it is self-contained/portable), or clone. Save As absolute matches the plain-Save default."

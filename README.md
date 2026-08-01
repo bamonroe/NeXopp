@@ -229,22 +229,25 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
   editable `.xopp`.
-- **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
-  preserving every page, layer, background, and element — strokes plus the text, images, and LaTeX
-  images you authored on-device. For a PDF-backed document, the reference to the source PDF is
-  written by absolute path (domain `absolute`), so reopening the `.xopp` reloads that PDF.
+- **Save** — the menu's **Save** writes the whole document back out to a `.xopp` file, preserving
+  every page, layer, background, and element — strokes plus the text, images, and LaTeX images you
+  authored on-device. Save writes in whichever **format you last chose in Save As…** (see below):
+  it starts as **Original**, and once you Save As **Zipped**, every later Save stays Zipped until
+  you switch back. Opening a file adopts the format it was stored in.
 
-- **Save As…** — the menu's **Save As…** opens a dialog to name the file and, for a PDF-backed
-  document, choose how its PDF background is referenced:
-  - **Link (absolute)** — same as plain Save: the `.xopp` points at the source PDF where it lives.
-  - **Attach (portable)** — bundles a copy of the PDF next to the `.xopp` so the document is
-    self-contained and moves as a pair. You pick a **folder** (not a single file), and Xopp writes
-    both `yourname.xopp` and `yourname.xopp.bg.pdf` into it — the naming desktop Xournal++ expects
-    for an attached background, so the pair opens correctly on desktop. *(Reopening an attached
-    document in Xopp itself currently leaves those pages blank — Xopp needs the folder to find the
-    sibling PDF, which the single-file Open picker doesn't provide; open it on desktop, or use the
-    absolute reference, to see the PDF. See `TODO.toml`.)* The domain choice is hidden for a plain
-    `.xopp` with no PDF background, which saves the same either way.
+- **Save As…** — the menu's **Save As…** opens a dialog to name the file and pick its format:
+  - **Original (gzip)** — the standard Xournal++ `.xopp` (gzip-compressed XML). For a PDF-backed
+    document the PDF stays **linked by location** (its path/URI), so the `.xopp` is small and
+    reopening it reloads that PDF from where it lives — the interchange-safe default.
+  - **Zipped (single file)** — one self-contained `.xopp` with the **PDF embedded inside** it, so
+    the document is fully portable and moves as a single file. It reopens with its background intact
+    in Xopp itself (the PDF travels in the same file) as well as on desktop Xournal++.
+    - **Note — targeting release Xournal++ on Arch Linux.** The current released desktop Xournal++
+      (1.3.5) has a bug in its ZIP reader that rejects a *correctly* labelled archive, so Xopp
+      deliberately writes a slightly non-standard internal marker to open on that release. This is a
+      temporary workaround; it will be reverted to the standard once upstream fixes the bug.
+
+The file on disk is the only source of truth — there's no cloud, account, or custom format.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 

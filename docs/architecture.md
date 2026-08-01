@@ -53,6 +53,31 @@ the repo root (`xournalpp 1.1.1+dev`, `fileversion="4"`), the archived Xournal++
 reference clone, and desktop Xournal++'s writer. Where the sample and the reference disagree,
 **the desktop file wins** — round-trip safety is measured against desktop Xournal++.
 
+#### Two containers, one XML: gzip vs ZIP-package (`SaveFormat`)
+
+The same `<xournal>` XML is written in one of two containers, chosen in the "Save As" dialog and
+then made **sticky** — every later plain Save reuses the last-picked format (owned by
+`format/SaveFormat.kt`, wired in `MainActivity`; opening a document adopts the format it was
+stored in, sniffed from the first two bytes: `1f 8b` gzip vs `PK` zip).
+
+- **`ORIGINAL`** — the legacy gzip `.xopp` (`format/Xopp.kt`, JDK `GZIPOutputStream`). A PDF
+  background stays **linked by location** (`domain="absolute"`, its path/URI). The
+  interchange-safe default desktop Xournal++ also writes.
+- **`ZIPPED`** — a self-contained ZIP-package `.xopp` (`format/XoppZip.kt`) with the PDF
+  **embedded inside** the archive. Entries: `mimetype`, `META-INF/version`
+  (`current=<fileversion>\nmin=1`), `content.xml` (the same XML, plain — *not* gzipped), and the
+  PDF as `bg.pdf` (referenced by `domain="attach"`, `filename="bg.pdf"` — an in-archive entry
+  name, not a sibling path). Because the PDF travels inside the one file, a ZIPPED document
+  reopens **in this app** with its background intact (no sibling to resolve).
+  - **Intentional mimetype deviation (targeting release Xournal++ on Arch Linux).** The
+    spec-correct mimetype is `application/xournal++`, but the *released* Xournal++ 1.3.5 (the
+    Arch build the owner runs) has an **inverted** mimetype check in `LoadHandler`
+    (`if (!strcmp(mimetype, "application/xournal++")) → "Mimetype wrong"`), so it *rejects* a
+    correctly-labelled archive. We therefore deliberately write a non-canonical mimetype
+    (`XoppZip.MIMETYPE = "application/x-xopp-zip"`), which its one-value check accepts. This is a
+    known, temporary hack — flip `XoppZip.MIMETYPE` back to the canonical string once upstream
+    fixes the check. Xournal++ enforces neither entry order nor per-entry compression.
+
 ### Units and coordinate system
 
 - **All geometry is in points (pt), 1 pt = 1/72 inch.** Page size, stroke coordinates and
@@ -104,18 +129,16 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 - `type="pdf"`: `filename` (PDF path/URI), `pageno` (**1-based** PDF page index, matching desktop
   Xournal++'s `SaveHandler`; converted to/from the 0-based `Background.Pdf.pageNo` used internally
   to index Android's `PdfRenderer` — see `XoppReader`/`XoppWriter`); `domain` on the first pdf
-  background of the doc. The `domain` selects how the PDF is referenced (chosen in the "Save As"
-  dialog, applied by `documentWithPdfDomain` in `render/PdfBackgroundDomain.kt`):
-  - `domain="absolute"` — `filename` is the PDF's path/URI; the .xopp links to it in place (the
-    plain-Save default). *(For a gzip .xopp, desktop treats a relative `filename` as relative to the
+  background of the doc. The `domain` follows from the chosen `SaveFormat` (see the container
+  section above), applied by `documentWithPdfDomain` in `render/PdfBackgroundDomain.kt`:
+  - `domain="absolute"` — `filename` is the PDF's path/URI; the .xopp links to it in place (what
+    the gzip `ORIGINAL` format writes). *(Desktop treats a relative `filename` as relative to the
     .xopp's folder and an absolute one as-is; we record the picked PDF's `content://` URI here.)*
-  - `domain="attach"` — the PDF is bundled beside the .xopp so the document is self-contained. The
-    `filename` is the literal `bg.pdf`; the actual copy is saved as `<xoppname>.bg.pdf`, which both
-    apps resolve as `<xoppPath> + "." + filename` (desktop `LoadHandler::getAbsoluteFilepath`). On
-    Android this writes two files into a picked folder (`MainActivity.saveAttached`). *(Reopening an
-    attached document **in this app** shows those pages blank — resolving the sibling needs the
-    folder, which the single-file open picker can't supply; desktop resolves it correctly. See
-    `TODO.toml`.)*
+  - `domain="attach"` — the PDF is bundled *inside* the `ZIPPED` container as the `bg.pdf` archive
+    entry; `filename` is that in-archive name (`bg.pdf`), which desktop resolves via
+    `readZipAttachment`. Self-contained and portable, and reopens with its background intact in this
+    app (the PDF travels in the same file). *(The earlier gzip-plus-sibling attach — a
+    `<xoppname>.bg.pdf` file written next to the .xopp — was replaced by this embedded form.)*
   - `domain="clone"` is **pixmap-only** in desktop Xournal++ (it reuses an earlier background image
     by id) and is never written for a PDF background, so the Save As dialog does not offer it.
 
@@ -190,10 +213,12 @@ native for stylus latency and platform fit).
   `getPressure()` / `getAxisValue(AXIS_PRESSURE)` and historical points
   (`getHistoricalX/Y/Pressure`) so fast strokes keep their samples. This is the load-bearing
   choice for "round-trip safety" — we capture pressure at the same fidelity the format stores.
-- **`.xopp` I/O — no third-party format libraries.** Gzip via the JDK's built-in
-  `java.util.zip.GZIPInputStream` / `GZIPOutputStream`; XML via Android's built-in streaming
-  `XmlPullParser` (read) and `XmlSerializer` (write). Streaming keeps large documents off the
-  heap and gives us exact control over attribute preservation (a fidelity requirement above).
+- **`.xopp` I/O — no third-party format libraries.** Both containers use only the JDK's
+  `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`ORIGINAL`), and the
+  ZIP-package via `ZipInputStream` / `ZipOutputStream` (`ZIPPED`, `format/XoppZip.kt`). XML goes
+  through Android's built-in streaming `XmlPullParser` (read) and `XmlSerializer` (write).
+  Streaming keeps large documents off the heap and gives us exact control over attribute
+  preservation (a fidelity requirement above).
 - **PDF export — PDFBox (`com.tom-roush:pdfbox-android`).** *Decision (2026-07-31):* the one
   non-framework runtime dependency, taken deliberately. The framework `android.graphics.pdf`
   writer (`PdfDocument`) can only paint onto a canvas, so exporting an imported PDF forced every
@@ -215,9 +240,9 @@ native for stylus latency and platform fit).
 The core loop:
 
 ```
-open (SAF Uri) → GZIPInputStream → XmlPullParser → Document model
+open (SAF Uri) → sniff container (gzip / ZIP) → GZIP|ZIP InputStream → XmlPullParser → Document model
    → render on SurfaceView (Material 3 chrome around it)
-   → stylus edits mutate the model → XmlSerializer → GZIPOutputStream → save (SAF Uri)
+   → stylus edits mutate the model → XmlSerializer → GZIP|ZIP OutputStream (sticky SaveFormat) → save (SAF Uri)
 ```
 
 Reading and writing are **streaming and symmetric**: the parser builds the model element by
@@ -272,6 +297,8 @@ app/
       XoppReader.kt          # XML -> Document
       XoppWriter.kt          # Document -> XML
       Xopp.kt                # gzip open/save + parse/serialize entry points
+      XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
+      SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
