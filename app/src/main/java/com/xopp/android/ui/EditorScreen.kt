@@ -62,10 +62,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.LaunchedEffect
 import com.xopp.android.format.FontDescription
+import com.xopp.android.format.SaveFormat
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
-import com.xopp.android.render.ABSOLUTE_DOMAIN
-import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.EraserMode
 import com.xopp.android.render.InputSettings
@@ -129,7 +128,8 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
 fun EditorScreen(
     onOpen: () -> Unit,
     onSave: () -> Unit,
-    onSaveAs: (filename: String, domain: String) -> Unit,
+    onSaveAs: (filename: String, format: SaveFormat) -> Unit,
+    currentSaveFormat: () -> SaveFormat,
     onImportPdf: () -> Unit,
     onExportPdf: () -> Unit,
     onPickImage: (Placement) -> Unit,
@@ -407,8 +407,8 @@ fun EditorScreen(
         }
         if (showSaveAs) {
             SaveAsDialog(
-                hasPdfBackground = surface?.pdfSourceFile() != null,
-                onConfirm = { filename, domain -> showSaveAs = false; onSaveAs(filename, domain) },
+                initialFormat = currentSaveFormat(),
+                onConfirm = { filename, format -> showSaveAs = false; onSaveAs(filename, format) },
                 onDismiss = { showSaveAs = false },
             )
         }
@@ -588,19 +588,19 @@ private fun TextInputDialog(
 }
 
 /**
- * "Save As" chooser: name the file and, for a PDF-backed document, pick how its PDF background is
- * referenced on disk — `absolute` links to the PDF where it lives, `attach` bundles a copy beside
- * the .xopp so the document is self-contained and portable (see `docs/architecture.md`). The domain
- * row is hidden for a plain .xopp, which saves identically either way.
+ * "Save As" chooser: name the file and pick the on-disk format. [SaveFormat.ORIGINAL] writes the
+ * standard gzip `.xopp` (a PDF background stays linked by location); [SaveFormat.ZIPPED] writes a
+ * single self-contained file with the PDF embedded inside (see `docs/architecture.md`). The choice
+ * becomes sticky — later plain Saves reuse it — so the picker pre-selects the current format.
  */
 @Composable
 private fun SaveAsDialog(
-    hasPdfBackground: Boolean,
-    onConfirm: (filename: String, domain: String) -> Unit,
+    initialFormat: SaveFormat,
+    onConfirm: (filename: String, format: SaveFormat) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf("document.xopp") }
-    var domain by remember { mutableStateOf(ABSOLUTE_DOMAIN) }
+    var format by remember { mutableStateOf(initialFormat) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Save As") },
@@ -613,31 +613,29 @@ private fun SaveAsDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (hasPdfBackground) {
-                    Text("PDF background", style = MaterialTheme.typography.labelMedium)
-                    DomainOption(
-                        selected = domain == ABSOLUTE_DOMAIN,
-                        title = "Link (absolute)",
-                        subtitle = "Reference the PDF where it lives on disk.",
-                        onClick = { domain = ABSOLUTE_DOMAIN },
-                    )
-                    DomainOption(
-                        selected = domain == ATTACH_DOMAIN,
-                        title = "Attach (portable)",
-                        subtitle = "Bundle a copy of the PDF beside the .xopp; pick a folder next.",
-                        onClick = { domain = ATTACH_DOMAIN },
-                    )
-                }
+                Text("Format", style = MaterialTheme.typography.labelMedium)
+                FormatOption(
+                    selected = format == SaveFormat.ORIGINAL,
+                    title = "Original (gzip)",
+                    subtitle = "Standard Xournal++ file; any PDF background stays linked by location.",
+                    onClick = { format = SaveFormat.ORIGINAL },
+                )
+                FormatOption(
+                    selected = format == SaveFormat.ZIPPED,
+                    title = "Zipped (single file)",
+                    subtitle = "One portable file with the PDF embedded inside.",
+                    onClick = { format = SaveFormat.ZIPPED },
+                )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(name, domain) }) { Text("Save") } },
+        confirmButton = { TextButton(onClick = { onConfirm(name, format) }) { Text("Save") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
-/** One selectable PDF-domain row in [SaveAsDialog]: a radio plus a title and one-line explanation. */
+/** One selectable format row in [SaveAsDialog]: a radio plus a title and one-line explanation. */
 @Composable
-private fun DomainOption(
+private fun FormatOption(
     selected: Boolean,
     title: String,
     subtitle: String,
