@@ -359,7 +359,10 @@ tested `StrokeHitTester`), or **pans** when the Hand tool is active; **two finge
 tool. A **zoom** factor multiplies the fit-to-width scale (`PageStacker` takes it as a parameter);
 when a page is wider than the view the same pan gesture scrolls horizontally, and narrower pages
 are centred in the content band (`PageBox.leftPx`). Zoom keeps the viewport-centre point roughly
-fixed. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+fixed, and is clamped to 25%–800% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
+elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
+backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px),
+beyond which the cached bitmap is upscaled to bound memory. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure); pan and zoom are

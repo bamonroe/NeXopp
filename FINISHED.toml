@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "allow-zoom-up-to-800"
+title = "Allow zoom up to 800%"
+description = "Raise the canvas zoom ceiling to 800% so fine detail work is possible. Update the pinch-zoom and any zoom control clamps, and keep rendering sharp (re-rasterize at the zoomed scale rather than upscaling a low-res bitmap) at high zoom levels."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = []
+
+[[task]]
 id = "resolve-attached-pdf-background-when-reopening-an-attach-saved-xopp-in-xopp"
 title = "Resolve attached PDF background when reopening an attach-saved .xopp in Xopp"
 description = "A .xopp saved with domain=\"attach\" stores filename=\"bg.pdf\" and a sibling <name>.xopp.bg.pdf. Desktop resolves it; Xopp's own Open uses a single-file SAF picker with no folder access, so the sibling can't be found and those pages open blank. Options: open via a folder/tree picker, or record/persist the sibling location so reopen can rasterise it."

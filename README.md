@@ -179,7 +179,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Zoom** — **pinch** with **two fingers** anywhere on the canvas to zoom in or out; the point
   between your fingers stays put as the page grows or shrinks, and you can pan at the same time in
   the one gesture. The **%** button on the rail also opens a zoom pop-up with **−** / **+** buttons;
-  tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways.
+  tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways. Zoom
+  ranges from **25% to 800%**, so you can work on fine detail; ink stays sharp at every level.
 - **Background** — the **grid** button on the rail opens the **page-background** pop-up, which sets the
   paper ruling of the page in view: **Plain** (bare sheet), **Lined**, **Ruled** (lined with a red
   margin), **Graph**, or **Dotted**. The current style is check-marked; picking another re-rules the

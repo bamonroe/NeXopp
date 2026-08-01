@@ -38,7 +38,7 @@ class PdfPageCache(val source: File) : Closeable {
         if (targetWidthPx <= 0 || i < 0) return null
         synchronized(lock) {
             if (closed || i >= renderer.pageCount) return null
-            val w = bucket(targetWidthPx)
+            val w = bucket(targetWidthPx.coerceAtMost(MAX_RASTER_WIDTH))
             val key = (i.toLong() shl 20) or w.toLong()
             cache[key]?.let { return it }
             val bmp = renderer.openPage(i).use { page ->
@@ -73,6 +73,14 @@ class PdfPageCache(val source: File) : Closeable {
 
     private companion object {
         const val MAX_CACHED = 8
+
+        /**
+         * Ceiling on the rasterised width. At high zoom the on-screen page width grows without
+         * bound, and a bitmap that wide would blow the heap; past this the background is upscaled
+         * (strokes stay vector-sharp regardless). ~4k keeps a full page under ~50 MB.
+         */
+        const val MAX_RASTER_WIDTH = 4096
+
         /** Round target widths up to 64px buckets so small zoom nudges reuse a cached bitmap. */
         fun bucket(px: Int) = ((px + 63) / 64) * 64
     }
