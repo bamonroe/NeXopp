@@ -50,7 +50,9 @@ class XoppWriter(out: Appendable) {
                 w.attr("type", "pdf")
                 bg.domain?.let { w.attr("domain", it) }
                 bg.filename?.let { w.attr("filename", it) }
-                w.attr("pageno", bg.pageNo.toString())
+                // On-disk `pageno` is 1-based (desktop Xournal++ convention); we keep it 0-based
+                // internally to index Android's PdfRenderer directly. See XoppReader for the inverse.
+                w.attr("pageno", (bg.pageNo + 1).toString())
             }
         }
         w.end()

@@ -101,8 +101,10 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 **`<background>`** — empty element, attributes depend on `type`:
 - `type="solid"`: `color` (hex or named), `style` ∈ `plain | lined | ruled | graph | dotted`.
 - `type="pixmap"`: `domain` ∈ `absolute | attach | clone`, `filename` (image path/URI).
-- `type="pdf"`: `filename` (PDF path), `pageno` (0-based PDF page index); `domain` on the
-  first pdf background of the doc.
+- `type="pdf"`: `filename` (PDF path/URI), `pageno` (**1-based** PDF page index, matching desktop
+  Xournal++'s `SaveHandler`; converted to/from the 0-based `Background.Pdf.pageNo` used internally
+  to index Android's `PdfRenderer` — see `XoppReader`/`XoppWriter`); `domain` on the first pdf
+  background of the doc.
 
 **`<layer>`** — optional `name` (desktop's `<layer name="Layer 1">`; preserved on round-trip, null
 when omitted). Children in document order: any mix of `<stroke>`, `<text>`, `<image>`, `<teximage>`.

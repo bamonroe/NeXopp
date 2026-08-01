@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "pdf-background-pageno-is-0-based-desktop-xournal-is-1-based-off-by-one"
+title = "PDF background pageno is 0-based; desktop Xournal++ is 1-based (off-by-one)"
+description = "Our XoppReader/XoppWriter and PdfImport treat the <background pageno> as 0-based (PdfImport sets pageNo=i, pdfBitmapFor calls PdfRenderer.openPage(pageNo) which is 0-based, writer emits pageNo as-is). Desktop Xournal++ writes 1-based (SaveHandler: p->getPdfPageNr()+1) and reads 1-based. Result: PDF-backed .xopp files do not round-trip faithfully cross-platform — a file saved here opens off-by-one on desktop, and a desktop file opens shifted here. Fix by converting at the file boundary: reader pageNo = pageno-1, writer pageno = pageNo+1, keep internal 0-based. Update PdfBackgroundRoundTripTest (currently asserts 0-based on-disk) and add a cross-convention test."
+status = "finished"
+category = "bug"
+created = 2026-08-01
+completed = 2026-08-01
+tags = []
+
+[[task]]
 id = "reload-referenced-pdf-background-when-opening-a-xopp"
 title = "Reload referenced PDF background when opening a .xopp"
 description = "On open, resolve a page's Background.Pdf reference and rasterize it as the background instead of setPdfSource(null). Absolute domain: open filename if reachable. Attach domain: load the bundled PDF. Best-effort with graceful fallback (blank sheet) when the file cannot be found. This is what makes a saved project reopen with its background intact."

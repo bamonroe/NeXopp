@@ -67,7 +67,9 @@ class XoppReader(xml: String) {
         )
         "pdf" -> Background.Pdf(
             filename = r.attr("filename"),
-            pageNo = r.attr("pageno")?.toIntOrNull() ?: 0,
+            // `pageno` is 1-based on disk (desktop Xournal++); store it 0-based to index
+            // Android's PdfRenderer directly. Missing pageno defaults to the first page.
+            pageNo = (r.attr("pageno")?.toIntOrNull() ?: 1) - 1,
             domain = r.attr("domain"),
         )
         else -> Background.Solid(

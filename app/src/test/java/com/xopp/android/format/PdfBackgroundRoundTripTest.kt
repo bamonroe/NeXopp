@@ -5,7 +5,9 @@ import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Layer
 import com.xopp.android.format.model.Page
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -40,5 +42,17 @@ class PdfBackgroundRoundTripTest {
         assertNull("later pages inherit the PDF; only pageno is written", second.filename)
         assertNull(second.domain)
         assertEquals(1, second.pageNo)
+    }
+
+    /**
+     * The on-disk `pageno` must be 1-based to match desktop Xournal++ (SaveHandler writes
+     * `getPdfPageNr() + 1`), even though we index pages 0-based internally. Locks in the
+     * cross-platform convention so a file saved here opens on the same PDF page on desktop.
+     */
+    @Test fun onDiskPagenoIsOneBased() {
+        val xml = Xopp.toXml(pdfDoc()) // pages hold pageNo 0 and 1 internally
+        assertTrue("first PDF page (internal 0) writes pageno=\"1\"", xml.contains("pageno=\"1\""))
+        assertTrue("second PDF page (internal 1) writes pageno=\"2\"", xml.contains("pageno=\"2\""))
+        assertFalse("no 0-based pageno should be emitted", xml.contains("pageno=\"0\""))
     }
 }
