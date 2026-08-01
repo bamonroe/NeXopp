@@ -171,6 +171,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     a harder press).
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
     **Eraser**, or **Hand (pan)**.
+  - **Toolbar position** — which edge the tool rail is docked to: **Left** (default), **Right**,
+    **Top**, or **Bottom**. Top/bottom lay the tool, colour, size, zoom, and page buttons out in a
+    horizontal row along that edge; left/right keep the familiar vertical rail.
   - **Momentum scrolling** — a slider setting how far a **one-finger** pan keeps gliding after you
     flick it. **0** turns momentum off (a released pan stops dead), **1.0** is normal (the default —
     a moderate flick coasts at about the speed you flicked), and higher values up to **10.0×** stretch
@@ -205,7 +208,7 @@ The authoritative layout lives in [`docs/architecture.md`](docs/architecture.md)
 app/src/main/java/com/xopp/android/
   format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
   render/      # stylus canvas, page layout/rendering, PDF import & export
-  ui/          # Compose Material 3 editor screen, left toolbar rail pop-ups, settings, theme
+  ui/          # Compose Material 3 editor screen, dockable toolbar rail pop-ups, settings, theme
   MainActivity.kt
 app/src/test/  # JVM unit tests for the format and render layers
 Dockerfile, compose.yaml, scripts/build.sh   # containerized build

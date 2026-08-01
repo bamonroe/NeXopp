@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -130,6 +132,7 @@ val DEFAULT_TOOL_CHOICES: List<EditorTool> =
  */
 @Composable
 fun SideToolbar(
+    horizontal: Boolean = false,
     tool: EditorTool,
     onTool: (EditorTool) -> Unit,
     color: Int,
@@ -151,19 +154,32 @@ fun SideToolbar(
     onGoToPage: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(modifier = modifier.fillMaxHeight(), tonalElevation = 3.dp) {
-        Column(
-            modifier = Modifier
-                .padding(4.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            ToolPopupButton(tool, onTool)
-            ColorPopupButton(color, onColor, customColor, onRedefineCustom)
-            SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
-            ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
-            PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
+    val buttons: @Composable () -> Unit = {
+        ToolPopupButton(tool, onTool)
+        ColorPopupButton(color, onColor, customColor, onRedefineCustom)
+        SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
+        ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
+        PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
+    }
+    if (horizontal) {
+        Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
+            Row(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) { buttons() }
+        }
+    } else {
+        Surface(modifier = modifier.fillMaxHeight(), tonalElevation = 3.dp) {
+            Column(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) { buttons() }
         }
     }
 }

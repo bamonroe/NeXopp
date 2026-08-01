@@ -107,6 +107,14 @@ fun SettingsScreen(
                 label = { it.label },
                 onSelect = { onChange(settings.copy(defaultTool = it)) },
             )
+            OptionGroup(
+                title = "Toolbar position",
+                subtitle = "Which edge the tool rail is docked to.",
+                options = ToolbarPosition.values().toList(),
+                selected = settings.toolbarPosition,
+                label = { it.label },
+                onSelect = { onChange(settings.copy(toolbarPosition = it)) },
+            )
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             MomentumSlider(

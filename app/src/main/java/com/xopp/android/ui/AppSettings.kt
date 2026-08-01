@@ -7,6 +7,18 @@ import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 
+/** Which edge of the editor the tool rail is docked to. */
+enum class ToolbarPosition(val label: String) {
+    TOP("Top"),
+    BOTTOM("Bottom"),
+    LEFT("Left"),
+    RIGHT("Right"),
+    ;
+
+    /** True when the rail runs along a horizontal edge (top/bottom) and so lays its buttons in a row. */
+    val isHorizontal: Boolean get() = this == TOP || this == BOTTOM
+}
+
 /**
  * The app's user-adjustable preferences (the Settings screen edits these; [SettingsStore] persists
  * them). Kept small and serialisable to `SharedPreferences` — these are input-layer behaviours only
@@ -33,6 +45,8 @@ data class AppSettings(
     val momentumCurve: MomentumCurve = MomentumCurve.QUADRATIC,
     /** How far the document moves per unit of pan travel (0 = frozen, 1 = one-to-one, >1 = faster). */
     val panSensitivity: Float = PanSensitivity.NORMAL,
+    /** Which edge of the editor the tool rail is docked to. */
+    val toolbarPosition: ToolbarPosition = ToolbarPosition.LEFT,
 ) {
     companion object {
         /** Factory defaults for the three pen-width slots — the old fixed S/M/L values. */
@@ -61,6 +75,7 @@ class SettingsStore(context: Context) {
             momentum = Momentum.coerce(prefs.getFloat(KEY_MOMENTUM, d.momentum)),
             momentumCurve = enumOr(prefs.getString(KEY_MOMENTUM_CURVE, null), d.momentumCurve),
             panSensitivity = PanSensitivity.coerce(prefs.getFloat(KEY_PAN_SENSITIVITY, d.panSensitivity)),
+            toolbarPosition = enumOr(prefs.getString(KEY_TOOLBAR_POSITION, null), d.toolbarPosition),
         )
     }
 
@@ -76,6 +91,7 @@ class SettingsStore(context: Context) {
         e.putFloat(KEY_MOMENTUM, s.momentum)
         e.putString(KEY_MOMENTUM_CURVE, s.momentumCurve.name)
         e.putFloat(KEY_PAN_SENSITIVITY, s.panSensitivity)
+        e.putString(KEY_TOOLBAR_POSITION, s.toolbarPosition.name)
         e.apply()
     }
 
@@ -91,6 +107,7 @@ class SettingsStore(context: Context) {
         const val KEY_MOMENTUM = "momentum_factor"
         const val KEY_MOMENTUM_CURVE = "momentum_curve"
         const val KEY_PAN_SENSITIVITY = "pan_sensitivity"
+        const val KEY_TOOLBAR_POSITION = "toolbar_position"
 
         /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
         fun keyPenWidth(i: Int): String = "pen_width_$i"

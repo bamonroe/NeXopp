@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -172,9 +173,10 @@ fun EditorScreen(
             }
         },
     ) { padding ->
-        Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+        val toolbar: @Composable () -> Unit = {
             if (!fullPage) {
             SideToolbar(
+                horizontal = settings.toolbarPosition.isHorizontal,
                 tool = tool,
                 onTool = { tool = it; surface?.applyTool(it) },
                 color = color,
@@ -206,7 +208,9 @@ fun EditorScreen(
                 onGoToPage = { surface?.goToPage(it) },
             )
             }
-            Box(modifier = Modifier.fillMaxHeight().weight(1f)) {
+        }
+        val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
+            Box(modifier = canvasModifier) {
             AndroidView(
                 factory = { ctx ->
                     DrawingSurfaceView(ctx).also {
@@ -246,6 +250,20 @@ fun EditorScreen(
                 onScrollTo = { surface?.scrollToY(it) },
                 modifier = Modifier.matchParentSize(),
             )
+            }
+        }
+        when (settings.toolbarPosition) {
+            ToolbarPosition.LEFT -> Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+                toolbar(); canvas(Modifier.fillMaxHeight().weight(1f))
+            }
+            ToolbarPosition.RIGHT -> Row(modifier = Modifier.fillMaxSize().padding(padding)) {
+                canvas(Modifier.fillMaxHeight().weight(1f)); toolbar()
+            }
+            ToolbarPosition.TOP -> Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                toolbar(); canvas(Modifier.fillMaxWidth().weight(1f))
+            }
+            ToolbarPosition.BOTTOM -> Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                canvas(Modifier.fillMaxWidth().weight(1f)); toolbar()
             }
         }
     }
