@@ -55,10 +55,12 @@ class PdfTextExtractor {
                 val unicode = tp.unicode ?: continue
                 if (unicode.isEmpty()) continue
                 val left = tp.xDirAdj.toDouble()
-                val top = tp.yDirAdj.toDouble()
                 val height = tp.heightDir.toDouble().let { if (it > 0.0) it else tp.fontSizeInPt.toDouble() }
+                // PDFBox's yDirAdj is the glyph's BOTTOM edge (top-left origin, y-down); the top is
+                // one glyph-height above it. Using yDirAdj as the top shifts every box down a line.
+                val bottom = tp.yDirAdj.toDouble()
+                val top = bottom - height
                 val right = left + tp.widthDirAdj.toDouble()
-                val bottom = top + height
                 for (c in unicode) chars.add(CharBox(c, left, top, right, bottom))
             }
             collected += PdfWordGrouper.group(chars)
