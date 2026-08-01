@@ -22,6 +22,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowRightAlt
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -45,6 +46,7 @@ import androidx.compose.material.icons.filled.Rectangle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Visibility
@@ -54,6 +56,7 @@ import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -73,6 +76,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.LineStyle
@@ -194,6 +198,8 @@ fun SideToolbar(
     onGoToPage: (Int) -> Unit,
     backgroundStyle: String?,
     onBackgroundStyle: (String) -> Unit,
+    pageSize: Pair<Double, Double>?,
+    onPageSize: (Double, Double) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val buttons: @Composable () -> Unit = {
@@ -207,7 +213,7 @@ fun SideToolbar(
         )
         ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
         BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
-        PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
+        PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize)
     }
     if (horizontal) {
         Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
@@ -497,8 +503,11 @@ private fun PagesPopupButton(
     onAddPage: () -> Unit,
     onRemovePage: () -> Unit,
     onGoToPage: (Int) -> Unit,
+    pageSize: Pair<Double, Double>?,
+    onPageSize: (Double, Double) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
+    var sizing by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
             Icon(Icons.Filled.Description, contentDescription = "Pages")
@@ -532,8 +541,148 @@ private fun PagesPopupButton(
                 enabled = pageCount > 1,
                 onClick = { onRemovePage() },
             )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Page size…") },
+                leadingIcon = { Icon(Icons.Filled.AspectRatio, contentDescription = null) },
+                trailingIcon = { pageSize?.let { Text(pageSizeLabel(it.first, it.second)) } },
+                enabled = pageSize != null,
+                onClick = { sizing = true; open = false },
+            )
         }
     }
+    if (sizing && pageSize != null) {
+        PageSizeDialog(
+            initialWidthPt = pageSize.first,
+            initialHeightPt = pageSize.second,
+            onConfirm = { w, h -> onPageSize(w, h); sizing = false },
+            onDismiss = { sizing = false },
+        )
+    }
+}
+
+/** A named page-size preset in points (1/72 in), portrait orientation. */
+private data class PagePreset(val name: String, val widthPt: Double, val heightPt: Double)
+
+/** The presets offered in the page-size dialog — desktop Xournal++'s common sizes. */
+private val PAGE_PRESETS: List<PagePreset> = listOf(
+    PagePreset("A4", 595.276, 841.89),
+    PagePreset("A5", 419.528, 595.276),
+    PagePreset("Letter", 612.0, 792.0),
+    PagePreset("Legal", 612.0, 1008.0),
+)
+
+/** Point measurements the dialog can display/enter; [perPt] converts points into that unit. */
+private enum class SizeUnit(val label: String, val perPt: Double) {
+    MM("mm", 25.4 / 72.0),
+    IN("in", 1.0 / 72.0),
+    PT("pt", 1.0);
+
+    fun fromPt(pt: Double): Double = pt * perPt
+    fun toPt(value: Double): Double = value / perPt
+}
+
+/** Format a unit value for a field: at most one decimal, trailing `.0` dropped. */
+private fun fmtDim(value: Double): String {
+    val rounded = (value * 10).roundToInt() / 10.0
+    return if (rounded == rounded.toLong().toDouble()) rounded.toLong().toString() else rounded.toString()
+}
+
+/**
+ * A short label for the current page size: the matching preset's name (either orientation), else the
+ * dimensions in millimetres — used as the trailing hint on the "Page size…" menu row.
+ */
+private fun pageSizeLabel(widthPt: Double, heightPt: Double): String {
+    fun near(a: Double, b: Double) = kotlin.math.abs(a - b) <= 1.0
+    PAGE_PRESETS.firstOrNull {
+        (near(it.widthPt, widthPt) && near(it.heightPt, heightPt)) ||
+            (near(it.widthPt, heightPt) && near(it.heightPt, widthPt))
+    }?.let { return it.name }
+    return "${fmtDim(widthPt * SizeUnit.MM.perPt)}×${fmtDim(heightPt * SizeUnit.MM.perPt)} mm"
+}
+
+/**
+ * The page-size chooser: preset buttons (A4/A5/Letter/Legal), a unit toggle (mm/in/pt), width/height
+ * fields, and a swap-orientation button. Confirms the chosen size in points to [onConfirm], which the
+ * editor applies to the page in view as an undoable edit.
+ */
+@Composable
+private fun PageSizeDialog(
+    initialWidthPt: Double,
+    initialHeightPt: Double,
+    onConfirm: (Double, Double) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var unit by remember { mutableStateOf(SizeUnit.MM) }
+    var widthPt by remember { mutableStateOf(initialWidthPt) }
+    var heightPt by remember { mutableStateOf(initialHeightPt) }
+    var widthText by remember { mutableStateOf(fmtDim(unit.fromPt(initialWidthPt))) }
+    var heightText by remember { mutableStateOf(fmtDim(unit.fromPt(initialHeightPt))) }
+    // Re-render both fields from the stored point dimensions (after a preset pick, unit change, or swap).
+    fun resync() {
+        widthText = fmtDim(unit.fromPt(widthPt))
+        heightText = fmtDim(unit.fromPt(heightPt))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Page size") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    for (preset in PAGE_PRESETS) {
+                        TextButton(onClick = {
+                            widthPt = preset.widthPt; heightPt = preset.heightPt; resync()
+                        }) { Text(preset.name) }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Units:", style = MaterialTheme.typography.labelMedium)
+                    for (u in SizeUnit.entries) {
+                        TextButton(onClick = { if (u != unit) { unit = u; resync() } }) {
+                            Text(
+                                u.label,
+                                fontWeight = if (u == unit) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        }
+                    }
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = widthText,
+                        onValueChange = { entered ->
+                            widthText = entered
+                            entered.toDoubleOrNull()?.let { widthPt = unit.toPt(it) }
+                        },
+                        label = { Text("Width") },
+                        suffix = { Text(unit.label) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.width(120.dp),
+                    )
+                    IconButton(onClick = {
+                        val w = widthPt; widthPt = heightPt; heightPt = w; resync()
+                    }) { Icon(Icons.Filled.SwapHoriz, contentDescription = "Swap width and height") }
+                    OutlinedTextField(
+                        value = heightText,
+                        onValueChange = { entered ->
+                            heightText = entered
+                            entered.toDoubleOrNull()?.let { heightPt = unit.toPt(it) }
+                        },
+                        label = { Text("Height") },
+                        suffix = { Text(unit.label) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.width(120.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(widthPt, heightPt) }) { Text("Set") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** Line-style labels for the style pop-up, paired with their [LineStyle]. */

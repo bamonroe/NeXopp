@@ -165,6 +165,7 @@ fun EditorScreen(
     var eraserMode by remember { mutableStateOf(EraserMode.STANDARD) }
     var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
     var backgroundStyle by remember { mutableStateOf<String?>(null) }
+    var pageSize by remember { mutableStateOf<Pair<Double, Double>?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -241,6 +242,8 @@ fun EditorScreen(
                 onGoToPage = { surface?.goToPage(it) },
                 backgroundStyle = backgroundStyle,
                 onBackgroundStyle = { surface?.setPageBackgroundStyle(it) },
+                pageSize = pageSize,
+                onPageSize = { w, h -> surface?.setPageSize(w, h) },
             )
             }
         }
@@ -256,13 +259,18 @@ fun EditorScreen(
                         it.currentLineStyle = lineStyle
                         it.currentFill = fill
                         it.eraserMode = eraserMode
-                        it.onLayersChanged = { layers = it.visibleLayers(); backgroundStyle = it.visiblePageBackgroundStyle() }
+                        it.onLayersChanged = {
+                            layers = it.visibleLayers()
+                            backgroundStyle = it.visiblePageBackgroundStyle()
+                            pageSize = it.visiblePageSize()
+                        }
                         layers = it.visibleLayers()
                         backgroundStyle = it.visiblePageBackgroundStyle()
+                        pageSize = it.visiblePageSize()
                         it.onHistoryChanged = { u, r -> canUndo = u; canRedo = r }
                         it.onZoomChanged = { z -> zoom = z }
                         it.onPageCountChanged = { n -> pageCount = n }
-                        it.onCurrentPageChanged = { p -> currentPage = p; backgroundStyle = it.visiblePageBackgroundStyle() }
+                        it.onCurrentPageChanged = { p -> currentPage = p; backgroundStyle = it.visiblePageBackgroundStyle(); pageSize = it.visiblePageSize() }
                         it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
                         it.onSelectionChanged = { s -> hasSelection = s }
                         it.onTextSelectionChanged = { s -> hasTextSelection = s }

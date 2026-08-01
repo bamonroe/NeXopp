@@ -182,6 +182,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page inheriting the
   current page's size and background, after the one in view) and **Remove page** (the one in view;
   the last page is never removed). Add and remove are undoable.
+  - **Page size…** — the last row shows the page-in-view's size (a preset name like **A4**, or its
+    dimensions) and opens a **Page size** dialog: pick a preset (**A4 / A5 / Letter / Legal**), or type
+    a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**
+    width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
+    `<page width= height=>` attributes to desktop Xournal++.
 - **Settings** — the top-bar menu opens a full-screen **Settings** page for the stylus (your choices
   persist across restarts):
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink

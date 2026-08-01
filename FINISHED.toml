@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "custom-preset-page-sizes"
+title = "Custom & preset page sizes"
+description = "Add page-size selection. Page.width/height (points, 1/72in) already round-trip via XoppReader/XoppWriter (<page width= height=>), but there is no UI to set them — every page inherits size from the source page. Implement: a page-format control offering desktop Xournal++ presets (A4 595x842, A5 420x595, Letter 612x792, Legal 612x1008, plus custom width/height in mm/in) and applying the chosen dimensions to a new/current page via an editPages mutation on DrawingSurfaceView. Best combined with the background-style picker into one 'Page format' dialog reachable from the Pages popup (SideToolbar.kt). Also feed the chosen default size into the blank-page insert (see insert-blank-page task). Verify sizes survive save->reopen in desktop Xournal++."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["backgrounds", "ui"]
+
+[[task]]
 id = "background-style-picker-plain-ruled-lined-graph-dotted"
 title = "Background style picker (plain/ruled/lined/graph/dotted)"
 description = "Let the user choose a page background style instead of always grid/graph. NOTE: the plumbing already exists end-to-end — Background.Solid(style) round-trips through XoppReader/XoppWriter, and BackgroundRenderer already draws all five styles (plain, lined, ruled, graph, dotted; BackgroundRenderer.kt:32-49). The ONLY missing piece is a UI control: no picker sets the 'style' value, so pages default to whatever was read/created. Implement: add a background-style chooser (e.g. in the Pages popup / a page-format dialog in SideToolbar.kt near the Add-page item, or a settings default), applying the chosen style to the current page's Background.Solid via an editPages-style mutation on DrawingSurfaceView. Match desktop Xournal++ style names verbatim (plain/lined/ruled/graph/dotted) so files round-trip. Verify save->reopen in desktop keeps the style."

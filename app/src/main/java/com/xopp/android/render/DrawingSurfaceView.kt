@@ -438,6 +438,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (bg is Background.Solid && bg.style != style) page.copy(background = bg.copy(style = style)) else page
     })
 
+    /** The visible page's size in points (width to height), or null when the document has no pages. */
+    fun visiblePageSize(): Pair<Double, Double>? =
+        doc.pages.getOrNull(visiblePageIndex())?.let { it.width to it.height }
+
+    /**
+     * Set the visible page's size to [widthPt] × [heightPt] points as one undoable edit; both are
+     * clamped to a sane range. The stacked layout re-fits every page to the view width, so this
+     * changes the page's on-screen aspect ratio (and the dimensions written to the `.xopp`).
+     */
+    fun setPageSize(widthPt: Double, heightPt: Double) = editVisiblePage(resetViewState = false, op = { page ->
+        val w = widthPt.coerceIn(PAGE_SIZE_MIN_PT, PAGE_SIZE_MAX_PT)
+        val h = heightPt.coerceIn(PAGE_SIZE_MIN_PT, PAGE_SIZE_MAX_PT)
+        if (page.width == w && page.height == h) page else page.copy(width = w, height = h)
+    })
+
     /** Apply a new page list as one undoable edit, if it actually differs. */
     private fun editPages(pages: List<Page>) {
         if (pages === doc.pages) return
@@ -492,6 +507,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         notifyHistory()
         after()
         relayout()
+        // A page's height may have changed (e.g. a resize), so keep the viewport in range.
+        scrollY = scrollY.coerceIn(0f, maxScrollY())
         render()
         onLayersChanged?.invoke()
     }
@@ -1686,6 +1703,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private companion object {
         const val A4_WIDTH_PT = 595.276
         const val A4_HEIGHT_PT = 841.89
+        const val PAGE_SIZE_MIN_PT = 72.0     // 1 in — floor on a page dimension
+        const val PAGE_SIZE_MAX_PT = 14400.0  // 200 in — ceiling on a page dimension
         const val GAP_PX = 24f
         const val ERASER_RADIUS_PX = 18f
         /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
