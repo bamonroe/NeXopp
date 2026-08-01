@@ -164,6 +164,7 @@ fun EditorScreen(
     var fill by remember { mutableStateOf<Int?>(null) }
     var eraserMode by remember { mutableStateOf(EraserMode.STANDARD) }
     var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
+    var backgroundStyle by remember { mutableStateOf<String?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -238,6 +239,8 @@ fun EditorScreen(
                 onAddPage = { surface?.addPage() },
                 onRemovePage = { surface?.removePage() },
                 onGoToPage = { surface?.goToPage(it) },
+                backgroundStyle = backgroundStyle,
+                onBackgroundStyle = { surface?.setPageBackgroundStyle(it) },
             )
             }
         }
@@ -253,12 +256,13 @@ fun EditorScreen(
                         it.currentLineStyle = lineStyle
                         it.currentFill = fill
                         it.eraserMode = eraserMode
-                        it.onLayersChanged = { layers = it.visibleLayers() }
+                        it.onLayersChanged = { layers = it.visibleLayers(); backgroundStyle = it.visiblePageBackgroundStyle() }
                         layers = it.visibleLayers()
+                        backgroundStyle = it.visiblePageBackgroundStyle()
                         it.onHistoryChanged = { u, r -> canUndo = u; canRedo = r }
                         it.onZoomChanged = { z -> zoom = z }
                         it.onPageCountChanged = { n -> pageCount = n }
-                        it.onCurrentPageChanged = { p -> currentPage = p }
+                        it.onCurrentPageChanged = { p -> currentPage = p; backgroundStyle = it.visiblePageBackgroundStyle() }
                         it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
                         it.onSelectionChanged = { s -> hasSelection = s }
                         it.onTextSelectionChanged = { s -> hasTextSelection = s }

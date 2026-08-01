@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "background-style-picker-plain-ruled-lined-graph-dotted"
+title = "Background style picker (plain/ruled/lined/graph/dotted)"
+description = "Let the user choose a page background style instead of always grid/graph. NOTE: the plumbing already exists end-to-end — Background.Solid(style) round-trips through XoppReader/XoppWriter, and BackgroundRenderer already draws all five styles (plain, lined, ruled, graph, dotted; BackgroundRenderer.kt:32-49). The ONLY missing piece is a UI control: no picker sets the 'style' value, so pages default to whatever was read/created. Implement: add a background-style chooser (e.g. in the Pages popup / a page-format dialog in SideToolbar.kt near the Add-page item, or a settings default), applying the chosen style to the current page's Background.Solid via an editPages-style mutation on DrawingSurfaceView. Match desktop Xournal++ style names verbatim (plain/lined/ruled/graph/dotted) so files round-trip. Verify save->reopen in desktop keeps the style."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["backgrounds", "ui"]
+
+[[task]]
 id = "line-styles-and-fill-dashed-dotted-strokes-filled-shapes"
 title = "Line styles and fill (dashed/dotted strokes, filled shapes)"
 description = "No dashed/dotted stroke styles and no fill. Add stroke line styles (dash, dash-dot, dot) and a fill level for shapes/highlighter. The format stores both a stroke style attribute and a fill attribute."

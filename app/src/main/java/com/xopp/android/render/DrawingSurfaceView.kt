@@ -422,6 +422,22 @@ class DrawingSurfaceView @JvmOverloads constructor(
         editPages(PageOps.removeAt(doc.pages, at))
     }
 
+    /**
+     * The visible page's background style (plain/lined/ruled/graph/dotted), or null when the page
+     * isn't a solid sheet (PDF/pixmap) and so has no selectable paper style.
+     */
+    fun visiblePageBackgroundStyle(): String? =
+        (doc.pages.getOrNull(visiblePageIndex())?.background as? Background.Solid)?.style
+
+    /**
+     * Set the visible page's paper [style] (plain/lined/ruled/graph/dotted) as one undoable edit.
+     * No-op on PDF/pixmap pages, whose background isn't a solid sheet.
+     */
+    fun setPageBackgroundStyle(style: String) = editVisiblePage(resetViewState = false, op = { page ->
+        val bg = page.background
+        if (bg is Background.Solid && bg.style != style) page.copy(background = bg.copy(style = style)) else page
+    })
+
     /** Apply a new page list as one undoable edit, if it actually differs. */
     private fun editPages(pages: List<Page>) {
         if (pages === doc.pages) return

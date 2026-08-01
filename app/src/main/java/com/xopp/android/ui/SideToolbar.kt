@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Functions
+import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.HighlightAlt
 import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.Image
@@ -191,6 +192,8 @@ fun SideToolbar(
     onAddPage: () -> Unit,
     onRemovePage: () -> Unit,
     onGoToPage: (Int) -> Unit,
+    backgroundStyle: String?,
+    onBackgroundStyle: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val buttons: @Composable () -> Unit = {
@@ -203,6 +206,7 @@ fun SideToolbar(
             onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
         )
         ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
+        BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
         PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage)
     }
     if (horizontal) {
@@ -437,6 +441,46 @@ private fun ZoomPopupButton(zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> 
                 IconButton(onClick = onZoomOut) { Icon(Icons.Filled.ZoomOut, contentDescription = "Zoom out") }
                 TextButton(onClick = onZoomReset) { Text("${(zoom * 100).roundToInt()}%") }
                 IconButton(onClick = onZoomIn) { Icon(Icons.Filled.ZoomIn, contentDescription = "Zoom in") }
+            }
+        }
+    }
+}
+
+/**
+ * Paper-style labels for the background pop-up, paired with the `<background style=…>` value written
+ * to the `.xopp` file. Names match desktop Xournal++ verbatim so files round-trip; the renderer draws
+ * each in [com.xopp.android.render.BackgroundRenderer].
+ */
+private val BACKGROUND_STYLES: List<Pair<String, String>> = listOf(
+    "plain" to "Plain",
+    "lined" to "Lined",
+    "ruled" to "Ruled",
+    "graph" to "Graph",
+    "dotted" to "Dotted",
+)
+
+/**
+ * The page-background chooser: sets the current page's paper style (plain/lined/ruled/graph/dotted).
+ * [style] is the current page's style, or null when the page is a PDF/pixmap (no solid sheet to
+ * restyle) — in which case the items are disabled.
+ */
+@Composable
+private fun BackgroundPopupButton(style: String?, onBackgroundStyle: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(Icons.Filled.GridOn, contentDescription = "Page background")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            for ((value, label) in BACKGROUND_STYLES) {
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    enabled = style != null,
+                    trailingIcon = {
+                        if (value == style) Icon(Icons.Filled.Check, contentDescription = "selected")
+                    },
+                    onClick = { onBackgroundStyle(value); open = false },
+                )
             }
         }
     }

@@ -87,7 +87,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   have nothing to select (OCR for those is planned). The selection is view-only and doesn't change
   the document.
 - **Draw** — the controls live in a **vertical rail down the left edge**. Its buttons — **Tool**,
-  **Colour**, **Size**, **Style**, **Layers**, **Zoom**, **Pages** — each open a small pop-up anchored
+  **Colour**, **Size**, **Style**, **Layers**, **Zoom**, **Background**, **Pages** — each open a small pop-up anchored
   to their own button (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with
   **one finger or the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
   constant-width translucent band** (pressure-independent, ~6× the pen width) that shows the page
@@ -173,6 +173,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   between your fingers stays put as the page grows or shrinks, and you can pan at the same time in
   the one gesture. The **%** button on the rail also opens a zoom pop-up with **−** / **+** buttons;
   tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways.
+- **Background** — the **grid** button on the rail opens the **page-background** pop-up, which sets the
+  paper ruling of the page in view: **Plain** (bare sheet), **Lined**, **Ruled** (lined with a red
+  margin), **Graph**, or **Dotted**. The current style is check-marked; picking another re-rules the
+  page immediately (an undoable edit) and round-trips via the `<background style>` attribute. On a
+  **PDF** or image-backed page there's no solid sheet to re-rule, so the items are disabled.
 - **Pages** — the document button on the rail opens the **page navigator**: it shows **Page N / M**
   with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page inheriting the
   current page's size and background, after the one in view) and **Remove page** (the one in view;
