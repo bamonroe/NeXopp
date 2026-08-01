@@ -75,11 +75,18 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   page is shown, one above the next, each drawn with its own background ruling (plain, lined,
   ruled, graph, or dotted) and all of its layers — including strokes, text boxes, images, and
   LaTeX images (rendered as real math — fractions, super/subscripts, roots, and Greek/operator
-  symbols; malformed formulae fall back to their source text).
+  symbols; malformed formulae fall back to their source text). If the `.xopp` was made by
+  annotating a PDF, its **PDF background is reloaded automatically** — the reference the file
+  stores is resolved and the PDF pages render underneath your annotations again, so a saved
+  project reopens intact. If the referenced PDF can't be found (e.g. a desktop path that doesn't
+  exist on the device), those pages open blank and a notice is shown.
 - **Import PDF** — the menu's **Import PDF** launches the picker filtered to PDFs; choosing one
   builds a fresh document with **one page per PDF page**, each PDF page rasterised and shown as the
   page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
+  The source PDF's reference is recorded in the saved file (as an absolute reference to the picked
+  PDF), so reopening the `.xopp` later **reloads that PDF** and shows the same backgrounds again —
+  no need to re-import.
 - **Select text (PDF)** — for an imported PDF that carries a real text layer (i.e. not a pure scan),
   the Tool pop-up's **Select text (PDF)** tool lets you **drag across the page to select the
   underlying text**; the selected words highlight, and a **Copy** button puts them on the system
@@ -224,7 +231,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   editable `.xopp`.
 - **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — strokes plus the text, images, and LaTeX
-  images you authored on-device.
+  images you authored on-device. For a PDF-backed document, the reference to the source PDF is
+  written by absolute path (domain `absolute`), so reopening the `.xopp` reloads that PDF. (Bundling
+  the PDF into a portable, self-contained project — the `attach` domain — is a planned **Save As**
+  option; see `TODO.toml`.)
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 

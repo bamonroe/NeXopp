@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "reload-referenced-pdf-background-when-opening-a-xopp"
+title = "Reload referenced PDF background when opening a .xopp"
+description = "On open, resolve a page's Background.Pdf reference and rasterize it as the background instead of setPdfSource(null). Absolute domain: open filename if reachable. Attach domain: load the bundled PDF. Best-effort with graceful fallback (blank sheet) when the file cannot be found. This is what makes a saved project reopen with its background intact."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = []
+
+[[task]]
+id = "save-writes-pdf-background-reference-by-absolute-path"
+title = "Save writes PDF background reference by absolute path"
+description = "Plain Save should record PDF-backed pages with domain=absolute and the on-disk path, so reopening (once open-time reload lands) finds the PDF. This is the default persistence behavior; Save As covers the other domains."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = []
+
+[[task]]
 id = "add-page-should-insert-a-blank-page-not-duplicate-the-current-one"
 title = "Add-page should insert a blank page, not duplicate the current one"
 description = "'Add page' visually duplicates the current page instead of inserting a blank one. Root cause: PageOps.addAfter (PageOps.kt:15-20) does pages[i].copy(layers = emptyLayer), which clears ink but inherits the source Background verbatim — including width/height AND, critically, a Background.Pdf(pageNo=N), so the new page re-renders the identical PDF page underneath. Fix: give the new page a blank solid background (Background.Solid(0xFFFFFFFF.toInt(), <default style>)) rather than copying a PDF/pixmap background; keep width/height (usually desired) but drop the inherited pdf pageNo. Consider a 'new page type' setting like desktop Xournal++ (blank default / copy current style / plain) and default it to blank. Update PageOpsTest.kt (it currently pins the duplicate behavior) and DrawingSurfaceView.kt:414 + PageOps.kt:8-11 doc comments. Depends conceptually on background-style-picker/page-sizes for the default it uses."

@@ -19,3 +19,16 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "save-as-dialog-choose-pdf-background-domain-absolute-attach-clone"
+title = "Save As dialog: choose PDF background domain (absolute/attach/clone)"
+description = "Add a Save As action that opens a dialog letting the user pick how the PDF background is referenced: absolute (path on disk), attach (bundle the PDF with the .xopp so it is self-contained/portable), or clone. Save As absolute matches the plain-Save default."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-01
+tags = []
+rebuild = true
+emulator_debug = true

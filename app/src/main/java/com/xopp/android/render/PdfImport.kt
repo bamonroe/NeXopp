@@ -11,17 +11,20 @@ import com.xopp.android.format.model.Page
  * `<background type="pdf">` and an empty layer to draw on. Only the first page carries `filename`
  * and `domain`; the rest reference the same PDF by `pageno` alone, matching the on-disk convention
  * (see `docs/architecture.md`). The actual rasterisation is done by [PdfPageCache].
+ *
+ * [reference] is the string stored as the background's `filename` — on Android that's the source
+ * PDF's `content://` URI (domain="absolute"), which the open path resolves back to reload the PDF.
  */
 object PdfImport {
 
-    fun documentFor(cache: PdfPageCache, filename: String): Document {
+    fun documentFor(cache: PdfPageCache, reference: String): Document {
         val pages = (0 until cache.pageCount).map { i ->
             val (w, h) = cache.pageSizePt(i)
             Page(
                 width = w,
                 height = h,
                 background = Background.Pdf(
-                    filename = if (i == 0) filename else null,
+                    filename = if (i == 0) reference else null,
                     pageNo = i,
                     domain = if (i == 0) "absolute" else null,
                 ),

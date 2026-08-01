@@ -1,8 +1,8 @@
 package com.xopp.android
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.xopp.android.format.Xopp
+import com.xopp.android.format.model.Background
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PdfImport
 import com.xopp.android.render.PdfPageCache
@@ -90,29 +91,60 @@ class MainActivity : ComponentActivity() {
             requireNotNull(input) { "could not open $uri" }
             Xopp.open(input)
         }
-        surface?.setPdfSource(null) // a plain .xopp brings no PDF of its own
+        // Reload the PDF a `pdf` background references, so a saved project reopens with its
+        // background intact. Only the first PDF-backed page carries the reference (import convention).
+        val pdfRef = doc.pages.firstNotNullOfOrNull { (it.background as? Background.Pdf)?.filename }
+        val pdfFile = pdfRef?.let(::resolvePdfBackground)
+        surface?.setPdfSource(pdfFile?.let(::PdfPageCache))
         surface?.setPdfTextIndex(null)
         surface?.load(doc)
+        if (pdfFile != null) extractPdfTextInBackground(pdfFile)
+        else if (pdfRef != null) toast("Background PDF not found; those pages will be blank")
     }.onFailure { toast("Open failed: ${it.message}") }
+
+    /**
+     * Resolve a `pdf` background reference back to a local file we can rasterise. The reference is
+     * either a `content://` URI (what Android records for `domain="absolute"` — a picked PDF has no
+     * filesystem path) or an on-disk path (what desktop Xournal++ records). Copies the bytes into the
+     * cache; returns null when the source can't be reached (e.g. a Linux path on Android), so the
+     * caller falls back to blank pages.
+     */
+    private fun resolvePdfBackground(ref: String): File? = runCatching {
+        val stream = when {
+            ref.startsWith("content://") -> contentResolver.openInputStream(Uri.parse(ref))
+            else -> File(ref).takeIf(File::exists)?.inputStream()
+        } ?: return@runCatching null
+        val out = File(cacheDir, "background.pdf")
+        stream.use { input -> out.outputStream().use { input.copyTo(it) } }
+        out
+    }.getOrNull()
 
     /** Import a PDF as a fresh annotatable document: one page per PDF page, rendered as backgrounds. */
     private fun importPdf(uri: Uri) = runCatching {
+        // Persist read access so the same content URI still resolves when the saved .xopp is reopened
+        // later (this is the reference plain Save records for domain="absolute"). Best-effort: import
+        // still works if the grant isn't persistable.
+        runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         val file = File(cacheDir, "imported.pdf")
         contentResolver.openInputStream(uri).use { input ->
             requireNotNull(input) { "could not open $uri" }
             file.outputStream().use { input.copyTo(it) }
         }
         val cache = PdfPageCache(file)
-        val doc = PdfImport.documentFor(cache, displayName(uri) ?: file.name)
+        val doc = PdfImport.documentFor(cache, uri.toString())
         surface?.setPdfSource(cache)
         surface?.setPdfTextIndex(null) // cleared until extraction below finishes
         surface?.load(doc)
-        // Extract the text layer off the UI thread (it can be slow on big PDFs), then attach it.
+        extractPdfTextInBackground(file)
+    }.onFailure { toast("PDF import failed: ${it.message}") }
+
+    /** Extract a PDF's text layer off the UI thread (slow on big PDFs), then attach it for text-select. */
+    private fun extractPdfTextInBackground(file: File) {
         Thread {
             val index = PdfTextExtractor().extract(file)
             surface?.post { surface?.setPdfTextIndex(index) }
         }.start()
-    }.onFailure { toast("PDF import failed: ${it.message}") }
+    }
 
     /** Flatten the current document to a PDF at the chosen location (backgrounds + annotations). */
     private fun exportPdf(uri: Uri) = runCatching {
@@ -121,13 +153,6 @@ class MainActivity : ComponentActivity() {
             surface?.exportPdf(output)
         }
     }.onFailure { toast("PDF export failed: ${it.message}") }
-
-    /** The user-visible file name behind a SAF [uri], for the `pdf` background's `filename`. */
-    private fun displayName(uri: Uri): String? = runCatching {
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
-            if (it.moveToFirst()) it.getString(0) else null
-        }
-    }.getOrNull()
 
     /** Read the picked image's bytes and place it at the tap that started the pick. */
     private fun insertPickedImage(uri: Uri) = runCatching {
