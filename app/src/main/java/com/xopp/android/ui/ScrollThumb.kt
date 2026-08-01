@@ -1,6 +1,6 @@
 package com.xopp.android.ui
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,7 +20,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -34,11 +34,14 @@ import kotlin.math.roundToInt
 private val THUMB_GRAB_WIDTH = 28.dp
 private val THUMB_WIDTH = 6.dp
 /**
- * A small rounded "peninsula" that bulges left out of the thumb's centre so there's an obvious,
- * finger-sized grip to grab (the thin bar alone reads as decoration). Purely visual — the whole
- * [THUMB_GRAB_WIDTH] band already catches touches.
+ * The thumb is drawn as one continuous silhouette: a thin bar with a straight right edge hugging the
+ * canvas edge and rounded caps, whose left outline swells out in a smooth symmetric bell centred on
+ * the thumb so there's an obvious, finger-sized grip to grab (the thin bar alone reads as
+ * decoration). [OUTSERT_WIDTH] is how far the bell's peak reaches left of the canvas edge, and
+ * [OUTSERT_HEIGHT] the bell's vertical span. Purely visual — the whole [THUMB_GRAB_WIDTH] band
+ * already catches touches.
  */
-private val OUTSERT_WIDTH = 14.dp
+private val OUTSERT_WIDTH = 18.dp
 private val OUTSERT_HEIGHT = 38.dp
 /** Smallest the thumb ever shrinks to, so a very long document still leaves a grabbable target. */
 private val THUMB_MIN_HEIGHT = 44.dp
@@ -131,25 +134,25 @@ fun ScrollThumb(
                 },
             contentAlignment = Alignment.CenterEnd,
         ) {
-            // The visible thumb bar, right-aligned inside the wider (invisible) grab band.
-            Box(
+            // The visible thumb: one continuous shape — a thin capsule bar hugging the right edge with
+            // a smooth bell bulge swelling out of its centre. Right-aligned inside the wider
+            // (invisible) grab band; the canvas is as wide as the bulge so the bell's peak reaches its
+            // left edge. Shares the thumb's alpha so it fades in step.
+            val thumbColor = MaterialTheme.colorScheme.primary
+            Canvas(
                 modifier = Modifier
                     .fillMaxHeight()
                     .padding(end = 3.dp)
-                    .width(THUMB_WIDTH)
-                    .clip(RoundedCornerShape(THUMB_WIDTH / 2))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha)),
-            )
-            // The grip peninsula: a rounded bulge centred on the thumb, sticking out to the left so
-            // there's a plainly grabbable target. Shares the thumb's alpha so it fades in step.
-            Box(
-                modifier = Modifier
-                    .padding(end = 3.dp)
-                    .width(OUTSERT_WIDTH)
-                    .heightPx(with(density) { OUTSERT_HEIGHT.toPx() }.coerceAtMost(thumbHeightPx))
-                    .clip(RoundedCornerShape(OUTSERT_WIDTH / 2))
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha)),
-            )
+                    .width(OUTSERT_WIDTH),
+            ) {
+                val path = thumbPath(
+                    w = size.width,
+                    h = size.height,
+                    barW = THUMB_WIDTH.toPx(),
+                    bulgeH = OUTSERT_HEIGHT.toPx(),
+                )
+                drawPath(path, color = thumbColor.copy(alpha = alpha))
+            }
         }
         // While dragging, a page-number bubble tracks the thumb's vertical centre (sibling of the
         // band, so it can extend into the full canvas width to the left of it).
@@ -170,6 +173,50 @@ fun ScrollThumb(
                 )
             }
         }
+    }
+}
+
+/**
+ * Build the thumb silhouette in the canvas's px space: a bar of width [barW] whose straight right
+ * edge sits at `x = w` with semicircular caps, and whose left edge swells out to `x = 0` (the canvas
+ * edge) in a smooth symmetric bell of vertical extent [bulgeH] centred in [h]. The bell is two
+ * mirrored cubic Béziers with vertical tangents at the bar joins and at the peak, so it departs and
+ * rejoins the bar edge smoothly. [bulgeH] is clamped so the straight bar segments above and below it
+ * never go negative on a short thumb.
+ */
+private fun thumbPath(w: Float, h: Float, barW: Float, bulgeH: Float): Path {
+    val r = barW / 2f
+    val barLeft = w - barW
+    val bulge = bulgeH.coerceIn(0f, h - 2f * r)
+    val bulgeTop = (h - bulge) / 2f
+    val bulgeBot = bulgeTop + bulge
+    val yMid = (bulgeTop + bulgeBot) / 2f
+    // How far each cubic's control point runs along the vertical (as a fraction of the bell's half
+    // height) before the curve turns out to the peak. Both handles meet vertically at the peak and at
+    // the bar joins, so their lengths must sum to <= 1 or the outline reverses into a concave notch;
+    // 0.5 is the fullest clean value and gives a smooth symmetric bell.
+    val k = 0.5f
+    return Path().apply {
+        moveTo(barLeft, r)
+        // Down the bar's left edge to where the bell begins.
+        lineTo(barLeft, bulgeTop)
+        // Swoop out to the leftmost peak, then back to the bar.
+        cubicTo(
+            barLeft, bulgeTop + k * (yMid - bulgeTop),
+            0f, yMid - k * (yMid - bulgeTop),
+            0f, yMid,
+        )
+        cubicTo(
+            0f, yMid + k * (bulgeBot - yMid),
+            barLeft, bulgeBot - k * (bulgeBot - yMid),
+            barLeft, bulgeBot,
+        )
+        // Down to the bottom cap, around it, up the straight right edge, and around the top cap.
+        lineTo(barLeft, h - r)
+        arcTo(Rect(barLeft, h - barW, w, h), 180f, -180f, false)
+        lineTo(w, r)
+        arcTo(Rect(barLeft, 0f, w, barW), 0f, -180f, false)
+        close()
     }
 }
 
