@@ -104,8 +104,10 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 - `type="pdf"`: `filename` (PDF path), `pageno` (0-based PDF page index); `domain` on the
   first pdf background of the doc.
 
-**`<layer>`** — no attributes. Children in document order: any mix of `<stroke>`, `<text>`,
-`<image>`, `<teximage>`. **Document order is z-order** and must be preserved on round-trip.
+**`<layer>`** — optional `name` (desktop's `<layer name="Layer 1">`; preserved on round-trip, null
+when omitted). Children in document order: any mix of `<stroke>`, `<text>`, `<image>`, `<teximage>`.
+**Document order is z-order** and must be preserved on round-trip. Layer *visibility* is **not** a
+format attribute — it's a view-only editor state (a hidden layer still round-trips with its content).
 
 **`<stroke>`** — the core drawable. Attributes:
 - `tool` ∈ `pen | highlighter | eraser`. The highlighter renders distinctly from the pen: a
@@ -117,6 +119,11 @@ regenerate it on write (or omit it — desktop tolerates its absence).
   width**; the remaining values (if present) are the **per-vertex pressure widths**. A single
   value means constant width. On read, if fewer widths than vertices, reuse the first for all.
 - `capStyle` — `round` | `butt` | `square` (line cap; desktop attribute, default `round`).
+- `style` — line pattern ∈ `plain | dash | dashdot | dot` (default `plain`, omitted when plain).
+  Dashed/dotted strokes render as one constant-width path with a width-proportional dash pattern
+  (`StrokePainter.dashIntervalsPt`, shared by screen and PDF export).
+- `fill` — fill alpha `0..255` painted inside the closed stroke (shapes/highlighter fill), or absent
+  for no fill.
 - `ts`, `fn` — audio-recording timestamp / filename for pen-replay; `ts="0" fn=""` when
   unused. Preserve verbatim on round-trip; no rendering meaning for us.
 - **Inner text**: a flat space-separated coordinate list `x0 y0 x1 y1 …` (pt). Vertex *i* is
@@ -151,7 +158,8 @@ is base64-encoded raw image bytes (PNG/JPEG as stored).
       feature's coverage, fails the build (per `CLAUDE.md`'s code-derived-fact rule).
       `FormatDriftTest` covers only `Background.Solid` styles; the `pdf` background on-disk
       round-trip (filename+domain on page 1, `pageno`-only on later pages) is locked in
-      separately by `PdfBackgroundRoundTripTest`.
+      separately by `PdfBackgroundRoundTripTest`, and the stroke `style`/`fill` attributes plus the
+      `<layer name>` attribute by `StyleFillLayerNameRoundTripTest`.
 
 ## Stack — pinned 2026-07-30
 
@@ -210,10 +218,10 @@ class/module per format element, mirroring the tree in [The `.xopp` format](#the
 - `Page` — `width`, `height` (pt), `Background`, `List<Layer>`.
 - `Background` — sealed type: `Solid(color, style)`, `Pixmap(domain, filename)`,
   `Pdf(filename, pageNo, domain?)`.
-- `Layer` — ordered `List<Element>` (z-order).
+- `Layer` — ordered `List<Element>` (z-order) plus optional `name`.
 - `Element` — sealed type: `Stroke`, `Text`, `Image`, `TexImage`.
-  - `Stroke` — `tool`, `color`, `capStyle`, `List<Point>` (each `x, y, width`), plus
-    preserved raw attrs (`ts`, `fn`, unknowns).
+  - `Stroke` — `tool`, `color`, `capStyle`, `lineStyle` (plain/dash/dashdot/dot), `fill` (0..255 or
+    null), `List<Point>` (each `x, y, width`), plus preserved raw attrs (`ts`, `fn`, unknowns).
   - `Text` — `font`, `size`, `x`, `y`, `color`, `content`.
   - `Image` — bbox `left/top/right/bottom`, decoded bytes.
   - `TexImage` — bbox, `latex`, `color`.
@@ -269,7 +277,10 @@ app/
       PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
       PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
-      StrokeHitTester.kt     # eraser point-to-stroke hit geometry (pure)
+      StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
+      StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
+      ShapeBuilder.kt        # line/arrow/rectangle/ellipse drag -> stroke vertex list (pure)
+      LayerOps.kt            # add/delete/rename/reorder/move-selection layer edits (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
       Selection.kt           # ElementRef + SelectionTester: rect/tap picking, selection bounds (pure)
       SelectionOps.kt        # translate / delete selected elements on a page (pure)
@@ -320,6 +331,22 @@ and a Unicode table for Greek letters and common operators/relations; the tree i
 reference size then uniformly scaled to fit the element's box. Any parse/draw failure falls back to
 the raw source text, so a malformed formula can't crash a frame.
 
+**Shapes, styles, partial eraser, layers.** The **shape tools** (Line/Arrow/Rectangle/Ellipse) turn a
+one-finger drag into an ordinary constant-width pen stroke: `ShapeBuilder` (pure, tested) converts the
+drag's start/end into a vertex list, previewed live and committed as one undoable stroke, so shapes
+round-trip like any stroke. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
+on the stroke the tool draws next; `StrokePainter` paints a dashed/dotted style as a single
+constant-width dashed path and floods a fill under the outline, and `PdfVectorPainter` mirrors both for
+export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,
+pure, tested) rubs out only the touched vertices and splits a stroke into its surviving pieces (each
+inheriting the original's colour/style/fill), alongside the original whole-stroke delete
+(`StrokeHitTester`); the mode is a view flag. **Layer management** (`LayerOps`, pure, tested) adds/
+deletes/renames/reorders layers and moves a selection between them (all undoable), while the *active*
+layer (where new ink lands) and per-layer *visibility* are view-only editor state on the surface —
+visibility just skips a layer in `PageRenderer.drawElements`, so it never touches the file. The UI for
+all four lives in the rail's **Tool** (shapes), **Style** (line style / fill / eraser mode), and
+**Layers** pop-ups (`SideToolbar`).
+
 **Authoring non-stroke elements.** With the **Text**, **Image**, or **LaTeX** tool active, the
 surface is in a *placement* mode (`placeKind`): a one-finger tap (not a drag) raises `onPlace` with
 the page-local point, which `EditorScreen` turns into a keyboard dialog (text/LaTeX) or, for images,
@@ -347,7 +374,7 @@ selection. The dashed outline and marquee are drawn by the view over the page st
 works in Select mode (it abandons the in-progress selection gesture).
 
 Beyond move/delete, the outline carries **four corner resize handles** (a uniform scale about the
-opposite corner, `SelectionOps.scale`) and — for an all-stroke selection only — a **top rotate knob**
+opposite corner, `SelectionOps.scale`) and — for an all-stroke selection only — a **right-edge rotate knob**
 (`SelectionOps.rotate`, which bakes the angle into stroke vertices). A **lasso** marquee
 (`lassoMode`) selects everything wholly inside a traced polygon (`SelectionTester.inPolygon`),
 alongside the rectangle. **Cut / copy / paste / duplicate** run through a view-held element clipboard

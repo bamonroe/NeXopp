@@ -17,6 +17,46 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "line-styles-and-fill-dashed-dotted-strokes-filled-shapes"
+title = "Line styles and fill (dashed/dotted strokes, filled shapes)"
+description = "No dashed/dotted stroke styles and no fill. Add stroke line styles (dash, dash-dot, dot) and a fill level for shapes/highlighter. The format stores both a stroke style attribute and a fill attribute."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["drawing", "style"]
+
+[[task]]
+id = "layer-management-ui-add-delete-rename-reorder-hide-move-to"
+title = "Layer management UI (add/delete/rename/reorder/hide/move-to)"
+description = "The app renders existing layers but always draws onto the top one with no management. Add UI to create, delete, rename, reorder, show/hide layers, and move a selection between layers. The .xopp format already stores multiple <layer> elements per page."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["layers"]
+
+[[task]]
+id = "partial-eraser-split-strokes-not-whole-stroke-only"
+title = "Partial eraser (split strokes, not whole-stroke only)"
+description = "The eraser currently deletes whole strokes only. Add desktop's true eraser that rubs out just the touched segment by splitting a stroke into remaining pieces, plus the plain 'delete stroke' mode. Round-trips as normal strokes."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["drawing", "eraser"]
+
+[[task]]
+id = "shape-tools-line-arrow-rectangle-ellipse"
+title = "Shape tools: line, arrow, rectangle, ellipse"
+description = "Add geometric shape tools (straight line, arrow, rectangle, ellipse) plus optional shape recognition. Desktop Xournal++ records these as ordinary stroke point-lists, so they round-trip cleanly through the .xopp <stroke> element. Largest missing drawing feature vs desktop."
+status = "finished"
+category = "feature"
+created = 2026-07-31
+completed = 2026-07-31
+tags = ["drawing", "shapes"]
+
+[[task]]
 id = "align-annotation-overlay-on-rotated-pdf-pages"
 title = "Align annotation overlay on rotated PDF pages"
 description = "PdfExporter preserves a source PDF page's vectors via importPage, but the annotation overlay (PdfVectorPainter/PdfPageTransform) assumes an unrotated page (/Rotate 0). On a rotated source page the vectors are kept but the overlay may be misaligned. Apply a rotation-aware transform (translate + rotate matrix + crop origin) so strokes land correctly on 90/180/270-rotated pages."

@@ -4,6 +4,7 @@ import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
+import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.TexImageElement
@@ -56,7 +57,9 @@ class XoppWriter(out: Appendable) {
     }
 
     private fun writeLayer(layer: Layer) {
-        w.start("layer").newline()
+        w.start("layer")
+        layer.name?.let { w.attr("name", it) }
+        w.newline()
         for (el in layer.elements) when (el) {
             is Stroke -> writeStroke(el)
             is TextElement -> writeText(el)
@@ -77,6 +80,8 @@ class XoppWriter(out: Appendable) {
             s.points.joinToString(" ") { num(it.width) }
         }
         w.attr("width", width)
+        s.fill?.let { w.attr("fill", it.toString()) }
+        if (s.lineStyle != LineStyle.PLAIN) w.attr("style", s.lineStyle.xml)
         s.capStyle?.let { w.attr("capStyle", it) }
         val coords = buildString {
             s.points.forEachIndexed { i, p ->

@@ -5,6 +5,7 @@ import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Element
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
+import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
@@ -21,7 +22,7 @@ class XoppReader(xml: String) {
     private val r = XmlPullReader(xml)
 
     /** Attributes handled explicitly on `<stroke>`; everything else is preserved verbatim. */
-    private val strokeKnownAttrs = setOf("tool", "color", "width", "capStyle")
+    private val strokeKnownAttrs = setOf("tool", "color", "width", "capStyle", "style", "fill")
 
     fun read(): Document {
         val pages = mutableListOf<Page>()
@@ -76,6 +77,7 @@ class XoppReader(xml: String) {
     }
 
     private fun readLayer(): Layer {
+        val name = r.attr("name")
         val elements = mutableListOf<Element>()
         while (r.next() != Event.EOF) {
             when (r.event) {
@@ -89,13 +91,15 @@ class XoppReader(xml: String) {
                 else -> {}
             }
         }
-        return Layer(elements)
+        return Layer(elements, name)
     }
 
     private fun readStroke(): Stroke {
         val tool = Tool.fromXml(r.attr("tool"))
         val color = XoppColor.parse(r.attr("color"))
         val capStyle = r.attr("capStyle")
+        val lineStyle = LineStyle.fromXml(r.attr("style"))
+        val fill = r.attr("fill")?.toIntOrNull()?.coerceIn(0, 255)
         val widths = (r.attr("width") ?: "").trim().split(WS).filter { it.isNotEmpty() }
             .map { it.toDoubleOrNull() ?: 1.0 }
         val extra = r.attributes()
@@ -114,7 +118,7 @@ class XoppReader(xml: String) {
             i += 2
             p++
         }
-        return Stroke(tool, color, capStyle, points, uniform, extra)
+        return Stroke(tool, color, capStyle, points, uniform, lineStyle, fill, extra)
     }
 
     private fun readText(): TextElement {

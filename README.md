@@ -87,9 +87,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   have nothing to select (OCR for those is planned). The selection is view-only and doesn't change
   the document.
 - **Draw** — the controls live in a **vertical rail down the left edge**. Its buttons — **Tool**,
-  **Colour**, **Size**, **Zoom**, **Pages** — each open a small pop-up anchored to their own button
-  (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with **one finger or
-  the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
+  **Colour**, **Size**, **Style**, **Layers**, **Zoom**, **Pages** — each open a small pop-up anchored
+  to their own button (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with
+  **one finger or the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
   constant-width translucent band** (pressure-independent, ~6× the pen width) that shows the page
   through it — it saves as a `highlighter` stroke and reopens the same way in desktop Xournal++.
   Choose a **colour** (swatches) and a base **width**
@@ -100,12 +100,29 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines that slot's width — drag
   the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at a time, or type an exact
   point size into the **text field**. The custom
-  colour and the three widths are remembered across restarts. New strokes land on the top layer of
-  whichever page you draw on.
-- **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes to delete them; each
-  stroke the eraser touches is removed whole. If your stylus has an **eraser tip** (the flip-over
+  colour and the three widths are remembered across restarts. New strokes land on the **active layer**
+  (see **Layers** below) of whichever page you draw on.
+- **Shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Rectangle**, and **Ellipse**. Pick
+  one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
+  shape commits on release. Shapes are saved as ordinary strokes in the current pen colour and width,
+  so they round-trip to desktop Xournal++ like any other stroke.
+- **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
+  **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** level (None / Light / Medium /
+  Heavy / Solid) that floods the inside of a closed stroke or shape. Both save on the `<stroke>`
+  element (`style` / `fill`) and reopen the same way in desktop Xournal++.
+- **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes. The **Style** pop-up's
+  **Eraser** setting picks the mode: **Standard (partial)** rubs out just the part of a stroke the
+  eraser passes over, splitting it into the surviving pieces; **Delete whole stroke** removes any
+  stroke the eraser touches entirely. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
   (configurable — see **Settings**).
+- **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the
+  page). Each row can **make the layer active** (tap its name — new ink lands there, marked with a
+  filled dot), **show/hide** it in the editor (the eye toggle — hiding is view-only and never changes
+  the file), **reorder** it up/down (z-order), **rename** it, or **delete** it (a page always keeps at
+  least one layer). **Add layer** puts a fresh empty layer on top. With something selected, each row
+  also shows a **move-selection-here** button. Layer names round-trip via the `<layer name>` attribute;
+  every structural change is undoable.
 - **Stylus** — the app is stylus-first. Rest your **palm** on the screen while you write: once the pen
   is down, finger/palm touches are ignored for drawing (a second finger still pans). A hovering stylus
   shows a **preview ring** where the tip will land. Pen **pressure** sets stroke width, with a
@@ -117,7 +134,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   handles:
   - **Drag inside the outline** to move them — drag onto a **different page** to move them there.
   - **Drag a corner handle** to resize (uniform scale).
-  - **Drag the round knob above the top edge** to rotate — shown only when the selection is *all
+  - **Drag the round knob poking out from the right edge** to rotate — shown only when the selection is *all
     strokes* (text and images have no rotation in the `.xopp` format, so they can't be rotated).
   - The floating action bar offers **Cut**, **Copy**, **Duplicate**, a **palette** to recolour and
     a **line-weight** menu to re-width the selection, **Delete**, and **Done** (deselect).

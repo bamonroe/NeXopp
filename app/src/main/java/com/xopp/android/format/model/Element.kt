@@ -18,11 +18,26 @@ enum class Tool(val xml: String) {
 /** One vertex of a stroke: position (pt) and the pen width there (pt). */
 data class StrokePoint(val x: Double, val y: Double, val width: Double)
 
+/** A `<stroke>`'s line pattern (`style` attribute); [PLAIN] is a solid line and omits the attr. */
+enum class LineStyle(val xml: String) {
+    PLAIN("plain"),
+    DASHED("dash"),
+    DASH_DOT("dashdot"),
+    DOTTED("dot");
+
+    companion object {
+        fun fromXml(value: String?): LineStyle =
+            entries.firstOrNull { it.xml == value } ?: PLAIN
+    }
+}
+
 /**
  * A `<stroke>`. The on-disk `width` attribute is either a single value (constant width) or one
  * value per vertex (pressure). [uniformWidth] records which form the source used so we re-emit
- * it faithfully. [extraAttrs] preserves attributes we don't interpret (`ts`, `fn`, future ones)
- * in their original order.
+ * it faithfully. [lineStyle] mirrors the desktop `style` attribute (dashed/dotted patterns);
+ * [fill] is the desktop `fill` alpha (0..255) painted inside a closed stroke, or null for no fill.
+ * [extraAttrs] preserves attributes we don't interpret (`ts`, `fn`, future ones) in their
+ * original order.
  */
 data class Stroke(
     val tool: Tool,
@@ -30,6 +45,8 @@ data class Stroke(
     val capStyle: String?,
     val points: List<StrokePoint>,
     val uniformWidth: Boolean,
+    val lineStyle: LineStyle = LineStyle.PLAIN,
+    val fill: Int? = null,
     val extraAttrs: Map<String, String> = emptyMap(),
 ) : Element
 

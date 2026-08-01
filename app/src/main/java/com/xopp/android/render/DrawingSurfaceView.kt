@@ -20,6 +20,7 @@ import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Element
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
+import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
@@ -34,6 +35,12 @@ import kotlin.math.min
 
 /** What a canvas tap places when a placement tool is active (see [DrawingSurfaceView.placeKind]). */
 enum class PlaceKind { TEXT, IMAGE, TEX }
+
+/** How the eraser removes ink: rub out touched segments, or delete whole strokes. */
+enum class EraserMode { STANDARD, WHOLE_STROKE }
+
+/** One row of the layer panel: the layer's model index (bottom-up), label, visibility, active flag. */
+data class LayerInfo(val index: Int, val label: String, val visible: Boolean, val active: Boolean)
 
 /**
  * Where a placement tap landed: the page and its page-local pt coordinates. [existing] carries the
@@ -68,6 +75,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
     private var current: ArrayList<StrokePoint>? = null
     private var currentPage = 0
+    /** While drawing a shape ([shapeKind] set), the drag anchor in page-local pt and the live flag. */
+    private var shaping = false
+    private var shapeStartX = 0.0
+    private var shapeStartY = 0.0
     /** Pointer id owning the current draw/erase gesture, so a resting palm can't perturb it. */
     private var gesturePointerId = -1
     /** True while a stylus/eraser tip owns the current draw/erase gesture (drives palm rejection). */
@@ -173,6 +184,23 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** When true, the Select tool's marquee is a free-form lasso instead of a rectangle. */
     var lassoMode: Boolean = false
+
+    /** When non-null, a one-finger drag draws this geometric shape instead of a freehand stroke. */
+    var shapeKind: ShapeKind? = null
+    /** Line pattern applied to strokes and shapes this tool draws (dashed/dotted); default solid. */
+    var currentLineStyle: LineStyle = LineStyle.PLAIN
+    /** Fill alpha (0..255) flooded inside strokes/shapes drawn now, or null for no fill. */
+    var currentFill: Int? = null
+    /** How the eraser removes ink: [EraserMode.STANDARD] rubs out touched segments; [EraserMode.WHOLE_STROKE] deletes whole strokes. */
+    var eraserMode: EraserMode = EraserMode.STANDARD
+
+    /** Layer new ink lands on for the visible page; -1 = the top layer. Resolved/clamped per page. */
+    var activeLayerIndex: Int = -1
+        private set
+    /** `(pageIndex, layerIndex)` keys hidden in the editor only — view state, never persisted. */
+    private val hiddenLayers = HashSet<Long>()
+    /** Notified when the layer set / active layer / visibility changes so the chrome can refresh. */
+    var onLayersChanged: (() -> Unit)? = null
 
     /** Notified whenever the selection appears or clears, so the chrome can show contextual actions. */
     var onSelectionChanged: ((Boolean) -> Unit)? = null
@@ -281,12 +309,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrollX = 0f
         selection = null
         onSelectionChanged?.invoke(false)
+        hiddenLayers.clear()
+        activeLayerIndex = -1
         history.clear()
         notifyHistory()
         onPageCountChanged?.invoke(this.doc.pages.size)
         lastReportedPage = -1
         relayout()
         render()
+        onLayersChanged?.invoke()
     }
 
     /** The current working document — every page, layer, and preserved element, ready to save. */
@@ -399,15 +430,96 @@ class DrawingSurfaceView @JvmOverloads constructor(
         history.record(before)
         notifyHistory()
         onPageCountChanged?.invoke(pages.size)
+        // Page indices shifted: layer view-state keyed by page index is no longer valid.
+        hiddenLayers.clear()
+        activeLayerIndex = -1
         // keep the viewport valid, then keep zoom's centre-fraction sane
         relayout()
         scrollY = scrollY.coerceIn(0f, maxScrollY())
         render()
+        onLayersChanged?.invoke()
     }
 
     /** Index of the page nearest the viewport centre — the one add/remove act on. */
     private fun currentPageIndex(): Int =
         layout.pageAt(scrollY + height / 2f)?.index ?: doc.pages.lastIndex.coerceAtLeast(0)
+
+    // --- layers --------------------------------------------------------------------------------
+    // The panel acts on the page nearest the viewport centre ([visiblePageIndex]); layer indices are
+    // bottom-up (0 = bottom z-order, last = top), matching the model. Visibility and the active layer
+    // are view-only editor state; add/delete/rename/reorder/move mutate the document (undoable).
+
+    private fun layerKey(pi: Int, li: Int): Long = (pi.toLong() shl 32) or (li.toLong() and 0xFFFFFFFFL)
+    private fun isLayerHidden(pi: Int, li: Int): Boolean = layerKey(pi, li) in hiddenLayers
+
+    /** The visible page's layers, bottom-up, as UI-facing rows (label / visible / active). */
+    fun visibleLayers(): List<LayerInfo> {
+        val pi = visiblePageIndex()
+        val page = doc.pages.getOrNull(pi) ?: return emptyList()
+        val active = resolvedActiveLayer(page)
+        return page.layers.indices.map { li ->
+            LayerInfo(li, LayerOps.label(page, li), !isLayerHidden(pi, li), li == active)
+        }
+    }
+
+    /** Apply [op] to the visible page's layers as one undoable edit; [after] runs post-commit. */
+    private fun editVisiblePage(resetViewState: Boolean, op: (Page) -> Page, after: () -> Unit = {}) {
+        val before = doc
+        val pi = visiblePageIndex()
+        val page = doc.pages.getOrNull(pi) ?: return
+        val newPage = op(page)
+        if (newPage === page) { after(); onLayersChanged?.invoke(); return }
+        if (resetViewState) hiddenLayers.clear()
+        val pages = doc.pages.toMutableList().also { it[pi] = newPage }
+        doc = doc.copy(pages = pages)
+        history.record(before)
+        notifyHistory()
+        after()
+        relayout()
+        render()
+        onLayersChanged?.invoke()
+    }
+
+    /** Add a fresh empty layer above the top and make it active. */
+    fun addLayer() = editVisiblePage(resetViewState = true, op = {
+        val (p, _) = LayerOps.add(it); p
+    }, after = { activeLayerIndex = -1 /* -1 already resolves to the new top */ })
+
+    /** Delete layer [index] (never the last remaining layer). */
+    fun deleteLayer(index: Int) = editVisiblePage(resetViewState = true, op = { LayerOps.remove(it, index) })
+
+    /** Rename layer [index] ([name] blank clears the custom name). */
+    fun renameLayer(index: Int, name: String) =
+        editVisiblePage(resetViewState = false, op = { LayerOps.rename(it, index, name) })
+
+    /** Reorder layer [from] to position [to] (changes z-order). */
+    fun moveLayer(from: Int, to: Int) =
+        editVisiblePage(resetViewState = true, op = { LayerOps.move(it, from, to) })
+
+    /** Make layer [index] the one new ink lands on (view state; no document change). */
+    fun setActiveLayer(index: Int) {
+        activeLayerIndex = index
+        onLayersChanged?.invoke()
+    }
+
+    /** Show/hide layer [index] in the editor only (view state; content still round-trips). */
+    fun setLayerHidden(index: Int, hidden: Boolean) {
+        val key = layerKey(visiblePageIndex(), index)
+        if (hidden) hiddenLayers += key else hiddenLayers -= key
+        render()
+        onLayersChanged?.invoke()
+    }
+
+    /** Move the current selection onto layer [index] (undoable), keeping it selected there. */
+    fun moveSelectionToLayer(index: Int) {
+        val sel = selection ?: return
+        if (sel.pageIndex != visiblePageIndex()) return
+        editVisiblePage(resetViewState = false, op = { page ->
+            val (newPage, refs) = LayerOps.moveElementsToLayer(page, sel.refs, index)
+            selection = if (refs.isEmpty()) null else ActiveSelection(sel.pageIndex, refs)
+            newPage
+        }, after = { onSelectionChanged?.invoke(selection != null) })
+    }
 
     /** Scroll so page [index]'s top aligns with the viewport top (used by the page navigator). */
     fun goToPage(index: Int) {
@@ -429,6 +541,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (idx != lastReportedPage) {
             lastReportedPage = idx
             onCurrentPageChanged?.invoke(idx)
+            onLayersChanged?.invoke() // the panel tracks the visible page's layers
         }
     }
 
@@ -486,8 +599,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val pages = doc.pages.toMutableList()
         val page = pages.getOrNull(pageIndex) ?: return
         val layers = page.layers.ifEmpty { listOf(Layer(emptyList())) }.toMutableList()
-        val top = layers.lastIndex
-        layers[top] = Layer(layers[top].elements + element)
+        val target = resolvedActiveLayer(page).coerceIn(0, layers.lastIndex)
+        layers[target] = Layer(layers[target].elements + element, layers[target].name)
         pages[pageIndex] = page.copy(layers = layers)
         doc = doc.copy(pages = pages)
         history.record(before)
@@ -507,7 +620,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 changed = true
                 val els = layer.elements.toMutableList()
                 if (new == null) els.removeAt(idx) else els[idx] = new
-                Layer(els)
+                Layer(els, layer.name)
             })
         }
         if (!changed) return
@@ -543,8 +656,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private data class ActiveSelection(val pageIndex: Int, val refs: Set<ElementRef>)
 
     /**
-     * Down in Select mode. With a live selection, a touch near a corner **resizes**, near the top
-     * rotate knob (strokes only) **rotates**, and inside the outline **moves**; otherwise it starts
+     * Down in Select mode. With a live selection, a touch near a corner **resizes**, near the
+     * right-edge rotate knob (strokes only) **rotates**, and inside the outline **moves**; otherwise it starts
      * a new rubber-band (or lasso). The handle hit-tests run in view px against the drawn outline.
      */
     private fun beginSelect(event: MotionEvent) {
@@ -562,11 +675,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.boxes.getOrNull(sel.pageIndex) ?: return false
         val page = doc.pages.getOrNull(sel.pageIndex) ?: return false
         val b = SelectionTester.boundsOf(page, sel.refs) ?: return false
-        // Rotate knob (top-centre), offered only when every selected element is a stroke.
+        // Rotate knob poking out midway from the right edge, offered only when every element is a stroke.
         if (isAllStrokes(sel)) {
-            val midX = ((b.left + b.right) / 2 * box.scale + box.leftPx - scrollX).toFloat()
-            val topY = (b.top * box.scale + box.topPx - scrollY).toFloat() - SELECT_PAD_PX - ROTATE_ARM_PX
-            if (hypot(event.x - midX, event.y - topY) <= HANDLE_HIT_PX) {
+            val midY = ((b.top + b.bottom) / 2 * box.scale + box.topPx - scrollY).toFloat()
+            val rightX = (b.right * box.scale + box.leftPx - scrollX).toFloat() + SELECT_PAD_PX + ROTATE_ARM_PX
+            if (hypot(event.x - rightX, event.y - midY) <= HANDLE_HIT_PX) {
                 beginRotate(event, box, (b.left + b.right) / 2, (b.top + b.bottom) / 2)
                 return true
             }
@@ -1056,13 +1169,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
     private fun abandonInProgress() {
-        current = null; erasing = false; placing = false; banding = false
+        current = null; shaping = false; erasing = false; placing = false; banding = false
         movingSel = false; resizing = false; rotating = false; scrolling = false; textSelecting = false
     }
 
     private fun cancelGesture() {
         stopFling()
-        current = null; scrolling = false; erasing = false; placing = false
+        current = null; shaping = false; scrolling = false; erasing = false; placing = false
         movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
         textSelecting = false
         gesturePointerId = -1; stylusOwner = false
@@ -1070,18 +1183,34 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun startStroke(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
+        shaping = shapeKind != null
         gestureStartDoc = doc
         gesturePointerId = event.getPointerId(pointerIndex)
         val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: run { current = null; return }
         currentPage = box.index
-        current = ArrayList<StrokePoint>().also { addSamples(event, pointerIndex, box, it) }
+        if (shaping) {
+            shapeStartX = ptX(box, event.getX(pointerIndex))
+            shapeStartY = ptY(box, event.getY(pointerIndex))
+            current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, baseWidthPt.toDouble())))
+        } else {
+            current = ArrayList<StrokePoint>().also { addSamples(event, pointerIndex, box, it) }
+        }
     }
 
     private fun extendStroke(event: MotionEvent) {
         val pointerIndex = event.findPointerIndex(gesturePointerId)
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        current?.let { addSamples(event, pointerIndex, box, it); render() }
+        if (shaping) {
+            val ex = ptX(box, event.getX(pointerIndex))
+            val ey = ptY(box, event.getY(pointerIndex))
+            current = ArrayList(
+                ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, baseWidthPt.toDouble()),
+            )
+            render()
+        } else {
+            current?.let { addSamples(event, pointerIndex, box, it); render() }
+        }
     }
 
     /** The eraser: touch/drag deletes any stroke it passes over on the page under the pointer. */
@@ -1105,8 +1234,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
         val px = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
         val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
-        val radius = ERASER_RADIUS_PX / box.scale
-        if (eraseStrokes(currentPage, px, py, radius.toDouble())) render()
+        val radius = (ERASER_RADIUS_PX / box.scale).toDouble()
+        val changed = when (eraserMode) {
+            EraserMode.WHOLE_STROKE -> eraseStrokes(currentPage, px, py, radius)
+            EraserMode.STANDARD -> erasePartial(currentPage, px, py, radius)
+        }
+        if (changed) render()
     }
 
     /** A tap in a placement tool: remember where it went down; a small drag cancels it. */
@@ -1316,9 +1449,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun commitCurrent() {
         val pts = current ?: return
         current = null
+        val wasShaping = shaping
+        shaping = false
         if (pts.size >= 2) {
-            // Highlighter is constant-width → store a single width; the pen keeps its per-vertex pressure.
-            val stroke = Stroke(tool, strokeColor(), "round", pts, uniformWidth = tool == Tool.HIGHLIGHTER)
+            // Highlighter and geometric shapes are constant-width → store a single width; the freehand
+            // pen keeps its per-vertex pressure. Live line-style/fill are baked in so they round-trip.
+            val uniform = tool == Tool.HIGHLIGHTER || wasShaping
+            val stroke = Stroke(
+                tool, strokeColor(), "round", pts, uniform,
+                lineStyle = currentLineStyle, fill = currentFill,
+            )
             appendStroke(currentPage, stroke)
         }
         render()
@@ -1332,16 +1472,49 @@ class DrawingSurfaceView @JvmOverloads constructor(
             colorArgb
         }
 
-    /** Append [stroke] to the top (last) layer of page [pageIndex], rebuilding the model. */
+    /** Append [stroke] to the active (or top) layer of page [pageIndex], rebuilding the model. */
     private fun appendStroke(pageIndex: Int, stroke: Stroke) {
         val pages = doc.pages.toMutableList()
         val page = pages[pageIndex]
         val layers = page.layers.ifEmpty { listOf(Layer(emptyList())) }.toMutableList()
-        val top = layers.lastIndex
-        layers[top] = Layer(layers[top].elements + stroke)
+        val target = resolvedActiveLayer(page).coerceIn(0, layers.lastIndex)
+        layers[target] = Layer(layers[target].elements + stroke, layers[target].name)
         pages[pageIndex] = page.copy(layers = layers)
         doc = doc.copy(pages = pages)
         relayout() // rebuild boxes so they reference the updated pages, not stale ones
+    }
+
+    /** The layer new ink lands on for [page]: [activeLayerIndex] when in range, else the top layer. */
+    private fun resolvedActiveLayer(page: Page): Int =
+        if (activeLayerIndex in page.layers.indices) activeLayerIndex else page.layers.lastIndex
+
+    /**
+     * The standard eraser: rub out only the touched part of each stroke, splitting it into the
+     * surviving pieces ([StrokeEraser]). Returns true if anything on the page changed.
+     */
+    private fun erasePartial(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
+        val page = doc.pages.getOrNull(pageIndex) ?: return false
+        var changed = false
+        val layers = page.layers.map { layer ->
+            var touched = false
+            val rebuilt = ArrayList<Element>(layer.elements.size)
+            for (el in layer.elements) {
+                val pieces = if (el is Stroke) StrokeEraser.erase(el, px, py, radius) else null
+                if (pieces == null) {
+                    rebuilt += el
+                } else {
+                    touched = true
+                    rebuilt += pieces
+                }
+            }
+            if (touched) { changed = true; Layer(rebuilt, layer.name) } else layer
+        }
+        if (!changed) return false
+        val pages = doc.pages.toMutableList()
+        pages[pageIndex] = page.copy(layers = layers)
+        doc = doc.copy(pages = pages)
+        relayout()
+        return true
     }
 
     /** Delete every stroke on page [pageIndex] hit by the eraser disc; returns true if any went. */
@@ -1351,7 +1524,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val layers = page.layers.map { layer ->
             val kept = layer.elements.filterNot { it is Stroke && StrokeHitTester.hits(it, px, py, radius) }
             if (kept.size != layer.elements.size) removed = true
-            if (kept.size == layer.elements.size) layer else Layer(kept)
+            if (kept.size == layer.elements.size) layer else Layer(kept, layer.name)
         }
         if (!removed) return false
         val pages = doc.pages.toMutableList()
@@ -1408,15 +1581,24 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun drawPageElements(canvas: Canvas, box: PageBox) {
+        val hidden = if (hiddenLayers.isEmpty()) {
+            emptySet()
+        } else {
+            box.page.layers.indices.filterTo(HashSet()) { isLayerHidden(box.index, it) }
+        }
         PageRenderer.drawElements(
-            canvas, box.page, box.scale, box.leftPx - scrollX, box.topPx - scrollY, strokePainter, elementRenderer,
+            canvas, box.page, box.scale, box.leftPx - scrollX, box.topPx - scrollY,
+            strokePainter, elementRenderer, hidden,
         )
     }
 
     private fun drawCurrent(canvas: Canvas) {
         val pts = current ?: return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        strokePainter.draw(canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY)
+        strokePainter.draw(
+            canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY,
+            currentLineStyle, currentFill,
+        )
     }
 
     /** Highlight the selected PDF-text word boxes (the same frame as strokes, so it tracks scroll/zoom). */
@@ -1449,12 +1631,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         for (hx in floatArrayOf(l, r)) for (hy in floatArrayOf(t, bot)) {
             canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, handlePaint)
         }
-        // Rotate knob above the top edge (strokes only).
+        // Rotate knob poking out midway from the right edge (strokes only).
         if (isAllStrokes(sel)) {
-            val midX = (l + r) / 2f
-            val knobY = t - ROTATE_ARM_PX
-            canvas.drawLine(midX, t, midX, knobY, handleArmPaint)
-            canvas.drawCircle(midX, knobY, HANDLE_DRAW_PX, handlePaint)
+            val midY = (t + bot) / 2f
+            val knobX = r + ROTATE_ARM_PX
+            canvas.drawLine(r, midY, knobX, midY, handleArmPaint)
+            canvas.drawCircle(knobX, midY, HANDLE_DRAW_PX, handlePaint)
         }
     }
 
@@ -1503,7 +1685,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val MOVE_GRAB_PAD = 8.0
         const val HANDLE_HIT_PX = 30f      // touch radius for grabbing a resize/rotate handle
         const val HANDLE_DRAW_PX = 7f      // drawn radius of a handle dot
-        const val ROTATE_ARM_PX = 40f      // gap from the top edge up to the rotate knob
+        const val ROTATE_ARM_PX = 40f      // gap from the right edge out to the rotate knob
         const val MIN_RESIZE = 0.05        // clamp on the live uniform-resize factor
         const val MAX_RESIZE = 20.0
         const val PASTE_OFFSET_PT = 12.0   // paste/duplicate nudge so copies don't hide the original

@@ -44,14 +44,44 @@ class PdfVectorPainter {
     private fun stroke(cs: PDPageContentStream, s: Stroke, t: PdfPageTransform) {
         val pts = s.points
         if (pts.size < 2) return
+        s.fill?.let { fillPoly(cs, s, t, it) }
         val argb = StrokePainter.renderColor(s.tool, s.color)
         cs.saveGraphicsState()
         cs.setGraphicsStateParameters(alphaState(alpha(argb)))
         cs.setStrokingColor(red(argb), green(argb), blue(argb))
         cs.setLineCapStyle(1) // round
         cs.setLineJoinStyle(1) // round
-        if (s.tool == Tool.HIGHLIGHTER) band(cs, s, t) else pressureLine(cs, s, t)
+        StrokePainter.dashIntervalsPt(s.lineStyle, StrokePainter.bandWidth(pts))?.let {
+            cs.setLineDashPattern(it, 0f)
+        }
+        when {
+            s.lineStyle != com.xopp.android.format.model.LineStyle.PLAIN -> styledLine(cs, s, t)
+            s.tool == Tool.HIGHLIGHTER -> band(cs, s, t)
+            else -> pressureLine(cs, s, t)
+        }
         cs.restoreGraphicsState()
+    }
+
+    /** Flood the closed polyline with the stroke colour at the fill alpha, under the outline. */
+    private fun fillPoly(cs: PDPageContentStream, s: Stroke, t: PdfPageTransform, fill: Int) {
+        val pts = s.points
+        cs.saveGraphicsState()
+        cs.setGraphicsStateParameters(alphaState((fill and 0xFF) / 255f))
+        cs.setNonStrokingColor(red(s.color), green(s.color), blue(s.color))
+        cs.moveTo(t.x(pts[0].x), t.y(pts[0].y))
+        for (i in 1 until pts.size) cs.lineTo(t.x(pts[i].x), t.y(pts[i].y))
+        cs.closePath()
+        cs.fill()
+        cs.restoreGraphicsState()
+    }
+
+    /** A dashed/dotted stroke: one constant-width polyline stroked once with the dash pattern set. */
+    private fun styledLine(cs: PDPageContentStream, s: Stroke, t: PdfPageTransform) {
+        val pts = s.points
+        cs.setLineWidth(StrokePainter.bandWidth(pts).toFloat())
+        cs.moveTo(t.x(pts[0].x), t.y(pts[0].y))
+        for (i in 1 until pts.size) cs.lineTo(t.x(pts[i].x), t.y(pts[i].y))
+        cs.stroke()
     }
 
     /** The pen: a per-segment stroke so the line width can track pressure between vertices. */

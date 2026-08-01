@@ -154,7 +154,7 @@ object SelectionOps {
         val newLayers = if (layers.isEmpty()) {
             listOf(Layer(elements.toList()))
         } else {
-            layers.toMutableList().also { it[topIndex] = Layer(it[topIndex].elements + elements) }
+            layers.toMutableList().also { it[topIndex] = Layer(it[topIndex].elements + elements, it[topIndex].name) }
         }
         val refs = elements.indices.map { ElementRef(topIndex, base + it) }.toSet()
         val out = pages.toMutableList().also { it[pageIndex] = page.copy(layers = newLayers) }
@@ -183,7 +183,7 @@ object SelectionOps {
         val page = pages.getOrNull(pageIndex) ?: return pages
         val layers = page.layers.mapIndexed { li, layer ->
             val kept = layer.elements.filterIndexed { ei, _ -> ElementRef(li, ei) !in refs }
-            if (kept.size == layer.elements.size) layer else Layer(kept)
+            if (kept.size == layer.elements.size) layer else Layer(kept, layer.name)
         }
         return pages.toMutableList().also { it[pageIndex] = page.copy(layers = layers) }
     }
@@ -196,7 +196,7 @@ object SelectionOps {
     ): List<Page> {
         val page = pages.getOrNull(pageIndex) ?: return pages
         val layers = page.layers.mapIndexed { li, layer ->
-            Layer(layer.elements.mapIndexed { ei, el -> transform(li, ei, el) })
+            Layer(layer.elements.mapIndexed { ei, el -> transform(li, ei, el) }, layer.name)
         }
         return pages.toMutableList().also { it[pageIndex] = page.copy(layers = layers) }
     }

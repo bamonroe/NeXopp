@@ -60,11 +60,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.runtime.LaunchedEffect
 import com.xopp.android.format.FontDescription
+import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.EraserMode
 import com.xopp.android.render.InputSettings
+import com.xopp.android.render.LayerInfo
 import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
+import com.xopp.android.render.ShapeKind
 import kotlin.math.roundToInt
 
 /**
@@ -82,10 +86,19 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
         EditorTool.TEXIMAGE -> PlaceKind.TEX
         else -> null
     }
+    shapeKind = when (tool) {
+        EditorTool.LINE -> ShapeKind.LINE
+        EditorTool.ARROW -> ShapeKind.ARROW
+        EditorTool.RECTANGLE -> ShapeKind.RECTANGLE
+        EditorTool.ELLIPSE -> ShapeKind.ELLIPSE
+        else -> null
+    }
     when (tool) {
         EditorTool.PEN -> this.tool = Tool.PEN
         EditorTool.HIGHLIGHTER -> this.tool = Tool.HIGHLIGHTER
         EditorTool.ERASER -> this.tool = Tool.ERASER
+        // Shapes are drawn as ordinary pen strokes; the shapeKind above turns a drag into geometry.
+        EditorTool.LINE, EditorTool.ARROW, EditorTool.RECTANGLE, EditorTool.ELLIPSE -> this.tool = Tool.PEN
         else -> Unit // Hand / authoring tools keep the last drawing tool for when they're turned off
     }
 }
@@ -147,6 +160,10 @@ fun EditorScreen(
     var textItalic by remember { mutableStateOf(false) }
     var textSize by remember { mutableStateOf(TEXT_SIZE_PT) }
     var textColor by remember { mutableStateOf(PEN_COLORS.first()) }
+    var lineStyle by remember { mutableStateOf(LineStyle.PLAIN) }
+    var fill by remember { mutableStateOf<Int?>(null) }
+    var eraserMode by remember { mutableStateOf(EraserMode.STANDARD) }
+    var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
@@ -197,6 +214,21 @@ fun EditorScreen(
                     // Keep the canvas in sync if the slot being resized is the one currently selected.
                     if (width == old) { width = newPt; surface?.baseWidthPt = newPt }
                 },
+                lineStyle = lineStyle,
+                onLineStyle = { lineStyle = it; surface?.currentLineStyle = it },
+                fill = fill,
+                onFill = { fill = it; surface?.currentFill = it },
+                eraserMode = eraserMode,
+                onEraserMode = { eraserMode = it; surface?.eraserMode = it },
+                layers = layers,
+                hasSelection = hasSelection,
+                onAddLayer = { surface?.addLayer() },
+                onDeleteLayer = { surface?.deleteLayer(it) },
+                onRenameLayer = { i, name -> surface?.renameLayer(i, name) },
+                onMoveLayer = { from, to -> surface?.moveLayer(from, to) },
+                onActivateLayer = { surface?.setActiveLayer(it) },
+                onToggleLayerHidden = { i, visible -> surface?.setLayerHidden(i, visible) },
+                onMoveSelectionToLayer = { surface?.moveSelectionToLayer(it) },
                 zoom = zoom,
                 onZoomIn = { surface?.zoomIn() },
                 onZoomOut = { surface?.zoomOut() },
@@ -218,6 +250,11 @@ fun EditorScreen(
                         it.applySettings(settings)
                         it.colorArgb = color
                         it.baseWidthPt = width
+                        it.currentLineStyle = lineStyle
+                        it.currentFill = fill
+                        it.eraserMode = eraserMode
+                        it.onLayersChanged = { layers = it.visibleLayers() }
+                        layers = it.visibleLayers()
                         it.onHistoryChanged = { u, r -> canUndo = u; canRedo = r }
                         it.onZoomChanged = { z -> zoom = z }
                         it.onPageCountChanged = { n -> pageCount = n }

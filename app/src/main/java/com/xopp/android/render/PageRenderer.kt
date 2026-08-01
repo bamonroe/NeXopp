@@ -20,11 +20,16 @@ object PageRenderer {
         offsetY: Float,
         strokes: StrokePainter,
         elements: ElementRenderer,
+        hiddenLayers: Set<Int> = emptySet(),
     ) {
-        for (layer in page.layers) {
+        page.layers.forEachIndexed { li, layer ->
+            if (li in hiddenLayers) return@forEachIndexed
             for (element in layer.elements) {
                 if (element is Stroke) {
-                    strokes.draw(canvas, element.points, element.tool, element.color, scale, offsetX, offsetY)
+                    strokes.draw(
+                        canvas, element.points, element.tool, element.color, scale, offsetX, offsetY,
+                        element.lineStyle, element.fill,
+                    )
                 } else {
                     elements.draw(canvas, element, scale, offsetX, offsetY)
                 }

@@ -20,5 +20,10 @@ data class Page(
     val layers: List<Layer>,
 )
 
-/** A layer is an ordered list of drawables; document order is z-order and must be preserved. */
-data class Layer(val elements: List<Element>)
+/**
+ * A layer is an ordered list of drawables; document order is z-order and must be preserved.
+ * [name] mirrors desktop Xournal++'s optional `<layer name="…">` attribute (null when the source
+ * omitted it). Layer *visibility* is a view-only editor state and is deliberately not stored here,
+ * since the `.xopp` format has no place for it (a hidden layer still round-trips with its content).
+ */
+data class Layer(val elements: List<Element>, val name: String? = null)

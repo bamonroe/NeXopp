@@ -30,5 +30,5 @@ urgency = "normal"
 order = 80
 created = 2026-07-31
 tags = ["pdf", "ocr", "selection"]
-rebuild = true
+rebuild = false
 emulator_debug = false

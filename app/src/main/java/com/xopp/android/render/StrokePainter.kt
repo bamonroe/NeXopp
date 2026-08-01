@@ -1,8 +1,10 @@
 package com.xopp.android.render
 
 import android.graphics.Canvas
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.Tool
 
@@ -11,7 +13,8 @@ import com.xopp.android.format.model.Tool
  * the on-screen [DrawingSurfaceView] and [PdfExporter] so a stroke looks identical live and when
  * flattened. Highlighter strokes render distinctly from the pen: a broad, constant-width band drawn
  * as one translucent path (forced translucent even when the stored colour is opaque), whereas the
- * pen tapers per-segment with pressure.
+ * pen tapers per-segment with pressure. A [LineStyle] other than plain paints the outline as a
+ * single dashed/dotted path (constant width), and a non-null fill floods the closed outline first.
  */
 class StrokePainter {
 
@@ -20,6 +23,9 @@ class StrokePainter {
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
+
+    /** Fills the interior of a closed stroke (shapes / highlighter fill). */
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
 
     /** Reused across highlighter strokes so a translucent band composites in a single pass. */
     private val path = Path()
@@ -32,14 +38,33 @@ class StrokePainter {
         scale: Float,
         offsetX: Float,
         offsetY: Float,
+        lineStyle: LineStyle = LineStyle.PLAIN,
+        fill: Int? = null,
     ) {
         if (pts.size < 2) return
+        if (fill != null) fillOutline(canvas, pts, color, fill, scale, offsetX, offsetY)
         paint.color = renderColor(tool, color)
-        if (tool == Tool.HIGHLIGHTER) {
-            drawBand(canvas, pts, scale, offsetX, offsetY)
-        } else {
-            drawPressureLine(canvas, pts, scale, offsetX, offsetY)
+        when {
+            lineStyle != LineStyle.PLAIN ->
+                drawStyledLine(canvas, pts, lineStyle, scale, offsetX, offsetY)
+            tool == Tool.HIGHLIGHTER -> drawBand(canvas, pts, scale, offsetX, offsetY)
+            else -> drawPressureLine(canvas, pts, scale, offsetX, offsetY)
         }
+    }
+
+    /** Flood the closed polyline with the stroke colour at the fill alpha (drawn under the outline). */
+    private fun fillOutline(
+        canvas: Canvas, pts: List<StrokePoint>, color: Int, fill: Int,
+        scale: Float, offsetX: Float, offsetY: Float,
+    ) {
+        fillPaint.color = (color and 0x00FFFFFF) or ((fill and 0xFF) shl 24)
+        path.rewind()
+        path.moveTo(offsetX + (pts[0].x * scale).toFloat(), offsetY + (pts[0].y * scale).toFloat())
+        for (i in 1 until pts.size) {
+            path.lineTo(offsetX + (pts[i].x * scale).toFloat(), offsetY + (pts[i].y * scale).toFloat())
+        }
+        path.close()
+        canvas.drawPath(path, fillPaint)
     }
 
     /** The pen: each segment is its own line so the width can track pressure between vertices. */
@@ -56,6 +81,28 @@ class StrokePainter {
                 paint,
             )
         }
+    }
+
+    /**
+     * A dashed/dotted stroke: one constant-width [Path] with a [DashPathEffect]. Drawn in a single
+     * pass (not per-segment) so the dash phase runs continuously along the whole polyline instead of
+     * restarting at every vertex. Width is constant (the mean vertex width) — desktop dashed strokes
+     * are uniform-width.
+     */
+    private fun drawStyledLine(
+        canvas: Canvas, pts: List<StrokePoint>, lineStyle: LineStyle,
+        scale: Float, offsetX: Float, offsetY: Float,
+    ) {
+        val w = bandWidth(pts)
+        paint.strokeWidth = w.toFloat() * scale
+        paint.pathEffect = dashEffect(lineStyle, w, scale)
+        path.rewind()
+        path.moveTo(offsetX + (pts[0].x * scale).toFloat(), offsetY + (pts[0].y * scale).toFloat())
+        for (i in 1 until pts.size) {
+            path.lineTo(offsetX + (pts[i].x * scale).toFloat(), offsetY + (pts[i].y * scale).toFloat())
+        }
+        canvas.drawPath(path, paint)
+        paint.pathEffect = null
     }
 
     /**
@@ -87,5 +134,26 @@ class StrokePainter {
             } else {
                 color
             }
+
+        /**
+         * The on/off dash pattern for a [style] in pt, scaled by the stroke [widthPt] so a thick
+         * dashed line has proportionally longer dashes. Dots are a near-zero "on" run rendered as
+         * a blob by the round cap. Null for [LineStyle.PLAIN]. Pure — reused by the PDF exporter.
+         */
+        fun dashIntervalsPt(style: LineStyle, widthPt: Double): FloatArray? {
+            val u = maxOf(widthPt, 0.5).toFloat()
+            return when (style) {
+                LineStyle.PLAIN -> null
+                LineStyle.DASHED -> floatArrayOf(4f * u, 3f * u)
+                LineStyle.DASH_DOT -> floatArrayOf(4f * u, 3f * u, 0.01f * u, 3f * u)
+                LineStyle.DOTTED -> floatArrayOf(0.01f * u, 2.5f * u)
+            }
+        }
+
+        /** The [dashIntervalsPt] pattern scaled to screen px by [scale], as an Android effect. */
+        fun dashEffect(style: LineStyle, widthPt: Double, scale: Float): DashPathEffect? {
+            val pt = dashIntervalsPt(style, widthPt) ?: return null
+            return DashPathEffect(FloatArray(pt.size) { pt[it] * scale }, 0f)
+        }
     }
 }
