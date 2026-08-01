@@ -232,9 +232,19 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Save** — the menu's **Save** writes the whole document back out as a `.xopp` file (gzip + XML),
   preserving every page, layer, background, and element — strokes plus the text, images, and LaTeX
   images you authored on-device. For a PDF-backed document, the reference to the source PDF is
-  written by absolute path (domain `absolute`), so reopening the `.xopp` reloads that PDF. (Bundling
-  the PDF into a portable, self-contained project — the `attach` domain — is a planned **Save As**
-  option; see `TODO.toml`.)
+  written by absolute path (domain `absolute`), so reopening the `.xopp` reloads that PDF.
+
+- **Save As…** — the menu's **Save As…** opens a dialog to name the file and, for a PDF-backed
+  document, choose how its PDF background is referenced:
+  - **Link (absolute)** — same as plain Save: the `.xopp` points at the source PDF where it lives.
+  - **Attach (portable)** — bundles a copy of the PDF next to the `.xopp` so the document is
+    self-contained and moves as a pair. You pick a **folder** (not a single file), and Xopp writes
+    both `yourname.xopp` and `yourname.xopp.bg.pdf` into it — the naming desktop Xournal++ expects
+    for an attached background, so the pair opens correctly on desktop. *(Reopening an attached
+    document in Xopp itself currently leaves those pages blank — Xopp needs the folder to find the
+    sibling PDF, which the single-file Open picker doesn't provide; open it on desktop, or use the
+    absolute reference, to see the PDF. See `TODO.toml`.)* The domain choice is hidden for a plain
+    `.xopp` with no PDF background, which saves the same either way.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 

@@ -342,6 +342,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** True when the PDF has a usable text layer, so the chrome can enable the text-select tool. */
     fun hasPdfText(): Boolean = pdfTextIndex?.hasAnyText == true
 
+    /** The on-disk PDF backing this document's `pdf` backgrounds, or null when there is none. */
+    fun pdfSourceFile(): java.io.File? = pdfSource?.source
+
     /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
     fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource).export(doc, out)
 

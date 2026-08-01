@@ -104,7 +104,20 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 - `type="pdf"`: `filename` (PDF path/URI), `pageno` (**1-based** PDF page index, matching desktop
   Xournal++'s `SaveHandler`; converted to/from the 0-based `Background.Pdf.pageNo` used internally
   to index Android's `PdfRenderer` — see `XoppReader`/`XoppWriter`); `domain` on the first pdf
-  background of the doc.
+  background of the doc. The `domain` selects how the PDF is referenced (chosen in the "Save As"
+  dialog, applied by `documentWithPdfDomain` in `render/PdfBackgroundDomain.kt`):
+  - `domain="absolute"` — `filename` is the PDF's path/URI; the .xopp links to it in place (the
+    plain-Save default). *(For a gzip .xopp, desktop treats a relative `filename` as relative to the
+    .xopp's folder and an absolute one as-is; we record the picked PDF's `content://` URI here.)*
+  - `domain="attach"` — the PDF is bundled beside the .xopp so the document is self-contained. The
+    `filename` is the literal `bg.pdf`; the actual copy is saved as `<xoppname>.bg.pdf`, which both
+    apps resolve as `<xoppPath> + "." + filename` (desktop `LoadHandler::getAbsoluteFilepath`). On
+    Android this writes two files into a picked folder (`MainActivity.saveAttached`). *(Reopening an
+    attached document **in this app** shows those pages blank — resolving the sibling needs the
+    folder, which the single-file open picker can't supply; desktop resolves it correctly. See
+    `TODO.toml`.)*
+  - `domain="clone"` is **pixmap-only** in desktop Xournal++ (it reuses an earlier background image
+    by id) and is never written for a PDF background, so the Save As dialog does not offer it.
 
 **`<layer>`** — optional `name` (desktop's `<layer name="Layer 1">`; preserved on round-trip, null
 when omitted). Children in document order: any mix of `<stroke>`, `<text>`, `<image>`, `<teximage>`.

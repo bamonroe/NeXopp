@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -40,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -62,6 +64,8 @@ import androidx.compose.runtime.LaunchedEffect
 import com.xopp.android.format.FontDescription
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
+import com.xopp.android.render.ABSOLUTE_DOMAIN
+import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.EraserMode
 import com.xopp.android.render.InputSettings
@@ -125,6 +129,7 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
 fun EditorScreen(
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onSaveAs: (filename: String, domain: String) -> Unit,
     onImportPdf: () -> Unit,
     onExportPdf: () -> Unit,
     onPickImage: (Placement) -> Unit,
@@ -145,6 +150,7 @@ fun EditorScreen(
     var canUndo by remember { mutableStateOf(false) }
     var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showSaveAs by remember { mutableStateOf(false) }
     // Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar.
     var fullPage by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
@@ -183,6 +189,7 @@ fun EditorScreen(
                         OverflowMenu(
                             onOpen = onOpen,
                             onSave = onSave,
+                            onSaveAs = { showSaveAs = true },
                             onImportPdf = onImportPdf,
                             onExportPdf = onExportPdf,
                             onSettings = { showSettings = true },
@@ -398,6 +405,13 @@ fun EditorScreen(
                 onDismiss = { texPlacement = null },
             )
         }
+        if (showSaveAs) {
+            SaveAsDialog(
+                hasPdfBackground = surface?.pdfSourceFile() != null,
+                onConfirm = { filename, domain -> showSaveAs = false; onSaveAs(filename, domain) },
+                onDismiss = { showSaveAs = false },
+            )
+        }
     }
 }
 
@@ -573,6 +587,75 @@ private fun TextInputDialog(
     )
 }
 
+/**
+ * "Save As" chooser: name the file and, for a PDF-backed document, pick how its PDF background is
+ * referenced on disk — `absolute` links to the PDF where it lives, `attach` bundles a copy beside
+ * the .xopp so the document is self-contained and portable (see `docs/architecture.md`). The domain
+ * row is hidden for a plain .xopp, which saves identically either way.
+ */
+@Composable
+private fun SaveAsDialog(
+    hasPdfBackground: Boolean,
+    onConfirm: (filename: String, domain: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("document.xopp") }
+    var domain by remember { mutableStateOf(ABSOLUTE_DOMAIN) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Save As") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("File name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (hasPdfBackground) {
+                    Text("PDF background", style = MaterialTheme.typography.labelMedium)
+                    DomainOption(
+                        selected = domain == ABSOLUTE_DOMAIN,
+                        title = "Link (absolute)",
+                        subtitle = "Reference the PDF where it lives on disk.",
+                        onClick = { domain = ABSOLUTE_DOMAIN },
+                    )
+                    DomainOption(
+                        selected = domain == ATTACH_DOMAIN,
+                        title = "Attach (portable)",
+                        subtitle = "Bundle a copy of the PDF beside the .xopp; pick a folder next.",
+                        onClick = { domain = ATTACH_DOMAIN },
+                    )
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(name, domain) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** One selectable PDF-domain row in [SaveAsDialog]: a radio plus a title and one-line explanation. */
+@Composable
+private fun DomainOption(
+    selected: Boolean,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Column {
+            Text(title)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
 /** Default point size for a newly authored text box, and the slider bounds for editing it. */
 private const val TEXT_SIZE_PT = 12.0
 private const val TEXT_SIZE_MIN = 6f
@@ -678,6 +761,7 @@ private fun TextSwatch(color: Int, selected: Boolean, onClick: () -> Unit) {
 private fun OverflowMenu(
     onOpen: () -> Unit,
     onSave: () -> Unit,
+    onSaveAs: () -> Unit,
     onImportPdf: () -> Unit,
     onExportPdf: () -> Unit,
     onSettings: () -> Unit,
@@ -706,6 +790,11 @@ private fun OverflowMenu(
             text = { Text("Save") },
             leadingIcon = { Icon(Icons.Filled.Save, contentDescription = null) },
             onClick = { open = false; onSave() },
+        )
+        DropdownMenuItem(
+            text = { Text("Save As…") },
+            leadingIcon = { Icon(Icons.Filled.SaveAs, contentDescription = null) },
+            onClick = { open = false; onSaveAs() },
         )
         DropdownMenuItem(
             text = { Text("Settings") },

@@ -3,6 +3,8 @@ package com.xopp.android
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.DocumentsContract
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,8 +16,11 @@ import androidx.compose.runtime.setValue
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.xopp.android.format.Xopp
 import com.xopp.android.format.model.Background
+import com.xopp.android.render.ATTACH_DOMAIN
+import com.xopp.android.render.ATTACH_PDF_FILENAME
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PdfImport
+import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
 import com.xopp.android.render.Placement
@@ -36,6 +41,9 @@ class MainActivity : ComponentActivity() {
     /** Where a pending image-insert tap landed, kept until the SAF picker returns the image bytes. */
     private var pendingImagePlacement: Placement? = null
 
+    /** The file name chosen in the Save As dialog, kept until the folder picker (attach) returns. */
+    private var pendingSaveName: String = "document.xopp"
+
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let(::insertPickedImage)
@@ -49,6 +57,13 @@ class MainActivity : ComponentActivity() {
     private val saveLauncher =
         registerForActivityResult(ActivityResultContracts.CreateDocument(XOPP_MIME)) { uri ->
             uri?.let(::saveDocument)
+        }
+
+    // "Save As … / Attach" writes two files (the .xopp plus its bundled PDF) into one folder, so it
+    // needs a tree grant the single-file CreateDocument picker can't give (no sibling access).
+    private val saveAttachLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+            treeUri?.let(::saveAttached)
         }
 
     private val importPdfLauncher =
@@ -72,6 +87,7 @@ class MainActivity : ComponentActivity() {
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
                     onSave = { saveLauncher.launch("document.xopp") },
+                    onSaveAs = ::beginSaveAs,
                     onImportPdf = { importPdfLauncher.launch(arrayOf(PDF_MIME)) },
                     onExportPdf = { exportPdfLauncher.launch("document.pdf") },
                     onPickImage = { placement ->
@@ -172,6 +188,56 @@ class MainActivity : ComponentActivity() {
             Xopp.save(doc, output)
         }
     }.onFailure { toast("Save failed: ${it.message}") }
+
+    /**
+     * Route a Save As choice to the right SAF flow. `absolute` (and any plain document) saves one
+     * file through the normal picker; `attach` bundles the PDF, so it needs a folder to drop both
+     * the `.xopp` and its sibling PDF into. Attach with no PDF background degrades to a plain save.
+     */
+    private fun beginSaveAs(filename: String, domain: String) {
+        pendingSaveName = filename
+        if (domain == ATTACH_DOMAIN && surface?.pdfSourceFile() != null) {
+            saveAttachLauncher.launch(null)
+        } else {
+            saveLauncher.launch(filename)
+        }
+    }
+
+    /**
+     * Save a self-contained copy into the chosen folder: the `.xopp` (with `domain="attach"`) plus a
+     * copy of its background PDF named `<xoppname>.bg.pdf`, so desktop Xournal++ resolves the pair as
+     * `<xoppPath> + "." + "bg.pdf"` (see `docs/architecture.md`). The sibling name is derived from the
+     * `.xopp`'s actual on-disk name in case the provider deduplicated it.
+     */
+    private fun saveAttached(treeUri: Uri) = runCatching {
+        val view = surface ?: return@runCatching
+        val pdfFile = view.pdfSourceFile() ?: error("no PDF background to attach")
+        val doc = documentWithPdfDomain(view.toDocument(), ATTACH_DOMAIN)
+        val treeDocId = DocumentsContract.getTreeDocumentId(treeUri)
+        val dirUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, treeDocId)
+
+        val xoppUri = DocumentsContract.createDocument(contentResolver, dirUri, XOPP_MIME, pendingSaveName)
+            ?: error("could not create ${pendingSaveName}")
+        contentResolver.openOutputStream(xoppUri, "w").use { output ->
+            requireNotNull(output) { "could not write ${pendingSaveName}" }
+            Xopp.save(doc, output)
+        }
+
+        val siblingName = "${displayName(xoppUri) ?: pendingSaveName}.$ATTACH_PDF_FILENAME"
+        val pdfUri = DocumentsContract.createDocument(contentResolver, dirUri, PDF_MIME, siblingName)
+            ?: error("could not create $siblingName")
+        contentResolver.openOutputStream(pdfUri, "w").use { output ->
+            requireNotNull(output) { "could not write $siblingName" }
+            pdfFile.inputStream().use { it.copyTo(output) }
+        }
+        toast("Saved ${pendingSaveName} with attached PDF")
+    }.onFailure { toast("Save failed: ${it.message}") }
+
+    /** The on-disk display name a SAF document ended up with (the provider may have deduplicated it). */
+    private fun displayName(uri: Uri): String? =
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 

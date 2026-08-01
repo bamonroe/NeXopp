@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "save-as-dialog-choose-pdf-background-domain-absolute-attach-clone"
+title = "Save As dialog: choose PDF background domain (absolute/attach/clone)"
+description = "Add a Save As action that opens a dialog letting the user pick how the PDF background is referenced: absolute (path on disk), attach (bundle the PDF with the .xopp so it is self-contained/portable), or clone. Save As absolute matches the plain-Save default."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = []
+
+[[task]]
 id = "pdf-background-pageno-is-0-based-desktop-xournal-is-1-based-off-by-one"
 title = "PDF background pageno is 0-based; desktop Xournal++ is 1-based (off-by-one)"
 description = "Our XoppReader/XoppWriter and PdfImport treat the <background pageno> as 0-based (PdfImport sets pageNo=i, pdfBitmapFor calls PdfRenderer.openPage(pageNo) which is 0-based, writer emits pageNo as-is). Desktop Xournal++ writes 1-based (SaveHandler: p->getPdfPageNr()+1) and reads 1-based. Result: PDF-backed .xopp files do not round-trip faithfully cross-platform — a file saved here opens off-by-one on desktop, and a desktop file opens shifted here. Fix by converting at the file boundary: reader pageNo = pageno-1, writer pageno = pageNo+1, keep internal 0-based. Update PdfBackgroundRoundTripTest (currently asserts 0-based on-disk) and add a cross-convention test."
