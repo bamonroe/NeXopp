@@ -19,3 +19,81 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "tune-pressure-curve-and-stroke-smoothing"
+title = "Tune pressure curve and stroke smoothing"
+description = "Match desktop Xournal++ stroke appearance: tune the MotionEvent pressure-to-width mapping and add point smoothing/simplification so handwriting looks the same on Android as on Linux."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 10
+created = 2026-08-01
+tags = ["stylus", "fidelity"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "eraser-mode-whole-stroke-and-partial-erase"
+title = "Eraser mode: whole-stroke and partial erase"
+description = "Proper eraser tool with both delete-whole-stroke and partial (split stroke) erase, matching desktop Xournal++ eraser behavior; erased results must round-trip through .xopp."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-01
+tags = ["tools"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "undo-redo-stack-with-adequate-depth"
+title = "Undo/redo stack with adequate depth"
+description = "Add an undo/redo history covering strokes, page add/delete, and text edits, with a reasonable depth limit and UI buttons."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-01
+tags = ["editing"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "pen-palette-presets-and-recent-colors"
+title = "Pen palette presets and recent colors"
+description = "Color/width presets plus a recently-used colors row in the pen picker, persisted across sessions."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 40
+created = 2026-08-01
+tags = ["ui"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "speed-up-rendering-of-long-pdf-backed-documents"
+title = "Speed up rendering of long PDF-backed documents"
+description = "Profile and improve page rendering/caching so scrolling long PDF-annotated documents stays smooth; avoid re-rasterizing pages already drawn."
+status = "active"
+category = "refactor"
+urgency = "normal"
+order = 50
+created = 2026-08-01
+tags = ["performance"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "round-trip-test-save-reload-xml-equality"
+title = "Round-trip test: save/reload XML equality"
+description = "Unit test that loads a .xopp, saves it, and asserts the emitted XML matches the source (normalized), so format drift fails the build."
+status = "active"
+category = "test"
+urgency = "normal"
+order = 60
+created = 2026-08-01
+tags = ["format"]
+rebuild = true
+emulator_debug = false
