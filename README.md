@@ -179,9 +179,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   page immediately (an undoable edit) and round-trips via the `<background style>` attribute. On a
   **PDF** or image-backed page there's no solid sheet to re-rule, so the items are disabled.
 - **Pages** — the document button on the rail opens the **page navigator**: it shows **Page N / M**
-  with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page inheriting the
-  current page's size and background, after the one in view) and **Remove page** (the one in view;
-  the last page is never removed). Add and remove are undoable.
+  with **◀ / ▶** to jump to the previous/next page, plus **Add page** (a blank page after the one in
+  view — it keeps the current page's size and paper ruling, but a **PDF/image background is dropped to
+  a plain white sheet** so the new page is genuinely blank, not a copy of the page underneath) and
+  **Remove page** (the one in view; the last page is never removed). Add and remove are undoable.
   - **Page size…** — the last row shows the page-in-view's size (a preset name like **A4**, or its
     dimensions) and opens a **Page size** dialog: pick a preset (**A4 / A5 / Letter / Legal**), or type
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**

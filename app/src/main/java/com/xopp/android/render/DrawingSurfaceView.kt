@@ -410,7 +410,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // --- pages ---------------------------------------------------------------------------------
 
-    /** Insert a blank page (same size/background as the current one) after the page in view. */
+    /** Insert a blank page after the page in view (see [PageOps.addAfter]: keeps size and solid ruling,
+     *  drops a PDF/pixmap background to a plain sheet so it isn't a duplicate). */
     fun addPage() {
         val at = currentPageIndex()
         editPages(PageOps.addAfter(doc.pages, at))

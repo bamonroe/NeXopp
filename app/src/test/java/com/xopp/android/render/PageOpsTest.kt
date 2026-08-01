@@ -18,7 +18,7 @@ class PageOpsTest {
         if (withStroke) listOf(Layer(listOf(Stroke(Tool.PEN, 0, "round", listOf(StrokePoint(1.0, 1.0, 1.0), StrokePoint(2.0, 2.0, 1.0)), uniformWidth = false)))) else listOf(Layer(emptyList())),
     )
 
-    @Test fun addAfterInsertsBlankPageInheritingSizeAndBackground() {
+    @Test fun addAfterInsertsBlankPageInheritingSizeAndSolidRuling() {
         val pages = listOf(page(100.0, "graph", withStroke = true), page(300.0, "lined"))
         val out = PageOps.addAfter(pages, 0)
         assertEquals(3, out.size)
@@ -26,7 +26,18 @@ class PageOpsTest {
         assertSame(pages[1], out[2])
         val fresh = out[1]
         assertEquals("inherits width", 100.0, fresh.width, 1e-9)
-        assertEquals("inherits background style", "graph", (fresh.background as Background.Solid).style)
+        assertEquals("inherits solid ruling", "graph", (fresh.background as Background.Solid).style)
+        assertTrue("new page is empty", fresh.layers.single().elements.isEmpty())
+    }
+
+    @Test fun addAfterDropsPdfBackgroundToPlainSheet() {
+        // A PDF-backed page: the blank successor must NOT re-show the same PDF page (a "duplicate").
+        val pdfPage = Page(400.0, 600.0, Background.Pdf(filename = "doc.pdf", pageNo = 3, domain = "absolute"), listOf(Layer(emptyList())))
+        val fresh = PageOps.addAfter(listOf(pdfPage), 0)[1]
+        assertEquals("keeps the page size", 400.0, fresh.width, 1e-9)
+        val bg = fresh.background as Background.Solid
+        assertEquals("PDF background becomes a plain sheet", "plain", bg.style)
+        assertEquals("plain sheet is white", 0xFFFFFFFF.toInt(), bg.color)
         assertTrue("new page is empty", fresh.layers.single().elements.isEmpty())
     }
 

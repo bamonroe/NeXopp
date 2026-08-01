@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-page-should-insert-a-blank-page-not-duplicate-the-current-one"
+title = "Add-page should insert a blank page, not duplicate the current one"
+description = "'Add page' visually duplicates the current page instead of inserting a blank one. Root cause: PageOps.addAfter (PageOps.kt:15-20) does pages[i].copy(layers = emptyLayer), which clears ink but inherits the source Background verbatim — including width/height AND, critically, a Background.Pdf(pageNo=N), so the new page re-renders the identical PDF page underneath. Fix: give the new page a blank solid background (Background.Solid(0xFFFFFFFF.toInt(), <default style>)) rather than copying a PDF/pixmap background; keep width/height (usually desired) but drop the inherited pdf pageNo. Consider a 'new page type' setting like desktop Xournal++ (blank default / copy current style / plain) and default it to blank. Update PageOpsTest.kt (it currently pins the duplicate behavior) and DrawingSurfaceView.kt:414 + PageOps.kt:8-11 doc comments. Depends conceptually on background-style-picker/page-sizes for the default it uses."
+status = "finished"
+category = "bug"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["pages"]
+
+[[task]]
 id = "custom-preset-page-sizes"
 title = "Custom & preset page sizes"
 description = "Add page-size selection. Page.width/height (points, 1/72in) already round-trip via XoppReader/XoppWriter (<page width= height=>), but there is no UI to set them — every page inherits size from the source page. Implement: a page-format control offering desktop Xournal++ presets (A4 595x842, A5 420x595, Letter 612x792, Legal 612x1008, plus custom width/height in mm/in) and applying the chosen dimensions to a new/current page via an editPages mutation on DrawingSurfaceView. Best combined with the background-style picker into one 'Page format' dialog reachable from the Pages popup (SideToolbar.kt). Also feed the chosen default size into the blank-page insert (see insert-blank-page task). Verify sizes survive save->reopen in desktop Xournal++."
