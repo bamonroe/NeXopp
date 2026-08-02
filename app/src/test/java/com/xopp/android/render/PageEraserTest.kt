@@ -56,8 +56,15 @@ class PageEraserTest {
         assertTrue(out.layers[0] === keep)
     }
 
-    @Test fun eraserSizesAreOrderedFineToThick() {
-        assertTrue(EraserSize.FINE.radiusPt < EraserSize.MEDIUM.radiusPt)
-        assertTrue(EraserSize.MEDIUM.radiusPt < EraserSize.THICK.radiusPt)
+    /** The eraser has no size scheme of its own: a thicker pen slot must mean a wider rubber. */
+    @Test fun eraserTipGrowsWithThePenTip() {
+        assertTrue(eraserRadiusPt(0.85f) < eraserRadiusPt(1.5f))
+        assertTrue(eraserRadiusPt(1.5f) < eraserRadiusPt(2.6f))
+    }
+
+    /** …and it is always wider than the ink it rubs out, however hair-thin the pen slot is. */
+    @Test fun eraserTipStaysAimableForAThinPen() {
+        assertTrue(eraserRadiusPt(0.1f) >= ERASER_RADIUS_MIN_PT)
+        assertTrue(eraserRadiusPt(1.5f) > 1.5)
     }
 }

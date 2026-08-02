@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Functions
@@ -44,6 +45,7 @@ import androidx.compose.material.icons.filled.HorizontalRule
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.PanTool
+import androidx.compose.material.icons.filled.Polyline
 import androidx.compose.material.icons.filled.Rectangle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Remove
@@ -87,12 +89,11 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
-import com.xopp.android.render.EraserMode
 import com.xopp.android.render.GuideKind
-import com.xopp.android.render.EraserSize
 import com.xopp.android.render.LayerInfo
 import kotlin.math.roundToInt
 
@@ -127,7 +128,7 @@ val PEN_COLORS: List<Int> = listOf(
  * (see [com.xopp.android.render.PlaceKind]).
  */
 enum class EditorTool {
-    PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
+    PEN, HIGHLIGHTER, ERASER, ERASER_WHOLE, HAND, SELECT, LASSO_SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
     LINE, ARROW, DOUBLE_ARROW, COORDINATE_AXIS, RECTANGLE, ELLIPSE, SPLINE, VERTICAL_SPACE,
     PLAY_OBJECT,
 }
@@ -143,7 +144,8 @@ private data class ToolInfo(val tool: EditorTool, val label: String, val icon: I
 private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.PEN, "Pen", Icons.Filled.Create),
     ToolInfo(EditorTool.HIGHLIGHTER, "Highlighter", Icons.Filled.Brush),
-    ToolInfo(EditorTool.ERASER, "Eraser", Icons.Filled.Delete),
+    ToolInfo(EditorTool.ERASER, "Eraser (partial)", Icons.Filled.Delete),
+    ToolInfo(EditorTool.ERASER_WHOLE, "Eraser (whole stroke)", Icons.Filled.DeleteSweep),
     ToolInfo(EditorTool.LINE, "Line", Icons.Filled.HorizontalRule),
     ToolInfo(EditorTool.ARROW, "Arrow", Icons.Filled.ArrowRightAlt),
     ToolInfo(EditorTool.DOUBLE_ARROW, "Double arrow", Icons.Filled.SwapHoriz),
@@ -152,7 +154,8 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.ELLIPSE, "Ellipse", Icons.Filled.RadioButtonUnchecked),
     ToolInfo(EditorTool.SPLINE, "Spline", Icons.Filled.Gesture),
     ToolInfo(EditorTool.HAND, "Hand (pan)", Icons.Filled.PanTool),
-    ToolInfo(EditorTool.SELECT, "Select", Icons.Filled.HighlightAlt),
+    ToolInfo(EditorTool.SELECT, "Select rectangle", Icons.Filled.HighlightAlt),
+    ToolInfo(EditorTool.LASSO_SELECT, "Select lasso", Icons.Filled.Polyline),
     ToolInfo(EditorTool.TEXT_SELECT, "Select text (PDF)", Icons.Filled.SelectAll),
     ToolInfo(EditorTool.TEXT, "Text", Icons.Filled.TextFields),
     ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
@@ -201,10 +204,6 @@ fun SideToolbar(
     onLineStyle: (LineStyle) -> Unit,
     fill: Int?,
     onFill: (Int?) -> Unit,
-    eraserMode: EraserMode,
-    onEraserMode: (EraserMode) -> Unit,
-    eraserSize: EraserSize,
-    onEraserSize: (EraserSize) -> Unit,
     recognizeShapes: Boolean = false,
     onRecognizeShapes: (Boolean) -> Unit = {},
     guideKind: GuideKind,
@@ -253,9 +252,7 @@ fun SideToolbar(
             } else when (item.id) {
                 "color" -> ColorPopupButton(color, onColor, customColor, onRedefineCustom, recentColors)
                 "size" -> SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
-                "style" -> StylePopupButton(
-                    lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize,
-                )
+                "style" -> StylePopupButton(lineStyle, onLineStyle, fill, onFill)
                 "shapes" -> ShapeRecognitionButton(recognizeShapes, onRecognizeShapes)
                 "guides" -> GuidePopupButton(guideKind, onGuideKind)
                 "layers" -> LayersPopupButton(
@@ -410,11 +407,38 @@ private fun ColorPopupButton(
     }
 }
 
+/** The box a tip dot is drawn in, and the largest dot that fits comfortably inside it. */
+private val TIP_DOT_BOX: Dp = 28.dp
+private val TIP_DOT_MAX: Dp = 22.dp
+
+/** The smallest a tip dot is drawn, so a hair-thin slot is still a visible target. */
+private val TIP_DOT_MIN: Dp = 5.dp
+
 /**
- * The pen-size slot picker: three configurable width slots ([widthSlots], labelled S/M/L). A tap
- * selects a slot's width; a **long-press** opens a [WidthSlotSliderDialog] that redefines that slot's
- * width (the parent persists it via [onRedefineSlot]). The button face shows the active slot's label,
- * or "?" when the active width matches no slot (e.g. right after a re-width).
+ * A filled dot standing for a pen tip of [pt], sized *relatively*: the widest slot on offer
+ * ([maxPt]) draws at [TIP_DOT_MAX] and everything else in proportion, so the set reads as a size
+ * ladder and the biggest still sits inside its box instead of overflowing it. Letters (S/M/L) can't
+ * do this job any more — the three slots are arbitrary user-set widths, so only the drawn size says
+ * how thick the line will be.
+ */
+@Composable
+private fun TipDot(pt: Float, maxPt: Float, tint: Color) {
+    val diameter = if (maxPt <= 0f) TIP_DOT_MIN
+    else (TIP_DOT_MAX * (pt / maxPt)).coerceIn(TIP_DOT_MIN, TIP_DOT_MAX)
+    Box(modifier = Modifier.size(TIP_DOT_BOX), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(diameter).clip(CircleShape).background(tint))
+    }
+}
+
+/**
+ * The pen-size slot picker: three configurable width slots ([widthSlots]), each shown as a [TipDot]
+ * scaled to its width. A tap selects a slot's width; a **long-press** opens a
+ * [WidthSlotSliderDialog] that redefines that slot's width (the parent persists it via
+ * [onRedefineSlot]). The button face is a dot for the active width, whether or not it matches a slot
+ * (it won't right after a re-width of a selection).
+ *
+ * The same slots size the **eraser** — its radius is derived from the pen width
+ * (see [com.xopp.android.render.eraserRadiusPt]), so this one popup is the whole tip-size story.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -426,11 +450,11 @@ private fun SizePopupButton(
 ) {
     var open by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(-1) }
-    val currentLabel = widthSlots.indexOfFirst { it == width }
-        .let { if (it >= 0) PEN_WIDTH_LABELS[it] else "?" }
+    // Scale against the active width too, so a width bigger than every slot still fits its box.
+    val maxPt = (widthSlots + width).maxOrNull() ?: width
     Box {
-        TextButton(onClick = { open = true }) {
-            Text(currentLabel)
+        IconButton(onClick = { open = true }) {
+            TipDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             Text(
@@ -446,10 +470,12 @@ private fun SizePopupButton(
                             onClick = { onWidth(pt); open = false },
                             onLongClick = { editing = i; open = false },
                         )
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("${PEN_WIDTH_LABELS[i]}  (${ptLabel(pt)} pt)")
+                    TipDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
+                    Spacer(Modifier.width(12.dp))
+                    Text("${ptLabel(pt)} pt")
                     if (pt == width) {
                         Spacer(Modifier.width(8.dp))
                         Icon(Icons.Filled.Check, contentDescription = "selected")
@@ -888,9 +914,10 @@ private val LINE_STYLE_LABELS: List<Pair<LineStyle, String>> = listOf(
 const val DEFAULT_FILL_ALPHA: Int = 128
 
 /**
- * The line-style / fill / eraser-mode pop-up. Line style and fill apply to strokes and shapes drawn
- * next (they round-trip via the `<stroke>` `style`/`fill` attributes); the eraser mode chooses
- * between rubbing out touched segments and deleting whole strokes.
+ * The line-style / fill pop-up. Both apply to strokes and shapes drawn next, and round-trip via the
+ * `<stroke>` `style`/`fill` attributes. The eraser's mode and size used to live here too; they now
+ * belong to the eraser itself — its mode is a long-press choice on the rail's eraser slot, and its
+ * size follows the pen's tip sizes (see [com.xopp.android.render.eraserRadiusPt]).
  */
 @Composable
 private fun StylePopupButton(
@@ -898,10 +925,6 @@ private fun StylePopupButton(
     onLineStyle: (LineStyle) -> Unit,
     fill: Int?,
     onFill: (Int?) -> Unit,
-    eraserMode: EraserMode,
-    onEraserMode: (EraserMode) -> Unit,
-    eraserSize: EraserSize,
-    onEraserSize: (EraserSize) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
@@ -919,25 +942,6 @@ private fun StylePopupButton(
             }
             MenuHeading("Fill")
             FillControls(fill, onFill)
-            MenuHeading("Eraser")
-            DropdownMenuItem(
-                text = { Text("Standard (partial)") },
-                trailingIcon = { if (eraserMode == EraserMode.STANDARD) Icon(Icons.Filled.Check, contentDescription = "selected") },
-                onClick = { onEraserMode(EraserMode.STANDARD) },
-            )
-            DropdownMenuItem(
-                text = { Text("Delete whole stroke") },
-                trailingIcon = { if (eraserMode == EraserMode.WHOLE_STROKE) Icon(Icons.Filled.Check, contentDescription = "selected") },
-                onClick = { onEraserMode(EraserMode.WHOLE_STROKE) },
-            )
-            MenuHeading("Eraser size")
-            for (size in EraserSize.entries) {
-                DropdownMenuItem(
-                    text = { Text(size.label) },
-                    trailingIcon = { if (size == eraserSize) Icon(Icons.Filled.Check, contentDescription = "selected") },
-                    onClick = { onEraserSize(size) },
-                )
-            }
         }
     }
 }

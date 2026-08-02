@@ -8,22 +8,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import com.xopp.android.render.BarrelAction
 import com.xopp.android.render.Momentum
@@ -134,52 +142,117 @@ fun ToolbarSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     Text("Rail buttons", style = MaterialTheme.typography.titleSmall)
     Text(
-        "Switch a button off to hide it, or move it with the arrows. " +
+        "Switch a button off to hide it, or press and hold a row and drag it up or down to reorder. " +
             "The rail draws them top-to-bottom (left-to-right when docked horizontally).",
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(8.dp))
 
+    // Drag state. The list is *not* reordered mid-gesture: moving a row would change which item
+    // each composable slot holds, restarting the `pointerInput` and cancelling the drag after a
+    // single step. So the drag is purely visual — `dragIndex` is where it was picked up and
+    // `dragOffset` how far the finger has moved — and the reorder is committed on release.
+    var dragIndex by remember { mutableStateOf(-1) }
+    var dragOffset by remember { mutableStateOf(0f) }
+    var rowHeightPx by remember { mutableStateOf(0) }
+
     val items = orderedRailItems(settings.railOrder)
+    // The place the held row would land if let go now, and the shift each other row previews to
+    // make way for it — so the list still visibly opens a gap under the finger.
+    val dropIndex = dragTargetIndex(dragIndex, dragOffset, rowHeightPx, items.size)
     items.forEachIndexed { index, item ->
         RailItemRow(
             item = item,
             shown = item.id !in settings.railHidden,
-            canMoveUp = index > 0,
-            canMoveDown = index < items.size - 1,
+            dragging = dragIndex == index,
+            dragOffset = when {
+                dragIndex == index -> dragOffset
+                dragIndex < 0 -> 0f
+                index in (dragIndex + 1)..dropIndex -> -rowHeightPx.toFloat()
+                index in dropIndex until dragIndex -> rowHeightPx.toFloat()
+                else -> 0f
+            },
             onShown = { shown ->
                 val hidden = if (shown) settings.railHidden - item.id else settings.railHidden + item.id
                 onChange(settings.copy(railHidden = hidden))
             },
-            onMove = { delta ->
-                onChange(settings.copy(railOrder = moveRailItem(settings.railOrder, index, delta)))
+            onHeight = { rowHeightPx = it },
+            onDragStart = { dragIndex = index; dragOffset = 0f },
+            onDrag = { dy -> dragOffset += dy },
+            onDragEnd = {
+                val to = dragTargetIndex(dragIndex, dragOffset, rowHeightPx, items.size)
+                if (dragIndex >= 0 && to != dragIndex) {
+                    onChange(
+                        settings.copy(railOrder = moveRailItem(settings.railOrder, dragIndex, to - dragIndex))
+                    )
+                }
+                dragIndex = -1
+                dragOffset = 0f
             },
         )
     }
 }
 
-/** One rail position in the Toolbar section: its name, a show/hide switch, and move up/down arrows. */
+/**
+ * Where a row picked up at [from] and dragged [offset] px lands: one place per whole [rowHeight]
+ * crossed, rounded so the row commits to a slot once it is more than half way into it. Returns
+ * [from] unchanged when nothing is being dragged or the row height isn't measured yet.
+ */
+private fun dragTargetIndex(from: Int, offset: Float, rowHeight: Int, count: Int): Int {
+    if (from < 0 || rowHeight <= 0) return from
+    return (from + Math.round(offset / rowHeight)).coerceIn(0, count - 1)
+}
+
+/**
+ * One rail position in the Toolbar section: a drag handle, its name and a show/hide switch. The row
+ * is grabbed by a **long-press anywhere on it** (not just the handle) and dragged up or down. Every
+ * row is placed by [dragOffset]: the held one follows the finger, and the rows it is crossing shift
+ * a place to preview where it will land.
+ */
 @Composable
 private fun RailItemRow(
     item: RailItem,
     shown: Boolean,
-    canMoveUp: Boolean,
-    canMoveDown: Boolean,
+    dragging: Boolean,
+    dragOffset: Float,
     onShown: (Boolean) -> Unit,
-    onMove: (Int) -> Unit,
+    onHeight: (Int) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        // Lift the held row above its neighbours so it visibly floats over the list it's crossing.
+        tonalElevation = if (dragging) 6.dp else 0.dp,
+        shadowElevation = if (dragging) 6.dp else 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer { translationY = dragOffset }
+            // Not keyed by index: re-keying mid-drag would restart the gesture and drop the finger.
+            .onSizeChanged { onHeight(it.height) }
+            .pointerInput(item.id) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { onDragStart() },
+                    onDrag = { change, amount -> change.consume(); onDrag(amount.y) },
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragEnd,
+                )
+            },
     ) {
-        Text(item.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
-            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move ${item.label} up")
+        Row(
+            modifier = Modifier.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.DragIndicator,
+                contentDescription = "Drag to reorder ${item.label}",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(item.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Switch(checked = shown, onCheckedChange = onShown)
         }
-        IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
-            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move ${item.label} down")
-        }
-        Switch(checked = shown, onCheckedChange = onShown)
     }
 }
 

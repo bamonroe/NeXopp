@@ -520,13 +520,16 @@ pure, tested) rubs out only the touched vertices and splits a stroke into its su
 inheriting the original's colour/style/fill), alongside the original whole-stroke delete
 (`StrokeHitTester`). `PageEraser` (pure, tested) is the page-level driver both modes go through: it
 walks the page's layers, **skips hidden ones** (you only rub out ink you can see) and returns `null`
-when nothing was touched, so the surface skips the document rebuild and the undo snapshot. The mode
-and the tip size (`EraserSize`: Fine/Medium/Thick, radius in **document pt** so it is zoom-invariant,
-matching the desktop) are view flags on the surface. **Layer management** (`LayerOps`, pure, tested) adds/
+when nothing was touched, so the surface skips the document rebuild and the undo snapshot. The mode is
+a view flag on the surface (`eraserMode`), set by which member of the rail's eraser slot is picked —
+`EditorTool.ERASER` vs `ERASER_WHOLE`, so the choice is a tool, not a separate menu. The tip size has
+no scheme of its own: `DrawingSurfaceView.eraserRadiusPt` derives it from the pen's `baseWidthPt` via
+`eraserRadiusPt()` (`ERASER_RADIUS_FACTOR`, floored at `ERASER_RADIUS_MIN_PT`), in **document pt** so
+it is zoom-invariant, matching the desktop. **Layer management** (`LayerOps`, pure, tested) adds/
 deletes/renames/reorders layers and moves a selection between them (all undoable), while the *active*
 layer (where new ink lands) and per-layer *visibility* are view-only editor state on the surface —
 visibility just skips a layer in `PageRenderer.drawElements`, so it never touches the file. The UI for
-all four lives in the rail's **Tool** (shapes), **Style** (line style / fill / eraser mode), and
+all four lives in the rail's **Tool** (shapes, eraser mode), **Style** (line style / fill), and
 **Layers** pop-ups (`SideToolbar`). Fill is a switch plus a continuous alpha `Slider`
 (`SideToolbar.FillControls`) rather than preset levels; its on/off state and alpha persist as
 `AppSettings.fillEnabled` / `fillAlpha`, and `EditorScreen` derives the surface's `currentFill`
@@ -683,7 +686,10 @@ launch. **Which positions the rail shows, and in what order**, is data too (`Rai
 Background/Pages panels — and `SideToolbar` renders `visibleRailItems(railOrder, railHidden)`,
 dispatching each id to its group button or panel. The Toolbar settings section edits those two prefs
 (`AppSettings.railOrder`, a comma-separated id list, and `railHidden`, the same encoding for the
-switched-off ids). `orderedRailItems()` **appends** any id the saved order omits in factory order, so
+switched-off ids); a row is reordered by **long-press drag** (`detectDragGesturesAfterLongPress`),
+which steps `moveRailItem()` one place each time the finger crosses a row height, so the list
+reshuffles live. The in-flight order is held in the section's own `draggedOrder` state because
+several steps can land inside one frame, before `onChange` has recomposed `settings`. `orderedRailItems()` **appends** any id the saved order omits in factory order, so
 a position added in a later release still appears for an existing install, and `decodeRailIds()`
 drops ids that no longer exist. The tools are UI-level
 `EditorTool`s (Hand is view-only pan and Text/Image/LaTeX are placement modes, none a document tool,
@@ -808,7 +814,9 @@ build features the `.xopp` format can represent — see `CLAUDE.md`). None of th
 the file format — it's all input-layer behaviour, so it lives entirely in `render/`/`ui/` without
 touching `format/`.
 
-**Selection — desktop parity (shipped).** The tool now covers rectangle **and** lasso select,
+**Selection — desktop parity (shipped).** The tool now covers rectangle **and** lasso select
+(separate members of the rail's select slot — `EditorTool.SELECT` / `LASSO_SELECT` — which
+`applyTool` turns into the surface's `selectMode`/`lassoMode` pair),
 tap-pick, move (including **across pages**), on-canvas **resize** (uniform, corner handles) and
 **rotate** (top knob), **cut / copy / paste / duplicate**, and **recolour / re-width**. Every
 transform is a pure `SelectionOps` op (`scale`/`rotate`/`restyle`/`moveToPage`/`addToTopLayer`

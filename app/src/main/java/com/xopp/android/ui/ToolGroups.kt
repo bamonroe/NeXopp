@@ -19,11 +19,15 @@ data class ToolGroup(
 
 /**
  * The rail's tool slots, in display order. Every [EditorTool] belongs to exactly one group; a group
- * with a single member (eraser, pan) is just a plain button with nothing to pick.
+ * with a single member (pan) is just a plain button with nothing to pick.
+ *
+ * Some slots use membership to express what used to be a separate mode menu: the eraser's
+ * partial-vs-whole-stroke choice and the marquee's rectangle-vs-lasso-vs-text choice are each just
+ * another member of their group, so a long-press on the tool picks it (see `applyTool`).
  */
 val TOOL_GROUPS: List<ToolGroup> = listOf(
     ToolGroup("draw", "Draw", listOf(EditorTool.PEN, EditorTool.HIGHLIGHTER)),
-    ToolGroup("eraser", "Eraser", listOf(EditorTool.ERASER)),
+    ToolGroup("eraser", "Eraser", listOf(EditorTool.ERASER, EditorTool.ERASER_WHOLE)),
     ToolGroup(
         "line", "Line",
         listOf(EditorTool.LINE, EditorTool.ARROW, EditorTool.DOUBLE_ARROW, EditorTool.SPLINE),
@@ -33,7 +37,10 @@ val TOOL_GROUPS: List<ToolGroup> = listOf(
         listOf(EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.COORDINATE_AXIS),
     ),
     ToolGroup("pan", "Pan", listOf(EditorTool.HAND)),
-    ToolGroup("select", "Select", listOf(EditorTool.SELECT, EditorTool.TEXT_SELECT)),
+    ToolGroup(
+        "select", "Select",
+        listOf(EditorTool.SELECT, EditorTool.LASSO_SELECT, EditorTool.TEXT_SELECT),
+    ),
     ToolGroup("insert", "Insert", listOf(EditorTool.TEXT, EditorTool.TEXIMAGE, EditorTool.IMAGE)),
     ToolGroup("vspace", "Vertical space", listOf(EditorTool.VERTICAL_SPACE)),
     ToolGroup("play", "Play object", listOf(EditorTool.PLAY_OBJECT)),

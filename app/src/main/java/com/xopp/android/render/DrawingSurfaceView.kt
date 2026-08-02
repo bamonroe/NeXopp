@@ -265,8 +265,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var currentFill: Int? = null
     /** How the eraser removes ink: [EraserMode.STANDARD] rubs out touched segments; [EraserMode.WHOLE_STROKE] deletes whole strokes. */
     var eraserMode: EraserMode = EraserMode.STANDARD
-    /** The eraser tip size; its radius is in document pt, so it covers the same ink at any zoom. */
-    var eraserSize: EraserSize = EraserSize.MEDIUM
+    /**
+     * The eraser tip size follows the pen's: it is derived from [baseWidthPt] via [eraserRadiusPt],
+     * so the rail's Size popup sizes the pen and the rubber together (there is no separate scheme).
+     * The radius is in document pt, so the tip covers the same ink at any zoom.
+     */
+    val eraserRadiusPt: Double get() = eraserRadiusPt(baseWidthPt)
 
     /** Layer new ink lands on for the visible page; -1 = the top layer. Resolved/clamped per page. */
     var activeLayerIndex: Int = -1
@@ -1736,7 +1740,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
         val px = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
         val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
-        if (eraseOnPage(currentPage, px, py, eraserSize.radiusPt)) render()
+        if (eraseOnPage(currentPage, px, py, eraserRadiusPt)) render()
     }
 
     /** A tap in a placement tool: remember where it went down; a small drag cancels it. */

@@ -69,7 +69,6 @@ import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.GuideKind
 import com.xopp.android.render.EraserMode
-import com.xopp.android.render.EraserSize
 import com.xopp.android.render.InputSettings
 import com.xopp.android.render.LayerInfo
 import com.xopp.android.render.PlaceKind
@@ -83,10 +82,15 @@ import kotlin.math.roundToInt
  * Push an [EditorTool] onto the surface: the three drawing tools set [Tool]; Hand toggles pan mode;
  * the authoring tools (text/image/LaTeX) set the surface's [DrawingSurfaceView.placeKind] so a tap
  * places that element instead of drawing.
+ *
+ * Two tools are variants of another rather than modes of their own: LASSO_SELECT is SELECT with a
+ * freehand marquee, and ERASER_WHOLE is ERASER deleting whole strokes. Picking the tool is what sets
+ * the variant, which is why neither has a separate mode menu.
  */
 private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     handMode = tool == EditorTool.HAND
-    selectMode = tool == EditorTool.SELECT
+    selectMode = tool == EditorTool.SELECT || tool == EditorTool.LASSO_SELECT
+    lassoMode = tool == EditorTool.LASSO_SELECT
     textSelectMode = tool == EditorTool.TEXT_SELECT
     verticalSpaceMode = tool == EditorTool.VERTICAL_SPACE
     audioPlayMode = tool == EditorTool.PLAY_OBJECT
@@ -106,10 +110,14 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
         EditorTool.SPLINE -> ShapeKind.SPLINE
         else -> null
     }
+    if (tool == EditorTool.ERASER || tool == EditorTool.ERASER_WHOLE) {
+        eraserMode =
+            if (tool == EditorTool.ERASER_WHOLE) EraserMode.WHOLE_STROKE else EraserMode.STANDARD
+    }
     when (tool) {
         EditorTool.PEN -> this.tool = Tool.PEN
         EditorTool.HIGHLIGHTER -> this.tool = Tool.HIGHLIGHTER
-        EditorTool.ERASER -> this.tool = Tool.ERASER
+        EditorTool.ERASER, EditorTool.ERASER_WHOLE -> this.tool = Tool.ERASER
         // Shapes are drawn as ordinary pen strokes; the shapeKind above turns a drag into geometry.
         EditorTool.LINE, EditorTool.ARROW, EditorTool.DOUBLE_ARROW, EditorTool.COORDINATE_AXIS,
         EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.SPLINE,
@@ -182,7 +190,6 @@ fun EditorScreen(
     var hasSelection by remember { mutableStateOf(false) }
     var hasTextSelection by remember { mutableStateOf(false) }
     var hasClipboard by remember { mutableStateOf(false) }
-    var lasso by remember { mutableStateOf(false) }
     var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
     var textPlacement by remember { mutableStateOf<Placement?>(null) }
     var texPlacement by remember { mutableStateOf<Placement?>(null) }
@@ -194,8 +201,6 @@ fun EditorScreen(
     var textColor by remember { mutableStateOf(PEN_COLORS.first()) }
     var lineStyle by remember { mutableStateOf(LineStyle.PLAIN) }
     val fill = if (settings.fillEnabled) settings.fillAlpha else null
-    var eraserMode by remember { mutableStateOf(EraserMode.STANDARD) }
-    var eraserSize by remember { mutableStateOf(EraserSize.MEDIUM) }
     var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
     var backgroundStyle by remember { mutableStateOf<String?>(null) }
     var pageSize by remember { mutableStateOf<Pair<Double, Double>?>(null) }
@@ -276,10 +281,6 @@ fun EditorScreen(
                         settings.copy(fillEnabled = it != null, fillAlpha = it ?: settings.fillAlpha)
                     )
                 },
-                eraserMode = eraserMode,
-                onEraserMode = { eraserMode = it; surface?.eraserMode = it },
-                eraserSize = eraserSize,
-                onEraserSize = { eraserSize = it; surface?.eraserSize = it },
                 recognizeShapes = settings.recognizeShapes,
                 onRecognizeShapes = {
                     surface?.recognizeShapes = it
@@ -328,8 +329,6 @@ fun EditorScreen(
                         it.baseWidthPt = width
                         it.currentLineStyle = lineStyle
                         it.currentFill = fill
-                        it.eraserMode = eraserMode
-                        it.eraserSize = eraserSize
                         it.onLayersChanged = {
                             layers = it.visibleLayers()
                             backgroundStyle = it.visiblePageBackgroundStyle()
@@ -347,7 +346,6 @@ fun EditorScreen(
                         it.onTextSelectionChanged = { s -> hasTextSelection = s }
                         it.onClipboardChanged = { c -> hasClipboard = c }
                         it.onToggleFullPage = { fullPage = !fullPage }
-                        it.lassoMode = lasso
                         it.onPlace = { kind, placement ->
                             when (kind) {
                                 PlaceKind.TEXT -> textPlacement = placement
@@ -395,9 +393,6 @@ fun EditorScreen(
         // Re-apply settings to the live surface whenever the user changes them in Settings.
         LaunchedEffect(settings) { surface?.applySettings(settings) }
 
-        // Push the rectangle/lasso marquee choice onto the live surface.
-        LaunchedEffect(lasso) { surface?.lassoMode = lasso }
-
         // Settings is overlaid on top of the still-composed editor rather than replacing it, so the
         // AndroidView-hosted DrawingSurfaceView is never detached — the drawing (and undo history)
         // survives the round trip to Settings and back.
@@ -409,8 +404,8 @@ fun EditorScreen(
             )
         }
 
-        // Contextual actions for the Select tool: the full action bar while something is selected,
-        // otherwise (in Select mode) a small bar to pick the marquee shape and paste.
+        // Contextual actions for the Select tools: the full action bar while something is selected,
+        // otherwise (in a marquee mode) a small bar offering the clipboard.
         if (hasSelection) {
             SelectionActionBar(
                 onCut = { surface?.cutSelection() },
@@ -423,10 +418,8 @@ fun EditorScreen(
                 onDeselect = { surface?.clearSelection() },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
             )
-        } else if (tool == EditorTool.SELECT) {
+        } else if (tool == EditorTool.SELECT || tool == EditorTool.LASSO_SELECT) {
             SelectModeBar(
-                lasso = lasso,
-                onLasso = { lasso = it },
                 canPaste = hasClipboard,
                 onPaste = { surface?.pasteClipboard() },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
@@ -566,17 +559,17 @@ private fun ReWidthMenu(widthSlots: List<Float>, onReWidth: (Float) -> Unit) {
 }
 
 /**
- * Shown in Select mode when nothing is selected: choose the marquee shape (rectangle vs lasso)
- * and paste the clipboard onto the visible page.
+ * Shown in a marquee mode when nothing is selected: paste the clipboard onto the visible page. The
+ * marquee shape isn't picked here — rectangle and lasso are separate rail tools (see [EditorTool]) —
+ * so the bar composes to nothing when there's nothing on the clipboard.
  */
 @Composable
 private fun SelectModeBar(
-    lasso: Boolean,
-    onLasso: (Boolean) -> Unit,
     canPaste: Boolean,
     onPaste: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (!canPaste) return
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
@@ -588,14 +581,10 @@ private fun SelectModeBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            FilterChip(selected = !lasso, onClick = { onLasso(false) }, label = { Text("Rectangle") })
-            FilterChip(selected = lasso, onClick = { onLasso(true) }, label = { Text("Lasso") })
-            if (canPaste) {
-                TextButton(onClick = onPaste) {
-                    Icon(Icons.Filled.ContentPaste, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Paste")
-                }
+            TextButton(onClick = onPaste) {
+                Icon(Icons.Filled.ContentPaste, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Paste")
             }
         }
     }

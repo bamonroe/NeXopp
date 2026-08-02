@@ -102,8 +102,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   and since it only shifts coordinates it round-trips to desktop Xournal++ unchanged.
 - **Draw** — the controls live in a **vertical rail down the left edge**. It starts with eight
   **tool slots**, each standing for a group of related tools and showing the one that group is
-  currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow · double arrow · spline), **Shape**
-  (rectangle · ellipse · coordinate axis), **Pan**, **Select** (select · select text), **Insert** (text · LaTeX ·
+  currently set to: **Draw** (pen · highlighter), **Eraser** (partial · whole stroke), **Line** (line · arrow · double arrow · spline), **Shape**
+  (rectangle · ellipse · coordinate axis), **Pan**, **Select** (rectangle · lasso · select text), **Insert** (text · LaTeX ·
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
@@ -117,7 +117,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   from the other two pop-ups. The Colour pop-up ends with an editable **custom slot** (marked with a
   pencil): **tap** it to draw with its current colour, or **long-press** it to open a picker —
   a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any colour. The Size
-  pop-up offers three width **slots** (**S / M / L**): **tap** a slot to draw with it, or
+  pop-up offers three width **slots**, each drawn as a **filled dot sized to that slot's width** (the
+  widest slot fills the row, the rest scale down in proportion) next to its exact point size, so the
+  three read as a tip-size ladder rather than three arbitrary letters: **tap** a slot to draw with it, or
   **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines that slot's width — drag
   the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at a time, or type an exact
   point size into the **text field**. Below the swatches the Colour pop-up shows a **Recent** row —
@@ -186,12 +188,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   Turning fill off keeps the opacity you last picked, so switching it back on restores it. The
   switch and its opacity are remembered across launches. Both save on the `<stroke>` element
   (`style` / `fill`) and reopen the same way in desktop Xournal++.
-- **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes. The **Style** pop-up's
-  **Eraser** setting picks the mode: **Standard (partial)** rubs out just the part of a stroke the
-  eraser passes over, splitting it into the surviving pieces; **Delete whole stroke** removes any
-  stroke the eraser touches entirely. The same pop-up's **Eraser size** picks the tip —
-  **Fine**, **Medium** or **Thick** — measured in document points, so it rubs out the same amount of
-  ink whatever the zoom. Hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
+- **Erase** — tap the rail's **Eraser** slot and drag over strokes. **Long-press** the slot to pick
+  which eraser it stands for: **Eraser (partial)** rubs out just the part of a stroke the eraser
+  passes over, splitting it into the surviving pieces; **Eraser (whole stroke)** removes any stroke
+  the eraser touches entirely. Like every tool slot, the choice is remembered across restarts. The
+  eraser has no size of its own — its tip follows the **Size** pop-up's three width slots (about six
+  times the pen width, so the rubber is always wider than the ink it removes), measured in document
+  points, so it rubs out the same amount of ink whatever the zoom. Hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
   (configurable — see **Settings**).
 - **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the
@@ -208,9 +211,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   **smoothed** as you write — digitiser wobble in both position and pressure is filtered out, and
   redundant points are dropped when the pen lifts, so strokes look clean and files stay small.
   All of this is tuned in **Settings** below.
-- **Select** — pick **Select** from the Tool pop-up to select objects the way desktop Xournal++
-  does. Choose the marquee shape from the bottom bar: **Rectangle** (drag a box; every object fully
-  inside is selected) or **Lasso** (trace a free-form loop; everything wholly inside is selected).
+- **Select** — the rail's **Select** slot selects objects the way desktop Xournal++ does. The
+  marquee shape is the tool itself: **long-press** the slot to pick **Select rectangle** (drag a box;
+  every object fully inside is selected), **Select lasso** (trace a free-form loop; everything wholly
+  inside is selected), or **Select text (PDF)**.
   Or **tap** a single object to select just that one. Selected objects get a dashed outline with
   handles:
   - **Drag inside the outline** to move them — drag onto a **different page** to move them there.
@@ -304,8 +308,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     **Top**, or **Bottom**. Top/bottom lay the tool, colour, size, zoom, and page buttons out in a
     horizontal row along that edge; left/right keep the familiar vertical rail.
   - **Rail buttons** — the full list of rail positions (the seven tool slots plus Colour, Size,
-    Style, Layers, Zoom, Background and Pages), each with a **switch** to hide it and **▲/▼** arrows
-    to move it. The rail draws them in this order, top-to-bottom (left-to-right when docked
+    Style, Layers, Zoom, Background and Pages), each with a **switch** to hide it. To move one,
+    **press and hold** its row and **drag** it up or down — the row lifts and the rest of the list
+    shuffles under it as you go, so you can carry a button several places in one gesture. The rail
+    draws them in this order, top-to-bottom (left-to-right when docked
     horizontally). Both the order and the hidden set are **remembered across app restarts**.
 
   Under **Navigation**:

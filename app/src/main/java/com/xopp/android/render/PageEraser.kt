@@ -9,14 +9,22 @@ import com.xopp.android.format.model.Stroke
 enum class EraserMode { STANDARD, WHOLE_STROKE }
 
 /**
- * Eraser tip sizes, mirroring desktop Xournal++'s fine / medium / thick. The radius is in document
- * **pt**, so the tip covers the same ink at every zoom level — the same as on the desktop.
+ * How much bigger the eraser tip is than the pen tip it follows. The eraser has no size scheme of
+ * its own — it rides the same three configurable pen-width slots as the pen ([AppSettings.penWidths]),
+ * so picking a tip size in the rail's Size popup sizes both. A rubber is only useful when it is
+ * appreciably wider than the ink it rubs out, hence the multiplier.
  */
-enum class EraserSize(val radiusPt: Double, val label: String) {
-    FINE(4.0, "Fine"),
-    MEDIUM(10.0, "Medium"),
-    THICK(20.0, "Thick"),
-}
+const val ERASER_RADIUS_FACTOR: Double = 6.0
+
+/** Smallest eraser tip, in pt — a hair-thin pen still needs a tip you can aim. */
+const val ERASER_RADIUS_MIN_PT: Double = 3.0
+
+/**
+ * The eraser tip radius for a pen width of [widthPt], in document **pt**, so the tip covers the same
+ * ink at every zoom level — the same as on the desktop.
+ */
+fun eraserRadiusPt(widthPt: Float): Double =
+    (widthPt * ERASER_RADIUS_FACTOR).coerceAtLeast(ERASER_RADIUS_MIN_PT)
 
 /**
  * The eraser applied to a whole page: pure, Android-free, and unit-testable ([PageEraserTest]).
