@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-screen-flickering-when-zoomed-in-and-panning"
+title = "Fix screen flickering when zoomed in and panning"
+description = "Occasional screen flicker while panning around a zoomed-in page. Likely a rendering/tile-invalidation or surface redraw issue in the custom SurfaceView draw path during pan at zoom. Reproduce on the emulator/device, find the frame where stale or blank content is presented, and fix."
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["rendering", "zoom", "pan"]
+
+[[task]]
 id = "setsquare-and-compass-tools"
 title = "Setsquare and compass tools"
 description = "Add the desktop setsquare (geometry triangle) and compass overlays: an on-canvas manipulable guide that constrains drawing to its edge/arc. Purely an input aid; output is normal strokes."

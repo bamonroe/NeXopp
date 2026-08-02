@@ -1806,6 +1806,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!fling.isMoving) return
         flinging = true
         flingLastFrameNanos = 0L
+        // Drop any paint already queued for the coming vsync: the fling frame will paint it, and both
+        // firing would post two buffers for one vsync.
+        if (paintPosted) {
+            choreographer.removeFrameCallback(paintCallback)
+            paintPosted = false
+        }
         choreographer.postFrameCallback(flingCallback)
     }
 
@@ -1822,7 +1828,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val prevX = scrollX
         scrollY = (scrollY + step.dy).coerceIn(0f, maxScrollY())
         scrollX = (scrollX + step.dx).coerceIn(0f, maxScrollX())
-        // Already inside a frame dispatch: paint now rather than deferring to the next vsync.
+        // Already inside a frame dispatch: paint now rather than deferring to the next vsync. Nothing
+        // can have posted [paintCallback] since the glide started ([render] no-ops while flinging), so
+        // this is the only buffer posted for this vsync.
         paintPosted = false
         paint()
         // Stop once too slow, or when both axes are pinned at a bound (nowhere left to glide).
@@ -2035,7 +2043,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * exactly one buffer per vsync, in phase, so every frame shown is the newest state.
      */
     private fun render() {
-        if (paintPosted) return
+        // A glide already paints once per vsync from [onFlingFrame]; posting a second callback for the
+        // same frame would post two buffers per vsync and bring back exactly the buffer-walk flicker
+        // above. This is the common case when zoomed in and panning: every PDF tile that lands calls
+        // back into [requestRender] mid-fling. Whatever asked for this repaint is shown by the glide's
+        // own frame anyway, so dropping the request loses nothing.
+        if (paintPosted || flinging) return
         paintPosted = true
         choreographer.postFrameCallback(paintCallback)
     }

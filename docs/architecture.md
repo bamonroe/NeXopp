@@ -373,7 +373,11 @@ the input handler posted several buffers per vsync, and the compositor latching 
 made the shown position walk back and forth between samples instead of advancing — the flicker seen
 when zoomed in on a big screen, where a paint is slow enough to keep several buffers in flight. The
 fling loop is the one exception: it is already inside a frame dispatch, so it calls `paint()` directly
-rather than deferring a frame. Each frame locks the surface with **`lockHardwareCanvas()`**, not
+rather than deferring a frame — and because it does, `render()` is a **no-op while a fling is in
+flight** (and starting a fling cancels any already-queued paint). Otherwise anything that asks for a
+repaint mid-glide — most often a PDF tile landing and calling back, which is constant when zoomed in —
+would post a *second* buffer for the same vsync and reintroduce the very buffer-walk flicker the
+pacing exists to prevent. Each frame locks the surface with **`lockHardwareCanvas()`**, not
 `lockCanvas()` (falling back to the software canvas only if the GPU one is unavailable): the software
 canvas rasterises and blends every window pixel on the CPU, so frame cost scaled with window *area* —
 full-screen page-flicking on a large tablet crawled while the identical gesture in a half-size
