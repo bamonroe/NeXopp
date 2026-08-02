@@ -407,8 +407,8 @@ def build_parser():
     ad.add_argument("--rebuild", action=argparse.BooleanOptionalAction, default=True,
                     help="rebuild the Android app for this task (default: yes)")
     ad.add_argument("--emulator-debug", action=argparse.BooleanOptionalAction,
-                    default=True,
-                    help="run the full emulator verify loop for this task (default: yes)")
+                    default=False,
+                    help="run the full emulator verify loop for this task (default: no)")
     ad.set_defaults(func=cmd_add)
 
     ed = sub.add_parser("edit", help="edit an active task")

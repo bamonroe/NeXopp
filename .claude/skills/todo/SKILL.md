@@ -45,13 +45,15 @@ array of `[[task]]` tables. A task carries **more** metadata rather than less:
 | `completed`   | archive          | date it shipped                                     |
 | `tags`        | TODO             | freeform string list                                |
 | `rebuild`     | TODO             | rebuild the Android app for this task? (default `true`) |
-| `emulator_debug` | TODO          | run the full emulator verify loop for this task? (default `true`) |
+| `emulator_debug` | TODO          | run the full emulator verify loop for this task? (default `false`) |
 
-`rebuild` and `emulator_debug` are **build hints** for whoever works the task,
-both defaulting to **`true`** (yes / yes) — the normal "build the APK, then
-install and exercise it on the emulator" loop. Set them **`false`** for a run of
-rapid-fire tweaks that don't each need a fresh rebuild or a full emulator pass;
-you still build/verify once at the end. Like `urgency`/`order`, they're
+`rebuild` and `emulator_debug` are **build hints** for whoever works the task.
+`rebuild` defaults to **`true`** and `emulator_debug` to **`false`** — the normal
+loop is "build the APK and run the unit tests," with no emulator pass. Turn
+`emulator_debug` **on** for a task whose runtime behaviour you actually need to
+see (install and exercise it on the emulator: screenshots, logcat, simulated
+touches). Set `rebuild` **`false`** for a run of rapid-fire tweaks that don't each
+need a fresh build; you still build/verify once at the end. Like `urgency`/`order`, they're
 TODO-only and are dropped when a task is archived.
 
 Active tasks list most-urgent-first, then by `order`. The archive is
@@ -66,11 +68,11 @@ newest-`completed`-first.
 - **`count`** `[--finished] [--by status|category|urgency]` — a raw count, or
   a grouped tally.
 - **`add --title T --description D`** `[--category C] [--urgency U]
-  [--status S] [--tag t …] [--id ID] [--no-rebuild] [--no-emulator-debug]` —
+  [--status S] [--tag t …] [--id ID] [--no-rebuild] [--emulator-debug]` —
   append an active task. The `id` is a slug of the title (made unique) and
   `order` auto-increments unless given. `urgency` defaults to normal.
-  `rebuild`/`emulator_debug` default to yes; pass `--no-rebuild` /
-  `--no-emulator-debug` to turn either off.
+  `rebuild` defaults to yes (`--no-rebuild` turns it off); `emulator_debug`
+  defaults to no (`--emulator-debug` turns it on).
 - **`edit <id>`** `[--title|--description|--status|--category|--urgency|--order
   …] [--add-tag t] [--rebuild|--no-rebuild] [--emulator-debug|--no-emulator-debug]`
   — change fields on an active task.

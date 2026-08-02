@@ -98,16 +98,16 @@ not advisory.** Every `TODO.toml` task carries these two flags (owned by the `to
   doesn't warrant a fresh APK build (e.g. docs, or a run of rapid-fire tweaks); `true` (the
   default) means build it through `scripts/build.sh`.
 - **`emulator_debug`** — whether to **install and exercise on the `/data/android` emulator**.
-  `true` (the default) is the full pass: install the APK and actually drive it — screenshots to
-  *see* the UI, `adb logcat` for error logs, and simulated finger/stylus presses. `false` means
-  **skip the emulator pass entirely** for this task; a clean build + unit tests is sufficient.
+  `false` (the default) means **skip the emulator pass entirely** for this task; a clean build +
+  unit tests is sufficient. `true` is the full pass: install the APK and actually drive it —
+  screenshots to *see* the UI, `adb logcat` for error logs, and simulated finger/stylus presses.
 
 **Honor these per-task flags over any general "always test the running app" instinct** — when a
 task says `emulator_debug=no`, do **not** install-and-exercise it on the emulator, even for a
 change with a runtime surface. When flags are off for a run of quick tweaks, you still build and
 (if `emulator_debug` is on for any of them) verify once at the end. If a task has no flags
-(e.g. ad-hoc work outside `TODO.toml`), fall back to the defaults: build, and exercise anything
-with a runtime surface.
+(e.g. ad-hoc work outside `TODO.toml`), fall back to the defaults: build and run the unit tests,
+but no emulator pass unless asked.
 
 ## External tools & build pipelines — see `docs/tools.md`
 
