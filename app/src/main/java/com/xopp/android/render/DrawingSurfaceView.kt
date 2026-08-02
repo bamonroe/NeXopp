@@ -2134,6 +2134,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 drawPageElements(canvas, box)
             }
             inkCache.retain(visible.mapTo(HashSet()) { it.index })
+            retainPdfPins(visible)
             prefetchAround(visible)
             drawCurrent(canvas)
             drawTextSelection(canvas)
@@ -2178,6 +2179,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
             ((x + width) / box.widthPx).coerceIn(0f, 1f),
             ((y + height) / box.heightPx).coerceIn(0f, 1f),
         )
+    }
+
+    /**
+     * Tell the PDF cache which pages are still on screen, so it stops protecting the tiles of pages
+     * we have scrolled past. Uses the PDF page numbers, the same key [pdfTilesFor] pins under.
+     */
+    private fun retainPdfPins(visible: List<PageBox>) {
+        val src = pdfSource ?: return
+        src.retain(visible.mapNotNullTo(HashSet()) { (it.page.background as? Background.Pdf)?.pageNo })
     }
 
     /**

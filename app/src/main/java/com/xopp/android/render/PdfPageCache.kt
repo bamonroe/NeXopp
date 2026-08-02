@@ -67,6 +67,16 @@ class PdfPageCache(val source: File) : Closeable {
     private var generation = 0
     /** Last tile list handed out per page, valid while grid and [generation] are unchanged. */
     private val tileMemo = HashMap<Int, TileMemo>()
+
+    /**
+     * The tile cells covering the viewport right now, per page. Eviction skips these: without it a
+     * high zoom whose visible tiles plus prefetch ring outgrow [budget] evicts the very tiles being
+     * drawn, so the next frame falls back to the upscaled whole-page bitmap, re-queues them, and the
+     * page flickers between blurry and sharp forever. Kept flat in [pinnedKeys] so the eviction loop
+     * tests membership once per candidate. Pruned by [retain] as pages leave the viewport.
+     */
+    private val pinnedByPage = HashMap<Int, Set<Key>>()
+    private val pinnedKeys = HashSet<Key>()
     private val sizes = HashMap<Int, Pair<Double, Double>>()
     private val pending = LinkedHashSet<Key>()
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "pdf-raster").apply { isDaemon = true } }
@@ -136,6 +146,10 @@ class PdfPageCache(val source: File) : Closeable {
         val r1 = ((visBottom * fullH) / TILE_PX).toInt().coerceIn(0, rows - 1)
         if (c1 < c0 || r1 < r0) return emptyList()
         synchronized(lock) {
+            // Pin (and touch) the visible cells *before* the memo check: on a memo hit we return
+            // without ever reading them out of the cache, so their LRU recency would go stale while
+            // the worker keeps inserting ring tiles — and the tiles on screen would be evicted first.
+            pin(i, scale, c0, c1, r0, r1)
             val memo = tileMemo[i]
             if (memo != null && memo.matches(scale, c0, c1, r0, r1, generation)) return memo.tiles
         }
@@ -159,7 +173,11 @@ class PdfPageCache(val source: File) : Closeable {
                     minOf((r + 1) * TILE_PX, fullH).toFloat() / fullH,
                 )
             }
-            queued += prefetchRing(i, scale, cols, rows, c0, c1, r0, r1, MAX_TILES_PER_FRAME - queued)
+            // Only warm the ring while there is room to hold it. Prefetching into a full cache means
+            // every ring tile evicts something already earned, which is where the thrash starts.
+            if (cachedBytes < budget * PREFETCH_HEADROOM) {
+                queued += prefetchRing(i, scale, cols, rows, c0, c1, r0, r1, MAX_TILES_PER_FRAME - queued)
+            }
             tileMemo[i] = TileMemo(scale, c0, c1, r0, r1, generation, tiles)
         }
         return tiles
@@ -192,6 +210,39 @@ class PdfPageCache(val source: File) : Closeable {
             if (++queued >= budgetCells) return queued
         }
         return queued
+    }
+
+    /**
+     * Caller holds [lock]. Record page [i]'s visible cell block as pinned and refresh each cell's
+     * LRU recency, so the tiles being drawn this frame are the last things eviction considers.
+     */
+    private fun pin(i: Int, scale: Int, c0: Int, c1: Int, r0: Int, r1: Int) {
+        val keys = HashSet<Key>((c1 - c0 + 1) * (r1 - r0 + 1))
+        for (r in r0..r1) for (c in c0..c1) {
+            val key = Key(i, scale, c, r)
+            keys += key
+            cache[key] // access-ordered map: reading is what marks it recently used
+        }
+        if (pinnedByPage[i] == keys) return
+        pinnedByPage[i] = keys
+        rebuildPinned()
+    }
+
+    /** Caller holds [lock]. */
+    private fun rebuildPinned() {
+        pinnedKeys.clear()
+        for (keys in pinnedByPage.values) pinnedKeys += keys
+    }
+
+    /**
+     * Drop the pins of pages that have left the viewport. Call once per frame with the pages being
+     * drawn (matching [PdfPageCache.requestTiles]'s page numbering); without it a scroll would leave
+     * every page it passed pinned and eviction would have nothing left to reclaim.
+     */
+    fun retain(pages: Set<Int>) {
+        synchronized(lock) {
+            if (pinnedByPage.keys.retainAll(pages)) rebuildPinned()
+        }
     }
 
     /** Queue page [i] at [targetWidthPx] for background rasterisation if it isn't cached already. */
@@ -340,15 +391,24 @@ class PdfPageCache(val source: File) : Closeable {
         cachedBytes += bmp.byteCount.toLong()
         index(key)
         generation++
+        // First pass spares the pinned (on-screen) tiles; if that alone can't get under budget, a
+        // second pass evicts them too, so a viewport too large to cache still stays memory-bounded.
+        if (evict(key, sparePinned = true)) evict(key, sparePinned = false)
+    }
+
+    /** Caller holds [lock]. Evicts until under [budget]; returns true if it is still over. */
+    private fun evict(keep: Key, sparePinned: Boolean): Boolean {
         val it = cache.entries.iterator()
         while (cachedBytes > budget && cache.size > 1 && it.hasNext()) {
             val eldest = it.next()
-            if (eldest.key == key) continue
+            if (eldest.key == keep) continue
+            if (sparePinned && eldest.key in pinnedKeys) continue
             cachedBytes -= eldest.value.byteCount.toLong()
             // Not recycled: the drawing thread may still hold this bitmap for the current frame.
             it.remove()
             unindex(eldest.key)
         }
+        return cachedBytes > budget
     }
 
     /** Caller holds [lock]. Track a whole-page entry's width for [nearest]. */
@@ -373,6 +433,8 @@ class PdfPageCache(val source: File) : Closeable {
             cache.clear()
             pageWidths.clear()
             tileMemo.clear()
+            pinnedByPage.clear()
+            pinnedKeys.clear()
             generation++
             cachedBytes = 0
         }
@@ -418,6 +480,9 @@ class PdfPageCache(val source: File) : Closeable {
          * however many there are — this caps new work, not the answer.
          */
         const val MAX_TILES_PER_FRAME = 96
+
+        /** Fraction of [budget] below which the prefetch ring is warmed at all. */
+        const val PREFETCH_HEADROOM = 0.75
 
         const val MODE = PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
 

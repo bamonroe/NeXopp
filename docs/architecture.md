@@ -427,6 +427,14 @@ request, so cells already rasterised still draw sharp; and `nearest` finds a sta
 a per-page sorted width index rather than scanning every entry, since a pinch calls it per visible
 page per frame while the cache holds hundreds of tiles. Tiles landing from the worker coalesce into
 a single redraw (`DrawingSurfaceView.requestRender`) instead of one full repaint each.
+Eviction **pins the visible cells**. `requestTiles` records the viewport's cell block per page (and
+refreshes its LRU recency) *before* the memo short-circuit, and `put` spares those keys on its first
+eviction pass; the ring is only warmed while the cache is under `PdfPageCache.PREFETCH_HEADROOM` of
+budget. Without this, a zoom whose visible tiles plus ring outgrow the budget evicts the very tiles
+being drawn, the next frame falls back to the upscaled whole-page bitmap and re-queues them, and the
+page flickers between blurry and sharp indefinitely. `DrawingSurfaceView` calls `PdfPageCache.retain`
+each frame with the on-screen pages so pins don't accumulate behind a scroll, and a second eviction
+pass ignores pins entirely, so a viewport too large to cache still stays memory-bounded.
 Ink is culled the same way: `DrawingSurfaceView` hands `PageRenderer.drawElements` the viewport in
 page-local pt, and any element whose `ElementBounds` box misses it is never submitted (boxes are
 memoised by element identity, so the cull doesn't rescan stroke points each frame). At high zoom a
