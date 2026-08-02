@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Functions
+import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.HighlightAlt
 import androidx.compose.material.icons.filled.HorizontalRule
@@ -119,12 +120,13 @@ val PEN_COLORS: List<Int> = listOf(
  */
 enum class EditorTool {
     PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
-    LINE, ARROW, RECTANGLE, ELLIPSE, VERTICAL_SPACE,
+    LINE, ARROW, RECTANGLE, ELLIPSE, SPLINE, VERTICAL_SPACE,
 }
 
-/** The four geometric shape tools — drawn as ordinary pen strokes (see [ShapeKind]). */
-val SHAPE_TOOLS: List<EditorTool> =
-    listOf(EditorTool.LINE, EditorTool.ARROW, EditorTool.RECTANGLE, EditorTool.ELLIPSE)
+/** The geometric shape tools — drawn as ordinary pen strokes (see [ShapeKind]). */
+val SHAPE_TOOLS: List<EditorTool> = listOf(
+    EditorTool.LINE, EditorTool.ARROW, EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.SPLINE,
+)
 
 private data class ToolInfo(val tool: EditorTool, val label: String, val icon: ImageVector)
 
@@ -136,6 +138,7 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.ARROW, "Arrow", Icons.Filled.ArrowRightAlt),
     ToolInfo(EditorTool.RECTANGLE, "Rectangle", Icons.Filled.Rectangle),
     ToolInfo(EditorTool.ELLIPSE, "Ellipse", Icons.Filled.RadioButtonUnchecked),
+    ToolInfo(EditorTool.SPLINE, "Spline", Icons.Filled.Gesture),
     ToolInfo(EditorTool.HAND, "Hand (pan)", Icons.Filled.PanTool),
     ToolInfo(EditorTool.SELECT, "Select", Icons.Filled.HighlightAlt),
     ToolInfo(EditorTool.TEXT_SELECT, "Select text (PDF)", Icons.Filled.SelectAll),

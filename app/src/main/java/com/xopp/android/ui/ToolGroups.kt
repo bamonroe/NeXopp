@@ -24,7 +24,7 @@ data class ToolGroup(
 val TOOL_GROUPS: List<ToolGroup> = listOf(
     ToolGroup("draw", "Draw", listOf(EditorTool.PEN, EditorTool.HIGHLIGHTER)),
     ToolGroup("eraser", "Eraser", listOf(EditorTool.ERASER)),
-    ToolGroup("line", "Line", listOf(EditorTool.LINE, EditorTool.ARROW)),
+    ToolGroup("line", "Line", listOf(EditorTool.LINE, EditorTool.ARROW, EditorTool.SPLINE)),
     ToolGroup("shape", "Shape", listOf(EditorTool.RECTANGLE, EditorTool.ELLIPSE)),
     ToolGroup("pan", "Pan", listOf(EditorTool.HAND)),
     ToolGroup("select", "Select", listOf(EditorTool.SELECT, EditorTool.TEXT_SELECT)),

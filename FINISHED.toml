@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "spline-shape-tool"
+title = "Spline shape tool"
+description = "Add the spline/bezier draw tool from desktop Xournal++: click to lay down control points, drag to curve, Enter/double-tap to finish. Commits as an ordinary pen stroke like the other ShapeKinds in render/ShapeBuilder.kt."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["tools", "parity"]
+
+[[task]]
 id = "fix-laggy-page-flicking-on-large-screens-when-zoomed-out"
 title = "Fix laggy page flicking on large screens when zoomed out"
 description = "Zoomed out, full-screen on the large Ultra tablet, flicking/swiping between pages is extremely laggy. The same gesture at the same zoom level in split-screen (smaller window) is substantially smoother, so cost scales with rendered area rather than document content. Suggests per-frame work proportional to surface pixels: full-page re-rasterization every scroll frame, no tile/bitmap cache reuse, or rendering off-screen pages. Profile the page-scroll path and make frame cost independent of window size (cache rendered pages, redraw only dirty regions, cull off-screen pages)."

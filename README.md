@@ -102,7 +102,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   and since it only shifts coordinates it round-trips to desktop Xournal++ unchanged.
 - **Draw** — the controls live in a **vertical rail down the left edge**. It starts with eight
   **tool slots**, each standing for a group of related tools and showing the one that group is
-  currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow), **Shape**
+  currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow · spline), **Shape**
   (rectangle · ellipse), **Pan**, **Select** (select · select text), **Insert** (text · LaTeX ·
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
@@ -130,6 +130,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
   shape commits on release. Shapes are saved as ordinary strokes in the current pen colour and width,
   so they round-trip to desktop Xournal++ like any other stroke.
+- **Spline** — the Line slot also offers **Spline**, for a smooth curve through points you place one
+  at a time. **Tap** to drop a control point; **drag** away from a tap instead of lifting to pull out
+  a tangent handle that bows the curve through that point (lift where you want the curve to lean).
+  Keep tapping to extend it — the whole curve previews live as you go. **Double-tap**, or press
+  **Enter** on a hardware keyboard, to finish; **Escape** throws the curve away, and switching to
+  another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
+  the current pen colour and width, so it round-trips to desktop Xournal++ like any other stroke.
 - **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
   **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** level (None / Light / Medium /
   Heavy / Solid) that floods the inside of a closed stroke or shape. Both save on the `<stroke>`

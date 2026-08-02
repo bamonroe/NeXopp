@@ -76,6 +76,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var shaping = false
     private var shapeStartX = 0.0
     private var shapeStartY = 0.0
+    /** The spline tool's control points so far (page-local pt); non-empty means one is being laid down. */
+    private val splineNodes = ArrayList<SplineNode>()
+    /** True between the down and up of a tap that is placing/curving the newest spline node. */
+    private var splineDragging = false
+    /** Where the pointer went down on the current spline node, so a drag can be read as its tangent. */
+    private var splineAnchorX = 0.0
+    private var splineAnchorY = 0.0
+    /** The previous spline tap's time/position, to recognise the double-tap that finishes the curve. */
+    private var splineTapTime = 0L
+    private var splineTapX = 0f
+    private var splineTapY = 0f
     /** Pointer id owning the current draw/erase gesture, so a resting palm can't perturb it. */
     private var gesturePointerId = -1
     /** True while a stylus/eraser tip owns the current draw/erase gesture (drives palm rejection). */
@@ -197,8 +208,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** When true, the Select tool's marquee is a free-form lasso instead of a rectangle. */
     var lassoMode: Boolean = false
 
-    /** When non-null, a one-finger drag draws this geometric shape instead of a freehand stroke. */
+    /**
+     * When non-null, a one-finger drag draws this geometric shape instead of a freehand stroke.
+     * [ShapeKind.SPLINE] is the exception: it is laid down tap-by-tap, so switching away from it
+     * commits whatever curve is still open rather than silently dropping it.
+     */
     var shapeKind: ShapeKind? = null
+        set(value) {
+            if (field == ShapeKind.SPLINE && value != ShapeKind.SPLINE) finishSpline()
+            field = value
+        }
     /** Line pattern applied to strokes and shapes this tool draws (dashed/dotted); default solid. */
     var currentLineStyle: LineStyle = LineStyle.PLAIN
     /** Fill alpha (0..255) flooded inside strokes/shapes drawn now, or null for no fill. */
@@ -1099,12 +1118,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
                     vspacing -> verticalSpaceMove(event)
                     banding -> bandMove(event)
                     textSelecting -> textSelectMove(event)
+                    splineDragging -> splineMove(event)
                     current != null -> extendStroke(event)
                     else -> Unit
                 }
             }
             MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
-            MotionEvent.ACTION_UP -> { captureReleaseVelocity(event); handleHandTapUp(event); endGesture() }
+            // A spline node is still mid-curve on release — it must not run the commit-and-finish path.
+            MotionEvent.ACTION_UP -> if (splineDragging) splineUp(event) else {
+                captureReleaseVelocity(event); handleHandTapUp(event); endGesture()
+            }
             MotionEvent.ACTION_CANCEL -> { handTapCandidate = false; cancelGesture() }
             else -> return super.onTouchEvent(event)
         }
@@ -1223,7 +1246,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
             GestureIntent.SELECT_TEXT -> beginTextSelect(event)
             GestureIntent.VERTICAL_SPACE -> beginVerticalSpace(event)
             GestureIntent.ERASE -> startErase(event, pointerIndex)
-            GestureIntent.DRAW -> startStroke(event, pointerIndex)
+            // The spline tool is laid down over many taps, so it gets its own gesture path.
+            GestureIntent.DRAW ->
+                if (shapeKind == ShapeKind.SPLINE) splineDown(event, pointerIndex)
+                else startStroke(event, pointerIndex)
             GestureIntent.IGNORE -> Unit
         }
     }
@@ -1268,6 +1294,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
     private fun abandonInProgress() {
+        clearSpline()
         current = null; shaping = false; erasing = false; placing = false; banding = false
         movingSel = false; resizing = false; rotating = false; scrolling = false; textSelecting = false
         vspacing = false
@@ -1275,6 +1302,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun cancelGesture() {
         stopFling()
+        clearSpline()
         current = null; shaping = false; scrolling = false; erasing = false; placing = false
         movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
         textSelecting = false; vspacing = false
@@ -1312,6 +1340,110 @@ class DrawingSurfaceView @JvmOverloads constructor(
         } else {
             current?.let { addSamples(event, pointerIndex, box, it); render() }
         }
+    }
+
+    // --- the spline tool: tap to add a control point, drag to curve it, double-tap to finish -------
+
+    /**
+     * A touch while the spline tool is active. A tap that pairs with the previous one (double-tap)
+     * closes the curve; otherwise it appends a control point, which the following drag can curve.
+     */
+    private fun splineDown(event: MotionEvent, pointerIndex: Int) {
+        val x = event.getX(pointerIndex)
+        val y = event.getY(pointerIndex)
+        if (splineNodes.isNotEmpty() && pairsWithPreviousSplineTap(event.eventTime, x, y)) {
+            finishSpline()
+            return
+        }
+        scrolling = false
+        // The first node fixes the page for the whole curve, so later taps stay in one stroke.
+        val box = if (splineNodes.isEmpty()) layout.pageAt(y + scrollY) else layout.boxes.getOrNull(currentPage)
+        if (box == null) return
+        if (splineNodes.isEmpty()) {
+            currentPage = box.index
+            gestureStartDoc = doc
+        }
+        gesturePointerId = event.getPointerId(pointerIndex)
+        splineAnchorX = ptX(box, x)
+        splineAnchorY = ptY(box, y)
+        splineNodes += SplineNode(splineAnchorX, splineAnchorY)
+        splineDragging = true
+        splineTapTime = event.eventTime
+        splineTapX = x
+        splineTapY = y
+        renderSplinePreview()
+    }
+
+    /** Dragging away from the tap grows the newest node's tangent handle, curving the curve live. */
+    private fun splineMove(event: MotionEvent) {
+        val pointerIndex = event.findPointerIndex(gesturePointerId)
+        if (pointerIndex < 0) return
+        val box = layout.boxes.getOrNull(currentPage) ?: return
+        val tx = ptX(box, event.getX(pointerIndex)) - splineAnchorX
+        val ty = ptY(box, event.getY(pointerIndex)) - splineAnchorY
+        splineNodes[splineNodes.lastIndex] = SplineNode(splineAnchorX, splineAnchorY, tx, ty)
+        renderSplinePreview()
+    }
+
+    /** The node is placed; the curve stays open, waiting for the next tap (or the finishing double-tap). */
+    private fun splineUp(event: MotionEvent) {
+        splineDragging = false
+        gesturePointerId = -1
+        stylusOwner = false
+        // A drag isn't a tap, so it can't be half of the double-tap that finishes the curve.
+        if (hypot(event.x - splineTapX, event.y - splineTapY) > doubleTapSlopPx) splineTapTime = 0L
+        renderSplinePreview()
+    }
+
+    private fun pairsWithPreviousSplineTap(time: Long, x: Float, y: Float): Boolean =
+        splineTapTime != 0L && time - splineTapTime <= doubleTapTimeoutMs &&
+            hypot(x - splineTapX, y - splineTapY) <= doubleTapSlopPx
+
+    /** Show the curve-so-far as the in-progress stroke, so it paints exactly as it will commit. */
+    private fun renderSplinePreview() {
+        current = ArrayList(SplineBuilder.build(splineNodes, baseWidthPt.toDouble()))
+        render()
+    }
+
+    /** True while a spline is open — the editor uses this to decide whether Enter/Esc apply. */
+    fun splineInProgress(): Boolean = splineNodes.isNotEmpty()
+
+    /**
+     * Commit the open spline as one ordinary stroke (the same shape any other tool produces) and
+     * clear the tool's state. Safe to call when nothing is open; a one-node spline is just dropped.
+     */
+    fun finishSpline() {
+        if (splineNodes.isEmpty()) return
+        val pts = SplineBuilder.build(splineNodes, baseWidthPt.toDouble())
+        clearSpline()
+        if (pts.size >= 2) {
+            appendStroke(
+                currentPage,
+                Stroke(
+                    tool, strokeColor(), "round", pts, true,
+                    lineStyle = currentLineStyle, fill = currentFill,
+                ),
+            )
+        }
+        finishGesture()
+        render()
+    }
+
+    /** Throw the open spline away without committing it (Escape, or switching tools mid-curve). */
+    fun cancelSpline() {
+        if (splineNodes.isEmpty()) return
+        clearSpline()
+        gestureStartDoc = null
+        render()
+    }
+
+    private fun clearSpline() {
+        splineNodes.clear()
+        splineDragging = false
+        splineTapTime = 0L
+        current = null
+        gesturePointerId = -1
+        stylusOwner = false
     }
 
     /** The eraser: touch/drag deletes any stroke it passes over on the page under the pointer. */

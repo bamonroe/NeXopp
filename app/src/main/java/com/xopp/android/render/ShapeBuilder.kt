@@ -8,7 +8,7 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 /** A geometric shape the shape tools draw. Each is emitted as an ordinary constant-width stroke. */
-enum class ShapeKind { LINE, ARROW, RECTANGLE, ELLIPSE }
+enum class ShapeKind { LINE, ARROW, RECTANGLE, ELLIPSE, SPLINE }
 
 /**
  * Pure geometry that turns a drag (start → end, in page-local pt) into the vertex list of a shape.
@@ -38,6 +38,9 @@ object ShapeBuilder {
         ShapeKind.ARROW -> arrow(startX, startY, endX, endY, widthPt)
         ShapeKind.RECTANGLE -> rectangle(startX, startY, endX, endY, widthPt)
         ShapeKind.ELLIPSE -> ellipse(startX, startY, endX, endY, widthPt)
+        // A spline is laid down over many taps, so its real geometry comes from [SplineBuilder]; the
+        // two-point case this signature can express is just a straight line between the ends.
+        ShapeKind.SPLINE -> line(startX, startY, endX, endY, widthPt)
     }
 
     private fun p(x: Double, y: Double, w: Double) = StrokePoint(x, y, w)

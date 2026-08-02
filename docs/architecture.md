@@ -330,6 +330,7 @@ app/
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
       PageEraser.kt          # eraser applied to a page: mode, tip size, hidden-layer skip (pure)
       ShapeBuilder.kt        # line/arrow/rectangle/ellipse drag -> stroke vertex list (pure)
+      SplineBuilder.kt       # spline control points -> cubic-Bezier stroke vertex list (pure)
       LayerOps.kt            # add/delete/rename/reorder/move-selection layer edits (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
       Selection.kt           # ElementRef + SelectionTester: rect/tap picking, selection bounds (pure)
@@ -440,7 +441,13 @@ the raw source text, so a malformed formula can't crash a frame.
 **Shapes, styles, partial eraser, layers.** The **shape tools** (Line/Arrow/Rectangle/Ellipse) turn a
 one-finger drag into an ordinary constant-width pen stroke: `ShapeBuilder` (pure, tested) converts the
 drag's start/end into a vertex list, previewed live and committed as one undoable stroke, so shapes
-round-trip like any stroke. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
+round-trip like any stroke. The **spline tool** is the one shape whose gesture spans several touches,
+so it bypasses the single-drag path: `DrawingSurfaceView` accumulates `SplineNode`s (anchor + tangent
+handle — a tap sets the anchor, the drag that follows sets the handle) and `SplineBuilder` (pure,
+tested) flattens the chain into one vertex list by sampling a cubic Bézier per node pair, with C¹
+continuity at every node. The curve previews through the same in-progress-stroke path as everything
+else and commits on a double-tap, on `Enter` (routed from `MainActivity.dispatchKeyEvent`, so the
+canvas never takes keyboard focus), or when the tool changes; `Escape` discards it. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
 on the stroke the tool draws next; `StrokePainter` paints a dashed/dotted style as a single
 constant-width dashed path and floods a fill under the outline, and `PdfVectorPainter` mirrors both for
 export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,

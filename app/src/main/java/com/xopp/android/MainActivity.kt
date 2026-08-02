@@ -3,6 +3,7 @@ package com.xopp.android
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -73,6 +74,22 @@ class MainActivity : ComponentActivity() {
         registerForActivityResult(ActivityResultContracts.CreateDocument(PDF_MIME)) { uri ->
             uri?.let(::exportPdf)
         }
+
+    /**
+     * Hardware-keyboard shortcuts for the spline tool, which is the one tool whose gesture spans
+     * several taps: Enter commits the open curve, Escape throws it away. Handled here rather than in
+     * the surface so the canvas never has to take keyboard focus away from the app's text fields.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val view = surface
+        if (event.action == KeyEvent.ACTION_UP && view != null && view.splineInProgress()) {
+            when (event.keyCode) {
+                KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { view.finishSpline(); return true }
+                KeyEvent.KEYCODE_ESCAPE -> { view.cancelSpline(); return true }
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
