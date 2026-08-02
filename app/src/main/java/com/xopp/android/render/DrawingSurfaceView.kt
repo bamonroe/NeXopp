@@ -269,6 +269,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Off-screen ink rasters, so a pan/fling frame blits pages instead of re-submitting strokes. */
     private val inkCache = InkCache()
 
+    /** Set while a coalesced redraw is queued — see [requestRender]. */
+    private val renderPosted = java.util.concurrent.atomic.AtomicBoolean(false)
+
     private val selectionStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f
@@ -336,8 +339,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         pdfSource?.onPageReady = null
         pdfSource?.close()
         pdfSource = source
-        // Rasterisation runs on a worker; redraw once a sharper page lands.
-        source?.onPageReady = { post { render() } }
+        // Rasterisation runs on a worker; redraw once a sharper page lands. A pan can land a dozen
+        // tiles in one frame's time, so the redraws are coalesced into a single pass.
+        source?.onPageReady = { requestRender() }
     }
 
     /** Supply the imported PDF's extracted text layer for the text-select tool, or null to clear it. */
@@ -1565,6 +1569,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
         layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom)
         scrollY = scrollY.coerceIn(0f, maxScrollY())
         scrollX = scrollX.coerceIn(0f, maxScrollX())
+    }
+
+    /**
+     * Ask for one redraw from a background thread, collapsing a burst into a single frame. Several
+     * tiles of the same pan often finish within one frame's time; posting a [render] for each would
+     * repaint the whole viewport that many times over.
+     */
+    private fun requestRender() {
+        if (renderPosted.getAndSet(true)) return
+        post {
+            renderPosted.set(false)
+            render()
+        }
     }
 
     private fun render() {

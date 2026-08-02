@@ -381,7 +381,16 @@ a `Matrix` on `PdfRenderer.Page.render`, and `BackgroundRenderer` draws them ove
 bitmap. So PDF text stays sharp to the 1000 % zoom ceiling while cost stays proportional to the
 viewport, not the page; a tile that hasn't rasterised yet simply shows the coarse layer underneath.
 When the tiles on hand already cover every visible pixel of the page, `BackgroundRenderer` skips the
-coarse whole-page blit entirely, so those pixels aren't rasterised twice.
+coarse whole-page blit entirely, so those pixels aren't rasterised twice. Four things keep the tile
+path off the frame budget: `requestTiles` **memoises** its answer per page and rebuilds the list only
+when the visible cell block or the cache's contents change (a pan holds the same block for many
+frames); it queues the **ring of cells just outside** the viewport, so a pan meets rasterised tiles
+at its leading edge rather than the coarse under-layer; a viewport spanning more cells than
+`PdfPageCache.MAX_TILES_PER_FRAME` caps how many new cells are *queued* instead of dropping the whole
+request, so cells already rasterised still draw sharp; and `nearest` finds a stand-in bitmap through
+a per-page sorted width index rather than scanning every entry, since a pinch calls it per visible
+page per frame while the cache holds hundreds of tiles. Tiles landing from the worker coalesce into
+a single redraw (`DrawingSurfaceView.requestRender`) instead of one full repaint each.
 Ink is culled the same way: `DrawingSurfaceView` hands `PageRenderer.drawElements` the viewport in
 page-local pt, and any element whose `ElementBounds` box misses it is never submitted (boxes are
 memoised by element identity, so the cull doesn't rescan stroke points each frame). At high zoom a

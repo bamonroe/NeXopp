@@ -52,6 +52,21 @@ class PdfPageCache(val source: File) : Closeable {
     /** Access-ordered so eviction drops the least recently *used* entry, not the oldest. */
     private val cache = LinkedHashMap<Key, Bitmap>(16, 0.75f, true)
     private var cachedBytes = 0L
+
+    /**
+     * Whole-page entries indexed page → cached widths, so [nearest] is a sorted lookup instead of a
+     * scan of every entry. A pinch calls it on the drawing thread for each visible page each frame,
+     * and the cache holds hundreds of tiles at high zoom.
+     */
+    private val pageWidths = HashMap<Int, java.util.TreeSet<Int>>()
+
+    /**
+     * Bumped whenever the cache's contents change, so [requestTiles] can tell a repeat of the same
+     * request (reuse the memoised tile list) from one whose answer may have grown.
+     */
+    private var generation = 0
+    /** Last tile list handed out per page, valid while grid and [generation] are unchanged. */
+    private val tileMemo = HashMap<Int, TileMemo>()
     private val sizes = HashMap<Int, Pair<Double, Double>>()
     private val pending = LinkedHashSet<Key>()
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "pdf-raster").apply { isDaemon = true } }
@@ -120,22 +135,63 @@ class PdfPageCache(val source: File) : Closeable {
         val r0 = ((visTop * fullH) / TILE_PX).toInt().coerceIn(0, rows - 1)
         val r1 = ((visBottom * fullH) / TILE_PX).toInt().coerceIn(0, rows - 1)
         if (c1 < c0 || r1 < r0) return emptyList()
-        // A wildly out-of-proportion viewport (or a fling mid-relayout) could ask for a whole page's
-        // worth of tiles; cap the fan-out so one frame can never queue unbounded work.
-        if ((c1 - c0 + 1).toLong() * (r1 - r0 + 1) > MAX_TILES_PER_FRAME) return emptyList()
-        val tiles = ArrayList<PdfTile>()
-        for (r in r0..r1) for (c in c0..c1) {
-            val key = Key(i, scale, c, r)
-            val bmp = synchronized(lock) { cache[key] ?: run { enqueue(key); null } } ?: continue
-            tiles += PdfTile(
-                bmp,
-                (c * TILE_PX).toFloat() / scale,
-                (r * TILE_PX).toFloat() / fullH,
-                minOf((c + 1) * TILE_PX, scale).toFloat() / scale,
-                minOf((r + 1) * TILE_PX, fullH).toFloat() / fullH,
-            )
+        synchronized(lock) {
+            val memo = tileMemo[i]
+            if (memo != null && memo.matches(scale, c0, c1, r0, r1, generation)) return memo.tiles
+        }
+        val tiles = ArrayList<PdfTile>((c1 - c0 + 1) * (r1 - r0 + 1))
+        var queued = 0
+        synchronized(lock) {
+            for (r in r0..r1) for (c in c0..c1) {
+                val bmp = cache[Key(i, scale, c, r)]
+                if (bmp == null) {
+                    // A wildly out-of-proportion viewport (or a fling mid-relayout) can span a whole
+                    // page's worth of cells. Cap what one frame *queues* rather than dropping the
+                    // request outright — the cells already rasterised are still drawn sharp.
+                    if (queued < MAX_TILES_PER_FRAME) { enqueue(Key(i, scale, c, r)); queued++ }
+                    continue
+                }
+                tiles += PdfTile(
+                    bmp,
+                    (c * TILE_PX).toFloat() / scale,
+                    (r * TILE_PX).toFloat() / fullH,
+                    minOf((c + 1) * TILE_PX, scale).toFloat() / scale,
+                    minOf((r + 1) * TILE_PX, fullH).toFloat() / fullH,
+                )
+            }
+            queued += prefetchRing(i, scale, cols, rows, c0, c1, r0, r1, MAX_TILES_PER_FRAME - queued)
+            tileMemo[i] = TileMemo(scale, c0, c1, r0, r1, generation, tiles)
         }
         return tiles
+    }
+
+    /**
+     * Queue the ring of cells just outside the visible block, so a pan meets rasterised tiles at its
+     * leading edge instead of the blurry under-layer. Caller holds [lock]; returns how many were
+     * queued, never more than [budgetCells].
+     */
+    private fun prefetchRing(
+        i: Int,
+        scale: Int,
+        cols: Int,
+        rows: Int,
+        c0: Int,
+        c1: Int,
+        r0: Int,
+        r1: Int,
+        budgetCells: Int,
+    ): Int {
+        if (budgetCells <= 0) return 0
+        var queued = 0
+        for (r in (r0 - 1)..(r1 + 1)) for (c in (c0 - 1)..(c1 + 1)) {
+            if (r in r0..r1 && c in c0..c1) continue // the visible block, already handled
+            if (r < 0 || c < 0 || r >= rows || c >= cols) continue
+            val key = Key(i, scale, c, r)
+            if (cache.containsKey(key)) continue
+            enqueue(key)
+            if (++queued >= budgetCells) return queued
+        }
+        return queued
     }
 
     /** Queue page [i] at [targetWidthPx] for background rasterisation if it isn't cached already. */
@@ -163,6 +219,24 @@ class PdfPageCache(val source: File) : Closeable {
     /** A cache entry: a whole page at a width bucket, or one cell of that width's tile grid. */
     private data class Key(val page: Int, val width: Int, val col: Int = -1, val row: Int = -1) {
         val tiled get() = col >= 0
+    }
+
+    /**
+     * A page's last tile answer. A pan holds the same visible cell block for many frames, so
+     * rebuilding the list (and a [PdfTile] per cell) each frame was pure churn on the drawing thread.
+     */
+    private class TileMemo(
+        private val scale: Int,
+        private val c0: Int,
+        private val c1: Int,
+        private val r0: Int,
+        private val r1: Int,
+        private val generation: Int,
+        val tiles: List<PdfTile>,
+    ) {
+        fun matches(scale: Int, c0: Int, c1: Int, r0: Int, r1: Int, generation: Int) =
+            this.scale == scale && this.c0 == c0 && this.c1 == c1 &&
+                this.r0 == r0 && this.r1 == r1 && this.generation == generation
     }
 
     /**
@@ -248,20 +322,24 @@ class PdfPageCache(val source: File) : Closeable {
      * [w], if any. Tiles are never a stand-in — they cover only part of the page.
      */
     private fun nearest(i: Int, w: Int): Bitmap? {
-        var best: Bitmap? = null
-        var bestDelta = Int.MAX_VALUE
-        for ((k, bmp) in cache) {
-            if (k.page != i || k.tiled) continue
-            val delta = kotlin.math.abs(k.width - w)
-            if (delta < bestDelta) { best = bmp; bestDelta = delta }
-        }
-        return best
+        val widths = pageWidths[i] ?: return null
+        val below = widths.floor(w)
+        val above = widths.ceiling(w)
+        val best = when {
+            below == null -> above
+            above == null -> below
+            w - below <= above - w -> below
+            else -> above
+        } ?: return null
+        return cache[Key(i, best)]
     }
 
     /** Caller holds [lock]. */
     private fun put(key: Key, bmp: Bitmap) {
         cache.put(key, bmp)?.let { cachedBytes -= it.byteCount.toLong() }
         cachedBytes += bmp.byteCount.toLong()
+        index(key)
+        generation++
         val it = cache.entries.iterator()
         while (cachedBytes > budget && cache.size > 1 && it.hasNext()) {
             val eldest = it.next()
@@ -269,7 +347,22 @@ class PdfPageCache(val source: File) : Closeable {
             cachedBytes -= eldest.value.byteCount.toLong()
             // Not recycled: the drawing thread may still hold this bitmap for the current frame.
             it.remove()
+            unindex(eldest.key)
         }
+    }
+
+    /** Caller holds [lock]. Track a whole-page entry's width for [nearest]. */
+    private fun index(key: Key) {
+        if (key.tiled) return
+        pageWidths.getOrPut(key.page) { java.util.TreeSet() }.add(key.width)
+    }
+
+    /** Caller holds [lock]. Forget an evicted whole-page entry's width. */
+    private fun unindex(key: Key) {
+        if (key.tiled) return
+        val widths = pageWidths[key.page] ?: return
+        widths.remove(key.width)
+        if (widths.isEmpty()) pageWidths.remove(key.page)
     }
 
     override fun close() {
@@ -278,6 +371,9 @@ class PdfPageCache(val source: File) : Closeable {
             closed = true
             pending.clear()
             cache.clear()
+            pageWidths.clear()
+            tileMemo.clear()
+            generation++
             cachedBytes = 0
         }
         // Under [renderLock] so an in-flight rasterise finishes before the renderer goes away.
@@ -316,8 +412,12 @@ class PdfPageCache(val source: File) : Closeable {
          */
         const val MAX_TILE_SCALE = 1 shl 19
 
-        /** Backstop on tiles queued from one frame, so a degenerate viewport can't flood the worker. */
-        const val MAX_TILES_PER_FRAME = 64
+        /**
+         * Backstop on tiles *queued* from one frame (visible cells first, then the prefetch ring),
+         * so a degenerate viewport can't flood the worker. Cells already cached are always drawn,
+         * however many there are — this caps new work, not the answer.
+         */
+        const val MAX_TILES_PER_FRAME = 96
 
         const val MODE = PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
 
