@@ -166,7 +166,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   `\frac{a}{b}`, `x^2`, `\sqrt{y}`, `\alpha`) and it's rendered as real math.
 - **Undo / Redo** — the arrows in the top bar undo and redo edits, one gesture at a time (drawing,
   erasing, and adding/editing text/image/LaTeX are all undoable). They enable and disable as history
-  allows; opening a file starts fresh history.
+  allows; opening a file starts fresh history. History is **200 edits deep** — past that the oldest
+  step is dropped, so the most recent edits always stay undoable without the stack growing forever.
 - **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
   from the Tool pop-up to pan with **one finger** (handy on a stylus). A quick **one-finger flick**
   keeps the pages **gliding** with momentum and coasts to a stop — the faster the flick, the much

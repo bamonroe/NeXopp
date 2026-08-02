@@ -6,16 +6,33 @@ package com.xopp.android.render
  * [record] with the pre-edit snapshot; [undo]/[redo] move between branches. Recording a new edit
  * discards the redo branch, as in every editor.
  */
-class EditHistory<T> {
+class EditHistory<T>(private val maxDepth: Int = DEFAULT_MAX_DEPTH) {
+    companion object {
+        /**
+         * How many undo steps to keep. Snapshots are structurally shared immutable documents, so a
+         * step costs little more than the elements the edit touched; this is deep enough to cover a
+         * long drawing session while still bounding memory on a tablet.
+         */
+        const val DEFAULT_MAX_DEPTH = 200
+    }
+
+    init {
+        require(maxDepth > 0) { "maxDepth must be positive" }
+    }
+
     private val undoStack = ArrayDeque<T>()
     private val redoStack = ArrayDeque<T>()
 
     val canUndo: Boolean get() = undoStack.isNotEmpty()
     val canRedo: Boolean get() = redoStack.isNotEmpty()
 
-    /** Record that the state changed away from [before]; clears any redo branch. */
+    /**
+     * Record that the state changed away from [before]; clears any redo branch. Once the history is
+     * [maxDepth] deep the oldest step is dropped, so the newest edits are always undoable.
+     */
     fun record(before: T) {
         undoStack.addLast(before)
+        while (undoStack.size > maxDepth) undoStack.removeFirst()
         redoStack.clear()
     }
 

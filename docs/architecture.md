@@ -366,7 +366,8 @@ backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WI
 beyond which the cached bitmap is upscaled to bound memory. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
-gesture at a time (snapshots are cheap — immutable pages/layers share structure); pan and zoom are
+gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is
+bounded at `EditHistory.DEFAULT_MAX_DEPTH` (200) steps, dropping the oldest once full; pan and zoom are
 view-only and not recorded. Strokes are drawn by the view; text boxes, images, and LaTeX images
 are drawn by `ElementRenderer` (text baseline geometry lives in the pure, tested `TextBlock`; image
 bytes are decoded once and cached by element identity). A `<teximage>` carries only its LaTeX

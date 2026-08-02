@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "undo-redo-stack-with-adequate-depth"
+title = "Undo/redo stack with adequate depth"
+description = "Add an undo/redo history covering strokes, page add/delete, and text edits, with a reasonable depth limit and UI buttons."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["editing"]
+
+[[task]]
 id = "eraser-mode-whole-stroke-and-partial-erase"
 title = "Eraser mode: whole-stroke and partial erase"
 description = "Proper eraser tool with both delete-whole-stroke and partial (split stroke) erase, matching desktop Xournal++ eraser behavior; erased results must round-trip through .xopp."
