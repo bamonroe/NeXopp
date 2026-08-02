@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "tune-pressure-curve-and-stroke-smoothing"
-title = "Tune pressure curve and stroke smoothing"
-description = "Match desktop Xournal++ stroke appearance: tune the MotionEvent pressure-to-width mapping and add point smoothing/simplification so handwriting looks the same on Android as on Linux."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 10
-created = 2026-08-01
-tags = ["stylus", "fidelity"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "eraser-mode-whole-stroke-and-partial-erase"
 title = "Eraser mode: whole-stroke and partial erase"
 description = "Proper eraser tool with both delete-whole-stroke and partial (split stroke) erase, matching desktop Xournal++ eraser behavior; erased results must round-trip through .xopp."

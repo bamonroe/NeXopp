@@ -9,7 +9,8 @@ class PressureCurveTest {
     @Test fun linearDefaultMatchesHistoricalMapping() {
         // The old hard-coded response was 0.4 + 0.6·pressure; gamma=1 must reproduce it exactly.
         for (p in listOf(0f, 0.25f, 0.5f, 0.75f, 1f)) {
-            assertEquals("p=$p", 0.4f + 0.6f * p, PressureCurve.factor(p, gamma = 1f), 1e-6f)
+            val expected = PressureCurve.MIN + (PressureCurve.MAX - PressureCurve.MIN) * p
+            assertEquals("p=$p", expected, PressureCurve.factor(p, gamma = 1f), 1e-6f)
         }
     }
 

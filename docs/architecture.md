@@ -527,9 +527,25 @@ perturb the stroke. A stylus/eraser pointer arriving mid-gesture **takes over** 
 started (`onPointerDown` → `abandonInProgress`), and once a stylus owns the stroke (`stylusOwner`)
 extra finger/palm pointers are ignored rather than treated as a second-finger pan.
 
-**Pressure** feeds width through the pure `PressureCurve` (`min + (max−min)·pressure^gamma`); the
-`PressureSensitivity` presets (Soft/Linear/Firm) pick the exponent, and **Linear** reproduces the old
-hard-coded `0.4 + 0.6·pressure` exactly (`PressureCurveTest`). **Hover** (`ACTION_HOVER_MOVE` from a
+**Pressure** feeds width through the pure `PressureCurve` (`min + (max−min)·pressure^gamma`, with
+`min = 0.25` chosen to match desktop Xournal++'s deeper taper); the `PressureSensitivity` presets
+(Soft/Linear/Firm) pick the exponent (`PressureCurveTest`).
+
+**Stroke smoothing** sits between the raw `MotionEvent` samples and those page points, in
+`StrokeSmoother.kt`, and is what makes Android handwriting look like the desktop's rather than a
+ragged polyline. Two pure pieces:
+
+- `StrokeSmoother` — per-stroke streaming filter in **view pixels** (so it is zoom-independent),
+  reset in `startStroke` and fed by `addSamples`. It exponentially smooths position (α 0.55) and,
+  harder, pressure (α 0.3), then **decimates** samples that moved less than 1.6 px with less than
+  0.02 pressure change. A decimated sample still advances the filter, so no drift accumulates; the
+  newest sample of every batch is `force`d through so the drawn line always reaches the pen.
+- `StrokeSimplifier` — Ramer–Douglas–Peucker pass run once in `commitCurrent` over the finished
+  freehand points, dropping vertices within `TOLERANCE_PT` (0.35 pt) of their neighbours' chord.
+  Shape-tool output is exact geometry and is exempt. Fewer vertices = smaller `.xopp` and fewer
+  `drawLine` calls per redraw.
+
+Both are covered by `StrokeSmootherTest`. **Hover** (`ACTION_HOVER_MOVE` from a
 stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of these are settings in
 `AppSettings`, persisted by `SettingsStore` (SharedPreferences) and pushed live onto the surface by
 `EditorScreen.applySettings`; the on-device `StylusInputTest` drives synthetic tool-typed

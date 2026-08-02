@@ -169,6 +169,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var inputSettings: InputSettings = InputSettings()
     /** Pressure→width exponent (see [PressureCurve]); 1 = linear. Set from the sensitivity setting. */
     var pressureGamma: Float = PressureSensitivity.LINEAR.gamma
+    /** Jitter filter for the in-progress freehand stroke; reset at the start of each stroke. */
+    private val smoother = StrokeSmoother()
     /** When true, a hovering stylus shows a preview dot (from `ACTION_HOVER_MOVE`). */
     var showHover: Boolean = true
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
@@ -1230,6 +1232,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             shapeStartY = ptY(box, event.getY(pointerIndex))
             current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, baseWidthPt.toDouble())))
         } else {
+            smoother.reset()
             current = ArrayList<StrokePoint>().also { addSamples(event, pointerIndex, box, it) }
         }
     }
@@ -1457,14 +1460,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
      */
     private fun addSamples(event: MotionEvent, pointerIndex: Int, box: PageBox, into: MutableList<StrokePoint>) {
         for (h in 0 until event.historySize) {
-            into += point(
-                box,
+            smoother.accept(
                 event.getHistoricalX(pointerIndex, h),
                 event.getHistoricalY(pointerIndex, h),
                 event.getHistoricalPressure(pointerIndex, h),
-            )
+            )?.let { into += point(box, it.x, it.y, it.pressure) }
         }
-        into += point(box, event.getX(pointerIndex), event.getY(pointerIndex), event.getPressure(pointerIndex))
+        // The batch's newest sample is always kept, so the drawn line reaches the pen.
+        smoother.accept(
+            event.getX(pointerIndex), event.getY(pointerIndex), event.getPressure(pointerIndex), force = true,
+        )?.let { into += point(box, it.x, it.y, it.pressure) }
     }
 
     private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
@@ -1484,10 +1489,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun commitCurrent() {
-        val pts = current ?: return
+        val raw = current ?: return
         current = null
         val wasShaping = shaping
         shaping = false
+        // Shape tools emit exact geometry — only freehand samples get thinned.
+        val pts = if (wasShaping) raw else StrokeSimplifier.simplify(raw)
         if (pts.size >= 2) {
             // Highlighter and geometric shapes are constant-width → store a single width; the freehand
             // pen keeps its per-vertex pressure. Live line-style/fill are baked in so they round-trip.

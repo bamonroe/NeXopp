@@ -15,7 +15,10 @@ import kotlin.math.pow
 object PressureCurve {
 
     /** Width floor as a fraction of base width, so a zero-pressure sample still leaves a visible line. */
-    const val MIN = 0.4f
+    // Desktop Xournal++ multiplies the nominal width by the raw pressure and only clamps it just
+    // above zero, so its strokes taper far more than a 0.4 floor allows. 0.25 gets close to that
+    // look while still leaving a light touch visible on digitisers that under-report pressure.
+    const val MIN = 0.25f
 
     /** Width ceiling as a fraction of base width, at full pressure. */
     const val MAX = 1.0f

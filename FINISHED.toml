@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "tune-pressure-curve-and-stroke-smoothing"
+title = "Tune pressure curve and stroke smoothing"
+description = "Match desktop Xournal++ stroke appearance: tune the MotionEvent pressure-to-width mapping and add point smoothing/simplification so handwriting looks the same on Android as on Linux."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["stylus", "fidelity"]
+
+[[task]]
 id = "allow-zoom-up-to-800"
 title = "Allow zoom up to 800%"
 description = "Raise the canvas zoom ceiling to 800% so fine detail work is possible. Update the pinch-zoom and any zoom control clamps, and keep rendering sharp (re-rasterize at the zoomed scale rather than upscaling a low-res bitmap) at high zoom levels."

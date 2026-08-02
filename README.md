@@ -133,7 +133,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Stylus** — the app is stylus-first. Rest your **palm** on the screen while you write: once the pen
   is down, finger/palm touches are ignored for drawing (a second finger still pans). A hovering stylus
   shows a **preview ring** where the tip will land. Pen **pressure** sets stroke width, with a
-  configurable feel. All of this is tuned in **Settings** below.
+  configurable feel, tapering more deeply at a light touch to match desktop Xournal++. Handwriting is
+  **smoothed** as you write — digitiser wobble in both position and pressure is filtered out, and
+  redundant points are dropped when the pen lifts, so strokes look clean and files stay small.
+  All of this is tuned in **Settings** below.
 - **Select** — pick **Select** from the Tool pop-up to select objects the way desktop Xournal++
   does. Choose the marquee shape from the bottom bar: **Rectangle** (drag a box; every object fully
   inside is selected) or **Lasso** (trace a free-form loop; everything wholly inside is selected).
