@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "group-toolbar-tools-with-long-press-active-tool-selection"
+title = "Group toolbar tools with long-press active-tool selection"
+description = "Group related tools into single toolbar slots, each showing one active tool. Long-pressing a group opens a picker to choose a different active tool for that group. Selections must persist across app closures (saved to preferences). Groups: Pan; pen + highlighter; line + arrow; rectangle + ellipse; the select tools; text + latex + image."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["toolbar", "ui"]
+
+[[task]]
 id = "cache-each-page-s-ink-into-an-offscreen-bitmap"
 title = "Cache each page's ink into an offscreen bitmap"
 description = "Structural follow-up to [cull-off-screen-elements-when-drawing-pages]. Every pan/fling frame calls render() (DrawingSurfaceView.kt:1566, from doScroll :1337 and onFlingFrame :1404), which repaints all content from scratch onto a software canvas: holder.lockCanvas() at :1568, not lockHardwareCanvas, so all stroke rasterization and every PDF tile blit is CPU work. There is no offscreen page bitmap or layer cache anywhere. Fix: rasterize each page's ink once into an offscreen bitmap keyed by zoom bucket, so panning becomes a blit and only invalidated pages re-rasterize; consider lockHardwareCanvas and dirty-rect lockCanvas(rect) at the same time. Secondary per-frame waste to clean up while in here: PdfPageCache.requestTiles (PdfPageCache.kt:104) rebuilds grid arithmetic and allocates a fresh ArrayList plus a PdfTile per visible cell each frame, and BackgroundRenderer.kt:57 allocates a RectF per tile per frame; each async tile arrival posts a full extra render() (DrawingSurfaceView.kt:337); tile rendering is serialized on one worker thread (PdfPageCache.kt:57) with no off-screen prefetch, so a fast pan always shows the blurry under-layer at its leading edge; requestTiles bails to emptyList() when the viewport spans >64 cells (PdfPageCache.kt:126); and nearest() (PdfPageCache.kt:246) linear-scans the whole cache under lock on the drawing thread during pinch-zoom."

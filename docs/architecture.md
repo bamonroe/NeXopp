@@ -342,7 +342,8 @@ app/
       PageOps.kt             # insert / delete pages in a page list (pure)
     ui/                      # Compose Material 3
       EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
-      SideToolbar.kt         # left vertical rail: Tool/Colour/Size/Zoom/Pages button-anchored pop-ups
+      SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
+      ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       SettingsScreen.kt      # full-screen stylus settings (finger-draw, barrel, hover, pressure feel)
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
@@ -533,8 +534,17 @@ icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import P
 and Settings; a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
 Pages; and the canvas filling the rest. Each rail button owns its own `DropdownMenu`, so the pop-up
 is anchored to that button (opening to the right of the rail) rather than filling the screen. The
-Tool pop-up lists Pen / Highlighter / Eraser / Hand / Text / Image / LaTeX as a UI-level
-`EditorTool` (Hand is view-only pan and Text/Image/LaTeX are placement modes, none a document tool,
+rail's head is **one slot per tool group** (`ToolGroups.kt`): `TOOL_GROUPS` partitions every
+`EditorTool` into named groups (draw · eraser · line · shape · pan · select · insert), and
+`ToolGroupButton` renders each as a single button faced with that group's current tool — tap to
+activate it, long-press for a `DropdownMenu` over the group's members. A pick writes
+`AppSettings.toolGroupSelections` (a `groupId → EditorTool` map, encoded as `group:TOOL` pairs in
+one pref, so slots survive a restart) and activates the tool in the same gesture. `selected()` and
+`decodeToolGroupSelections()` both drop non-member entries, so a stale pref degrades to the group's
+first tool rather than facing a slot at a tool that has since moved. `startingTool()` resolves the
+opening tool as `defaultTool`'s **group selection**, so the rail's face and the live tool agree on
+launch. The tools are UI-level
+`EditorTool`s (Hand is view-only pan and Text/Image/LaTeX are placement modes, none a document tool,
 so `EditorScreen.applyTool` maps them to the surface's `handMode` / `placeKind` and maps the three
 drawing tools to the document `Tool`). The **Pages** pop-up is a page navigator: `Page N / M` with
 ◀ / ▶ to jump to the previous/next page (`goToPage` scrolls the stack; the surface reports the page

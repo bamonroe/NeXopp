@@ -139,7 +139,9 @@ fun EditorScreen(
     settings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit,
 ) {
-    var tool by remember { mutableStateOf(settings.defaultTool) }
+    var tool by remember {
+        mutableStateOf(startingTool(settings.defaultTool, settings.toolGroupSelections))
+    }
     var color by remember { mutableStateOf(settings.lastColor) }
     var width by remember { mutableStateOf(settings.lastWidth) }
     var zoom by remember { mutableStateOf(1f) }
@@ -211,6 +213,8 @@ fun EditorScreen(
                 horizontal = settings.toolbarPosition.isHorizontal,
                 tool = tool,
                 onTool = { tool = it; surface?.applyTool(it) },
+                toolGroupSelections = settings.toolGroupSelections,
+                onToolGroupSelections = { onSettingsChange(settings.copy(toolGroupSelections = it)) },
                 color = color,
                 onColor = { color = it; surface?.colorArgb = it; onSettingsChange(settings.withColorUsed(it)) },
                 customColor = settings.customColor,

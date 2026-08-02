@@ -53,6 +53,11 @@ data class AppSettings(
     val lastColor: Int = DEFAULT_LAST_COLOR,
     /** The pen width (pt) in use when the app last ran, restored on the next launch. */
     val lastWidth: Float = DEFAULT_PEN_WIDTHS[1],
+    /**
+     * Which tool each grouped rail slot currently stands for, keyed by [ToolGroup.id]. Missing
+     * entries fall back to the group's first tool (see [selected]).
+     */
+    val toolGroupSelections: Map<String, EditorTool> = emptyMap(),
 ) {
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
@@ -100,6 +105,7 @@ class SettingsStore(context: Context) {
             recentColors = decodeColors(prefs.getString(KEY_RECENT_COLORS, null)),
             lastColor = prefs.getInt(KEY_LAST_COLOR, d.lastColor),
             lastWidth = prefs.getFloat(KEY_LAST_WIDTH, d.lastWidth),
+            toolGroupSelections = decodeToolGroupSelections(prefs.getString(KEY_TOOL_GROUPS, null)),
         )
     }
 
@@ -119,6 +125,7 @@ class SettingsStore(context: Context) {
         e.putString(KEY_RECENT_COLORS, s.recentColors.joinToString(",") { it.toString() })
         e.putInt(KEY_LAST_COLOR, s.lastColor)
         e.putFloat(KEY_LAST_WIDTH, s.lastWidth)
+        e.putString(KEY_TOOL_GROUPS, encodeToolGroupSelections(s.toolGroupSelections))
         e.apply()
     }
 
@@ -138,6 +145,7 @@ class SettingsStore(context: Context) {
         const val KEY_RECENT_COLORS = "recent_colors"
         const val KEY_LAST_COLOR = "last_color"
         const val KEY_LAST_WIDTH = "last_width"
+        const val KEY_TOOL_GROUPS = "tool_group_selections"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

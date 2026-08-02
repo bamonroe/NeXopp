@@ -146,6 +146,9 @@ private val TOOLS: List<ToolInfo> = listOf(
 /** Human-readable label for a tool (the same text the rail's tool menu shows). */
 val EditorTool.label: String get() = TOOLS.first { it.tool == this }.label
 
+/** The rail icon for a tool. */
+val EditorTool.icon: ImageVector get() = TOOLS.first { it.tool == this }.icon
+
 /**
  * The tools that make sense to *start* a document in, offered by the "Default tool" setting. The
  * place-modes (TEXT/IMAGE/TEXIMAGE) and SELECT aren't here: opening straight into them would strand
@@ -165,6 +168,8 @@ fun SideToolbar(
     horizontal: Boolean = false,
     tool: EditorTool,
     onTool: (EditorTool) -> Unit,
+    toolGroupSelections: Map<String, EditorTool>,
+    onToolGroupSelections: (Map<String, EditorTool>) -> Unit,
     color: Int,
     onColor: (Int) -> Unit,
     customColor: Int,
@@ -207,7 +212,18 @@ fun SideToolbar(
     modifier: Modifier = Modifier,
 ) {
     val buttons: @Composable () -> Unit = {
-        ToolPopupButton(tool, onTool)
+        for (group in TOOL_GROUPS) {
+            ToolGroupButton(
+                group = group,
+                selected = group.selected(toolGroupSelections),
+                active = tool in group.tools,
+                onTool = onTool,
+                onSelect = { picked ->
+                    onToolGroupSelections(group.withSelection(toolGroupSelections, picked))
+                    onTool(picked)
+                },
+            )
+        }
         ColorPopupButton(color, onColor, customColor, onRedefineCustom, recentColors)
         SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
         StylePopupButton(lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize)
@@ -242,23 +258,52 @@ fun SideToolbar(
     }
 }
 
+/**
+ * One tool slot on the rail. The face is the group's currently [selected] tool: a **tap** activates
+ * it, a **long-press** opens a picker over the group's other members, and picking one both re-faces
+ * the slot (persisted via [onSelect]) and activates it. A single-member group has nothing to pick,
+ * so it skips the menu entirely. [active] tints the slot when the editor's live tool is in this
+ * group, which is what makes the rail read as a row of radio buttons.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ToolPopupButton(tool: EditorTool, onTool: (EditorTool) -> Unit) {
+private fun ToolGroupButton(
+    group: ToolGroup,
+    selected: EditorTool,
+    active: Boolean,
+    onTool: (EditorTool) -> Unit,
+    onSelect: (EditorTool) -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
-    val current = TOOLS.first { it.tool == tool }
+    val tint =
+        if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Box {
-        IconButton(onClick = { open = true }) {
-            Icon(current.icon, contentDescription = "Tool: ${current.label}")
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .then(
+                    if (active) Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                    else Modifier,
+                )
+                .combinedClickable(
+                    onClick = { onTool(selected) },
+                    onLongClick = { if (group.tools.size > 1) open = true },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(selected.icon, contentDescription = "Tool: ${selected.label}", tint = tint)
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for (info in TOOLS) {
+            MenuHeading(group.label)
+            for (member in group.tools) {
                 DropdownMenuItem(
-                    text = { Text(info.label) },
-                    leadingIcon = { Icon(info.icon, contentDescription = null) },
+                    text = { Text(member.label) },
+                    leadingIcon = { Icon(member.icon, contentDescription = null) },
                     trailingIcon = {
-                        if (info.tool == tool) Icon(Icons.Filled.Check, contentDescription = "selected")
+                        if (member == selected) Icon(Icons.Filled.Check, contentDescription = "selected")
                     },
-                    onClick = { onTool(info.tool); open = false },
+                    onClick = { onSelect(member); open = false },
                 )
             }
         }

@@ -94,8 +94,15 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   clipboard to paste elsewhere. It reads the PDF's own text — no OCR — so scanned image-only PDFs
   have nothing to select (OCR for those is planned). The selection is view-only and doesn't change
   the document.
-- **Draw** — the controls live in a **vertical rail down the left edge**. Its buttons — **Tool**,
-  **Colour**, **Size**, **Style**, **Layers**, **Zoom**, **Background**, **Pages** — each open a small pop-up anchored
+- **Draw** — the controls live in a **vertical rail down the left edge**. It starts with seven
+  **tool slots**, each standing for a group of related tools and showing the one that group is
+  currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow), **Shape**
+  (rectangle · ellipse), **Pan**, **Select** (select · select text), **Insert** (text · LaTeX ·
+  image). **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
+  **long-press** it to pick a different member, which both switches to that tool and re-faces the
+  slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
+  way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Layers**, **Zoom**,
+  **Background**, **Pages** — each open a small pop-up anchored
   to their own button (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with
   **one finger or the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
   constant-width translucent band** (pressure-independent, ~6× the pen width) that shows the page
