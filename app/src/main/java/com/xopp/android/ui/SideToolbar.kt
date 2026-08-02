@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.EraserMode
+import com.xopp.android.render.EraserSize
 import com.xopp.android.render.LayerInfo
 import kotlin.math.roundToInt
 
@@ -178,6 +179,8 @@ fun SideToolbar(
     onFill: (Int?) -> Unit,
     eraserMode: EraserMode,
     onEraserMode: (EraserMode) -> Unit,
+    eraserSize: EraserSize,
+    onEraserSize: (EraserSize) -> Unit,
     layers: List<LayerInfo>,
     hasSelection: Boolean,
     onAddLayer: () -> Unit,
@@ -206,7 +209,7 @@ fun SideToolbar(
         ToolPopupButton(tool, onTool)
         ColorPopupButton(color, onColor, customColor, onRedefineCustom)
         SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
-        StylePopupButton(lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode)
+        StylePopupButton(lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize)
         LayersPopupButton(
             layers, hasSelection, onAddLayer, onDeleteLayer, onRenameLayer,
             onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
@@ -715,6 +718,8 @@ private fun StylePopupButton(
     onFill: (Int?) -> Unit,
     eraserMode: EraserMode,
     onEraserMode: (EraserMode) -> Unit,
+    eraserSize: EraserSize,
+    onEraserSize: (EraserSize) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
@@ -749,6 +754,14 @@ private fun StylePopupButton(
                 trailingIcon = { if (eraserMode == EraserMode.WHOLE_STROKE) Icon(Icons.Filled.Check, contentDescription = "selected") },
                 onClick = { onEraserMode(EraserMode.WHOLE_STROKE) },
             )
+            MenuHeading("Eraser size")
+            for (size in EraserSize.entries) {
+                DropdownMenuItem(
+                    text = { Text(size.label) },
+                    trailingIcon = { if (size == eraserSize) Icon(Icons.Filled.Check, contentDescription = "selected") },
+                    onClick = { onEraserSize(size) },
+                )
+            }
         }
     }
 }

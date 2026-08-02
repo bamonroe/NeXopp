@@ -67,6 +67,7 @@ import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.EraserMode
+import com.xopp.android.render.EraserSize
 import com.xopp.android.render.InputSettings
 import com.xopp.android.render.LayerInfo
 import com.xopp.android.render.PlaceKind
@@ -169,6 +170,7 @@ fun EditorScreen(
     var lineStyle by remember { mutableStateOf(LineStyle.PLAIN) }
     var fill by remember { mutableStateOf<Int?>(null) }
     var eraserMode by remember { mutableStateOf(EraserMode.STANDARD) }
+    var eraserSize by remember { mutableStateOf(EraserSize.MEDIUM) }
     var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
     var backgroundStyle by remember { mutableStateOf<String?>(null) }
     var pageSize by remember { mutableStateOf<Pair<Double, Double>?>(null) }
@@ -229,6 +231,8 @@ fun EditorScreen(
                 onFill = { fill = it; surface?.currentFill = it },
                 eraserMode = eraserMode,
                 onEraserMode = { eraserMode = it; surface?.eraserMode = it },
+                eraserSize = eraserSize,
+                onEraserSize = { eraserSize = it; surface?.eraserSize = it },
                 layers = layers,
                 hasSelection = hasSelection,
                 onAddLayer = { surface?.addLayer() },
@@ -266,6 +270,7 @@ fun EditorScreen(
                         it.currentLineStyle = lineStyle
                         it.currentFill = fill
                         it.eraserMode = eraserMode
+                        it.eraserSize = eraserSize
                         it.onLayersChanged = {
                             layers = it.visibleLayers()
                             backgroundStyle = it.visiblePageBackgroundStyle()

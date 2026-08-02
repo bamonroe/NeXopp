@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "eraser-mode-whole-stroke-and-partial-erase"
+title = "Eraser mode: whole-stroke and partial erase"
+description = "Proper eraser tool with both delete-whole-stroke and partial (split stroke) erase, matching desktop Xournal++ eraser behavior; erased results must round-trip through .xopp."
+status = "finished"
+category = "feature"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["tools"]
+
+[[task]]
 id = "tune-pressure-curve-and-stroke-smoothing"
 title = "Tune pressure curve and stroke smoothing"
 description = "Match desktop Xournal++ stroke appearance: tune the MotionEvent pressure-to-width mapping and add point smoothing/simplification so handwriting looks the same on Android as on Linux."

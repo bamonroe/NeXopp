@@ -36,9 +36,6 @@ import kotlin.math.min
 /** What a canvas tap places when a placement tool is active (see [DrawingSurfaceView.placeKind]). */
 enum class PlaceKind { TEXT, IMAGE, TEX }
 
-/** How the eraser removes ink: rub out touched segments, or delete whole strokes. */
-enum class EraserMode { STANDARD, WHOLE_STROKE }
-
 /** One row of the layer panel: the layer's model index (bottom-up), label, visibility, active flag. */
 data class LayerInfo(val index: Int, val label: String, val visible: Boolean, val active: Boolean)
 
@@ -195,6 +192,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var currentFill: Int? = null
     /** How the eraser removes ink: [EraserMode.STANDARD] rubs out touched segments; [EraserMode.WHOLE_STROKE] deletes whole strokes. */
     var eraserMode: EraserMode = EraserMode.STANDARD
+    /** The eraser tip size; its radius is in document pt, so it covers the same ink at any zoom. */
+    var eraserSize: EraserSize = EraserSize.MEDIUM
 
     /** Layer new ink lands on for the visible page; -1 = the top layer. Resolved/clamped per page. */
     var activeLayerIndex: Int = -1
@@ -1274,12 +1273,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
         val px = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
         val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
-        val radius = (ERASER_RADIUS_PX / box.scale).toDouble()
-        val changed = when (eraserMode) {
-            EraserMode.WHOLE_STROKE -> eraseStrokes(currentPage, px, py, radius)
-            EraserMode.STANDARD -> erasePartial(currentPage, px, py, radius)
-        }
-        if (changed) render()
+        if (eraseOnPage(currentPage, px, py, eraserSize.radiusPt)) render()
     }
 
     /** A tap in a placement tool: remember where it went down; a small drag cancels it. */
@@ -1533,46 +1527,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (activeLayerIndex in page.layers.indices) activeLayerIndex else page.layers.lastIndex
 
     /**
-     * The standard eraser: rub out only the touched part of each stroke, splitting it into the
-     * surviving pieces ([StrokeEraser]). Returns true if anything on the page changed.
+     * Apply the eraser disc to page [pageIndex] in the current [eraserMode], skipping hidden
+     * layers ([PageEraser]). Returns true if anything on the page changed.
      */
-    private fun erasePartial(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
+    private fun eraseOnPage(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
         val page = doc.pages.getOrNull(pageIndex) ?: return false
-        var changed = false
-        val layers = page.layers.map { layer ->
-            var touched = false
-            val rebuilt = ArrayList<Element>(layer.elements.size)
-            for (el in layer.elements) {
-                val pieces = if (el is Stroke) StrokeEraser.erase(el, px, py, radius) else null
-                if (pieces == null) {
-                    rebuilt += el
-                } else {
-                    touched = true
-                    rebuilt += pieces
-                }
-            }
-            if (touched) { changed = true; Layer(rebuilt, layer.name) } else layer
-        }
-        if (!changed) return false
+        val hidden = page.layers.indices.filter { isLayerHidden(pageIndex, it) }.toSet()
+        val erased = PageEraser.erase(page, px, py, radius, eraserMode, hidden) ?: return false
         val pages = doc.pages.toMutableList()
-        pages[pageIndex] = page.copy(layers = layers)
-        doc = doc.copy(pages = pages)
-        relayout()
-        return true
-    }
-
-    /** Delete every stroke on page [pageIndex] hit by the eraser disc; returns true if any went. */
-    private fun eraseStrokes(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
-        val page = doc.pages.getOrNull(pageIndex) ?: return false
-        var removed = false
-        val layers = page.layers.map { layer ->
-            val kept = layer.elements.filterNot { it is Stroke && StrokeHitTester.hits(it, px, py, radius) }
-            if (kept.size != layer.elements.size) removed = true
-            if (kept.size == layer.elements.size) layer else Layer(kept, layer.name)
-        }
-        if (!removed) return false
-        val pages = doc.pages.toMutableList()
-        pages[pageIndex] = page.copy(layers = layers)
+        pages[pageIndex] = erased
         doc = doc.copy(pages = pages)
         relayout()
         return true

@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "eraser-mode-whole-stroke-and-partial-erase"
-title = "Eraser mode: whole-stroke and partial erase"
-description = "Proper eraser tool with both delete-whole-stroke and partial (split stroke) erase, matching desktop Xournal++ eraser behavior; erased results must round-trip through .xopp."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 20
-created = 2026-08-01
-tags = ["tools"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "undo-redo-stack-with-adequate-depth"
 title = "Undo/redo stack with adequate depth"
 description = "Add an undo/redo history covering strokes, page add/delete, and text edits, with a reasonable depth limit and UI buttons."

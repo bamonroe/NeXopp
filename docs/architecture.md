@@ -321,6 +321,7 @@ app/
       TextBlock.kt           # text line-split + baseline geometry (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
+      PageEraser.kt          # eraser applied to a page: mode, tip size, hidden-layer skip (pure)
       ShapeBuilder.kt        # line/arrow/rectangle/ellipse drag -> stroke vertex list (pure)
       LayerOps.kt            # add/delete/rename/reorder/move-selection layer edits (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
@@ -385,7 +386,11 @@ constant-width dashed path and floods a fill under the outline, and `PdfVectorPa
 export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,
 pure, tested) rubs out only the touched vertices and splits a stroke into its surviving pieces (each
 inheriting the original's colour/style/fill), alongside the original whole-stroke delete
-(`StrokeHitTester`); the mode is a view flag. **Layer management** (`LayerOps`, pure, tested) adds/
+(`StrokeHitTester`). `PageEraser` (pure, tested) is the page-level driver both modes go through: it
+walks the page's layers, **skips hidden ones** (you only rub out ink you can see) and returns `null`
+when nothing was touched, so the surface skips the document rebuild and the undo snapshot. The mode
+and the tip size (`EraserSize`: Fine/Medium/Thick, radius in **document pt** so it is zoom-invariant,
+matching the desktop) are view flags on the surface. **Layer management** (`LayerOps`, pure, tested) adds/
 deletes/renames/reorders layers and moves a selection between them (all undoable), while the *active*
 layer (where new ink lands) and per-layer *visibility* are view-only editor state on the surface —
 visibility just skips a layer in `PageRenderer.drawElements`, so it never touches the file. The UI for

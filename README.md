@@ -120,7 +120,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes. The **Style** pop-up's
   **Eraser** setting picks the mode: **Standard (partial)** rubs out just the part of a stroke the
   eraser passes over, splitting it into the surviving pieces; **Delete whole stroke** removes any
-  stroke the eraser touches entirely. If your stylus has an **eraser tip** (the flip-over
+  stroke the eraser touches entirely. The same pop-up's **Eraser size** picks the tip —
+  **Fine**, **Medium** or **Thick** — measured in document points, so it rubs out the same amount of
+  ink whatever the zoom. Hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
   (configurable — see **Settings**).
 - **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the
