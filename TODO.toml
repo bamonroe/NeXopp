@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "make-each-settings-section-its-own-page"
-title = "Make each settings section its own page"
-description = "In settings, each section should be clickable and open as its own page rather than all sections living on one screen."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 20
-created = 2026-08-02
-tags = ["settings", "ui"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "settings-section-to-reorder-or-hide-toolbar-elements"
 title = "Settings section to reorder or hide toolbar elements"
 description = "Add a new settings section that lets the user reorder the elements of the toolbar or hide them."

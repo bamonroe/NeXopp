@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "make-each-settings-section-its-own-page"
+title = "Make each settings section its own page"
+description = "In settings, each section should be clickable and open as its own page rather than all sections living on one screen."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["settings", "ui"]
+
+[[task]]
 id = "group-toolbar-tools-with-long-press-active-tool-selection"
 title = "Group toolbar tools with long-press active-tool selection"
 description = "Group related tools into single toolbar slots, each showing one active tool. Long-pressing a group opens a picker to choose a different active tool for that group. Selections must persist across app closures (saved to preferences). Groups: Pan; pen + highlighter; line + arrow; rectangle + ellipse; the select tools; text + latex + image."

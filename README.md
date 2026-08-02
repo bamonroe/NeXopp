@@ -216,8 +216,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
-- **Settings** — the top-bar menu opens a full-screen **Settings** page for the stylus (your choices
-  persist across restarts):
+- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Editor** and
+  **Navigation**. Tap a section to open it as its own page; back returns to the list, and back from
+  the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
     (best on a stylus tablet where a palm would otherwise draw).
   - **Hover preview** — show a ring where a hovering stylus will land.
@@ -225,11 +226,15 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     or **None**.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
+
+  Under **Editor**:
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
     **Eraser**, or **Hand (pan)**.
   - **Toolbar position** — which edge the tool rail is docked to: **Left** (default), **Right**,
     **Top**, or **Bottom**. Top/bottom lay the tool, colour, size, zoom, and page buttons out in a
     horizontal row along that edge; left/right keep the familiar vertical rail.
+
+  Under **Navigation**:
   - **Momentum scrolling** — a slider setting how far a **one-finger** pan keeps gliding after you
     flick it. **0** turns momentum off (a released pan stops dead), **1.0** is normal (the default —
     a moderate flick coasts at about the speed you flicked), and higher values up to **10.0×** stretch

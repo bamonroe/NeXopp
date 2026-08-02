@@ -345,7 +345,8 @@ app/
       SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
-      SettingsScreen.kt      # full-screen stylus settings (finger-draw, barrel, hover, pressure feel)
+      SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
+      SettingsSections.kt    # the section bodies (Stylus / Editor / Navigation) + their shared controls
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
@@ -559,7 +560,9 @@ thumb sits faint when idle, brightens after a scroll, and is brightest while dra
 page-number bubble beside it. A rounded grip "peninsula" bulges out of the thumb's centre (purely
 visual — the whole band already catches touches) so there's an obvious finger-sized target to grab. It is a pure navigation affordance — no `.xopp` state, so nothing
 round-trips. Choosing Settings
-from the ☰ menu swaps in `SettingsScreen`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
+from the ☰ menu swaps in `SettingsScreen`, which is an **index of sections** (`SettingsSection` —
+Stylus, Editor, Navigation): each row opens that section as its own page, with back returning to the
+index and back from the index leaving settings. Section bodies live in `SettingsSections.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in
 `ColorPicker.kt`. `AppSettings` also remembers the pen you left off with — `lastColor`/`lastWidth`,
