@@ -117,6 +117,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity.toFloat()
     private val flingCallback = Choreographer.FrameCallback { frameTimeNanos -> onFlingFrame(frameTimeNanos) }
 
+    /** Set between a [render] request and the vsync that services it — see [render]. */
+    private var paintPosted = false
+    private val paintCallback = Choreographer.FrameCallback { paint() }
+
     // Hand-tool double-tap: a centre double-tap toggles full-page view, a left/right-edge double-tap
     // pages back/forward. Detected manually (single-finger tap = down→up without exceeding tap slop).
     private val doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong()
@@ -1459,7 +1463,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val prevX = scrollX
         scrollY = (scrollY + step.dy).coerceIn(0f, maxScrollY())
         scrollX = (scrollX + step.dx).coerceIn(0f, maxScrollX())
-        render()
+        // Already inside a frame dispatch: paint now rather than deferring to the next vsync.
+        paintPosted = false
+        paint()
         // Stop once too slow, or when both axes are pinned at a bound (nowhere left to glide).
         val stuck = scrollY == prevY && scrollX == prevX && dt > 0f
         if (!fling.isMoving || stuck) stopFling() else choreographer.postFrameCallback(flingCallback)
@@ -1621,6 +1627,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         stopFling()
+        choreographer.removeFrameCallback(paintCallback)
+        paintPosted = false
         inkCache.clear()
         super.onDetachedFromWindow()
     }
@@ -1644,7 +1652,26 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Ask for a repaint at the next display frame, collapsing everything asked for in between into
+     * one [paint].
+     *
+     * Painting is **never** done straight from an input handler. A stylus/touch digitiser reports
+     * far faster than the display refreshes (240 Hz against 120 Hz on the large tablets), so a
+     * synchronous paint per event posts two or more buffers per vsync. The compositor latches
+     * whichever happens to be newest at each vsync, so the position it shows walks back and forth
+     * between samples instead of advancing — the flicker seen when zoomed in on a big screen, where
+     * a paint is slow enough to keep several buffers in flight. Pacing to the [Choreographer] posts
+     * exactly one buffer per vsync, in phase, so every frame shown is the newest state.
+     */
     private fun render() {
+        if (paintPosted) return
+        paintPosted = true
+        choreographer.postFrameCallback(paintCallback)
+    }
+
+    private fun paint() {
+        paintPosted = false
         if (!holder.surface.isValid) return
         val canvas = holder.lockCanvas() ?: return
         try {

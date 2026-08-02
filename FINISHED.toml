@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-flicker-when-zoomed-in-on-large-screens"
+title = "Fix flicker when zoomed in on large screens"
+description = "On the Galaxy Tab Ultra (large full-screen window), zooming in makes the canvas flash: content jitters between an offset position (a couple of pixels off) and its true position, alternating rapidly. Extremely disorienting. Does not occur in split-screen with a smaller window at the same zoom level, so it appears tied to the size of the rendered surface rather than the zoom factor itself. Likely a mismatch between the transforms used by two frame sources (cached tile bitmap vs live redraw, or SurfaceView transform vs Compose chrome), so alternating frames use different offsets. Fix so zoomed rendering is pixel-stable on large displays."
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["rendering", "zoom"]
+
+[[task]]
 id = "add-a-stylus-precision-setting-for-stroke-resolution-at-low-zoom"
 title = "Add a stylus precision setting for stroke resolution at low zoom"
 description = "On a large-screen tablet (ultra) at 100% zoom or below, pen stroke resolution has visibly dropped - stroke edges look faceted/polygonal. This is a side effect of the earlier change that made strokes smoother at high zoom levels; it has had the opposite of the intended effect at normal zoom. Don't revert that change - instead expose a setting that lets the user choose how much precision/resolution stylus drawing keeps (e.g. point sampling / simplification tolerance), so high-zoom smoothing and low-zoom fidelity can both be satisfied."

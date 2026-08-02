@@ -360,7 +360,15 @@ The **`format/` package is the heart** and is deliberately free of Android depen
 round-trip logic is fully unit-testable on the JVM (see `app/src/test/`). `render/` and `ui/`
 are the Android-facing shell around it.
 
-**Rendering (`render/`).** The `DrawingSurfaceView` holds the whole [Document] and renders every
+**Rendering (`render/`).** Every repaint is **paced to the display**: `DrawingSurfaceView.render()`
+never paints inline, it flags a `Choreographer` frame callback that runs the actual `paint()` once
+per vsync, collapsing everything requested in between. This matters because a digitiser reports far
+faster than the panel refreshes (240 Hz against 120 Hz on the large tablets): painting straight from
+the input handler posted several buffers per vsync, and the compositor latching whichever was newest
+made the shown position walk back and forth between samples instead of advancing — the flicker seen
+when zoomed in on a big screen, where a paint is slow enough to keep several buffers in flight. The
+fling loop is the one exception: it is already inside a frame dispatch, so it calls `paint()` directly
+rather than deferring a frame. The `DrawingSurfaceView` holds the whole [Document] and renders every
 page in a single vertical stack, each page scaled to fit the view width via `PageStacker` and
 drawn with its background ruling (`BackgroundRenderer`, using the pure `BackgroundGrid` offsets)
 plus all of its layers in z-order. The geometry (page placement, gridlines) is factored into
