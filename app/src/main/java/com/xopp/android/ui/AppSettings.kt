@@ -58,6 +58,13 @@ data class AppSettings(
      * entries fall back to the group's first tool (see [selected]).
      */
     val toolGroupSelections: Map<String, EditorTool> = emptyMap(),
+    /**
+     * The rail's button positions in display order, by [RailItem.id]. Empty means the factory order;
+     * ids the list omits are appended in factory order (see [orderedRailItems]).
+     */
+    val railOrder: List<String> = emptyList(),
+    /** The [RailItem.id]s the user has hidden from the rail. Empty means everything is shown. */
+    val railHidden: Set<String> = emptySet(),
 ) {
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
@@ -106,6 +113,8 @@ class SettingsStore(context: Context) {
             lastColor = prefs.getInt(KEY_LAST_COLOR, d.lastColor),
             lastWidth = prefs.getFloat(KEY_LAST_WIDTH, d.lastWidth),
             toolGroupSelections = decodeToolGroupSelections(prefs.getString(KEY_TOOL_GROUPS, null)),
+            railOrder = decodeRailIds(prefs.getString(KEY_RAIL_ORDER, null)),
+            railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
         )
     }
 
@@ -126,6 +135,8 @@ class SettingsStore(context: Context) {
         e.putInt(KEY_LAST_COLOR, s.lastColor)
         e.putFloat(KEY_LAST_WIDTH, s.lastWidth)
         e.putString(KEY_TOOL_GROUPS, encodeToolGroupSelections(s.toolGroupSelections))
+        e.putString(KEY_RAIL_ORDER, encodeRailIds(s.railOrder))
+        e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
         e.apply()
     }
 
@@ -146,6 +157,8 @@ class SettingsStore(context: Context) {
         const val KEY_LAST_COLOR = "last_color"
         const val KEY_LAST_WIDTH = "last_width"
         const val KEY_TOOL_GROUPS = "tool_group_selections"
+        const val KEY_RAIL_ORDER = "rail_order"
+        const val KEY_RAIL_HIDDEN = "rail_hidden"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

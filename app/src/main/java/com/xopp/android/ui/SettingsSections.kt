@@ -5,10 +5,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
@@ -67,7 +73,7 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     )
 }
 
-/** Editor preferences: the tool a document opens in and where the tool rail is docked. */
+/** Editor preferences: the tool a document opens in. */
 @Composable
 fun EditorSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     OptionGroup(
@@ -78,8 +84,11 @@ fun EditorSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         label = { it.label },
         onSelect = { onChange(settings.copy(defaultTool = it)) },
     )
+}
 
-    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+/** Toolbar layout: where the rail is docked, and which buttons it shows in what order. */
+@Composable
+fun ToolbarSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     OptionGroup(
         title = "Toolbar position",
         subtitle = "Which edge the tool rail is docked to.",
@@ -88,6 +97,57 @@ fun EditorSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         label = { it.label },
         onSelect = { onChange(settings.copy(toolbarPosition = it)) },
     )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    Text("Rail buttons", style = MaterialTheme.typography.titleSmall)
+    Text(
+        "Switch a button off to hide it, or move it with the arrows. " +
+            "The rail draws them top-to-bottom (left-to-right when docked horizontally).",
+        style = MaterialTheme.typography.bodySmall,
+    )
+    Spacer(Modifier.height(8.dp))
+
+    val items = orderedRailItems(settings.railOrder)
+    items.forEachIndexed { index, item ->
+        RailItemRow(
+            item = item,
+            shown = item.id !in settings.railHidden,
+            canMoveUp = index > 0,
+            canMoveDown = index < items.size - 1,
+            onShown = { shown ->
+                val hidden = if (shown) settings.railHidden - item.id else settings.railHidden + item.id
+                onChange(settings.copy(railHidden = hidden))
+            },
+            onMove = { delta ->
+                onChange(settings.copy(railOrder = moveRailItem(settings.railOrder, index, delta)))
+            },
+        )
+    }
+}
+
+/** One rail position in the Toolbar section: its name, a show/hide switch, and move up/down arrows. */
+@Composable
+private fun RailItemRow(
+    item: RailItem,
+    shown: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onShown: (Boolean) -> Unit,
+    onMove: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(item.label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
+            Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Move ${item.label} up")
+        }
+        IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
+            Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Move ${item.label} down")
+        }
+        Switch(checked = shown, onCheckedChange = onShown)
+    }
 }
 
 /** Canvas navigation: momentum scrolling (strength and curve) and panning sensitivity. */

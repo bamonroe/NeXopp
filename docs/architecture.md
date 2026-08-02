@@ -344,9 +344,10 @@ app/
       EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
       SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
+      RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
-      SettingsSections.kt    # the section bodies (Stylus / Editor / Navigation) + their shared controls
+      SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation) + shared controls
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
@@ -544,7 +545,14 @@ one pref, so slots survive a restart) and activates the tool in the same gesture
 `decodeToolGroupSelections()` both drop non-member entries, so a stale pref degrades to the group's
 first tool rather than facing a slot at a tool that has since moved. `startingTool()` resolves the
 opening tool as `defaultTool`'s **group selection**, so the rail's face and the live tool agree on
-launch. The tools are UI-level
+launch. **Which positions the rail shows, and in what order**, is data too (`RailItems.kt`):
+`RAIL_ITEMS` names every position — the seven tool groups plus the Colour/Size/Style/Layers/Zoom/
+Background/Pages panels — and `SideToolbar` renders `visibleRailItems(railOrder, railHidden)`,
+dispatching each id to its group button or panel. The Toolbar settings section edits those two prefs
+(`AppSettings.railOrder`, a comma-separated id list, and `railHidden`, the same encoding for the
+switched-off ids). `orderedRailItems()` **appends** any id the saved order omits in factory order, so
+a position added in a later release still appears for an existing install, and `decodeRailIds()`
+drops ids that no longer exist. The tools are UI-level
 `EditorTool`s (Hand is view-only pan and Text/Image/LaTeX are placement modes, none a document tool,
 so `EditorScreen.applyTool` maps them to the surface's `handMode` / `placeKind` and maps the three
 drawing tools to the document `Tool`). The **Pages** pop-up is a page navigator: `Page N / M` with

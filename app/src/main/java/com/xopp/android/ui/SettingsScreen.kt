@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 enum class SettingsSection(val title: String, val summary: String) {
     STYLUS("Stylus", "Finger drawing, hover preview, barrel button, pressure feel."),
     EDITOR("Editor", "Default tool and where the tool rail is docked."),
+    TOOLBAR("Toolbar", "Which rail buttons appear, and in what order."),
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
 }
 
@@ -66,6 +67,7 @@ fun SettingsScreen(
             when (open) {
                 SettingsSection.STYLUS -> StylusSection(settings, onChange)
                 SettingsSection.EDITOR -> EditorSection(settings, onChange)
+                SettingsSection.TOOLBAR -> ToolbarSection(settings, onChange)
                 SettingsSection.NAVIGATION -> NavigationSection(settings, onChange)
             }
         }

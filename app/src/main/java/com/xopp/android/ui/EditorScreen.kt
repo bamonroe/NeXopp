@@ -213,6 +213,8 @@ fun EditorScreen(
                 horizontal = settings.toolbarPosition.isHorizontal,
                 tool = tool,
                 onTool = { tool = it; surface?.applyTool(it) },
+                railOrder = settings.railOrder,
+                railHidden = settings.railHidden,
                 toolGroupSelections = settings.toolGroupSelections,
                 onToolGroupSelections = { onSettingsChange(settings.copy(toolGroupSelections = it)) },
                 color = color,

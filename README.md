@@ -230,9 +230,15 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   Under **Editor**:
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
     **Eraser**, or **Hand (pan)**.
+
+  Under **Toolbar**:
   - **Toolbar position** — which edge the tool rail is docked to: **Left** (default), **Right**,
     **Top**, or **Bottom**. Top/bottom lay the tool, colour, size, zoom, and page buttons out in a
     horizontal row along that edge; left/right keep the familiar vertical rail.
+  - **Rail buttons** — the full list of rail positions (the seven tool slots plus Colour, Size,
+    Style, Layers, Zoom, Background and Pages), each with a **switch** to hide it and **▲/▼** arrows
+    to move it. The rail draws them in this order, top-to-bottom (left-to-right when docked
+    horizontally). Both the order and the hidden set are **remembered across app restarts**.
 
   Under **Navigation**:
   - **Momentum scrolling** — a slider setting how far a **one-finger** pan keeps gliding after you

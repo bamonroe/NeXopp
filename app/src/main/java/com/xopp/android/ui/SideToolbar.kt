@@ -209,31 +209,41 @@ fun SideToolbar(
     onBackgroundStyle: (String) -> Unit,
     pageSize: Pair<Double, Double>?,
     onPageSize: (Double, Double) -> Unit,
+    railOrder: List<String> = emptyList(),
+    railHidden: Set<String> = emptySet(),
     modifier: Modifier = Modifier,
 ) {
     val buttons: @Composable () -> Unit = {
-        for (group in TOOL_GROUPS) {
-            ToolGroupButton(
-                group = group,
-                selected = group.selected(toolGroupSelections),
-                active = tool in group.tools,
-                onTool = onTool,
-                onSelect = { picked ->
-                    onToolGroupSelections(group.withSelection(toolGroupSelections, picked))
-                    onTool(picked)
-                },
-            )
+        for (item in visibleRailItems(railOrder, railHidden)) {
+            val group = toolGroupForRailItem(item.id)
+            if (group != null) {
+                ToolGroupButton(
+                    group = group,
+                    selected = group.selected(toolGroupSelections),
+                    active = tool in group.tools,
+                    onTool = onTool,
+                    onSelect = { picked ->
+                        onToolGroupSelections(group.withSelection(toolGroupSelections, picked))
+                        onTool(picked)
+                    },
+                )
+            } else when (item.id) {
+                "color" -> ColorPopupButton(color, onColor, customColor, onRedefineCustom, recentColors)
+                "size" -> SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
+                "style" -> StylePopupButton(
+                    lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize,
+                )
+                "layers" -> LayersPopupButton(
+                    layers, hasSelection, onAddLayer, onDeleteLayer, onRenameLayer,
+                    onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
+                )
+                "zoom" -> ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
+                "background" -> BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
+                "pages" -> PagesPopupButton(
+                    pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
+                )
+            }
         }
-        ColorPopupButton(color, onColor, customColor, onRedefineCustom, recentColors)
-        SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
-        StylePopupButton(lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize)
-        LayersPopupButton(
-            layers, hasSelection, onAddLayer, onDeleteLayer, onRenameLayer,
-            onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
-        )
-        ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
-        BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
-        PagesPopupButton(pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize)
     }
     if (horizontal) {
         Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
