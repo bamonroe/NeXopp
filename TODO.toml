@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "setsquare-and-compass-tools"
-title = "Setsquare and compass tools"
-description = "Add the desktop setsquare (geometry triangle) and compass overlays: an on-canvas manipulable guide that constrains drawing to its edge/arc. Purely an input aid; output is normal strokes."
-status = "active"
-category = "feature"
-urgency = "low"
-order = 60
-created = 2026-08-02
-tags = ["tools", "parity"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "audio-recording-and-playback"
 title = "Audio recording and playback"
 description = "Xournal++ can attach an audio recording to strokes (fn/ts attributes) and replay from a stroke. We only preserve those attrs as extraAttrs. Add record/play/stop tools and the .wav sidecar handling so audio-annotated files round-trip and are usable."

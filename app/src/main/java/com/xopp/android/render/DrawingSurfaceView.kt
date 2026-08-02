@@ -230,6 +230,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** When true, dragging the selection's rotate handle steps in [Snapping.ROTATION_STEP_DEG]. */
     var snapRotation: Boolean = false
 
+    /**
+     * The on-canvas setsquare/compass overlay, or null when none is placed. It is an input aid only
+     * — it constrains drawn vertices (see [guided]) and is never written to the document.
+     */
+    var guide: DrawingGuide? = null
+        private set
+
+    /** The page the [guide]'s pose is expressed in; the guide only constrains strokes on that page. */
+    private var guidePage: Int = 0
+
+    /** Notified whenever the user moves or re-poses the guide, so the pose can be remembered. */
+    var onGuideChanged: ((DrawingGuide?) -> Unit)? = null
+
     /** Line pattern applied to strokes and shapes this tool draws (dashed/dotted); default solid. */
     var currentLineStyle: LineStyle = LineStyle.PLAIN
     /** Fill alpha (0..255) flooded inside strokes/shapes drawn now, or null for no fill. */
@@ -302,6 +315,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var vspaceLinePt = 0.0
     private var vspaceLineViewY = 0f
 
+    // Live drag of the setsquare/compass overlay: which part is held, and the grab offset from the
+    // guide's anchor so the body slides without jumping under the finger.
+    private var guideDrag = GUIDE_DRAG_NONE
+    private var guidePointerId = -1
+    private var pendingGuide: GuideKind? = null
+    private var guideGrabDx = 0.0
+    private var guideGrabDy = 0.0
+
     // Live uniform resize about a fixed anchor (the opposite corner), in page-local pt.
     private var resizing = false
     private var resizeAnchorX = 0.0
@@ -329,6 +350,22 @@ class DrawingSurfaceView @JvmOverloads constructor(
         color = SELECTION_COLOR
         pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f)
     }
+    // The setsquare/compass overlay: a solid outline (it is a physical-feeling instrument, not a
+    // marquee, so no dashes) over a faint wash, plus filled grab handles.
+    private val guideStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = GUIDE_COLOR
+    }
+    private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = (GUIDE_COLOR and 0x00FFFFFF) or GUIDE_FILL_ALPHA
+    }
+    private val guideHandlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = GUIDE_COLOR
+    }
+    private val guidePath = Path()
     private val selectionFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = SELECTION_FILL
@@ -1123,6 +1160,154 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun snapY(box: PageBox, y: Double): Double =
         if (snapToGrid) Snapping.snap(y, Snapping.spacingY(box.page.background)) else y
 
+    // --- the setsquare / compass guide: place it, drag it, and rule drawn points against it -------
+
+    /**
+     * Put a fresh guide of [kind] at the middle of the visible page (or clear it for
+     * [GuideKind.NONE]). Placing at the viewport centre rather than the page centre is what makes
+     * the guide land under the user's hand when they turn it on while zoomed in.
+     */
+    fun placeGuide(kind: GuideKind) {
+        val index = visiblePageIndex()
+        val box = layout.boxes.getOrNull(index)
+        // Asked for before the first layout (a guide restored from settings): hold it until
+        // surfaceChanged, so it lands under the user's eye instead of at the page's own middle.
+        if (kind != GuideKind.NONE && (box == null || width <= 0 || height <= 0)) {
+            pendingGuide = kind
+        }
+        // Before the first layout there is no viewport to centre on, so fall back to the page's own
+        // middle — that way a guide restored at launch still lands somewhere sensible.
+        val laidOut = box != null && width > 0 && height > 0
+        val cx = when {
+            laidOut -> ptX(box!!, width / 2f)
+            box != null -> box.page.width / 2
+            else -> 0.0
+        }
+        val cy = when {
+            laidOut -> ptY(box!!, height / 2f)
+            box != null -> box.page.height / 2
+            else -> 0.0
+        }
+        guidePage = index
+        guide = kind.place(cx, cy)
+        onGuideChanged?.invoke(guide)
+        render()
+    }
+
+    /** Restore a remembered [pose] onto [page] without disturbing the viewport (used on load). */
+    fun restoreGuide(pose: DrawingGuide?, page: Int = 0) {
+        guide = pose
+        guidePage = page
+        render()
+    }
+
+    /**
+     * ([x], [y]) page pt pulled onto the guide's nearest edge when one is placed on [box]'s page and
+     * the point is within reach. Every drawn vertex — freehand and shape-tool alike — goes through
+     * here, which is what makes the guide behave like a physical straightedge held against the page.
+     */
+    private fun guided(box: PageBox, x: Double, y: Double): Pair<Double, Double> {
+        val g = guide ?: return x to y
+        if (box.index != guidePage) return x to y
+        return g.project(x, y)
+    }
+
+    /**
+     * Start dragging the guide if this finger landed on it: on the tip handle it re-poses the guide
+     * (rotate + resize the setsquare, open the compass), anywhere else on its body it slides it.
+     * Returns false when the touch missed, so the gesture falls through to the ordinary pan/draw.
+     */
+    private fun beginGuideDrag(event: MotionEvent, pointerIndex: Int): Boolean {
+        val g = guide ?: return false
+        val box = layout.boxes.getOrNull(guidePage) ?: return false
+        val px = ptX(box, event.getX(pointerIndex))
+        val py = ptY(box, event.getY(pointerIndex))
+        val handleReach = (HANDLE_HIT_PX / box.scale.coerceAtLeast(0.01f)).toDouble()
+        val tip = guideTip(g)
+        if (hypot(px - tip.first, py - tip.second) <= handleReach) {
+            guideDrag = GUIDE_DRAG_TIP
+        } else if (guideBodyHit(g, px, py, handleReach)) {
+            guideDrag = GUIDE_DRAG_BODY
+            guideGrabDx = px - g.x
+            guideGrabDy = py - g.y
+        } else {
+            return false
+        }
+        guidePointerId = event.getPointerId(pointerIndex)
+        return true
+    }
+
+    /** The re-pose handle: the setsquare's long-leg tip, or the compass's pencil point. */
+    private fun guideTip(g: DrawingGuide): Pair<Double, Double> = when (g) {
+        is DrawingGuide.Setsquare -> g.corners()[1]
+        is DrawingGuide.Compass -> (g.x + g.radius) to g.y
+    }
+
+    /**
+     * True when ([px], [py]) is on the guide's grabbable body: the setsquare's *interior* or the
+     * compass's hub. Deliberately **not** the drawing edge — the edge belongs to the pen, so that a
+     * finger drawn along it still draws instead of dragging the instrument out from under itself.
+     */
+    private fun guideBodyHit(g: DrawingGuide, px: Double, py: Double, hubReach: Double): Boolean =
+        when (g) {
+            is DrawingGuide.Setsquare -> g.contains(px, py)
+            is DrawingGuide.Compass -> hypot(px - g.x, py - g.y) <= hubReach
+        }
+
+    private fun guideMove(event: MotionEvent) {
+        val g = guide ?: return
+        val box = layout.boxes.getOrNull(guidePage) ?: return
+        val pointerIndex = event.findPointerIndex(guidePointerId)
+        if (pointerIndex < 0) return
+        val px = ptX(box, event.getX(pointerIndex))
+        val py = ptY(box, event.getY(pointerIndex))
+        guide = when {
+            guideDrag == GUIDE_DRAG_BODY -> g.moved(px - guideGrabDx - g.x, py - guideGrabDy - g.y)
+            g is DrawingGuide.Setsquare -> g.aimedAt(px, py, snapRotation)
+            g is DrawingGuide.Compass -> g.openedTo(px, py)
+            else -> g
+        }
+        render()
+    }
+
+    /** Release the guide when the finger holding it lifts; other pointers lifting leave it held. */
+    private fun endGuideDrag(event: MotionEvent?) {
+        if (guideDrag == GUIDE_DRAG_NONE) return
+        if (event != null && event.getPointerId(event.actionIndex) != guidePointerId) return
+        guideDrag = GUIDE_DRAG_NONE
+        guidePointerId = -1
+        onGuideChanged?.invoke(guide)
+    }
+
+    /** Draw the guide overlay in view px: the setsquare's outline, or the compass's circle and hub. */
+    private fun drawGuide(canvas: Canvas) {
+        val g = guide ?: return
+        val box = layout.boxes.getOrNull(guidePage) ?: return
+        val s = box.scale
+        val ox = box.leftPx - scrollX
+        val oy = box.topPx - scrollY
+        fun vx(x: Double) = (x * s + ox).toFloat()
+        fun vy(y: Double) = (y * s + oy).toFloat()
+        when (g) {
+            is DrawingGuide.Setsquare -> {
+                val c = g.corners()
+                guidePath.reset()
+                guidePath.moveTo(vx(c[0].first), vy(c[0].second))
+                guidePath.lineTo(vx(c[1].first), vy(c[1].second))
+                guidePath.lineTo(vx(c[2].first), vy(c[2].second))
+                guidePath.close()
+                canvas.drawPath(guidePath, guideFillPaint)
+                canvas.drawPath(guidePath, guideStrokePaint)
+            }
+            is DrawingGuide.Compass -> {
+                canvas.drawCircle(vx(g.x), vy(g.y), (g.radius * s).toFloat(), guideStrokePaint)
+                canvas.drawCircle(vx(g.x), vy(g.y), HANDLE_DRAW_PX, guideHandlePaint)
+            }
+        }
+        val tip = guideTip(g)
+        canvas.drawCircle(vx(tip.first), vy(tip.second), HANDLE_DRAW_PX, guideHandlePaint)
+    }
+
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -1131,6 +1316,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
             MotionEvent.ACTION_POINTER_DOWN -> { handTapCandidate = false; onPointerDown(event) }
             MotionEvent.ACTION_MOVE -> {
                 if (handTapCandidate) trackHandTapMove(event)
+                // The guide is dragged by its own finger and runs *alongside* the other gestures —
+                // holding it steady while the pen rules along it is the whole point.
+                if (guideDrag != GUIDE_DRAG_NONE) guideMove(event)
                 when {
                     scrolling -> doScroll(event)
                     erasing -> eraseMove(event)
@@ -1259,6 +1447,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Begin a gesture for the pointer at [pointerIndex], its intent decided by [InputClassifier]. */
     private fun beginPointer(event: MotionEvent, pointerIndex: Int) {
         val kind = pointerKindOf(event, pointerIndex)
+        // A finger laid on the guide manipulates it, whatever the active tool — the pen keeps
+        // drawing against it meanwhile, exactly as you'd hold a real setsquare down and rule along it.
+        if (kind == PointerKind.FINGER && beginGuideDrag(event, pointerIndex)) return
         val intent = InputClassifier.classify(kind, barrelPressed(event), activeTool(), inputSettings)
         stylusOwner = (kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP) &&
             (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE)
@@ -1297,6 +1488,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** If the pointer that lifted owns the draw/erase gesture, finish it; otherwise keep panning. */
     private fun onPointerUp(event: MotionEvent) {
+        endGuideDrag(event)
         val upId = event.getPointerId(event.actionIndex)
         if (upId == gesturePointerId && (current != null || erasing)) {
             endGesture()
@@ -1325,6 +1517,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun cancelGesture() {
         stopFling()
+        endGuideDrag(null)
         clearSpline()
         current = null; shaping = false; scrolling = false; erasing = false; placing = false
         movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
@@ -1340,8 +1533,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: run { current = null; return }
         currentPage = box.index
         if (shaping) {
-            shapeStartX = snapX(box, ptX(box, event.getX(pointerIndex)))
-            shapeStartY = snapY(box, ptY(box, event.getY(pointerIndex)))
+            // Grid snap first, then the guide — a placed guide is the stronger constraint and must
+            // not be undone by pulling the point back onto the ruling.
+            val (sx, sy) = guided(
+                box,
+                snapX(box, ptX(box, event.getX(pointerIndex))),
+                snapY(box, ptY(box, event.getY(pointerIndex))),
+            )
+            shapeStartX = sx
+            shapeStartY = sy
             current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, baseWidthPt.toDouble())))
         } else {
             smoother.reset()
@@ -1354,8 +1554,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
         if (shaping) {
-            val ex = snapX(box, ptX(box, event.getX(pointerIndex)))
-            val ey = snapY(box, ptY(box, event.getY(pointerIndex)))
+            val (ex, ey) = guided(
+                box,
+                snapX(box, ptX(box, event.getX(pointerIndex))),
+                snapY(box, ptY(box, event.getY(pointerIndex))),
+            )
             current = ArrayList(
                 ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, baseWidthPt.toDouble()),
             )
@@ -1555,6 +1758,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun maxScrollX(): Float = (layout.contentWidthPx - width).coerceAtLeast(0f)
 
     private fun endGesture() {
+        endGuideDrag(null)
         // Snapshot then clear the mode flags first, so any render() inside a commit (e.g. the
         // rubber-band) sees the gesture already ended and doesn't paint a stale marquee/overlay.
         val wasScrolling = scrolling
@@ -1699,11 +1903,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             val p = if (pressure <= 0f) 1f else pressure
             (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
         }
-        return StrokePoint(
-            x = ((vx + scrollX - box.leftPx) / box.scale).toDouble(),
-            y = ((vy + scrollY - box.topPx) / box.scale).toDouble(),
-            width = width,
-        )
+        val (gx, gy) = guided(box, ptX(box, vx), ptY(box, vy))
+        return StrokePoint(x = gx, y = gy, width = width)
     }
 
     private fun commitCurrent() {
@@ -1786,7 +1987,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     override fun surfaceCreated(holder: SurfaceHolder) = render()
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
-        relayout(); render()
+        relayout()
+        // A guide restored from settings before the first layout had no viewport to centre on; now
+        // there is one, so place it for real rather than leaving it wherever the fallback guessed.
+        pendingGuide?.let { pendingGuide = null; placeGuide(it) }
+        render()
     }
     override fun surfaceDestroyed(holder: SurfaceHolder) = stopFling()
 
@@ -1877,6 +2082,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             selection?.let { drawSelectionBox(canvas, it) }
             if (banding) drawBand(canvas)
             if (vspacing) drawVerticalSpaceGuide(canvas)
+            drawGuide(canvas)
             if (hovering && showHover && current == null) drawHover(canvas)
         } finally {
             holder.unlockCanvasAndPost(canvas)
@@ -2079,6 +2285,18 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val MAX_RESIZE = 20.0
         const val PASTE_OFFSET_PT = 12.0   // paste/duplicate nudge so copies don't hide the original
         const val SELECTION_COLOR = 0xFF2060E0.toInt()
+
+        /** Outline colour of the setsquare/compass overlay — amber, so it reads as an instrument
+         * laid on the page rather than as a selection. */
+        const val GUIDE_COLOR = 0xFFE08A20.toInt()
+
+        /** Alpha of the wash filling the setsquare's body — enough to see, faint enough to draw over. */
+        const val GUIDE_FILL_ALPHA = 0x22000000
+
+        // Which part of the guide a finger is holding.
+        const val GUIDE_DRAG_NONE = 0
+        const val GUIDE_DRAG_BODY = 1
+        const val GUIDE_DRAG_TIP = 2
         const val SELECTION_FILL = 0x142060E0
         const val BAND_FILL = 0x222060E0
         /** Translucent blue wash over selected PDF-text word boxes (like a text highlight). */

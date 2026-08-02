@@ -67,6 +67,7 @@ import com.xopp.android.format.SaveFormat
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.GuideKind
 import com.xopp.android.render.EraserMode
 import com.xopp.android.render.EraserSize
 import com.xopp.android.render.InputSettings
@@ -124,6 +125,13 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     recognizeShapes = s.recognizeShapes
     snapToGrid = s.snapToGrid
     snapRotation = s.snapRotation
+    // Only place a guide the surface isn't already showing — re-placing on every settings change
+    // would yank a guide the user has carefully positioned back to the middle of the screen.
+    if (s.guideKind == GuideKind.NONE) {
+        if (guide != null) placeGuide(GuideKind.NONE)
+    } else if (guide == null) {
+        placeGuide(s.guideKind)
+    }
     flingStrength = s.momentum
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity
@@ -268,6 +276,11 @@ fun EditorScreen(
                 onEraserMode = { eraserMode = it; surface?.eraserMode = it },
                 eraserSize = eraserSize,
                 onEraserSize = { eraserSize = it; surface?.eraserSize = it },
+                guideKind = settings.guideKind,
+                onGuideKind = {
+                    surface?.placeGuide(it)
+                    onSettingsChange(settings.copy(guideKind = it))
+                },
                 layers = layers,
                 hasSelection = hasSelection,
                 onAddLayer = { surface?.addLayer() },

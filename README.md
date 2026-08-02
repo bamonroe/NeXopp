@@ -107,7 +107,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
-  way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Layers**, **Zoom**,
+  way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Guides**, **Layers**, **Zoom**,
   **Background**, **Pages** — each open a small pop-up anchored
   to their own button (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with
   **one finger or the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
@@ -153,6 +153,31 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   rotation** makes the selection's rotate handle step in 15° increments — handy for turning something
   exactly upright or square. Both are off by default, and neither changes what is written to the
   file: the result is still ordinary stroke geometry.
+- **Setsquare & compass** — the **Guides** pop-up on the rail lays a physical-feeling drawing
+  instrument on the page: a **Setsquare** (a 30/60/90 geometry triangle) or a **Compass** (a circle
+  of a chosen radius). While one is on the page, anything you draw within about a quarter-inch of
+  its edge is ruled onto that edge — so a freehand pen stroke along the setsquare's side comes out
+  perfectly straight, and a stroke swept around the compass comes out as a clean arc. Draw further
+  away and the pen behaves normally, so you don't have to keep switching the guide off. A **finger**
+  drags the guide around by its body and re-poses it by the amber handle at its tip: for the
+  setsquare that rotates and lengthens it (with **Snap rotation** on, in 15° steps), for the compass
+  it opens the radius. You can hold the guide steady with one hand while the pen rules along it,
+  exactly as on paper. Choose **Off** to take it away. The guide is only an input aid — nothing
+  about it is written to the file, and what you draw is an ordinary stroke that round-trips to
+  desktop Xournal++ like any other. Which guide you had on is remembered across launches.
+- **Drawing guides (setsquare & compass)** — the **Guides** rail button lays a virtual instrument on
+  the page: a **Setsquare** (a 30/60/90 geometry triangle) or a **Compass** (a circle). Anything you
+  draw within about a quarter-inch of the instrument's edge is ruled onto it, so a freehand stroke
+  along the setsquare comes out perfectly straight and a stroke swept around the compass comes out as
+  a clean arc of that radius; move the pen away from the edge and it draws freehand again. Slide the
+  guide with a **finger** placed on its **body** — inside the setsquare's shaded triangle, or on the
+  compass's centre dot — and drag its **amber tip handle** to re-pose it: that rotates and resizes the
+  setsquare (with **Snap rotation** on it lands on 15° steps) and opens or closes the compass. The
+  edges themselves are left free to draw against, so ruling along the outside of the setsquare never
+  drags it out from under your pen, and you can go on holding it steady while you draw. Choose
+  **Off** to take it away. The guide is purely an input aid: it is never written to the `.xopp` file,
+  so what you draw with it is ordinary stroke geometry. Which guide is out is remembered across
+  launches.
 - **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
   **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** switch with an opacity slider
   (1–100%) that floods the inside of a closed stroke or shape with the pen/highlighter colour.

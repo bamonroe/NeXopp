@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "setsquare-and-compass-tools"
+title = "Setsquare and compass tools"
+description = "Add the desktop setsquare (geometry triangle) and compass overlays: an on-canvas manipulable guide that constrains drawing to its edge/arc. Purely an input aid; output is normal strokes."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["tools", "parity"]
+
+[[task]]
 id = "fill-tool-as-a-first-class-option"
 title = "Fill tool as a first-class option"
 description = "Desktop exposes fill as a toggle with an alpha slider for pen and highlighter. We store the fill attribute in the model but never let the user set it — surface it in the rail/style panel."

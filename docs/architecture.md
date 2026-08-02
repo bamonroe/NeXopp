@@ -311,6 +311,8 @@ app/
       PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
       BackgroundGrid.kt      # ruling line/dot offsets + the pt spacings themselves (pure geometry)
       Snapping.kt            # shape endpoints -> the ruling; rotation -> 15-degree steps (pure)
+      DrawingGuide.kt        # setsquare/compass overlay geometry: project a drawn point onto an edge (pure)
+      DrawingGuide.kt        # setsquare/compass overlay geometry + edge projection (pure)
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
@@ -461,9 +463,26 @@ applied at the input edge rather than in the geometry builders: with **Snap to g
 drag's start and end points are rounded onto the page background's ruling before they reach
 `ShapeBuilder`, and with **Snap rotation** on, the *swept* angle (not the absolute one) of the rotate
 handle is rounded to 15° before it reaches `SelectionOps.rotate` — snapping the swept angle means a
-snapped drag returns exactly to the element's original orientation. Which axes snap is a property of
+snapped drag returns exactly to the element's original orientation. A **drawing guide** (`DrawingGuide`, pure and tested) is the same idea taken further: a setsquare
+(right triangle) or compass (circle) posed in page-local pt, whose `project` pulls any point within
+`GRAB_PT` onto its nearest edge and leaves anything further away untouched. `DrawingSurfaceView`
+owns the live pose, paints the overlay in `paint()` (it is chrome, not ink, so it stays out of
+`InkCache`), and funnels *every* drawn vertex through `guided()` — freehand samples in `point()` and
+shape-tool endpoints in `startStroke`/`extendStroke`, applied **after** the grid snap so the guide
+wins. A finger that lands on the guide's *body* (the triangle's interior, the compass's hub) drives it on
+its own pointer id, running alongside the drawing gesture rather than replacing it, which is what
+lets the pen rule along a guide the other hand is holding; the edges are deliberately excluded from
+the grab test so drawing against one never drags the instrument away with it. Nothing about a guide reaches the document. Which axes snap is a property of
 the background style, so the pt spacings live once in `BackgroundGrid` and are shared by
-`BackgroundRenderer`, `PdfBackgroundPainter` and `Snapping`. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
+`BackgroundRenderer`, `PdfBackgroundPainter` and `Snapping`. The **setsquare/compass guides**
+(`DrawingGuide`, pure and tested) are a third constraint at that same input edge: the surface holds
+one live pose pinned to a page, and every drawn vertex — freehand via `point()` and shape-tool
+endpoints alike — passes through `guided()`, which projects the point onto the guide's nearest edge
+when it is within `DrawingGuide.GRAB_PT`. The guide is applied *after* grid snapping, so a placed
+guide wins. It is drawn as a canvas overlay outside the ink cache (it is not page content) and is
+manipulated by a finger on its own pointer id, deliberately running alongside the drawing gesture
+rather than instead of it, so a hand can hold the instrument while the pen rules along it. Nothing
+about a guide reaches the document — only the resulting stroke does. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
 on the stroke the tool draws next; `StrokePainter` paints a dashed/dotted style as a single
 constant-width dashed path and floods a fill under the outline, and `PdfVectorPainter` mirrors both for
 export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,

@@ -2,6 +2,7 @@ package com.xopp.android.ui
 
 import android.content.Context
 import com.xopp.android.render.BarrelAction
+import com.xopp.android.render.GuideKind
 import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
@@ -42,6 +43,8 @@ data class AppSettings(
     val snapToGrid: Boolean = false,
     /** Pull a selection's rotate handle onto 15-degree increments. */
     val snapRotation: Boolean = false,
+    /** Which on-canvas drawing guide (setsquare/compass) is laid on the page, restored on launch. */
+    val guideKind: GuideKind = GuideKind.NONE,
     /** The three user-configurable pen-tip widths (pt) behind the S/M/L size slots, in slot order. */
     val penWidths: List<Float> = DEFAULT_PEN_WIDTHS,
     /** The user-defined colour (opaque ARGB) behind the palette's editable custom slot. */
@@ -119,6 +122,7 @@ class SettingsStore(context: Context) {
             recognizeShapes = prefs.getBoolean(KEY_RECOGNIZE_SHAPES, d.recognizeShapes),
             snapToGrid = prefs.getBoolean(KEY_SNAP_GRID, d.snapToGrid),
             snapRotation = prefs.getBoolean(KEY_SNAP_ROTATION, d.snapRotation),
+            guideKind = enumOr(prefs.getString(KEY_GUIDE_KIND, null), d.guideKind),
             penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
             defaultTool = enumOr(prefs.getString(KEY_DEFAULT_TOOL, null), d.defaultTool),
@@ -147,6 +151,7 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_RECOGNIZE_SHAPES, s.recognizeShapes)
             .putBoolean(KEY_SNAP_GRID, s.snapToGrid)
             .putBoolean(KEY_SNAP_ROTATION, s.snapRotation)
+            .putString(KEY_GUIDE_KIND, s.guideKind.name)
         s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
         e.putInt(KEY_CUSTOM_COLOR, s.customColor)
         e.putString(KEY_DEFAULT_TOOL, s.defaultTool.name)
@@ -174,6 +179,7 @@ class SettingsStore(context: Context) {
         const val KEY_RECOGNIZE_SHAPES = "recognize_shapes"
         const val KEY_SNAP_GRID = "snap_to_grid"
         const val KEY_SNAP_ROTATION = "snap_rotation"
+        const val KEY_GUIDE_KIND = "guide_kind"
         const val KEY_CUSTOM_COLOR = "custom_color"
         const val KEY_DEFAULT_TOOL = "default_tool"
         // Float-typed since the parameterized control replaced the old discrete enum; a fresh key

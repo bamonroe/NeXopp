@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowRightAlt
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Brush
+import androidx.compose.material.icons.filled.ChangeHistory
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -62,6 +63,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -86,6 +88,7 @@ import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.EraserMode
+import com.xopp.android.render.GuideKind
 import com.xopp.android.render.EraserSize
 import com.xopp.android.render.LayerInfo
 import kotlin.math.roundToInt
@@ -197,6 +200,8 @@ fun SideToolbar(
     onEraserMode: (EraserMode) -> Unit,
     eraserSize: EraserSize,
     onEraserSize: (EraserSize) -> Unit,
+    guideKind: GuideKind,
+    onGuideKind: (GuideKind) -> Unit,
     layers: List<LayerInfo>,
     hasSelection: Boolean,
     onAddLayer: () -> Unit,
@@ -243,6 +248,7 @@ fun SideToolbar(
                 "style" -> StylePopupButton(
                     lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize,
                 )
+                "guides" -> GuidePopupButton(guideKind, onGuideKind)
                 "layers" -> LayersPopupButton(
                     layers, hasSelection, onAddLayer, onDeleteLayer, onRenameLayer,
                     onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
@@ -767,6 +773,36 @@ private fun PageSizeDialog(
 }
 
 /** Line-style labels for the style pop-up, paired with their [LineStyle]. */
+/**
+ * The drawing-guide pop-up: lay a setsquare or a compass on the page, or take it off again. The
+ * guide is an input aid — a finger drags it around and re-poses it by its tip handle, and anything
+ * drawn near its edge is ruled onto that edge. Nothing about it is written to the `.xopp` file.
+ */
+@Composable
+private fun GuidePopupButton(kind: GuideKind, onKind: (GuideKind) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                Icons.Filled.ChangeHistory,
+                contentDescription = "Drawing guides",
+                tint = if (kind == GuideKind.NONE) LocalContentColor.current
+                else MaterialTheme.colorScheme.primary,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            MenuHeading("Drawing guide")
+            for (option in GuideKind.entries) {
+                DropdownMenuItem(
+                    text = { Text(option.label) },
+                    trailingIcon = { if (option == kind) Icon(Icons.Filled.Check, contentDescription = "selected") },
+                    onClick = { onKind(option); open = false },
+                )
+            }
+        }
+    }
+}
+
 private val LINE_STYLE_LABELS: List<Pair<LineStyle, String>> = listOf(
     LineStyle.PLAIN to "Solid",
     LineStyle.DASHED to "Dashed",
