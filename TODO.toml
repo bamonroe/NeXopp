@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "vertical-space-tool"
-title = "Vertical space tool"
-description = "Add Xournal++'s vertical-space tool: drag down/up on a page to insert or remove vertical space, shifting all elements below the grab line. Desktop has this as a core rail tool; we have no equivalent. Round-trips fine since it only moves element coordinates."
-status = "active"
-category = "feature"
-urgency = "high"
-order = 10
-created = 2026-08-02
-tags = ["tools", "parity"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "spline-shape-tool"
 title = "Spline shape tool"
 description = "Add the spline/bezier draw tool from desktop Xournal++: click to lay down control points, drag to curve, Enter/double-tap to finish. Commits as an ordinary pen stroke like the other ShapeKinds in render/ShapeBuilder.kt."

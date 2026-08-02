@@ -85,6 +85,7 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     handMode = tool == EditorTool.HAND
     selectMode = tool == EditorTool.SELECT
     textSelectMode = tool == EditorTool.TEXT_SELECT
+    verticalSpaceMode = tool == EditorTool.VERTICAL_SPACE
     placeKind = when (tool) {
         EditorTool.TEXT -> PlaceKind.TEXT
         EditorTool.IMAGE -> PlaceKind.IMAGE

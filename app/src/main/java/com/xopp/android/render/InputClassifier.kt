@@ -30,7 +30,10 @@ enum class ActiveTool {
     SELECT,
     TEXT_SELECT,
     HAND,
-    PLACE;
+    PLACE,
+
+    /** Drag a horizontal line to insert/remove vertical space on a page. */
+    VERTICAL_SPACE;
 
     /** The three tools whose primary gesture is laying ink down (subject to the finger-draw gate). */
     fun isDrawing(): Boolean = this == PEN || this == HIGHLIGHTER || this == ERASER
@@ -43,6 +46,7 @@ enum class ActiveTool {
         TEXT_SELECT -> GestureIntent.SELECT_TEXT
         HAND -> GestureIntent.PAN
         PLACE -> GestureIntent.PLACE
+        VERTICAL_SPACE -> GestureIntent.VERTICAL_SPACE
     }
 }
 
@@ -59,7 +63,7 @@ enum class BarrelAction {
 }
 
 /** The gesture a pointer-down should begin. */
-enum class GestureIntent { DRAW, ERASE, PAN, SELECT, SELECT_TEXT, PLACE, IGNORE }
+enum class GestureIntent { DRAW, ERASE, PAN, SELECT, SELECT_TEXT, PLACE, VERTICAL_SPACE, IGNORE }
 
 /** Input-layer preferences the classifier consults (owned by the app's settings). */
 data class InputSettings(

@@ -181,6 +181,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
             if (!value) clearSelection()
         }
 
+    /** When true, a drag inserts/removes vertical space on a page instead of drawing (see [VerticalSpaceOps]). */
+    var verticalSpaceMode: Boolean = false
+
     /** When true, the Select tool's marquee is a free-form lasso instead of a rectangle. */
     var lassoMode: Boolean = false
 
@@ -250,6 +253,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var moveStartDoc: Document? = null
     private var moveStartPtX = 0.0
     private var moveStartPtY = 0.0
+
+    // Live vertical-space drag: the grabbed page, the grab line (page pt) and its view-px Y for the
+    // guide overlay. Like a selection move, each frame recomputes from the gesture-start snapshot.
+    private var vspacing = false
+    private var vspacePage = 0
+    private var vspaceLinePt = 0.0
+    private var vspaceLineViewY = 0f
 
     // Live uniform resize about a fixed anchor (the opposite corner), in page-local pt.
     private var resizing = false
@@ -843,6 +853,34 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
+    /**
+     * Down with the vertical-space tool: latch the grabbed page and the page-local Y of the grab
+     * line. Everything whose top edge is below that line follows the drag ([VerticalSpaceOps]).
+     */
+    private fun beginVerticalSpace(event: MotionEvent) {
+        scrolling = false; erasing = false; placing = false; current = null
+        val box = layout.pageAt(event.y + scrollY) ?: return
+        vspacing = true
+        vspacePage = box.index
+        currentPage = box.index
+        vspaceLinePt = ptY(box, event.y)
+        vspaceLineViewY = event.y
+        gestureStartDoc = doc
+        moveStartDoc = doc
+        gesturePointerId = event.getPointerId(0)
+        render()
+    }
+
+    /** Drag the vertical-space line: re-apply the whole shift from the gesture-start snapshot. */
+    private fun verticalSpaceMove(event: MotionEvent) {
+        val start = moveStartDoc ?: return
+        val box = layout.boxes.getOrNull(vspacePage) ?: return
+        val dy = ptY(box, event.y) - vspaceLinePt
+        doc = doc.copy(pages = VerticalSpaceOps.shiftBelow(start.pages, vspacePage, vspaceLinePt, dy))
+        relayout()
+        render()
+    }
+
     private fun beginBand(event: MotionEvent) {
         if (selection != null) {
             selection = null
@@ -1048,6 +1086,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                     resizing -> resizeSelect(event)
                     rotating -> rotateSelect(event)
                     movingSel -> moveSelect(event)
+                    vspacing -> verticalSpaceMove(event)
                     banding -> bandMove(event)
                     textSelecting -> textSelectMove(event)
                     current != null -> extendStroke(event)
@@ -1151,6 +1190,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** The on-screen tool collapsed to the classifier's [ActiveTool]. */
     private fun activeTool(): ActiveTool = when {
+        verticalSpaceMode -> ActiveTool.VERTICAL_SPACE
         placeKind != null -> ActiveTool.PLACE
         handMode -> ActiveTool.HAND
         textSelectMode -> ActiveTool.TEXT_SELECT
@@ -1171,6 +1211,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             GestureIntent.PAN -> beginScroll(event)
             GestureIntent.SELECT -> beginSelect(event)
             GestureIntent.SELECT_TEXT -> beginTextSelect(event)
+            GestureIntent.VERTICAL_SPACE -> beginVerticalSpace(event)
             GestureIntent.ERASE -> startErase(event, pointerIndex)
             GestureIntent.DRAW -> startStroke(event, pointerIndex)
             GestureIntent.IGNORE -> Unit
@@ -1219,13 +1260,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun abandonInProgress() {
         current = null; shaping = false; erasing = false; placing = false; banding = false
         movingSel = false; resizing = false; rotating = false; scrolling = false; textSelecting = false
+        vspacing = false
     }
 
     private fun cancelGesture() {
         stopFling()
         current = null; shaping = false; scrolling = false; erasing = false; placing = false
         movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
-        textSelecting = false
+        textSelecting = false; vspacing = false
         gesturePointerId = -1; stylusOwner = false
     }
 
@@ -1357,6 +1399,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasTransforming = resizing || rotating
         val wasBanding = banding
         val wasTextSelecting = textSelecting
+        val wasVspacing = vspacing
+        vspacing = false
         scrolling = false
         erasing = false
         placing = false
@@ -1371,6 +1415,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
             wasTransforming -> Unit  // resize/rotate applied live; finishGesture records them
             wasBanding -> commitBand()
             wasTextSelecting -> Unit // the word range is updated live; the selection just stays put
+            // The shift is applied live and finishGesture records it as one undo step; the repaint is
+            // what clears the grab-line overlay, which would otherwise stay drawn after the release.
+            wasVspacing -> render()
             !wasScrolling && !wasErasing -> commitCurrent()
         }
         moveStartDoc = null
@@ -1603,6 +1650,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             drawTextSelection(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
             if (banding) drawBand(canvas)
+            if (vspacing) drawVerticalSpaceGuide(canvas)
             if (hovering && showHover && current == null) drawHover(canvas)
         } finally {
             holder.unlockCanvasAndPost(canvas)
@@ -1750,6 +1798,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val r = (baseWidthPt * 3f).coerceIn(6f, 28f)
         hoverPaint.color = (colorArgb and 0x00FFFFFF) or HOVER_ALPHA
         canvas.drawCircle(hoverX, hoverY, r, hoverPaint)
+    }
+
+    /** Draw the vertical-space grab line across the page being reflowed (view px). */
+    private fun drawVerticalSpaceGuide(canvas: Canvas) {
+        val box = layout.boxes.getOrNull(vspacePage) ?: return
+        val left = box.leftPx - scrollX
+        val right = left + box.widthPx
+        canvas.drawRect(left, vspaceLineViewY - 1f, right, vspaceLineViewY + 1f, selectionStrokePaint)
     }
 
     /** Draw the live marquee (view px): a rectangle, or the traced lasso path in lasso mode. */

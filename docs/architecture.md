@@ -334,6 +334,7 @@ app/
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
       Selection.kt           # ElementRef + SelectionTester: rect/tap picking, selection bounds (pure)
       SelectionOps.kt        # translate / delete selected elements on a page (pure)
+      VerticalSpaceOps.kt    # insert / remove vertical space on a page, shifting what's below (pure)
       InputClassifier.kt     # pointer kind + button + active tool + settings -> gesture intent (pure)
       PressureCurve.kt       # pressure -> width multiplier + sensitivity presets (pure)
       Fling.kt               # decelerating two-axis momentum-scroll kinematics (pure)
@@ -451,6 +452,18 @@ an `onPickImage` callback up to `MainActivity`'s SAF picker. The chosen content 
 layer. Tapping an existing text box reopens it for editing (clearing the content deletes it);
 matched by element identity. The view keeps the loaded document intact and only appends/edits, so
 every page, layer, and element round-trips through save.
+
+**Vertical space (`render/VerticalSpaceOps.kt`).** The **Vertical space** tool
+(`EditorTool.VERTICAL_SPACE` → the surface's `verticalSpaceMode`, classified as
+`GestureIntent.VERTICAL_SPACE`) reflows a page: pointer-down latches the grabbed page and the
+page-local Y of the grab line, and each move frame re-applies `VerticalSpaceOps.shiftBelow` to the
+**gesture-start snapshot** (the same recompute-from-the-start discipline as a selection move, so a
+live drag never drifts or compounds). An element moves when its `ElementBounds.of(...).top` is at or
+below the line — so the line never tears an element in half — and every layer of the page moves
+together, matching desktop. Dragging up is clamped by `clampShift` so content can close a gap but
+never crosses above the line it was grabbed at; a drag that can't move anything returns the same page
+list, which keeps `finishGesture` from recording an empty undo step. The whole drag is one undo step,
+and because it only rewrites coordinates the result round-trips through save unchanged.
 
 **Selecting objects (`render/`).** The **Select** tool (`EditorTool.SELECT`, mapped to the surface's
 `selectMode`) mirrors desktop Xournal++'s object selection. A one-finger **drag** draws a rubber-band

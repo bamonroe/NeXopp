@@ -29,6 +29,7 @@ val TOOL_GROUPS: List<ToolGroup> = listOf(
     ToolGroup("pan", "Pan", listOf(EditorTool.HAND)),
     ToolGroup("select", "Select", listOf(EditorTool.SELECT, EditorTool.TEXT_SELECT)),
     ToolGroup("insert", "Insert", listOf(EditorTool.TEXT, EditorTool.TEXIMAGE, EditorTool.IMAGE)),
+    ToolGroup("vspace", "Vertical space", listOf(EditorTool.VERTICAL_SPACE)),
 )
 
 /** The group [tool] belongs to, or null if it is somehow ungrouped. */

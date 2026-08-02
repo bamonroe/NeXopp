@@ -94,11 +94,17 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   clipboard to paste elsewhere. It reads the PDF's own text — no OCR — so scanned image-only PDFs
   have nothing to select (OCR for those is planned). The selection is view-only and doesn't change
   the document.
-- **Draw** — the controls live in a **vertical rail down the left edge**. It starts with seven
+- **Vertical space** — pick **Vertical space** from the rail to reflow a page: **drag down** on the
+  page to insert blank vertical space, pushing everything below the grab line down with your finger,
+  or **drag up** to close a gap and pull that content back. A dashed guide shows the grab line while
+  you drag; only objects whose **top** edge is below the line move (one the line passes through stays
+  put rather than being torn), and **all layers move together**. The whole drag is a single undo step,
+  and since it only shifts coordinates it round-trips to desktop Xournal++ unchanged.
+- **Draw** — the controls live in a **vertical rail down the left edge**. It starts with eight
   **tool slots**, each standing for a group of related tools and showing the one that group is
   currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow), **Shape**
   (rectangle · ellipse), **Pan**, **Select** (select · select text), **Insert** (text · LaTeX ·
-  image). **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
+  image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
   way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Layers**, **Zoom**,

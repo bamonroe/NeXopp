@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Rectangle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.Timeline
@@ -118,7 +119,7 @@ val PEN_COLORS: List<Int> = listOf(
  */
 enum class EditorTool {
     PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
-    LINE, ARROW, RECTANGLE, ELLIPSE,
+    LINE, ARROW, RECTANGLE, ELLIPSE, VERTICAL_SPACE,
 }
 
 /** The four geometric shape tools — drawn as ordinary pen strokes (see [ShapeKind]). */
@@ -141,6 +142,7 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.TEXT, "Text", Icons.Filled.TextFields),
     ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
     ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),
+    ToolInfo(EditorTool.VERTICAL_SPACE, "Vertical space", Icons.Filled.SwapVert),
 )
 
 /** Human-readable label for a tool (the same text the rail's tool menu shows). */
