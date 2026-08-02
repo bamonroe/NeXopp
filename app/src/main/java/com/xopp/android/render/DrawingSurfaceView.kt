@@ -1711,7 +1711,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val BACKDROP = 0xFF3A3A3A.toInt()
         const val ZOOM_STEP = 1.25f
         const val MIN_ZOOM = 0.25f
-        const val MAX_ZOOM = 8f
+        const val MAX_ZOOM = 10f
         /** Below this two-finger span (view px) the pinch ratio is too noisy to zoom by, so it's ignored. */
         const val PINCH_MIN_SPAN_PX = 40f
         const val TAP_SLOP_PX = 16f

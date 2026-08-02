@@ -367,7 +367,7 @@ tested `StrokeHitTester`), or **pans** when the Hand tool is active; **two finge
 tool. A **zoom** factor multiplies the fit-to-width scale (`PageStacker` takes it as a parameter);
 when a page is wider than the view the same pan gesture scrolls horizontally, and narrower pages
 are centred in the content band (`PageBox.leftPx`). Zoom keeps the viewport-centre point roughly
-fixed, and is clamped to 25%–800% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
+fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
 backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and
 never above `PdfPageCache.PER_PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
