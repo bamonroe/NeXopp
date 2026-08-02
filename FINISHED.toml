@@ -17,6 +17,46 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "move-eraser-mode-to-eraser-long-press-and-size-to-pen-tip-sizes"
+title = "Move eraser mode to eraser long-press and size to pen tip sizes"
+description = "Two changes to the eraser. First, the eraser size options should just follow the same tip sizes as the pen rather than having their own scheme. Second, the whole-stroke vs partial-stroke choice should be made by long-pressing the eraser tool in the toolbar, not in a separate menu. Those entries currently live under line styles and should be removed from there."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
+id = "show-pen-tip-sizes-as-scaled-dots-instead-of-s-m-l-letters"
+title = "Show pen tip sizes as scaled dots instead of S/M/L letters"
+description = "The pen size picker (long-press / press on the pen tool) currently labels the options S, M and L. Those letters no longer mean much because tip sizes can be three arbitrary values. Replace each letter with a filled dot whose diameter reflects that size, scaled relatively so the largest still fits comfortably inside its bounding box rather than overflowing it."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
+id = "drag-and-drop-reordering-in-toolbar-settings"
+title = "Drag-and-drop reordering in toolbar settings"
+description = "The toolbar settings page currently reorders elements with up/down arrow buttons. Replace them with long-press drag-and-drop so an item can be grabbed and pulled up or down directly. Remove the up/down buttons entirely."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
+id = "split-selection-tool-into-lasso-and-text-in-the-toolbar-popup"
+title = "Split selection tool into lasso and text in the toolbar popup"
+description = "Right now the selection tool shows a popup offering rectangle or lasso. Instead, make them separate entries in the selection toolbar: long-pressing the selection tool in the toolbar should offer rectangle, lasso, and text select."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
 id = "appearance-section-in-settings-with-theme-selection"
 title = "Appearance section in settings with theme selection"
 description = "Add an Appearance section to the settings screen letting the user choose Light, Dark, or System theme. Persist the choice and apply it to the whole app, including the top bar and tool rail (see the color-scheme unification task)."
