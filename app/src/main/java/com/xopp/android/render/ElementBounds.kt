@@ -28,6 +28,10 @@ data class Bounds(val left: Double, val top: Double, val right: Double, val bott
     /** This box shifted by (dx, dy) pt. */
     fun translate(dx: Double, dy: Double): Bounds = Bounds(left + dx, top + dy, right + dx, bottom + dy)
 
+    /** True if this box overlaps [other] at all (edge contact counts). */
+    fun intersects(other: Bounds): Boolean =
+        left <= other.right && right >= other.left && top <= other.bottom && bottom >= other.top
+
     /** The smallest box covering both this and [other]. */
     fun union(other: Bounds): Bounds =
         Bounds(minOf(left, other.left), minOf(top, other.top), maxOf(right, other.right), maxOf(bottom, other.bottom))

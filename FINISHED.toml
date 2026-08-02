@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "cull-off-screen-elements-when-drawing-pages"
+title = "Cull off-screen elements when drawing pages"
+description = "Scrolling is very slow at high zoom. PageRenderer.drawElements (src PageRenderer.kt:16, called from DrawingSurfaceView.kt:1635) iterates every layer and every element of every vertically-visible page with no viewport bounds check. StackedLayout.visible (PageStacker.kt:34) culls only on Y, so at 1000% zoom a page spans ~10 screens in each direction and ~99% of submitted strokes are off-screen. Fix: add a Canvas.clipRect to the viewport and reject elements whose ElementBounds miss the visible rect (ElementBounds already exists but is never consulted on the draw path). Also skip the coarse whole-page PDF bitmap blit in BackgroundRenderer.kt:52 where sharp tiles (BackgroundRenderer.kt:54-63) already cover the viewport, so most visible pixels stop being rasterized twice. Compounding factor: StrokePainter.drawPressureLine (StrokePainter.kt:70-83) emits one antialiased canvas.drawLine per point pair, so an unculled page of handwriting is tens of thousands of draw calls per frame."
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["performance", "rendering"]
+
+[[task]]
 id = "tile-pdf-rasterisation-so-zoomed-text-stays-sharp"
 title = "Tile PDF rasterisation so zoomed text stays sharp"
 description = "PDF backgrounds are rasterised whole-page and capped at MAX_RASTER_WIDTH (4096px) in app/src/main/java/com/xopp/android/render/PdfPageCache.kt, so past ~400-800% zoom the page bitmap is upscaled and PDF text looks blurry. Instead, rasterise only the visible tile(s) of the page at full device resolution, keyed by (page, tile, scale), so the on-screen region is always rendered 1:1 and the heap stays bounded. Removes the effective sharpness ceiling at high zoom. Ink strokes are already vector and unaffected."

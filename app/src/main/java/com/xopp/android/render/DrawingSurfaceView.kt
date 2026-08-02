@@ -1570,7 +1570,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
             canvas.drawColor(BACKDROP)
             val visible = layout.visible(scrollY, height.toFloat())
             for (box in visible) {
-                BackgroundRenderer.draw(canvas, box, scrollX, scrollY, pdfBitmapFor(box), pdfTilesFor(box))
+                BackgroundRenderer.draw(
+                    canvas, box, scrollX, scrollY, pdfBitmapFor(box), pdfTilesFor(box),
+                    width.toFloat(), height.toFloat(),
+                )
                 drawPageElements(canvas, box)
             }
             prefetchAround(visible)
@@ -1641,8 +1644,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
         PageRenderer.drawElements(
             canvas, box.page, box.scale, box.leftPx - scrollX, box.topPx - scrollY,
-            strokePainter, elementRenderer, hidden,
+            strokePainter, elementRenderer, hidden, visibleBounds(box),
         )
+    }
+
+    /**
+     * The viewport in this page's local pt space, so [PageRenderer] can drop elements that can't be
+     * on screen. At high zoom a page spans many screens, where almost every stroke is off-screen and
+     * submitting it costs thousands of canvas calls Skia would only clip away.
+     */
+    private fun visibleBounds(box: PageBox): Bounds? {
+        if (box.scale <= 0f) return null
+        val s = box.scale.toDouble()
+        val left = (scrollX - box.leftPx) / s
+        val top = (scrollY - box.topPx) / s
+        return Bounds(left, top, left + width / s, top + height / s)
     }
 
     private fun drawCurrent(canvas: Canvas) {

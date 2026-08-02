@@ -36,6 +36,8 @@ object BackgroundRenderer {
         scrollY: Float,
         pageImage: Bitmap? = null,
         tiles: List<PdfTile> = emptyList(),
+        viewWidthPx: Float = 0f,
+        viewHeightPx: Float = 0f,
     ) {
         val left = box.leftPx - scrollX
         val top = box.topPx - scrollY
@@ -45,7 +47,9 @@ object BackgroundRenderer {
         if (pageImage != null || tiles.isNotEmpty()) {
             // The whole-page bitmap is the coarse under-layer; tiles land on top at full resolution,
             // so a tile that hasn't rasterised yet shows the upscaled page rather than a hole.
-            if (pageImage != null) {
+            // …unless the tiles already cover every visible pixel, in which case the blit would
+            // rasterise the whole (possibly many-screens-wide) page only to be painted over.
+            if (pageImage != null && !tilesCover(tiles, box, left, top, viewWidthPx, viewHeightPx)) {
                 canvas.drawBitmap(pageImage, null, RectF(left, top, left + box.widthPx, top + box.heightPx), image)
             }
             for (t in tiles) {
@@ -68,6 +72,41 @@ object BackgroundRenderer {
             "dotted" -> dots(canvas, box, left, top)
             else -> Unit // "plain", unknown, or non-solid: bare sheet
         }
+    }
+
+    /**
+     * True if [tiles] leave no hole over the visible part of the page. Tiles are non-overlapping grid
+     * cells, so a gap-free cover is exactly "their union rectangle contains the visible rectangle and
+     * their areas add up to that union" — no per-cell bookkeeping needed. Returns false when the view
+     * size isn't known (the PDF exporter, tests), preserving the coarse under-layer there.
+     */
+    private fun tilesCover(
+        tiles: List<PdfTile>,
+        box: PageBox,
+        left: Float,
+        top: Float,
+        viewWidthPx: Float,
+        viewHeightPx: Float,
+    ): Boolean {
+        if (tiles.isEmpty() || viewWidthPx <= 0f || viewHeightPx <= 0f) return false
+        if (box.widthPx <= 0f || box.heightPx <= 0f) return false
+        // The visible slice of the page, as 0..1 fractions like PdfTile's own coordinates.
+        val vl = ((0f - left) / box.widthPx).coerceIn(0f, 1f)
+        val vt = ((0f - top) / box.heightPx).coerceIn(0f, 1f)
+        val vr = ((viewWidthPx - left) / box.widthPx).coerceIn(0f, 1f)
+        val vb = ((viewHeightPx - top) / box.heightPx).coerceIn(0f, 1f)
+        if (vr <= vl || vb <= vt) return true // nothing of this page is on screen
+        var ul = Float.MAX_VALUE; var ut = Float.MAX_VALUE
+        var ur = -Float.MAX_VALUE; var ub = -Float.MAX_VALUE
+        var area = 0f
+        for (t in tiles) {
+            ul = minOf(ul, t.left); ut = minOf(ut, t.top)
+            ur = maxOf(ur, t.right); ub = maxOf(ub, t.bottom)
+            area += (t.right - t.left) * (t.bottom - t.top)
+        }
+        if (ul > vl || ut > vt || ur < vr || ub < vb) return false
+        val unionArea = (ur - ul) * (ub - ut)
+        return area >= unionArea - 1e-4f
     }
 
     private fun horizontals(canvas: Canvas, box: PageBox, left: Float, top: Float) {

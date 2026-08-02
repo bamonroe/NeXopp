@@ -379,7 +379,14 @@ the sharpness comes from **tiles**: `PdfPageCache.requestTiles` rasterises only 
 a `PdfPageCache.TILE_PX` (512 px) grid built at the true on-screen page width, each rendered 1:1 via
 a `Matrix` on `PdfRenderer.Page.render`, and `BackgroundRenderer` draws them over the upscaled page
 bitmap. So PDF text stays sharp to the 1000 % zoom ceiling while cost stays proportional to the
-viewport, not the page; a tile that hasn't rasterised yet simply shows the coarse layer underneath. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+viewport, not the page; a tile that hasn't rasterised yet simply shows the coarse layer underneath.
+When the tiles on hand already cover every visible pixel of the page, `BackgroundRenderer` skips the
+coarse whole-page blit entirely, so those pixels aren't rasterised twice.
+Ink is culled the same way: `DrawingSurfaceView` hands `PageRenderer.drawElements` the viewport in
+page-local pt, and any element whose `ElementBounds` box misses it is never submitted (boxes are
+memoised by element identity, so the cull doesn't rescan stroke points each frame). At high zoom a
+page spans many screens, where almost every stroke would otherwise cost thousands of canvas calls
+Skia only clips away. `PdfExporter` passes no viewport and so draws everything. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is

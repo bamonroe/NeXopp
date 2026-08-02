@@ -49,6 +49,16 @@ class ElementBoundsTest {
         assertFalse(outer.contains(150.0, 50.0))
     }
 
+    /** The viewport cull in [PageRenderer] keeps an element only when its box intersects the view. */
+    @Test fun intersectsIsOverlapNotContainment() {
+        val view = Bounds(0.0, 0.0, 100.0, 100.0)
+        assertTrue(view.intersects(Bounds(90.0, 90.0, 200.0, 200.0))) // straddles a corner
+        assertTrue(view.intersects(Bounds(-50.0, -50.0, 500.0, 500.0))) // swallows the view
+        assertTrue(view.intersects(Bounds(100.0, 50.0, 120.0, 60.0))) // touching edge
+        assertFalse(view.intersects(Bounds(100.5, 50.0, 120.0, 60.0))) // just off the right
+        assertFalse(view.intersects(Bounds(10.0, -40.0, 20.0, -0.5))) // just above
+    }
+
     @Test fun translateAndUnion() {
         val a = Bounds(0.0, 0.0, 10.0, 10.0).translate(5.0, -2.0)
         assertEquals(Bounds(5.0, -2.0, 15.0, 8.0), a)
