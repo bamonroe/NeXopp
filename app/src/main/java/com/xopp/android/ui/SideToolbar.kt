@@ -169,6 +169,7 @@ fun SideToolbar(
     onColor: (Int) -> Unit,
     customColor: Int,
     onRedefineCustom: (Int) -> Unit,
+    recentColors: List<Int>,
     width: Float,
     onWidth: (Float) -> Unit,
     widthSlots: List<Float>,
@@ -207,7 +208,7 @@ fun SideToolbar(
 ) {
     val buttons: @Composable () -> Unit = {
         ToolPopupButton(tool, onTool)
-        ColorPopupButton(color, onColor, customColor, onRedefineCustom)
+        ColorPopupButton(color, onColor, customColor, onRedefineCustom, recentColors)
         SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
         StylePopupButton(lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize)
         LayersPopupButton(
@@ -276,6 +277,7 @@ private fun ColorPopupButton(
     onColor: (Int) -> Unit,
     customColor: Int,
     onRedefineCustom: (Int) -> Unit,
+    recentColors: List<Int>,
 ) {
     var open by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
@@ -304,6 +306,17 @@ private fun ColorPopupButton(
                     onLongClick = { editing = true; open = false },
                     editable = true,
                 )
+            }
+            if (recentColors.isNotEmpty()) {
+                MenuHeading("Recent")
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    for (c in recentColors) {
+                        Swatch(color = c, selected = c == color, onClick = { onColor(c); open = false })
+                    }
+                }
             }
         }
     }

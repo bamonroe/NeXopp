@@ -501,7 +501,10 @@ round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in
-`ColorPicker.kt`. The **Select** tool adds a rail entry and a floating action bar; its
+`ColorPicker.kt`. `AppSettings` also remembers the pen you left off with — `lastColor`/`lastWidth`,
+re-pushed onto a freshly created surface by `EditorScreen` — and a `recentColors` MRU list
+(`withColorUsed`, capped at `MAX_RECENT_COLORS`, stored as a comma-joined pref) that `ColorPopupButton`
+renders as the picker's "Recent" row. The **Select** tool adds a rail entry and a floating action bar; its
 mechanics are in [Selecting objects](#selecting-objects-render) above.
 
 ## Stylus & selection roadmap

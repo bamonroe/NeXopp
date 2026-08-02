@@ -139,8 +139,8 @@ fun EditorScreen(
     onSettingsChange: (AppSettings) -> Unit,
 ) {
     var tool by remember { mutableStateOf(settings.defaultTool) }
-    var color by remember { mutableStateOf(PEN_COLORS.first()) }
-    var width by remember { mutableStateOf(settings.penWidths[1]) }
+    var color by remember { mutableStateOf(settings.lastColor) }
+    var width by remember { mutableStateOf(settings.lastWidth) }
     var zoom by remember { mutableStateOf(1f) }
     var pageCount by remember { mutableStateOf(1) }
     var currentPage by remember { mutableStateOf(0) }
@@ -208,22 +208,31 @@ fun EditorScreen(
                 tool = tool,
                 onTool = { tool = it; surface?.applyTool(it) },
                 color = color,
-                onColor = { color = it; surface?.colorArgb = it },
+                onColor = { color = it; surface?.colorArgb = it; onSettingsChange(settings.withColorUsed(it)) },
                 customColor = settings.customColor,
+                recentColors = settings.recentColors,
                 onRedefineCustom = { newColor ->
                     val old = settings.customColor
                     onSettingsChange(settings.copy(customColor = newColor))
                     // Keep the canvas in sync if the custom colour was the one currently selected.
-                    if (color == old) { color = newColor; surface?.colorArgb = newColor }
+                    if (color == old) {
+                        color = newColor
+                        surface?.colorArgb = newColor
+                        onSettingsChange(settings.copy(customColor = newColor).withColorUsed(newColor))
+                    }
                 },
                 width = width,
-                onWidth = { width = it; surface?.baseWidthPt = it },
+                onWidth = { width = it; surface?.baseWidthPt = it; onSettingsChange(settings.copy(lastWidth = it)) },
                 widthSlots = settings.penWidths,
                 onRedefineSlot = { i, newPt ->
                     val old = settings.penWidths[i]
-                    onSettingsChange(settings.copy(penWidths = settings.penWidths.toMutableList().also { it[i] = newPt }))
+                    val slots = settings.penWidths.toMutableList().also { it[i] = newPt }
                     // Keep the canvas in sync if the slot being resized is the one currently selected.
-                    if (width == old) { width = newPt; surface?.baseWidthPt = newPt }
+                    val active = width == old
+                    onSettingsChange(
+                        settings.copy(penWidths = slots, lastWidth = if (active) newPt else settings.lastWidth)
+                    )
+                    if (active) { width = newPt; surface?.baseWidthPt = newPt }
                 },
                 lineStyle = lineStyle,
                 onLineStyle = { lineStyle = it; surface?.currentLineStyle = it },
@@ -296,6 +305,9 @@ fun EditorScreen(
                                 PlaceKind.IMAGE -> onPickImage(placement)
                             }
                         }
+                        // Restore the pen the user left off with (the view's own defaults are fixed).
+                        it.colorArgb = color
+                        it.baseWidthPt = width
                         surface = it
                         onSurfaceCreated(it)
                     }

@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "pen-palette-presets-and-recent-colors"
-title = "Pen palette presets and recent colors"
-description = "Color/width presets plus a recently-used colors row in the pen picker, persisted across sessions."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 40
-created = 2026-08-01
-tags = ["ui"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "speed-up-rendering-of-long-pdf-backed-documents"
 title = "Speed up rendering of long PDF-backed documents"
 description = "Profile and improve page rendering/caching so scrolling long PDF-annotated documents stays smooth; avoid re-rasterizing pages already drawn."

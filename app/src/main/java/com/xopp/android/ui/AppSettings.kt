@@ -47,13 +47,34 @@ data class AppSettings(
     val panSensitivity: Float = PanSensitivity.NORMAL,
     /** Which edge of the editor the tool rail is docked to. */
     val toolbarPosition: ToolbarPosition = ToolbarPosition.LEFT,
+    /** Colours picked recently, most-recent-first, capped at [MAX_RECENT_COLORS]. */
+    val recentColors: List<Int> = emptyList(),
+    /** The pen colour in use when the app last ran, restored on the next launch. */
+    val lastColor: Int = DEFAULT_LAST_COLOR,
+    /** The pen width (pt) in use when the app last ran, restored on the next launch. */
+    val lastWidth: Float = DEFAULT_PEN_WIDTHS[1],
 ) {
+    /**
+     * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
+     * truncated to [MAX_RECENT_COLORS] — and recorded as the pen's [lastColor].
+     */
+    fun withColorUsed(color: Int): AppSettings = copy(
+        recentColors = (listOf(color) + recentColors.filter { it != color }).take(MAX_RECENT_COLORS),
+        lastColor = color,
+    )
+
     companion object {
         /** Factory defaults for the three pen-width slots — the old fixed S/M/L values. */
         val DEFAULT_PEN_WIDTHS: List<Float> = listOf(0.85f, 1.5f, 2.6f)
 
         /** Factory default for the custom colour slot — a violet not already in the fixed palette. */
         val DEFAULT_CUSTOM_COLOR: Int = 0xFF9C27B0.toInt()
+
+        /** Factory default pen colour (black) — the first entry of the fixed palette. */
+        val DEFAULT_LAST_COLOR: Int = 0xFF000000.toInt()
+
+        /** How many recently-used colours the picker remembers — one row's worth. */
+        const val MAX_RECENT_COLORS: Int = 7
     }
 }
 
@@ -76,6 +97,9 @@ class SettingsStore(context: Context) {
             momentumCurve = enumOr(prefs.getString(KEY_MOMENTUM_CURVE, null), d.momentumCurve),
             panSensitivity = PanSensitivity.coerce(prefs.getFloat(KEY_PAN_SENSITIVITY, d.panSensitivity)),
             toolbarPosition = enumOr(prefs.getString(KEY_TOOLBAR_POSITION, null), d.toolbarPosition),
+            recentColors = decodeColors(prefs.getString(KEY_RECENT_COLORS, null)),
+            lastColor = prefs.getInt(KEY_LAST_COLOR, d.lastColor),
+            lastWidth = prefs.getFloat(KEY_LAST_WIDTH, d.lastWidth),
         )
     }
 
@@ -92,6 +116,9 @@ class SettingsStore(context: Context) {
         e.putString(KEY_MOMENTUM_CURVE, s.momentumCurve.name)
         e.putFloat(KEY_PAN_SENSITIVITY, s.panSensitivity)
         e.putString(KEY_TOOLBAR_POSITION, s.toolbarPosition.name)
+        e.putString(KEY_RECENT_COLORS, s.recentColors.joinToString(",") { it.toString() })
+        e.putInt(KEY_LAST_COLOR, s.lastColor)
+        e.putFloat(KEY_LAST_WIDTH, s.lastWidth)
         e.apply()
     }
 
@@ -108,6 +135,17 @@ class SettingsStore(context: Context) {
         const val KEY_MOMENTUM_CURVE = "momentum_curve"
         const val KEY_PAN_SENSITIVITY = "pan_sensitivity"
         const val KEY_TOOLBAR_POSITION = "toolbar_position"
+        const val KEY_RECENT_COLORS = "recent_colors"
+        const val KEY_LAST_COLOR = "last_color"
+        const val KEY_LAST_WIDTH = "last_width"
+
+        /**
+         * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a
+         * corrupt pref degrades to a shorter list rather than a crash.
+         */
+        fun decodeColors(raw: String?): List<Int> =
+            raw?.split(',')?.mapNotNull { it.trim().toIntOrNull() }?.take(AppSettings.MAX_RECENT_COLORS)
+                ?: emptyList()
 
         /** Per-slot SharedPreferences key for the [i]th configurable pen width. */
         fun keyPenWidth(i: Int): String = "pen_width_$i"

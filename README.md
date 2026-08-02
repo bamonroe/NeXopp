@@ -106,8 +106,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   pop-up offers three width **slots** (**S / M / L**): **tap** a slot to draw with it, or
   **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines that slot's width — drag
   the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at a time, or type an exact
-  point size into the **text field**. The custom
-  colour and the three widths are remembered across restarts. New strokes land on the **active layer**
+  point size into the **text field**. Below the swatches the Colour pop-up shows a **Recent** row —
+  the last seven colours you picked, most-recent-first — so a colour mixed in the custom picker stays
+  one tap away after you move on. The custom colour, the three widths, the recent row, and the
+  colour/width you were last drawing with are all remembered across restarts, so the app reopens with
+  the pen you left off with. New strokes land on the **active layer**
   (see **Layers** below) of whichever page you draw on.
 - **Shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Rectangle**, and **Ellipse**. Pick
   one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
