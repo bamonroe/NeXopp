@@ -102,8 +102,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   and since it only shifts coordinates it round-trips to desktop Xournal++ unchanged.
 - **Draw** — the controls live in a **vertical rail down the left edge**. It starts with eight
   **tool slots**, each standing for a group of related tools and showing the one that group is
-  currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow · spline), **Shape**
-  (rectangle · ellipse), **Pan**, **Select** (select · select text), **Insert** (text · LaTeX ·
+  currently set to: **Draw** (pen · highlighter), **Eraser**, **Line** (line · arrow · double arrow · spline), **Shape**
+  (rectangle · ellipse · coordinate axis), **Pan**, **Select** (select · select text), **Insert** (text · LaTeX ·
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
@@ -126,10 +126,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   colour/width you were last drawing with are all remembered across restarts, so the app reopens with
   the pen you left off with. New strokes land on the **active layer**
   (see **Layers** below) of whichever page you draw on.
-- **Shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Rectangle**, and **Ellipse**. Pick
-  one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
+- **Shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Double arrow**, **Rectangle**,
+  **Ellipse**, and **Coordinate axis**. Pick one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
   shape commits on release. Shapes are saved as ordinary strokes in the current pen colour and width,
-  so they round-trip to desktop Xournal++ like any other stroke.
+  so they round-trip to desktop Xournal++ like any other stroke. A double arrow gets a head at each
+  end; a coordinate axis puts its origin where the drag started and runs an arrowed x and y axis out
+  to the drag's width and height.
 - **Spline** — the Line slot also offers **Spline**, for a smooth curve through points you place one
   at a time. **Tap** to drop a control point; **drag** away from a tap instead of lifting to pull out
   a tangent handle that bows the curve through that point (lift where you want the curve to lean).

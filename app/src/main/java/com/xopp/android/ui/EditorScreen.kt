@@ -96,6 +96,8 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     shapeKind = when (tool) {
         EditorTool.LINE -> ShapeKind.LINE
         EditorTool.ARROW -> ShapeKind.ARROW
+        EditorTool.DOUBLE_ARROW -> ShapeKind.DOUBLE_ARROW
+        EditorTool.COORDINATE_AXIS -> ShapeKind.COORDINATE_AXIS
         EditorTool.RECTANGLE -> ShapeKind.RECTANGLE
         EditorTool.ELLIPSE -> ShapeKind.ELLIPSE
         EditorTool.SPLINE -> ShapeKind.SPLINE
@@ -106,8 +108,8 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
         EditorTool.HIGHLIGHTER -> this.tool = Tool.HIGHLIGHTER
         EditorTool.ERASER -> this.tool = Tool.ERASER
         // Shapes are drawn as ordinary pen strokes; the shapeKind above turns a drag into geometry.
-        EditorTool.LINE, EditorTool.ARROW, EditorTool.RECTANGLE, EditorTool.ELLIPSE,
-        EditorTool.SPLINE,
+        EditorTool.LINE, EditorTool.ARROW, EditorTool.DOUBLE_ARROW, EditorTool.COORDINATE_AXIS,
+        EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.SPLINE,
         -> this.tool = Tool.PEN
         else -> Unit // Hand / authoring tools keep the last drawing tool for when they're turned off
     }

@@ -329,7 +329,7 @@ app/
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
       PageEraser.kt          # eraser applied to a page: mode, tip size, hidden-layer skip (pure)
-      ShapeBuilder.kt        # line/arrow/rectangle/ellipse drag -> stroke vertex list (pure)
+      ShapeBuilder.kt        # line/arrow(s)/rect/ellipse/axis drag -> stroke vertex list (pure)
       SplineBuilder.kt       # spline control points -> cubic-Bezier stroke vertex list (pure)
       LayerOps.kt            # add/delete/rename/reorder/move-selection layer edits (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
@@ -438,7 +438,7 @@ and a Unicode table for Greek letters and common operators/relations; the tree i
 reference size then uniformly scaled to fit the element's box. Any parse/draw failure falls back to
 the raw source text, so a malformed formula can't crash a frame.
 
-**Shapes, styles, partial eraser, layers.** The **shape tools** (Line/Arrow/Rectangle/Ellipse) turn a
+**Shapes, styles, partial eraser, layers.** The **shape tools** (Line/Arrow/Double arrow/Rectangle/Ellipse/Coordinate axis) turn a
 one-finger drag into an ordinary constant-width pen stroke: `ShapeBuilder` (pure, tested) converts the
 drag's start/end into a vertex list, previewed live and committed as one undoable stroke, so shapes
 round-trip like any stroke. The **spline tool** is the one shape whose gesture spans several touches,

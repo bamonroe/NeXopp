@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Rectangle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
@@ -120,12 +121,13 @@ val PEN_COLORS: List<Int> = listOf(
  */
 enum class EditorTool {
     PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
-    LINE, ARROW, RECTANGLE, ELLIPSE, SPLINE, VERTICAL_SPACE,
+    LINE, ARROW, DOUBLE_ARROW, COORDINATE_AXIS, RECTANGLE, ELLIPSE, SPLINE, VERTICAL_SPACE,
 }
 
 /** The geometric shape tools — drawn as ordinary pen strokes (see [ShapeKind]). */
 val SHAPE_TOOLS: List<EditorTool> = listOf(
-    EditorTool.LINE, EditorTool.ARROW, EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.SPLINE,
+    EditorTool.LINE, EditorTool.ARROW, EditorTool.DOUBLE_ARROW, EditorTool.COORDINATE_AXIS,
+    EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.SPLINE,
 )
 
 private data class ToolInfo(val tool: EditorTool, val label: String, val icon: ImageVector)
@@ -136,6 +138,8 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.ERASER, "Eraser", Icons.Filled.Delete),
     ToolInfo(EditorTool.LINE, "Line", Icons.Filled.HorizontalRule),
     ToolInfo(EditorTool.ARROW, "Arrow", Icons.Filled.ArrowRightAlt),
+    ToolInfo(EditorTool.DOUBLE_ARROW, "Double arrow", Icons.Filled.SwapHoriz),
+    ToolInfo(EditorTool.COORDINATE_AXIS, "Coordinate axis", Icons.Filled.ShowChart),
     ToolInfo(EditorTool.RECTANGLE, "Rectangle", Icons.Filled.Rectangle),
     ToolInfo(EditorTool.ELLIPSE, "Ellipse", Icons.Filled.RadioButtonUnchecked),
     ToolInfo(EditorTool.SPLINE, "Spline", Icons.Filled.Gesture),

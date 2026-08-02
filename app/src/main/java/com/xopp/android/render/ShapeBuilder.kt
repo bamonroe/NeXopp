@@ -8,7 +8,7 @@ import kotlin.math.hypot
 import kotlin.math.sin
 
 /** A geometric shape the shape tools draw. Each is emitted as an ordinary constant-width stroke. */
-enum class ShapeKind { LINE, ARROW, RECTANGLE, ELLIPSE, SPLINE }
+enum class ShapeKind { LINE, ARROW, DOUBLE_ARROW, COORDINATE_AXIS, RECTANGLE, ELLIPSE, SPLINE }
 
 /**
  * Pure geometry that turns a drag (start → end, in page-local pt) into the vertex list of a shape.
@@ -36,6 +36,8 @@ object ShapeBuilder {
     ): List<StrokePoint> = when (kind) {
         ShapeKind.LINE -> line(startX, startY, endX, endY, widthPt)
         ShapeKind.ARROW -> arrow(startX, startY, endX, endY, widthPt)
+        ShapeKind.DOUBLE_ARROW -> doubleArrow(startX, startY, endX, endY, widthPt)
+        ShapeKind.COORDINATE_AXIS -> coordinateAxis(startX, startY, endX, endY, widthPt)
         ShapeKind.RECTANGLE -> rectangle(startX, startY, endX, endY, widthPt)
         ShapeKind.ELLIPSE -> ellipse(startX, startY, endX, endY, widthPt)
         // A spline is laid down over many taps, so its real geometry comes from [SplineBuilder]; the
@@ -52,15 +54,55 @@ object ShapeBuilder {
     private fun arrow(sx: Double, sy: Double, ex: Double, ey: Double, w: Double): List<StrokePoint> {
         val len = hypot(ex - sx, ey - sy)
         if (len == 0.0) return line(sx, sy, ex, ey, w)
-        val head = (len * ARROW_HEAD_FRACTION).coerceIn(ARROW_HEAD_MIN_PT, ARROW_HEAD_MAX_PT)
+        return listOf(p(sx, sy, w)) + head(sx, sy, ex, ey, len, w)
+    }
+
+    /**
+     * A shaft with a head at *both* ends. Traced as one polyline: the tail head is drawn first
+     * (walking back out to the tail tip), then the shaft, then the tip head — so it stays one stroke.
+     */
+    private fun doubleArrow(sx: Double, sy: Double, ex: Double, ey: Double, w: Double): List<StrokePoint> {
+        val len = hypot(ex - sx, ey - sy)
+        if (len == 0.0) return line(sx, sy, ex, ey, w)
+        return head(ex, ey, sx, sy, len, w).reversed() + head(sx, sy, ex, ey, len, w)
+    }
+
+    /**
+     * The V-shaped head for a shaft pointing from (sx,sy) to the tip (ex,ey): tip, barb, tip, barb.
+     * The caller prefixes/joins these so the whole arrow stays a single polyline.
+     */
+    private fun head(
+        sx: Double, sy: Double, ex: Double, ey: Double, len: Double, w: Double,
+    ): List<StrokePoint> {
+        val size = (len * ARROW_HEAD_FRACTION).coerceIn(ARROW_HEAD_MIN_PT, ARROW_HEAD_MAX_PT)
         val dir = atan2(ey - sy, ex - sx)
         val left = dir + PI - ARROW_HALF_ANGLE
         val right = dir + PI + ARROW_HALF_ANGLE
-        val lx = ex + head * cos(left)
-        val ly = ey + head * sin(left)
-        val rx = ex + head * cos(right)
-        val ry = ey + head * sin(right)
-        return listOf(p(sx, sy, w), p(ex, ey, w), p(lx, ly, w), p(ex, ey, w), p(rx, ry, w))
+        return listOf(
+            p(ex, ey, w),
+            p(ex + size * cos(left), ey + size * sin(left), w),
+            p(ex, ey, w),
+            p(ex + size * cos(right), ey + size * sin(right), w),
+        )
+    }
+
+    /**
+     * A pair of arrowed axes meeting at the drag's start: y runs vertically to the drag's end
+     * height, x runs horizontally to its end width. Traced as one polyline — y tip (with head)
+     * down to the origin, then out to the x tip (with head) — so it round-trips as a single stroke.
+     */
+    private fun coordinateAxis(
+        sx: Double, sy: Double, ex: Double, ey: Double, w: Double,
+    ): List<StrokePoint> {
+        val yLen = kotlin.math.abs(ey - sy)
+        val xLen = kotlin.math.abs(ex - sx)
+        if (yLen == 0.0 && xLen == 0.0) return line(sx, sy, ex, ey, w)
+        // Axes point away from the origin in whichever direction the drag went.
+        val yTip = sy + if (ey <= sy) -yLen else yLen
+        val xTip = sx + if (ex >= sx) xLen else -xLen
+        val yHead = if (yLen == 0.0) emptyList() else head(sx, sy, sx, yTip, yLen, w)
+        val xHead = if (xLen == 0.0) emptyList() else head(sx, sy, xTip, sy, xLen, w)
+        return yHead.reversed() + p(sx, sy, w) + xHead
     }
 
     /** A closed rectangle from the drag's bounding box (corners in order, back to the start). */

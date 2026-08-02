@@ -52,6 +52,28 @@ class ShapeBuilderTest {
         }
     }
 
+    @Test fun doubleArrowHasAHeadAtBothEnds() {
+        val pts = ShapeBuilder.build(ShapeKind.DOUBLE_ARROW, 0.0, 0.0, 10.0, 0.0, widthPt = 1.0)
+        assertEquals(8, pts.size) // barb, tail, barb, tail | tip, barb, tip, barb
+        assertEquals(0.0, pts[3].x, 1e-9)  // shaft leaves the tail tip…
+        assertEquals(10.0, pts[4].x, 1e-9) // …and arrives at the head tip
+        // Tail barbs sit ahead of the tail; head barbs sit behind the tip.
+        assertTrue(pts[0].x > 0.0 && pts[2].x > 0.0)
+        assertTrue(pts[5].x < 10.0 && pts[7].x < 10.0)
+    }
+
+    @Test fun coordinateAxisMeetsAtTheDragStartWithArrowedAxes() {
+        // Drag up-and-right: origin at (0,0), y axis to y=-10, x axis to x=20.
+        val pts = ShapeBuilder.build(ShapeKind.COORDINATE_AXIS, 0.0, 0.0, 20.0, -10.0, widthPt = 1.0)
+        assertEquals(9, pts.size) // y head (4) + origin + x head (4)
+        assertEquals(0.0, pts[3].x, 1e-9)    // y-axis tip sits above the origin
+        assertEquals(-10.0, pts[3].y, 1e-9)
+        assertEquals(0.0, pts[4].x, 1e-9)    // the origin
+        assertEquals(0.0, pts[4].y, 1e-9)
+        assertEquals(20.0, pts[5].x, 1e-9)   // x-axis tip sits right of the origin
+        assertEquals(0.0, pts[5].y, 1e-9)
+    }
+
     @Test fun zeroLengthArrowFallsBackToALine() {
         val pts = ShapeBuilder.build(ShapeKind.ARROW, 4.0, 4.0, 4.0, 4.0, widthPt = 1.0)
         assertEquals(2, pts.size)

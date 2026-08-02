@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "coordinate-axis-and-double-arrow-shapes"
+title = "Coordinate-axis and double-arrow shapes"
+description = "Extend ShapeKind with desktop's remaining shapes: coordinate axis (draw x/y axes) and double-ended arrow. Same commit path as LINE/ARROW/RECTANGLE/ELLIPSE."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["tools", "parity"]
+
+[[task]]
 id = "spline-shape-tool"
 title = "Spline shape tool"
 description = "Add the spline/bezier draw tool from desktop Xournal++: click to lay down control points, drag to curve, Enter/double-tap to finish. Commits as an ordinary pen stroke like the other ShapeKinds in render/ShapeBuilder.kt."
