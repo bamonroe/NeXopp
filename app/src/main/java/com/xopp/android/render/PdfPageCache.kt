@@ -56,7 +56,7 @@ class PdfPageCache(val source: File) : Closeable {
         if (targetWidthPx <= 0 || i < 0) return null
         synchronized(lock) {
             if (closed || i >= renderer.pageCount) return null
-            val w = bucket(targetWidthPx.coerceAtMost(MAX_RASTER_WIDTH))
+            val w = rasterWidth(i, targetWidthPx)
             val key = key(i, w)
             cache[key]?.let { return it }
             enqueue(key)
@@ -69,7 +69,7 @@ class PdfPageCache(val source: File) : Closeable {
         if (targetWidthPx <= 0 || i < 0) return
         synchronized(lock) {
             if (closed || i >= renderer.pageCount) return
-            val key = key(i, bucket(targetWidthPx.coerceAtMost(MAX_RASTER_WIDTH)))
+            val key = key(i, rasterWidth(i, targetWidthPx))
             if (cache.containsKey(key)) return
             enqueue(key)
         }
@@ -80,12 +80,27 @@ class PdfPageCache(val source: File) : Closeable {
         if (targetWidthPx <= 0 || i < 0) return null
         synchronized(lock) {
             if (closed || i >= renderer.pageCount) return null
-            val key = key(i, bucket(targetWidthPx.coerceAtMost(MAX_RASTER_WIDTH)))
+            val key = key(i, rasterWidth(i, targetWidthPx))
             return cache[key] ?: rasterise(key)
         }
     }
 
     // --- internals ---------------------------------------------------------------------------
+
+    /**
+     * The bucketed width page [i] may actually be rasterised at. Beyond [MAX_RASTER_WIDTH] this also
+     * clamps so *one* page bitmap can never cost more than [PER_PAGE_SHARE] of the cache budget: a
+     * full-page bitmap larger than the budget makes every insert evict everything else, so at high
+     * zoom the visible pages would keep evicting one another and flash blank between rasterises.
+     */
+    private fun rasterWidth(i: Int, targetWidthPx: Int): Int {
+        val (pw, ph) = pageSizePt(i)
+        val aspect = if (pw > 0) ph / pw else 1.0
+        // bytes = w * (w * aspect) * 4  ≤  budget * PER_PAGE_SHARE
+        val byteCap = kotlin.math.sqrt(budget * PER_PAGE_SHARE / (4.0 * aspect)).toInt()
+        val w = targetWidthPx.coerceAtMost(minOf(MAX_RASTER_WIDTH, byteCap.coerceAtLeast(64)))
+        return bucket(w)
+    }
 
     /** Caller holds [lock]. */
     private fun enqueue(key: Long) {
@@ -133,7 +148,7 @@ class PdfPageCache(val source: File) : Closeable {
 
     /** Caller holds [lock]. */
     private fun put(key: Long, bmp: Bitmap) {
-        cache[key] = bmp
+        cache.put(key, bmp)?.let { cachedBytes -= it.byteCount.toLong() }
         cachedBytes += bmp.byteCount.toLong()
         val it = cache.entries.iterator()
         while (cachedBytes > budget && cache.size > 1 && it.hasNext()) {
@@ -172,6 +187,9 @@ class PdfPageCache(val source: File) : Closeable {
          * (strokes stay vector-sharp regardless). ~4k keeps a full page under ~50 MB.
          */
         const val MAX_RASTER_WIDTH = 4096
+
+        /** The largest share of [budget] a single page bitmap may take, so several pages coexist. */
+        const val PER_PAGE_SHARE = 0.25
 
         /** Round target widths up to 64px buckets so small zoom nudges reuse a cached bitmap. */
         fun bucket(px: Int) = ((px + 63) / 64) * 64
