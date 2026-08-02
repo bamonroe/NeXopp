@@ -121,6 +121,7 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     showHover = s.showHover
     pressureGamma = s.sensitivity.gamma
     strokePrecision = s.strokePrecision
+    recognizeShapes = s.recognizeShapes
     flingStrength = s.momentum
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity

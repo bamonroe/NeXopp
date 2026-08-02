@@ -139,6 +139,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   **Enter** on a hardware keyboard, to finish; **Escape** throws the curve away, and switching to
   another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
   the current pen colour and width, so it round-trips to desktop Xournal++ like any other stroke.
+- **Shape recognition** — turn on **Settings → Stylus → Shape recognition** and a freehand stroke is
+  snapped, the moment you lift, to the shape it clearly resembles: a straight **line**, an **arrow**
+  (shaft plus a barb folded back over it), a **circle/ellipse**, a **rectangle** (squared to its
+  bounding box when you drew it roughly upright), a **triangle**, or a short **polyline**. Anything
+  the recogniser doesn't recognise — handwriting above all — is kept exactly as you drew it. The
+  result is one ordinary constant-width stroke, so it round-trips to desktop Xournal++ like any
+  other. The toggle is off by default and only affects the pen, never the highlighter.
 - **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
   **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** level (None / Light / Medium /
   Heavy / Solid) that floods the inside of a closed stroke or shape. Both save on the `<stroke>`
@@ -246,6 +253,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     drawn; raising the precision shrinks that budget, which draws visibly rounder curves on a large,
     high-density tablet at 100% zoom and below, at the cost of a bigger `.xopp`. Lowering it keeps
     files small. Existing strokes are unaffected — the setting applies to what you draw next.
+  - **Shape recognition** — off by default; when on, a finished freehand pen stroke snaps to the
+    primitive it resembles (see **Shape recognition** above).
 
   Under **Editor**:
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,

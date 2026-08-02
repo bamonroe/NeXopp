@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "shape-recognizer"
-title = "Shape recognizer"
-description = "Port Xournal++'s stroke shape recognizer: after a freehand stroke, snap it to the nearest recognised primitive (line, circle, rectangle, triangle, arrow, polyline) when the toggle is on."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 40
-created = 2026-08-02
-tags = ["tools", "parity"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "snapping-grid-and-rotation"
 title = "Snapping: grid and rotation"
 description = "Desktop snaps stroke/shape endpoints to the background grid and snaps shape rotation to 15-degree increments, with toggles in settings. Neither exists here — add both, applied in ShapeBuilder and selection rotate."
@@ -84,3 +71,16 @@ created = 2026-08-02
 tags = ["tools", "parity"]
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "shape-recognition-toggle-on-the-rail"
+title = "Shape-recognition toggle on the rail"
+description = "Shape recognition is Settings-only today; add a rail button (or a Style pop-up switch) so it can be flipped mid-page without leaving the editor."
+status = "active"
+category = "feature"
+urgency = "low"
+order = 100
+created = 2026-08-02
+tags = []
+rebuild = true
+emulator_debug = false

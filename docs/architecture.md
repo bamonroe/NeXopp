@@ -330,6 +330,7 @@ app/
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
       PageEraser.kt          # eraser applied to a page: mode, tip size, hidden-layer skip (pure)
       ShapeBuilder.kt        # line/arrow(s)/rect/ellipse/axis drag -> stroke vertex list (pure)
+      ShapeRecognizer.kt     # freehand stroke -> the primitive it resembles, or null (pure)
       SplineBuilder.kt       # spline control points -> cubic-Bezier stroke vertex list (pure)
       LayerOps.kt            # add/delete/rename/reorder/move-selection layer edits (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
@@ -447,7 +448,14 @@ handle — a tap sets the anchor, the drag that follows sets the handle) and `Sp
 tested) flattens the chain into one vertex list by sampling a cubic Bézier per node pair, with C¹
 continuity at every node. The curve previews through the same in-progress-stroke path as everything
 else and commits on a double-tap, on `Enter` (routed from `MainActivity.dispatchKeyEvent`, so the
-canvas never takes keyboard focus), or when the tool changes; `Escape` discards it. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
+canvas never takes keyboard focus), or when the tool changes; `Escape` discards it. The **shape recogniser**
+(`ShapeRecognizer`, pure and tested) is the reverse direction: on commit, with the user's
+**Shape recognition** setting on and the pen active, a thinned freehand stroke is classified — closed
+strokes by an ellipse radius-spread fit and then by corner count (coarser Douglas-Peucker budget, so
+a hand-rounded corner doesn't read as two), open ones by chord straightness, an arrow's
+short-barb-folded-back signature, and finally a short polyline. Every test is scaled to the stroke's
+own bounding box, and an unmatched stroke returns `null` so handwriting commits untouched; a match is
+rebuilt through `ShapeBuilder` and stored constant-width. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
 on the stroke the tool draws next; `StrokePainter` paints a dashed/dotted style as a single
 constant-width dashed path and floods a fill under the outline, and `PdfVectorPainter` mirrors both for
 export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,

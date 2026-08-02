@@ -83,6 +83,15 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         label = { it.label },
         onSelect = { onChange(settings.copy(strokePrecision = it)) },
     )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    SwitchRow(
+        title = "Shape recognition",
+        subtitle = "Snap a finished freehand stroke to the shape it resembles — line, arrow, " +
+            "circle, rectangle, triangle or polyline. Anything unrecognised stays as drawn.",
+        checked = settings.recognizeShapes,
+        onCheckedChange = { onChange(settings.copy(recognizeShapes = it)) },
+    )
 }
 
 /** Editor preferences: the tool a document opens in. */

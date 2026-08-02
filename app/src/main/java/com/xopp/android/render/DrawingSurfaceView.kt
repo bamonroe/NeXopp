@@ -218,6 +218,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
             if (field == ShapeKind.SPLINE && value != ShapeKind.SPLINE) finishSpline()
             field = value
         }
+    /**
+     * When true, a finished freehand pen stroke that clearly means a primitive (line, arrow, circle,
+     * rectangle, triangle, polyline) is snapped to clean geometry — see [ShapeRecognizer].
+     */
+    var recognizeShapes: Boolean = false
+
     /** Line pattern applied to strokes and shapes this tool draws (dashed/dotted); default solid. */
     var currentLineStyle: LineStyle = LineStyle.PLAIN
     /** Fill alpha (0..255) flooded inside strokes/shapes drawn now, or null for no fill. */
@@ -1692,15 +1698,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // Thin against the page's real px/pt (fit-to-width × zoom), not the zoom alone — on a large
         // screen those differ by 2–4×, and using the zoom leaves visible facets at 100% and below.
         val pxPerPt = layout.boxes.getOrNull(currentPage)?.scale ?: zoom
+        var snapped = false
         val pts = if (wasShaping) {
             raw
         } else {
-            StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(pxPerPt, strokePrecision))
+            val thinned = StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(pxPerPt, strokePrecision))
+            // With the recogniser on, a freehand stroke that clearly means a primitive is replaced by
+            // clean geometry; anything it doesn't recognise comes through exactly as drawn.
+            val shape = if (recognizeShapes && tool == Tool.PEN) {
+                ShapeRecognizer.recognize(thinned, baseWidthPt.toDouble())
+            } else {
+                null
+            }
+            snapped = shape != null
+            shape ?: thinned
         }
         if (pts.size >= 2) {
             // Highlighter and geometric shapes are constant-width → store a single width; the freehand
             // pen keeps its per-vertex pressure. Live line-style/fill are baked in so they round-trip.
-            val uniform = tool == Tool.HIGHLIGHTER || wasShaping
+            val uniform = tool == Tool.HIGHLIGHTER || wasShaping || snapped
             val stroke = Stroke(
                 tool, strokeColor(), "round", pts, uniform,
                 lineStyle = currentLineStyle, fill = currentFill,
