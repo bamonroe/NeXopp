@@ -51,7 +51,8 @@ Outputs:
 
 The unit tests cover the `.xopp` round-trip (the colour codec, every element type, XML escaping,
 model reserialization, a gzip round-trip, the PDF-background on-disk shape, and a fixture-driven
-`FormatDriftTest` asserting schema coverage) plus the pure `render/` geometry (page layout,
+`FormatDriftTest` asserting schema coverage, and an `XmlEqualityRoundTripTest` that checks the
+XML we emit still matches the desktop-written source byte-for-byte once normalized) plus the pure `render/` geometry (page layout,
 gridlines, page ops, eraser hit-testing, text layout, undo/redo history). If a real
 desktop-generated `udiff.xopp` is present at the repo root, an extra test round-trips it end to end
 (it self-skips when absent).

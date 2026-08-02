@@ -110,7 +110,9 @@ class XoppWriter(out: Appendable) {
         w.start("teximage").attr("text", t.latex).attr("color", XoppColor.format(t.color))
             .attr("left", num(t.left)).attr("top", num(t.top))
             .attr("right", num(t.right)).attr("bottom", num(t.bottom))
-            .text(t.latex).end().newline()
+        // The body carries the rendered PNG when we have one; otherwise fall back to the source.
+        t.data?.let { w.rawText(Base64.getEncoder().encodeToString(it)) } ?: w.text(t.latex)
+        w.end().newline()
     }
 
     private companion object {

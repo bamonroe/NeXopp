@@ -78,7 +78,12 @@ data class ImageElement(
         31 * (31 * left.hashCode() + top.hashCode()) + data.contentHashCode()
 }
 
-/** A `<teximage>`: LaTeX source rendered into a pt bounding box. */
+/**
+ * A `<teximage>`: LaTeX source (the `text` attribute) rendered into a pt bounding box.
+ *
+ * [data] is the desktop-rendered PNG carried in the element body, kept verbatim so a file
+ * round-trips without losing its rendering; null when the source had no body.
+ */
 data class TexImageElement(
     val left: Double,
     val top: Double,
@@ -86,4 +91,15 @@ data class TexImageElement(
     val bottom: Double,
     val latex: String,
     val color: Int,
-) : Element
+    val data: ByteArray? = null,
+) : Element {
+    override fun equals(other: Any?): Boolean =
+        other is TexImageElement &&
+            left == other.left && top == other.top &&
+            right == other.right && bottom == other.bottom &&
+            latex == other.latex && color == other.color &&
+            (data ?: ByteArray(0)).contentEquals(other.data ?: ByteArray(0))
+
+    override fun hashCode(): Int =
+        31 * (31 * left.hashCode() + latex.hashCode()) + (data?.contentHashCode() ?: 0)
+}

@@ -176,7 +176,9 @@ format attribute — it's a view-only editor state (a hidden layer still round-t
 is base64-encoded raw image bytes (PNG/JPEG as stored).
 
 **`<teximage>`** — a LaTeX-rendered image. Attributes `text` (LaTeX source), `color`, and
-`left/top/right/bottom` bounding box (pt). Inner text duplicates the LaTeX source (escaped).
+`left/top/right/bottom` bounding box (pt). **Inner text** is the base64-encoded PNG desktop
+rendered from that source; we keep those bytes verbatim (`TexImage.data`) so they survive a
+round-trip. Older files without a `text` attribute put the LaTeX source in the body instead.
 
 ### Fidelity notes / round-trip hazards
 
@@ -198,6 +200,11 @@ is base64-encoded raw image bytes (PNG/JPEG as stored).
       round-trip (filename+domain on page 1, `pageno`-only on later pages) is locked in
       separately by `PdfBackgroundRoundTripTest`, and the stroke `style`/`fill` attributes plus the
       `<layer name>` attribute by `StyleFillLayerNameRoundTripTest`.
+- [x] **XML-equality drift test.** `XmlEqualityRoundTripTest` compares the *emitted XML* against
+      each fixture's source XML (normalized for formatting, attribute order, number precision and
+      the `<title>` boilerplate — see the test's doc), and asserts the writer is a fixed point.
+      The model-equality tests above can't see a difference that both the reader and writer agree
+      on; this one can, and it is what caught the dropped `<teximage>` PNG body.
 
 ## Stack — pinned 2026-07-30
 
@@ -264,7 +271,7 @@ class/module per format element, mirroring the tree in [The `.xopp` format](#the
     null), `List<Point>` (each `x, y, width`), plus preserved raw attrs (`ts`, `fn`, unknowns).
   - `Text` — `font`, `size`, `x`, `y`, `color`, `content`.
   - `Image` — bbox `left/top/right/bottom`, decoded bytes.
-  - `TexImage` — bbox, `latex`, `color`.
+  - `TexImage` — bbox, `latex`, `color`, and the rendered PNG bytes (`data`, nullable).
 
 Colors are stored as Android `0xAARRGGBB` ints; the I/O layer converts to/from the on-disk
 `#RRGGBBAA`. Coordinates are stored in pt (document space); the view applies a pan/zoom

@@ -148,9 +148,18 @@ class XoppReader(xml: String) {
         val top = r.attr("top")?.toDoubleOrNull() ?: 0.0
         val right = r.attr("right")?.toDoubleOrNull() ?: 0.0
         val bottom = r.attr("bottom")?.toDoubleOrNull() ?: 0.0
-        val latex = r.attr("text") ?: readTextContent()
         val color = XoppColor.parse(r.attr("color"))
-        return TexImageElement(left, top, right, bottom, latex, color)
+        val attrLatex = r.attr("text")
+        // With a `text` attribute the body is the desktop-rendered PNG (base64); without one,
+        // older files put the LaTeX source itself in the body.
+        val body = readTextContent().trim()
+        val latex = attrLatex ?: body
+        val data = if (attrLatex != null && body.isNotEmpty()) {
+            runCatching { Base64.getMimeDecoder().decode(body) }.getOrNull()
+        } else {
+            null
+        }
+        return TexImageElement(left, top, right, bottom, latex, color, data)
     }
 
     /** Collect text between the current START and its matching END. */

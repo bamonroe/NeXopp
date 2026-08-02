@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "round-trip-test-save-reload-xml-equality"
+title = "Round-trip test: save/reload XML equality"
+description = "Unit test that loads a .xopp, saves it, and asserts the emitted XML matches the source (normalized), so format drift fails the build."
+status = "finished"
+category = "test"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["format"]
+
+[[task]]
 id = "speed-up-rendering-of-long-pdf-backed-documents"
 title = "Speed up rendering of long PDF-backed documents"
 description = "Profile and improve page rendering/caching so scrolling long PDF-annotated documents stays smooth; avoid re-rasterizing pages already drawn."
