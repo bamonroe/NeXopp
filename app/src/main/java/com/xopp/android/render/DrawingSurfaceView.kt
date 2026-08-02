@@ -1491,7 +1491,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasShaping = shaping
         shaping = false
         // Shape tools emit exact geometry — only freehand samples get thinned.
-        val pts = if (wasShaping) raw else StrokeSimplifier.simplify(raw)
+        val pts = if (wasShaping) raw else StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(zoom))
         if (pts.size >= 2) {
             // Highlighter and geometric shapes are constant-width → store a single width; the freehand
             // pen keeps its per-vertex pressure. Live line-style/fill are baked in so they round-trip.

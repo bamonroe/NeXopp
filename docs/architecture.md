@@ -565,9 +565,13 @@ ragged polyline. Two pure pieces:
   0.02 pressure change. A decimated sample still advances the filter, so no drift accumulates; the
   newest sample of every batch is `force`d through so the drawn line always reaches the pen.
 - `StrokeSimplifier` — Ramer–Douglas–Peucker pass run once in `commitCurrent` over the finished
-  freehand points, dropping vertices within `TOLERANCE_PT` (0.35 pt) of their neighbours' chord.
-  Shape-tool output is exact geometry and is exempt. Fewer vertices = smaller `.xopp` and fewer
-  `drawLine` calls per redraw.
+  freehand points, dropping vertices within its tolerance of their neighbours' chord. Shape-tool
+  output is exact geometry and is exempt. Fewer vertices = smaller `.xopp` and fewer `drawLine`
+  calls per redraw. The tolerance is **zoom-aware**: `toleranceFor(zoom)` divides `TOLERANCE_PT`
+  (0.35 pt, the budget at 100%) by the current zoom, so the detail thrown away stays sub-pixel
+  *on screen* at every magnification — a fixed page-point budget is ~3 view px at 800% zoom and
+  facets curves into visible straight segments. Zooming out is clamped at a 0.5 divisor, so the
+  tolerance never exceeds twice the default.
 
 Both are covered by `StrokeSmootherTest`. **Hover** (`ACTION_HOVER_MOVE` from a
 stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of these are settings in

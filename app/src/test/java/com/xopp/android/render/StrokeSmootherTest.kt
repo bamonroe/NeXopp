@@ -113,4 +113,24 @@ class StrokeSimplifierTest {
         val out = StrokeSimplifier.simplify(pts, tolerance = 0.35)
         assertTrue("kept ${out.size}", out.size < pts.size)
     }
+
+    @Test fun `tolerance shrinks as the canvas zooms in`() {
+        assertEquals(StrokeSimplifier.TOLERANCE_PT, StrokeSimplifier.toleranceFor(1f), 1e-9)
+        assertEquals(StrokeSimplifier.TOLERANCE_PT / 8.0, StrokeSimplifier.toleranceFor(8f), 1e-9)
+        assertTrue(StrokeSimplifier.toleranceFor(8f) < StrokeSimplifier.toleranceFor(2f))
+    }
+
+    @Test fun `zooming out never widens the tolerance past twice the default`() {
+        val widest = StrokeSimplifier.TOLERANCE_PT * 2
+        assertEquals(widest, StrokeSimplifier.toleranceFor(0.5f), 1e-9)
+        assertEquals(widest, StrokeSimplifier.toleranceFor(0.1f), 1e-9)
+    }
+
+    @Test fun `fine detail survives when drawn zoomed in`() {
+        // A gentle curve whose sagitta sits just under the 100% budget — thinned flat at 100%,
+        // preserved at 800% where that same error would be visible on screen.
+        val pts = listOf(pt(0.0, 0.0), pt(5.0, 0.3), pt(10.0, 0.0))
+        assertEquals(2, StrokeSimplifier.simplify(pts, StrokeSimplifier.toleranceFor(1f)).size)
+        assertEquals(3, StrokeSimplifier.simplify(pts, StrokeSimplifier.toleranceFor(8f)).size)
+    }
 }

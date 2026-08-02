@@ -91,8 +91,22 @@ class StrokeSmoother(
  * Widths ride along with the points that survive; endpoints are always kept.
  */
 object StrokeSimplifier {
-    /** Default deviation budget, in page points (1/72"): well under one pen width. */
+    /** Default deviation budget, in page points (1/72"): well under one pen width at 100% zoom. */
     const val TOLERANCE_PT = 0.35
+
+    /** Widest tolerance we'll ever use, however far the canvas is zoomed out. */
+    private const val MIN_ZOOM_DIVISOR = 0.5
+
+    /**
+     * The deviation budget to use while drawing at [zoom].
+     *
+     * A fixed page-point tolerance is a *growing* on-screen error as you zoom in: at 800% the
+     * 0.35pt budget is nearly 3 view pixels, enough to turn a curve into visible straight
+     * facets. Scaling the budget by the zoom keeps the discarded detail sub-pixel on screen at
+     * every magnification, so a stroke drawn zoomed-in stays as smooth as it looked. Zooming out
+     * is clamped so we never thin a stroke so aggressively that it looks wrong once zoomed back in.
+     */
+    fun toleranceFor(zoom: Float): Double = TOLERANCE_PT / zoom.toDouble().coerceAtLeast(MIN_ZOOM_DIVISOR)
 
     fun simplify(points: List<StrokePoint>, tolerance: Double = TOLERANCE_PT): List<StrokePoint> {
         if (points.size < 3) return points
