@@ -102,10 +102,16 @@ fun ScrollThumb(
         else -> 0.24f
     }
 
-    // Latest geometry captured for the drag gesture, so each drag delta maps to the right scroll delta.
+    // Latest geometry captured for the drag gesture, so each pointer position maps to the right scroll.
     val travel by rememberUpdatedState(travelPx)
     val max by rememberUpdatedState(maxScroll)
-    val curScroll by rememberUpdatedState(scrollY)
+    val bandTop by rememberUpdatedState(thumbTopPx)
+    // Where inside the band the finger first landed. The drag is resolved from the pointer's *absolute*
+    // position in the overlay (band top + local y) minus this grip, never from accumulated deltas: the
+    // band itself moves as the document scrolls, so a local delta already has the band's own travel
+    // subtracted out of it — which is what made a full-height drag scroll only part way, and what made
+    // the thumb jitter as the position fed back into the next delta.
+    var grip by remember { mutableStateOf(0f) }
 
     // A full-size overlay so the page bubble has room to render left of the thumb; only the thumb
     // band carries a pointer input, so the rest of the canvas stays transparent to touch.
@@ -121,14 +127,17 @@ fun ScrollThumb(
                 .heightPx(thumbHeightPx)
                 .pointerInput(Unit) {
                     detectDragGestures(
-                        onDragStart = { dragging = true },
+                        onDragStart = { start ->
+                            dragging = true
+                            grip = start.y
+                        },
                         onDragEnd = { dragging = false },
                         onDragCancel = { dragging = false },
-                    ) { change, drag ->
+                    ) { change, _ ->
                         change.consume()
                         if (travel > 0f) {
-                            val delta = drag.y / travel * max
-                            onScrollTo((curScroll + delta).coerceIn(0f, max))
+                            val newTop = bandTop + change.position.y - grip
+                            onScrollTo((newTop / travel * max).coerceIn(0f, max))
                         }
                     }
                 },
