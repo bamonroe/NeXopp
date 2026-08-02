@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-laggy-page-flicking-on-large-screens-when-zoomed-out"
+title = "Fix laggy page flicking on large screens when zoomed out"
+description = "Zoomed out, full-screen on the large Ultra tablet, flicking/swiping between pages is extremely laggy. The same gesture at the same zoom level in split-screen (smaller window) is substantially smoother, so cost scales with rendered area rather than document content. Suggests per-frame work proportional to surface pixels: full-page re-rasterization every scroll frame, no tile/bitmap cache reuse, or rendering off-screen pages. Profile the page-scroll path and make frame cost independent of window size (cache rendered pages, redraw only dirty regions, cull off-screen pages)."
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["rendering", "performance"]
+
+[[task]]
 id = "fix-flicker-when-zoomed-in-on-large-screens"
 title = "Fix flicker when zoomed in on large screens"
 description = "On the Galaxy Tab Ultra (large full-screen window), zooming in makes the canvas flash: content jitters between an offset position (a couple of pixels off) and its true position, alternating rapidly. Extremely disorienting. Does not occur in split-screen with a smaller window at the same zoom level, so it appears tied to the size of the rendered surface rather than the zoom factor itself. Likely a mismatch between the transforms used by two frame sources (cached tile bitmap vs live redraw, or SurfaceView transform vs Compose chrome), so alternating frames use different offsets. Fix so zoomed rendering is pixel-stable on large displays."

@@ -368,7 +368,12 @@ the input handler posted several buffers per vsync, and the compositor latching 
 made the shown position walk back and forth between samples instead of advancing — the flicker seen
 when zoomed in on a big screen, where a paint is slow enough to keep several buffers in flight. The
 fling loop is the one exception: it is already inside a frame dispatch, so it calls `paint()` directly
-rather than deferring a frame. The `DrawingSurfaceView` holds the whole [Document] and renders every
+rather than deferring a frame. Each frame locks the surface with **`lockHardwareCanvas()`**, not
+`lockCanvas()` (falling back to the software canvas only if the GPU one is unavailable): the software
+canvas rasterises and blends every window pixel on the CPU, so frame cost scaled with window *area* —
+full-screen page-flicking on a large tablet crawled while the identical gesture in a half-size
+split-screen window stayed smooth. On the GPU canvas fill rate is effectively free and the cached page
+bitmaps are plain textured blits. The `DrawingSurfaceView` holds the whole [Document] and renders every
 page in a single vertical stack, each page scaled to fit the view width via `PageStacker` and
 drawn with its background ruling (`BackgroundRenderer`, using the pure `BackgroundGrid` offsets)
 plus all of its layers in z-order. The geometry (page placement, gridlines) is factored into

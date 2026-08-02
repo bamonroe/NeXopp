@@ -1670,10 +1670,31 @@ class DrawingSurfaceView @JvmOverloads constructor(
         choreographer.postFrameCallback(paintCallback)
     }
 
+    /**
+     * Lock the surface for one frame, preferring the **GPU** canvas.
+     *
+     * [SurfaceHolder.lockCanvas] hands back a *software* canvas: every pixel of the window is
+     * rasterised and blended on the CPU, so a frame costs time proportional to the window's pixel
+     * area no matter how little is on the page. On a large tablet that is several million pixels a
+     * frame, which is why flicking pages full-screen crawls while the identical gesture in a
+     * split-screen (half the pixels) stays smooth. [SurfaceHolder.lockHardwareCanvas] records the
+     * same draw calls and replays them on the GPU, where fill rate is essentially free and the
+     * cached page bitmaps become plain textured blits.
+     *
+     * Falls back to the software canvas if the hardware one is unavailable (no GL context, an
+     * emulator without a working renderer), so the view still paints rather than going black.
+     */
+    private fun lockCanvasForFrame(): Canvas? =
+        try {
+            holder.lockHardwareCanvas()
+        } catch (_: IllegalStateException) {
+            null
+        } ?: holder.lockCanvas()
+
     private fun paint() {
         paintPosted = false
         if (!holder.surface.isValid) return
-        val canvas = holder.lockCanvas() ?: return
+        val canvas = lockCanvasForFrame() ?: return
         try {
             canvas.drawColor(BACKDROP)
             val visible = layout.visible(scrollY, height.toFloat())

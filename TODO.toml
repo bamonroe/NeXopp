@@ -110,16 +110,3 @@ created = 2026-08-02
 tags = ["tools", "parity"]
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "fix-laggy-page-flicking-on-large-screens-when-zoomed-out"
-title = "Fix laggy page flicking on large screens when zoomed out"
-description = "Zoomed out, full-screen on the large Ultra tablet, flicking/swiping between pages is extremely laggy. The same gesture at the same zoom level in split-screen (smaller window) is substantially smoother, so cost scales with rendered area rather than document content. Suggests per-frame work proportional to surface pixels: full-page re-rasterization every scroll frame, no tile/bitmap cache reuse, or rendering off-screen pages. Profile the page-scroll path and make frame cost independent of window size (cache rendered pages, redraw only dirty regions, cull off-screen pages)."
-status = "active"
-category = "bug"
-urgency = "critical"
-order = 2
-created = 2026-08-02
-tags = ["rendering", "performance"]
-rebuild = true
-emulator_debug = true
