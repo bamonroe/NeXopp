@@ -76,6 +76,7 @@ import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
 import com.xopp.android.render.ShapeKind
 import com.xopp.android.render.StrokePrecision
+import com.xopp.android.ui.theme.rememberCanvasChromeColors
 import kotlin.math.roundToInt
 
 /**
@@ -315,6 +316,8 @@ fun EditorScreen(
             }
         }
         val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
+            // The canvas lives outside the Compose tree, so its chrome colours are pushed in.
+            val chrome = rememberCanvasChromeColors()
             Box(modifier = canvasModifier) {
             AndroidView(
                 factory = { ctx ->
@@ -359,6 +362,7 @@ fun EditorScreen(
                         onSurfaceCreated(it)
                     }
                 },
+                update = { it.applyChromeColors(chrome.backdrop, chrome.selection, chrome.guide) },
                 modifier = Modifier.fillMaxSize(),
             )
             ScrollThumb(

@@ -1164,7 +1164,7 @@ private fun Swatch(
     onLongClick: (() -> Unit)? = null,
     editable: Boolean = false,
 ) {
-    val ring = if (selected) MaterialTheme.colorScheme.primary else Color(0x33000000)
+    val ring = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
     val ringWidth = if (selected) 3.dp else 1.dp
     val clickModifier = if (onLongClick != null)
         Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)

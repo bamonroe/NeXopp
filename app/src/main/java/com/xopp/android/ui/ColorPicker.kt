@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -88,7 +89,7 @@ fun CustomColorPickerDialog(
                             .size(36.dp)
                             .clip(CircleShape)
                             .background(Color.hsv(hue, sat, value))
-                            .border(1.dp, Color(0x33000000), CircleShape),
+                            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
                     )
                     OutlinedTextField(
                         value = hexText,

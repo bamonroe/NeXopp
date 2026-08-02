@@ -360,6 +360,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Set while a coalesced redraw is queued — see [requestRender]. */
     private val renderPosted = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    /** Backdrop behind the pages — replaced by the app's colour scheme via [applyChromeColors]. */
+    private var backdropColor = BACKDROP
+
     private val selectionStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f
@@ -375,7 +378,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
     private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = (GUIDE_COLOR and 0x00FFFFFF) or GUIDE_FILL_ALPHA
+        color = (GUIDE_COLOR and 0x00FFFFFF) or (GUIDE_FILL_ALPHA shl 24)
     }
     private val guideHandlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -395,6 +398,27 @@ class DrawingSurfaceView @JvmOverloads constructor(
         strokeWidth = 2f
         color = SELECTION_COLOR
     }
+    /**
+     * Repaints the canvas chrome from the app's Material 3 colour scheme. The `SurfaceView` sits
+     * outside the Compose tree, so the colours are pushed in from the hosting composable; see
+     * `com.xopp.android.ui.theme.CanvasChromeColors`. The translucent fills keep their original
+     * alphas so the wash stays faint enough to draw over.
+     */
+    fun applyChromeColors(backdrop: Int, selection: Int, guide: Int) {
+        backdropColor = backdrop
+        selectionStrokePaint.color = selection
+        handlePaint.color = selection
+        handleArmPaint.color = selection
+        selectionFillPaint.color = selection.withAlpha(SELECTION_FILL_ALPHA)
+        bandFillPaint.color = selection.withAlpha(BAND_FILL_ALPHA)
+        guideStrokePaint.color = guide
+        guideHandlePaint.color = guide
+        guideFillPaint.color = guide.withAlpha(GUIDE_FILL_ALPHA)
+        requestRender()
+    }
+
+    private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
+
     private val lassoPath = Path()
     private val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -2124,7 +2148,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!holder.surface.isValid) return
         val canvas = lockCanvasForFrame() ?: return
         try {
-            canvas.drawColor(BACKDROP)
+            canvas.drawColor(backdropColor)
             val visible = layout.visible(scrollY, height.toFloat())
             for (box in visible) {
                 BackgroundRenderer.draw(
@@ -2359,7 +2383,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val GUIDE_COLOR = 0xFFE08A20.toInt()
 
         /** Alpha of the wash filling the setsquare's body — enough to see, faint enough to draw over. */
-        const val GUIDE_FILL_ALPHA = 0x22000000
+        const val GUIDE_FILL_ALPHA = 0x22
+        /** Alpha of the wash inside a selection outline. */
+        const val SELECTION_FILL_ALPHA = 0x14
+        /** Alpha of the wash inside the drag-select band. */
+        const val BAND_FILL_ALPHA = 0x22
 
         // Which part of the guide a finger is holding.
         const val GUIDE_DRAG_NONE = 0

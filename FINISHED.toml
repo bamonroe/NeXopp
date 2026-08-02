@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "unify-color-scheme-across-all-app-chrome"
+title = "Unify color scheme across all app chrome"
+description = "Make the color scheme consistent across the top bar, the tool bar/rail, dialogs, sheets, and every other surface. Drive everything from a single Material 3 color scheme instead of per-surface hardcoded colors."
+status = "finished"
+category = "refactor"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["ui", "theming"]
+
+[[task]]
 id = "shape-recognition-toggle-on-the-rail"
 title = "Shape-recognition toggle on the rail"
 description = "Shape recognition is Settings-only today; add a rail button (or a Style pop-up switch) so it can be flipped mid-page without leaving the editor."

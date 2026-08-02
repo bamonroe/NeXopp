@@ -217,6 +217,14 @@ native for stylus latency and platform fit).
 - **App chrome / UI:** **Jetpack Compose with Material 3** (Material You) for all app chrome —
   app bar, menus, dialogs, the tool palette. Satisfies the Material Design requirement in
   `TODO.toml`.
+- **One colour scheme drives every surface.** All chrome — app bar, rail/toolbar, dialogs, the
+  elevated popovers — takes its colours from `MaterialTheme.colorScheme` (`ui/theme/Theme.kt`);
+  no surface hardcodes a colour. The canvas is the one exception by construction: it's a
+  `SurfaceView` outside the Compose tree, so `ui/theme/ChromeColors.kt` maps the scheme onto its
+  three chrome colours (page backdrop, selection marquee/handles, guide overlay) as ARGB ints and
+  `EditorScreen` pushes them in via `DrawingSurfaceView.applyChromeColors`. **Ink, pen palette and
+  page backgrounds are document data, not chrome, and are deliberately never themed** — they must
+  round-trip to the file byte-for-byte.
 - **Drawing surface:** a custom low-latency **`SurfaceView`** (not Compose `Canvas`) hosted in
   the Compose tree via `AndroidView`. Stylus input comes from raw **`MotionEvent`** with
   `getPressure()` / `getAxisValue(AXIS_PRESSURE)` and historical points
