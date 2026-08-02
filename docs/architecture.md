@@ -363,7 +363,8 @@ are centred in the content band (`PageBox.leftPx`). Zoom keeps the viewport-cent
 fixed, and is clamped to 25%–800% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
 backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px),
-beyond which the cached bitmap is upscaled to bound memory. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+beyond which the cached bitmap is upscaled to bound memory — asynchronously, so a zoom step shows
+the previous resolution stretched and sharpens a moment later rather than stalling the frame. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is
@@ -438,8 +439,15 @@ and round-trip reasoning for what rotate/resize can touch lives in
 
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
-not thread-safe — with a bounded, recycling bitmap cache keyed by page and target-width bucket) and
-`BackgroundRenderer` draws the rasterised page; a `.xopp` whose PDF isn't present falls back to a
+not thread-safe) and `BackgroundRenderer` draws the rasterised page. The cache is keyed by page and
+target-width bucket, **LRU** under a heap-proportional byte budget (`PdfPageCache.budget`, a quarter
+of the heap clamped to 24–192 MB — a page's cost varies ~64× between zoom levels, so counting pages
+budgets nothing). Rasterisation never happens on the drawing frame: `request` returns whatever
+resolution is already cached for that page (the nearest width, upscaled, or nothing) and queues the
+exact size on a single worker thread, which fires `onPageReady` so the view redraws sharp. The view
+also `prefetch`es one page either side of the viewport, so scrolling a long document meets a filled
+cache. Evicted bitmaps are *not* recycled — the drawing thread may still hold one for the frame in
+flight; the GC reclaims them. A `.xopp` whose PDF isn't present falls back to a a `.xopp` whose PDF isn't present falls back to a
 plain sheet. **Import PDF** (`PdfImport`, invoked from `MainActivity`) copies the picked PDF into
 app cache and builds a fresh `Document` — one page per PDF page, sized from the PDF, with the
 `filename`+`domain` on page 1 only and `pageno` thereafter (the desktop on-disk convention). **Export

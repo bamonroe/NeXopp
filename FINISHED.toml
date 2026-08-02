@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "speed-up-rendering-of-long-pdf-backed-documents"
+title = "Speed up rendering of long PDF-backed documents"
+description = "Profile and improve page rendering/caching so scrolling long PDF-annotated documents stays smooth; avoid re-rasterizing pages already drawn."
+status = "finished"
+category = "refactor"
+created = 2026-08-01
+completed = 2026-08-01
+tags = ["performance"]
+
+[[task]]
 id = "pen-palette-presets-and-recent-colors"
 title = "Pen palette presets and recent colors"
 description = "Color/width presets plus a recently-used colors row in the pen picker, persisted across sessions."

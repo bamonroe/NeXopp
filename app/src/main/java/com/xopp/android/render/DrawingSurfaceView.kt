@@ -330,8 +330,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
      */
     fun setPdfSource(source: PdfPageCache?) {
         if (source === pdfSource) return
+        pdfSource?.onPageReady = null
         pdfSource?.close()
         pdfSource = source
+        // Rasterisation runs on a worker; redraw once a sharper page lands.
+        source?.onPageReady = { post { render() } }
     }
 
     /** Supply the imported PDF's extracted text layer for the text-select tool, or null to clear it. */
@@ -1565,10 +1568,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val canvas = holder.lockCanvas() ?: return
         try {
             canvas.drawColor(BACKDROP)
-            for (box in layout.visible(scrollY, height.toFloat())) {
+            val visible = layout.visible(scrollY, height.toFloat())
+            for (box in visible) {
                 BackgroundRenderer.draw(canvas, box, scrollX, scrollY, pdfBitmapFor(box))
                 drawPageElements(canvas, box)
             }
+            prefetchAround(visible)
             drawCurrent(canvas)
             drawTextSelection(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
@@ -1581,10 +1586,30 @@ class DrawingSurfaceView @JvmOverloads constructor(
         reportScroll()
     }
 
-    /** The rasterised background for a `pdf`-backed page at its on-screen width, or null. */
+    /**
+     * The rasterised background for a `pdf`-backed page at its on-screen width, or null. Never
+     * rasterises inline — a miss returns whatever resolution is already cached (or nothing) and the
+     * sharp version arrives via [PdfPageCache.onPageReady], so a frame is never stalled by the PDF.
+     */
     private fun pdfBitmapFor(box: PageBox): Bitmap? {
         val bg = box.page.background as? Background.Pdf ?: return null
-        return pdfSource?.render(bg.pageNo, box.widthPx.toInt())
+        return pdfSource?.request(bg.pageNo, box.widthPx.toInt())
+    }
+
+    /**
+     * Warm the pages just outside the viewport so scrolling meets a filled cache rather than a
+     * rasterise. One page either side is enough to cover a flick at reading speed.
+     */
+    private fun prefetchAround(visible: List<PageBox>) {
+        val src = pdfSource ?: return
+        if (visible.isEmpty()) return
+        val first = visible.first().index
+        val last = visible.last().index
+        for (i in intArrayOf(first - 1, last + 1)) {
+            val box = layout.boxes.getOrNull(i) ?: continue
+            val bg = box.page.background as? Background.Pdf ?: continue
+            src.prefetch(bg.pageNo, box.widthPx.toInt())
+        }
     }
 
     private fun drawPageElements(canvas: Canvas, box: PageBox) {
