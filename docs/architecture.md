@@ -386,7 +386,17 @@ Ink is culled the same way: `DrawingSurfaceView` hands `PageRenderer.drawElement
 page-local pt, and any element whose `ElementBounds` box misses it is never submitted (boxes are
 memoised by element identity, so the cull doesn't rescan stroke points each frame). At high zoom a
 page spans many screens, where almost every stroke would otherwise cost thousands of canvas calls
-Skia only clips away. `PdfExporter` passes no viewport and so draws everything. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+Skia only clips away. `PdfExporter` passes no viewport and so draws everything. Above that cull sits
+`InkCache`: each visible page's ink is rasterised once into an off-screen bitmap, so a pan or fling
+frame is a **blit** rather than a re-submission of every stroke. The raster is keyed by a **zoom
+bucket** (widths step by `InkCache.BUCKET_RATIO`, 1.19×), so a pinch only re-rasterises when it
+crosses a bucket edge and the zooms in between are a ≤19 % stretch of the bitmap it already has. An
+entry is invalidated by page identity (any edit rebuilds the `Page`), by its hidden-layer set, or by
+scrolling out of view (`InkCache.retain` keeps only the visible pages). The cache **declines** two
+cases and the direct element path takes over: a page whose bucket would exceed `InkCache.BUDGET_PX`
+(3 M px — at deep zoom a page spans many screens and its full raster would dwarf the screen it
+feeds, and the viewport cull is the better tool there), and any gesture that rewrites the page every
+frame — drag, resize, rotate, erase — where caching would only thrash. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is

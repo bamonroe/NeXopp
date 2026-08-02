@@ -266,6 +266,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private val strokePainter = StrokePainter()
     private val elementRenderer = ElementRenderer()
 
+    /** Off-screen ink rasters, so a pan/fling frame blits pages instead of re-submitting strokes. */
+    private val inkCache = InkCache()
+
     private val selectionStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f
@@ -1554,6 +1557,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         stopFling()
+        inkCache.clear()
         super.onDetachedFromWindow()
     }
 
@@ -1576,6 +1580,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 )
                 drawPageElements(canvas, box)
             }
+            inkCache.retain(visible.mapTo(HashSet()) { it.index })
             prefetchAround(visible)
             drawCurrent(canvas)
             drawTextSelection(canvas)
@@ -1636,17 +1641,31 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Paint one page's ink. The [InkCache] handles it as a single blit whenever it can; a gesture
+     * that rewrites the page every frame (drag/resize/rotate/erase) would only thrash the raster, so
+     * those fall through to submitting elements directly — as does any page too large to cache.
+     */
     private fun drawPageElements(canvas: Canvas, box: PageBox) {
         val hidden = if (hiddenLayers.isEmpty()) {
             emptySet()
         } else {
             box.page.layers.indices.filterTo(HashSet()) { isLayerHidden(box.index, it) }
         }
+        if (inkCacheUsable &&
+            inkCache.draw(canvas, box, scrollX, scrollY, hidden, strokePainter, elementRenderer)
+        ) {
+            return
+        }
         PageRenderer.drawElements(
             canvas, box.page, box.scale, box.leftPx - scrollX, box.topPx - scrollY,
             strokePainter, elementRenderer, hidden, visibleBounds(box),
         )
     }
+
+    /** False during gestures that rewrite the page model each frame, where caching would thrash. */
+    private val inkCacheUsable: Boolean
+        get() = !movingSel && !resizing && !rotating && !erasing
 
     /**
      * The viewport in this page's local pt space, so [PageRenderer] can drop elements that can't be

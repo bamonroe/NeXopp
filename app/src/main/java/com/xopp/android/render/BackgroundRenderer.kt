@@ -29,6 +29,10 @@ object BackgroundRenderer {
     }
     private val image = Paint(Paint.FILTER_BITMAP_FLAG)
 
+    // Reused across blits: [draw] runs on the drawing thread every frame, and a fresh RectF per
+    // tile per frame was pure churn for the collector.
+    private val dst = RectF()
+
     fun draw(
         canvas: Canvas,
         box: PageBox,
@@ -50,18 +54,15 @@ object BackgroundRenderer {
             // …unless the tiles already cover every visible pixel, in which case the blit would
             // rasterise the whole (possibly many-screens-wide) page only to be painted over.
             if (pageImage != null && !tilesCover(tiles, box, left, top, viewWidthPx, viewHeightPx)) {
-                canvas.drawBitmap(pageImage, null, RectF(left, top, left + box.widthPx, top + box.heightPx), image)
+                dst.set(left, top, left + box.widthPx, top + box.heightPx)
+                canvas.drawBitmap(pageImage, null, dst, image)
             }
             for (t in tiles) {
-                canvas.drawBitmap(
-                    t.bitmap,
-                    null,
-                    RectF(
-                        left + t.left * box.widthPx, top + t.top * box.heightPx,
-                        left + t.right * box.widthPx, top + t.bottom * box.heightPx,
-                    ),
-                    image,
+                dst.set(
+                    left + t.left * box.widthPx, top + t.top * box.heightPx,
+                    left + t.right * box.widthPx, top + t.bottom * box.heightPx,
                 )
+                canvas.drawBitmap(t.bitmap, null, dst, image)
             }
             return
         }
