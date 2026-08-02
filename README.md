@@ -274,8 +274,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
-- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Editor** and
-  **Navigation**. Tap a section to open it as its own page; back returns to the list, and back from
+- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Editor**,
+  **Toolbar**, **Navigation** and **Appearance**. Tap a section to open it as its own page; back returns to the list, and back from
   the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
     (best on a stylus tablet where a palm would otherwise draw).
@@ -322,6 +322,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     is one-to-one (the default — the page tracks your finger exactly), values **below 1** pan slower
     than your finger, values up to **4.0×** pan faster, and **0** turns panning off entirely. The gain
     also scales the fling, so a released pan coasts at the same visual rate it was moving.
+
+  Under **Appearance**:
+  - **Theme** — **System** (the default — follows the device's light/dark setting), **Light**, or
+    **Dark**. The choice repaints the whole app from one Material 3 scheme: the top bar, the tool
+    rail and its swatch rings, the settings pages, and the canvas backdrop, selection and guide
+    colours. Page and ink colours are document data and never change with the theme.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
   element merged on top, then written to the location you pick. When a page came from an **imported

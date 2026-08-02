@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "appearance-section-in-settings-with-theme-selection"
-title = "Appearance section in settings with theme selection"
-description = "Add an Appearance section to the settings screen letting the user choose Light, Dark, or System theme. Persist the choice and apply it to the whole app, including the top bar and tool rail (see the color-scheme unification task)."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 20
-created = 2026-08-02
-tags = ["ui", "theming", "settings"]
-rebuild = true
-emulator_debug = true

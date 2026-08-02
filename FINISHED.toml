@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "appearance-section-in-settings-with-theme-selection"
+title = "Appearance section in settings with theme selection"
+description = "Add an Appearance section to the settings screen letting the user choose Light, Dark, or System theme. Persist the choice and apply it to the whole app, including the top bar and tool rail (see the color-scheme unification task)."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["ui", "theming", "settings"]
+
+[[task]]
 id = "unify-color-scheme-across-all-app-chrome"
 title = "Unify color scheme across all app chrome"
 description = "Make the color scheme consistent across the top bar, the tool bar/rail, dialogs, sheets, and every other surface. Drive everything from a single Material 3 color scheme instead of per-surface hardcoded colors."

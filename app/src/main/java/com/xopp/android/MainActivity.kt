@@ -33,6 +33,7 @@ import com.xopp.android.ui.AudioUiState
 import com.xopp.android.ui.EditorScreen
 import com.xopp.android.ui.SettingsStore
 import com.xopp.android.ui.theme.XoppTheme
+import com.xopp.android.ui.theme.isDark
 import java.io.File
 
 /**
@@ -131,8 +132,9 @@ class MainActivity : ComponentActivity() {
         audioFolder = store.load().audioFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
         audio.onStateChanged = { runOnUiThread { audioTick.value++ } }
         setContent {
-            XoppTheme {
-                var settings by remember { mutableStateOf(store.load()) }
+            // Settings live above the theme so the Appearance choice re-colours the whole app.
+            var settings by remember { mutableStateOf(store.load()) }
+            XoppTheme(darkTheme = settings.themeMode.isDark()) {
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
                     onSave = { saveLauncher.launch(pendingSaveName) },

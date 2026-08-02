@@ -21,6 +21,13 @@ enum class ToolbarPosition(val label: String) {
     val isHorizontal: Boolean get() = this == TOP || this == BOTTOM
 }
 
+/** Which Material 3 colour scheme the app's chrome uses. */
+enum class ThemeMode(val label: String) {
+    SYSTEM("System"),
+    LIGHT("Light"),
+    DARK("Dark"),
+}
+
 /**
  * The app's user-adjustable preferences (the Settings screen edits these; [SettingsStore] persists
  * them). Kept small and serialisable to `SharedPreferences` — these are input-layer behaviours only
@@ -87,6 +94,8 @@ data class AppSettings(
      * folder we can both read and write — see [com.xopp.android.audio.AudioStore].
      */
     val audioFolderUri: String = "",
+    /** Light, dark, or follow the system — applied to the whole app's Material 3 scheme. */
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
@@ -145,6 +154,7 @@ class SettingsStore(context: Context) {
             railOrder = decodeRailIds(prefs.getString(KEY_RAIL_ORDER, null)),
             railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
             audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
+            themeMode = enumOr(prefs.getString(KEY_THEME_MODE, null), d.themeMode),
         )
     }
 
@@ -175,6 +185,7 @@ class SettingsStore(context: Context) {
         e.putString(KEY_RAIL_ORDER, encodeRailIds(s.railOrder))
         e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
         e.putString(KEY_AUDIO_FOLDER, s.audioFolderUri)
+        e.putString(KEY_THEME_MODE, s.themeMode.name)
         e.apply()
     }
 
@@ -205,6 +216,7 @@ class SettingsStore(context: Context) {
         const val KEY_RAIL_ORDER = "rail_order"
         const val KEY_RAIL_HIDDEN = "rail_hidden"
         const val KEY_AUDIO_FOLDER = "audio_folder_uri"
+        const val KEY_THEME_MODE = "theme_mode"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

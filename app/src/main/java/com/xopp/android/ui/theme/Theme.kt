@@ -15,9 +15,18 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.xopp.android.ui.ThemeMode
 
 private val LightColors = lightColorScheme(primary = Purple, secondary = Amber)
 private val DarkColors = darkColorScheme(primary = PurpleDark, secondary = Amber)
+
+/** Whether [mode] means "paint dark" right now — SYSTEM defers to the OS setting. */
+@Composable
+fun ThemeMode.isDark(): Boolean = when (this) {
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+}
 
 /** The app's Material 3 (Material You) theme. Uses dynamic colour on Android 12+. */
 @Composable

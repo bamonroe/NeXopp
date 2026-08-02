@@ -207,6 +207,20 @@ fun NavigationSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     )
 }
 
+/** Appearance: which Material 3 colour scheme the app's chrome is painted with. */
+@Composable
+fun AppearanceSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
+    OptionGroup(
+        title = "Theme",
+        subtitle = "Colours the top bar, tool rail and canvas backdrop. " +
+            "System follows the device's light/dark setting.",
+        options = ThemeMode.values().toList(),
+        selected = settings.themeMode,
+        label = { it.label },
+        onSelect = { onChange(settings.copy(themeMode = it)) },
+    )
+}
+
 @Composable
 private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
