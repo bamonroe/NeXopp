@@ -232,6 +232,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     or **None**.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
+  - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**
+    (default), **High**, or **Maximum**. Strokes are thinned to a sub-pixel error budget as they're
+    drawn; raising the precision shrinks that budget, which draws visibly rounder curves on a large,
+    high-density tablet at 100% zoom and below, at the cost of a bigger `.xopp`. Lowering it keeps
+    files small. Existing strokes are unaffected — the setting applies to what you draw next.
 
   Under **Editor**:
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,

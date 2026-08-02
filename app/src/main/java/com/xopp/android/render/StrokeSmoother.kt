@@ -28,7 +28,8 @@ import kotlin.math.hypot
 class StrokeSmoother(
     private val positionAlpha: Float = POSITION_ALPHA,
     private val pressureAlpha: Float = PRESSURE_ALPHA,
-    private val minStepPx: Float = MIN_STEP_PX,
+    /** Decimation radius in view px. Settable so the stylus-precision setting can tighten it. */
+    var minStepPx: Float = MIN_STEP_PX,
 ) {
     /** One filtered sample, still in view pixels. */
     data class Sample(val x: Float, val y: Float, val pressure: Float)
@@ -80,6 +81,37 @@ class StrokeSmoother(
 }
 
 /**
+ * How much of the digitiser's detail a freehand stroke keeps.
+ *
+ * Both thinning stages — the live decimation in [StrokeSmoother] and the [StrokeSimplifier] pass
+ * on the finished stroke — trade file size and redraw cost against fidelity, and the right trade
+ * depends on the screen and the hand. A dense large-screen tablet resolves detail that a phone
+ * would waste vertices on, and a fine hand-drawn sketch shows faceting a page of handwriting never
+ * would. [factor] scales both budgets: below 1 keeps more vertices (smoother, bigger files), above
+ * 1 keeps fewer.
+ */
+enum class StrokePrecision(val factor: Float, val label: String) {
+    /** Fewest vertices: smallest files, visible faceting on tight curves. */
+    ECONOMY(2f, "Economy"),
+
+    /** The default trade — sub-pixel error at the magnification the stroke was drawn at. */
+    BALANCED(1f, "Balanced"),
+
+    /** Half the deviation budget: noticeably rounder curves on a high-density screen. */
+    HIGH(0.5f, "High"),
+
+    /** Near-raw input. Every sample the digitiser reports that moved at all is kept. */
+    MAXIMUM(0.25f, "Maximum");
+
+    /** The live decimation radius (view px) this precision implies. */
+    val minStepPx: Float get() = StrokeSmoother.MIN_STEP_PX * factor
+
+    companion object {
+        val DEFAULT = BALANCED
+    }
+}
+
+/**
  * Ramer–Douglas–Peucker simplification of a finished stroke.
  *
  * The live filter above only ever sees two samples at a time, so it can't tell a long straight
@@ -91,22 +123,38 @@ class StrokeSmoother(
  * Widths ride along with the points that survive; endpoints are always kept.
  */
 object StrokeSimplifier {
-    /** Default deviation budget, in page points (1/72"): well under one pen width at 100% zoom. */
+    /** Default deviation budget, in page points (1/72"): well under one pen width at 1 px/pt. */
     const val TOLERANCE_PT = 0.35
 
+    /**
+     * The on-screen deviation budget, in **view pixels**. Discarding less than this much detail is
+     * invisible at the magnification the stroke was drawn at, whatever that magnification was.
+     */
+    const val TOLERANCE_PX = 0.35
+
     /** Widest tolerance we'll ever use, however far the canvas is zoomed out. */
-    private const val MIN_ZOOM_DIVISOR = 0.5
+    private const val MAX_TOLERANCE_PT = 0.7
 
     /**
-     * The deviation budget to use while drawing at [zoom].
+     * The deviation budget to use for a stroke drawn at [pxPerPt] view pixels per page point,
+     * tightened by [precision] (see [StrokePrecision.factor]).
      *
-     * A fixed page-point tolerance is a *growing* on-screen error as you zoom in: at 800% the
-     * 0.35pt budget is nearly 3 view pixels, enough to turn a curve into visible straight
-     * facets. Scaling the budget by the zoom keeps the discarded detail sub-pixel on screen at
-     * every magnification, so a stroke drawn zoomed-in stays as smooth as it looked. Zooming out
-     * is clamped so we never thin a stroke so aggressively that it looks wrong once zoomed back in.
+     * A fixed page-point tolerance is a *growing* on-screen error as you zoom in: at 8 px/pt a
+     * 0.35pt budget is nearly 3 view pixels, enough to turn a curve into visible straight facets.
+     * Expressing the budget in view pixels and dividing by the real px/pt keeps the discarded
+     * detail sub-pixel at every magnification.
+     *
+     * [pxPerPt] must be the **full** page→view factor ([PageBox.scale]: fit-to-width × user zoom),
+     * not the user zoom alone. On a large tablet the fit-to-width factor is 2–4 px/pt on its own,
+     * so using the zoom would leave the budget 2–4× too coarse at 100% and below — the facets the
+     * precision setting exists to remove.
      */
-    fun toleranceFor(zoom: Float): Double = TOLERANCE_PT / zoom.toDouble().coerceAtLeast(MIN_ZOOM_DIVISOR)
+    fun toleranceFor(pxPerPt: Float, precision: StrokePrecision = StrokePrecision.DEFAULT): Double {
+        val budget = TOLERANCE_PX * precision.factor
+        val scale = pxPerPt.toDouble()
+        if (scale <= 0.0) return TOLERANCE_PT * precision.factor
+        return (budget / scale).coerceAtMost(MAX_TOLERANCE_PT * precision.factor)
+    }
 
     fun simplify(points: List<StrokePoint>, tolerance: Double = TOLERANCE_PT): List<StrokePoint> {
         if (points.size < 3) return points

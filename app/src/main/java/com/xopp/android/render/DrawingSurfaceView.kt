@@ -168,6 +168,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var pressureGamma: Float = PressureSensitivity.LINEAR.gamma
     /** Jitter filter for the in-progress freehand stroke; reset at the start of each stroke. */
     private val smoother = StrokeSmoother()
+    /** How much digitiser detail freehand strokes keep (see [StrokePrecision]); from Settings. */
+    var strokePrecision: StrokePrecision = StrokePrecision.DEFAULT
+        set(value) {
+            field = value
+            smoother.minStepPx = value.minStepPx
+        }
     /** When true, a hovering stylus shows a preview dot (from `ACTION_HOVER_MOVE`). */
     var showHover: Boolean = true
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
@@ -1545,7 +1551,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasShaping = shaping
         shaping = false
         // Shape tools emit exact geometry — only freehand samples get thinned.
-        val pts = if (wasShaping) raw else StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(zoom))
+        // Thin against the page's real px/pt (fit-to-width × zoom), not the zoom alone — on a large
+        // screen those differ by 2–4×, and using the zoom leaves visible facets at 100% and below.
+        val pxPerPt = layout.boxes.getOrNull(currentPage)?.scale ?: zoom
+        val pts = if (wasShaping) {
+            raw
+        } else {
+            StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(pxPerPt, strokePrecision))
+        }
         if (pts.size >= 2) {
             // Highlighter and geometric shapes are constant-width → store a single width; the freehand
             // pen keeps its per-vertex pressure. Live line-style/fill are baked in so they round-trip.

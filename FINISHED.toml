@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-a-stylus-precision-setting-for-stroke-resolution-at-low-zoom"
+title = "Add a stylus precision setting for stroke resolution at low zoom"
+description = "On a large-screen tablet (ultra) at 100% zoom or below, pen stroke resolution has visibly dropped - stroke edges look faceted/polygonal. This is a side effect of the earlier change that made strokes smoother at high zoom levels; it has had the opposite of the intended effect at normal zoom. Don't revert that change - instead expose a setting that lets the user choose how much precision/resolution stylus drawing keeps (e.g. point sampling / simplification tolerance), so high-zoom smoothing and low-zoom fidelity can both be satisfied."
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["stylus", "rendering", "settings"]
+
+[[task]]
 id = "clipboard-cut-copy-paste-for-selections"
 title = "Clipboard: cut, copy, paste for selections"
 description = "SelectionOps has no clipboard support. Add cut/copy/paste (within a page, across pages, and across layers) for the current selection, wired into undo/redo."

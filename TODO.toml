@@ -110,16 +110,3 @@ created = 2026-08-02
 tags = ["tools", "parity"]
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "add-a-stylus-precision-setting-for-stroke-resolution-at-low-zoom"
-title = "Add a stylus precision setting for stroke resolution at low zoom"
-description = "On a large-screen tablet (ultra) at 100% zoom or below, pen stroke resolution has visibly dropped - stroke edges look faceted/polygonal. This is a side effect of the earlier change that made strokes smoother at high zoom levels; it has had the opposite of the intended effect at normal zoom. Don't revert that change - instead expose a setting that lets the user choose how much precision/resolution stylus drawing keeps (e.g. point sampling / simplification tolerance), so high-zoom smoothing and low-zoom fidelity can both be satisfied."
-status = "active"
-category = "bug"
-urgency = "high"
-order = 100
-created = 2026-08-02
-tags = ["stylus", "rendering", "settings"]
-rebuild = true
-emulator_debug = true

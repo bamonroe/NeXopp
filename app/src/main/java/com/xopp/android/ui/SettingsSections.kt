@@ -30,6 +30,7 @@ import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
+import com.xopp.android.render.StrokePrecision
 
 /**
  * The body of each settings section page, plus the small controls they share. One composable per
@@ -70,6 +71,17 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         selected = settings.sensitivity,
         label = { it.label },
         onSelect = { onChange(settings.copy(sensitivity = it)) },
+    )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    OptionGroup(
+        title = "Stroke precision",
+        subtitle = "How much pen detail a stroke keeps. Higher draws rounder curves on a big, " +
+            "high-density screen; lower keeps files smaller.",
+        options = StrokePrecision.values().toList(),
+        selected = settings.strokePrecision,
+        label = { it.label },
+        onSelect = { onChange(settings.copy(strokePrecision = it)) },
     )
 }
 

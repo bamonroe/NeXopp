@@ -74,6 +74,7 @@ import com.xopp.android.render.LayerInfo
 import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
 import com.xopp.android.render.ShapeKind
+import com.xopp.android.render.StrokePrecision
 import kotlin.math.roundToInt
 
 /**
@@ -114,6 +115,7 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     inputSettings = InputSettings(fingerDraws = s.fingerDraws, barrelAction = s.barrelAction)
     showHover = s.showHover
     pressureGamma = s.sensitivity.gamma
+    strokePrecision = s.strokePrecision
     flingStrength = s.momentum
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity

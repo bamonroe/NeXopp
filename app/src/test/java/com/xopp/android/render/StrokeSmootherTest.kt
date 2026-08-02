@@ -114,10 +114,17 @@ class StrokeSimplifierTest {
         assertTrue("kept ${out.size}", out.size < pts.size)
     }
 
-    @Test fun `tolerance shrinks as the canvas zooms in`() {
+    @Test fun `tolerance shrinks as the on-screen scale rises`() {
         assertEquals(StrokeSimplifier.TOLERANCE_PT, StrokeSimplifier.toleranceFor(1f), 1e-9)
         assertEquals(StrokeSimplifier.TOLERANCE_PT / 8.0, StrokeSimplifier.toleranceFor(8f), 1e-9)
         assertTrue(StrokeSimplifier.toleranceFor(8f) < StrokeSimplifier.toleranceFor(2f))
+    }
+
+    @Test fun `a large screen tightens the tolerance at 100 percent zoom`() {
+        // The regression: a big tablet fits the page at ~3 px/pt before the user zooms at all, so
+        // the budget at 100% must be a third of the 1 px/pt one — not the full default.
+        assertEquals(StrokeSimplifier.TOLERANCE_PT / 3.0, StrokeSimplifier.toleranceFor(3f), 1e-9)
+        assertTrue(StrokeSimplifier.toleranceFor(3f) < StrokeSimplifier.toleranceFor(1f))
     }
 
     @Test fun `zooming out never widens the tolerance past twice the default`() {
@@ -126,11 +133,29 @@ class StrokeSimplifierTest {
         assertEquals(widest, StrokeSimplifier.toleranceFor(0.1f), 1e-9)
     }
 
-    @Test fun `fine detail survives when drawn zoomed in`() {
-        // A gentle curve whose sagitta sits just under the 100% budget — thinned flat at 100%,
-        // preserved at 800% where that same error would be visible on screen.
+    @Test fun `higher precision keeps a tighter budget at every scale`() {
+        for (scale in listOf(0.25f, 1f, 3f, 8f)) {
+            val economy = StrokeSimplifier.toleranceFor(scale, StrokePrecision.ECONOMY)
+            val balanced = StrokeSimplifier.toleranceFor(scale, StrokePrecision.BALANCED)
+            val max = StrokeSimplifier.toleranceFor(scale, StrokePrecision.MAXIMUM)
+            assertTrue("at $scale", max < balanced && balanced < economy)
+        }
+    }
+
+    @Test fun `precision scales the live decimation radius the same way`() {
+        assertEquals(StrokeSmoother.MIN_STEP_PX, StrokePrecision.BALANCED.minStepPx, 1e-6f)
+        assertTrue(StrokePrecision.MAXIMUM.minStepPx < StrokePrecision.BALANCED.minStepPx)
+        assertTrue(StrokePrecision.ECONOMY.minStepPx > StrokePrecision.BALANCED.minStepPx)
+    }
+
+    @Test fun `fine detail survives when drawn at a high on-screen scale`() {
+        // A gentle curve whose sagitta sits just under the 1 px/pt budget — thinned flat there,
+        // preserved at 8 px/pt where that same error would be visible on screen.
         val pts = listOf(pt(0.0, 0.0), pt(5.0, 0.3), pt(10.0, 0.0))
         assertEquals(2, StrokeSimplifier.simplify(pts, StrokeSimplifier.toleranceFor(1f)).size)
         assertEquals(3, StrokeSimplifier.simplify(pts, StrokeSimplifier.toleranceFor(8f)).size)
+        // …and MAXIMUM precision keeps it even at 1 px/pt.
+        val fine = StrokeSimplifier.toleranceFor(1f, StrokePrecision.MAXIMUM)
+        assertEquals(3, StrokeSimplifier.simplify(pts, fine).size)
     }
 }

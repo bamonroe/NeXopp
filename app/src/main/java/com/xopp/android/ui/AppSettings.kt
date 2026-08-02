@@ -6,6 +6,7 @@ import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
+import com.xopp.android.render.StrokePrecision
 
 /** Which edge of the editor the tool rail is docked to. */
 enum class ToolbarPosition(val label: String) {
@@ -33,6 +34,8 @@ data class AppSettings(
     val showHover: Boolean = true,
     /** How pen pressure maps to stroke width. */
     val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
+    /** How much digitiser detail a freehand stroke keeps (fidelity vs. file size). */
+    val strokePrecision: StrokePrecision = StrokePrecision.DEFAULT,
     /** The three user-configurable pen-tip widths (pt) behind the S/M/L size slots, in slot order. */
     val penWidths: List<Float> = DEFAULT_PEN_WIDTHS,
     /** The user-defined colour (opaque ARGB) behind the palette's editable custom slot. */
@@ -102,6 +105,7 @@ class SettingsStore(context: Context) {
             barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
+            strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
             penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
             defaultTool = enumOr(prefs.getString(KEY_DEFAULT_TOOL, null), d.defaultTool),
@@ -124,6 +128,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_BARREL, s.barrelAction.name)
             .putBoolean(KEY_HOVER, s.showHover)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
+            .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
         s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
         e.putInt(KEY_CUSTOM_COLOR, s.customColor)
         e.putString(KEY_DEFAULT_TOOL, s.defaultTool.name)
@@ -145,6 +150,7 @@ class SettingsStore(context: Context) {
         const val KEY_BARREL = "barrel_action"
         const val KEY_HOVER = "show_hover"
         const val KEY_SENSITIVITY = "sensitivity"
+        const val KEY_STROKE_PRECISION = "stroke_precision"
         const val KEY_CUSTOM_COLOR = "custom_color"
         const val KEY_DEFAULT_TOOL = "default_tool"
         // Float-typed since the parameterized control replaced the old discrete enum; a fresh key

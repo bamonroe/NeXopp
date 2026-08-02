@@ -633,15 +633,22 @@ ragged polyline. Two pure pieces:
   reset in `startStroke` and fed by `addSamples`. It exponentially smooths position (α 0.55) and,
   harder, pressure (α 0.3), then **decimates** samples that moved less than 1.6 px with less than
   0.02 pressure change. A decimated sample still advances the filter, so no drift accumulates; the
-  newest sample of every batch is `force`d through so the drawn line always reaches the pen.
+  newest sample of every batch is `force`d through so the drawn line always reaches the pen. The
+  1.6 px radius is `minStepPx`, scaled by the stroke-precision setting (below).
 - `StrokeSimplifier` — Ramer–Douglas–Peucker pass run once in `commitCurrent` over the finished
   freehand points, dropping vertices within its tolerance of their neighbours' chord. Shape-tool
   output is exact geometry and is exempt. Fewer vertices = smaller `.xopp` and fewer `drawLine`
-  calls per redraw. The tolerance is **zoom-aware**: `toleranceFor(zoom)` divides `TOLERANCE_PT`
-  (0.35 pt, the budget at 100%) by the current zoom, so the detail thrown away stays sub-pixel
-  *on screen* at every magnification — a fixed page-point budget is ~3 view px at 800% zoom and
-  facets curves into visible straight segments. Zooming out is clamped at a 0.5 divisor, so the
-  tolerance never exceeds twice the default.
+  calls per redraw. The tolerance is **scale-aware**: `toleranceFor(pxPerPt, precision)` divides
+  `TOLERANCE_PX` (0.35 view px) by the page's real pixels-per-point, so the detail thrown away
+  stays sub-pixel *on screen* at every magnification — a fixed page-point budget is ~3 view px at
+  8 px/pt and facets curves into visible straight segments. `pxPerPt` must be `PageBox.scale`
+  (fit-to-width × user zoom), **not** the user zoom alone: on a large tablet fit-to-width is
+  already 2–4 px/pt, so keying off the zoom leaves the budget that many times too coarse at 100%
+  and below — the faceting bug this replaced. Zooming out is clamped at 0.7 pt, twice the default.
+- `StrokePrecision` — the user-facing **Stroke precision** setting (Economy / Balanced / High /
+  Maximum). Its `factor` multiplies *both* budgets — the simplifier tolerance and the smoother's
+  `minStepPx` — so one control moves the whole fidelity-vs-size trade. `DrawingSurfaceView`'s
+  `strokePrecision` setter pushes `minStepPx` onto the live smoother.
 
 Both are covered by `StrokeSmootherTest`. **Hover** (`ACTION_HOVER_MOVE` from a
 stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of these are settings in
