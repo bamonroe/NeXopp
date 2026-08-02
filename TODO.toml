@@ -19,3 +19,81 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "open-pdf-xopp-and-zipped-xopp-files"
+title = "Open PDF, .xopp, and zipped .xopp files"
+description = "The open/file-picker path should accept three input kinds: a raw PDF (opened as an annotatable document backed by the PDF pages), a plain .xopp file, and a zipped .xopp archive (unpack, then load the contained .xopp plus any bundled assets). Detect by content/magic bytes rather than extension alone, and keep round-trip safety with desktop Xournal++."
+status = "active"
+category = "feature"
+urgency = "high"
+order = 10
+created = 2026-08-02
+tags = ["files", "pdf"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "pdf-import-with-replace-or-append-choice"
+title = "PDF import with Replace or Append choice"
+description = "When importing a PDF into an already-open document, prompt for one of two modes: Replace (the imported PDF becomes the document's page backgrounds, discarding/overwriting the current ones) or Append (the PDF's pages are appended as new pages after the existing pages of the current document). Both must save back to .xopp so the PDF background reference round-trips to desktop Xournal++."
+status = "active"
+category = "feature"
+urgency = "high"
+order = 20
+created = 2026-08-02
+tags = ["pdf", "import"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "page-overview-grid-view-for-page-management"
+title = "Page overview / grid view for page management"
+description = "A page-level view that zooms out from the single-page editor: split the view to show two or three pages side by side, or zoom further out to a grid of many page thumbnails. This is the umbrella feature that page reordering, deletion, and copy/paste hang off of."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-02
+tags = ["ui", "pages"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "move-reorder-pages-from-the-page-overview"
+title = "Move/reorder pages from the page overview"
+description = "Drag a page thumbnail in the grid/overview to a new position and have the document's page order update, persisting correctly on save to .xopp."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 40
+created = 2026-08-02
+tags = ["pages"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "delete-pages-from-the-page-overview"
+title = "Delete pages from the page overview"
+description = "Select one or more pages in the grid/overview and delete them, with the document and .xopp output updating accordingly. Should be undoable."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 50
+created = 2026-08-02
+tags = ["pages"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "copy-and-paste-pages-in-the-page-overview"
+title = "Copy and paste pages in the page overview"
+description = "Copy one or more selected pages in the grid/overview and paste them elsewhere in the document (duplicating strokes, layers, background, and any page assets). Must round-trip through .xopp."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 60
+created = 2026-08-02
+tags = ["pages"]
+rebuild = true
+emulator_debug = false
