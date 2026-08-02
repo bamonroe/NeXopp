@@ -38,6 +38,10 @@ data class AppSettings(
     val strokePrecision: StrokePrecision = StrokePrecision.DEFAULT,
     /** Snap a finished freehand stroke to the primitive it resembles (line, circle, rectangle…). */
     val recognizeShapes: Boolean = false,
+    /** Pull shape-tool endpoints onto the page background's ruling (grid/lined sheets only). */
+    val snapToGrid: Boolean = false,
+    /** Pull a selection's rotate handle onto 15-degree increments. */
+    val snapRotation: Boolean = false,
     /** The three user-configurable pen-tip widths (pt) behind the S/M/L size slots, in slot order. */
     val penWidths: List<Float> = DEFAULT_PEN_WIDTHS,
     /** The user-defined colour (opaque ARGB) behind the palette's editable custom slot. */
@@ -109,6 +113,8 @@ class SettingsStore(context: Context) {
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
             recognizeShapes = prefs.getBoolean(KEY_RECOGNIZE_SHAPES, d.recognizeShapes),
+            snapToGrid = prefs.getBoolean(KEY_SNAP_GRID, d.snapToGrid),
+            snapRotation = prefs.getBoolean(KEY_SNAP_ROTATION, d.snapRotation),
             penWidths = d.penWidths.mapIndexed { i, w -> prefs.getFloat(keyPenWidth(i), w) },
             customColor = prefs.getInt(KEY_CUSTOM_COLOR, d.customColor),
             defaultTool = enumOr(prefs.getString(KEY_DEFAULT_TOOL, null), d.defaultTool),
@@ -133,6 +139,8 @@ class SettingsStore(context: Context) {
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
             .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
             .putBoolean(KEY_RECOGNIZE_SHAPES, s.recognizeShapes)
+            .putBoolean(KEY_SNAP_GRID, s.snapToGrid)
+            .putBoolean(KEY_SNAP_ROTATION, s.snapRotation)
         s.penWidths.forEachIndexed { i, w -> e.putFloat(keyPenWidth(i), w) }
         e.putInt(KEY_CUSTOM_COLOR, s.customColor)
         e.putString(KEY_DEFAULT_TOOL, s.defaultTool.name)
@@ -156,6 +164,8 @@ class SettingsStore(context: Context) {
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_STROKE_PRECISION = "stroke_precision"
         const val KEY_RECOGNIZE_SHAPES = "recognize_shapes"
+        const val KEY_SNAP_GRID = "snap_to_grid"
+        const val KEY_SNAP_ROTATION = "snap_rotation"
         const val KEY_CUSTOM_COLOR = "custom_color"
         const val KEY_DEFAULT_TOOL = "default_tool"
         // Float-typed since the parameterized control replaced the old discrete enum; a fresh key

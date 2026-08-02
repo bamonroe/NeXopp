@@ -309,7 +309,8 @@ app/
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
-      BackgroundGrid.kt      # ruling line/dot offsets in pt (pure geometry)
+      BackgroundGrid.kt      # ruling line/dot offsets + the pt spacings themselves (pure geometry)
+      Snapping.kt            # shape endpoints -> the ruling; rotation -> 15-degree steps (pure)
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
@@ -455,7 +456,14 @@ strokes by an ellipse radius-spread fit and then by corner count (coarser Dougla
 a hand-rounded corner doesn't read as two), open ones by chord straightness, an arrow's
 short-barb-folded-back signature, and finally a short polyline. Every test is scaled to the stroke's
 own bounding box, and an unmatched stroke returns `null` so handwriting commits untouched; a match is
-rebuilt through `ShapeBuilder` and stored constant-width. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
+rebuilt through `ShapeBuilder` and stored constant-width. **Snapping** (`Snapping`, pure and tested) is
+applied at the input edge rather than in the geometry builders: with **Snap to grid** on, the shape
+drag's start and end points are rounded onto the page background's ruling before they reach
+`ShapeBuilder`, and with **Snap rotation** on, the *swept* angle (not the absolute one) of the rotate
+handle is rounded to 15° before it reaches `SelectionOps.rotate` — snapping the swept angle means a
+snapped drag returns exactly to the element's original orientation. Which axes snap is a property of
+the background style, so the pt spacings live once in `BackgroundGrid` and are shared by
+`BackgroundRenderer`, `PdfBackgroundPainter` and `Snapping`. A **line style** (`plain`/`dash`/`dashdot`/`dot`) and a **fill** alpha ride
 on the stroke the tool draws next; `StrokePainter` paints a dashed/dotted style as a single
 constant-width dashed path and floods a fill under the outline, and `PdfVectorPainter` mirrors both for
 export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,

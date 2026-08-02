@@ -16,10 +16,10 @@ import com.xopp.android.format.model.Background
  */
 object BackgroundRenderer {
 
-    /** pt spacings, approximating desktop Xournal++ paper. */
-    private const val RULE_SPACING_PT = 24.0
-    private const val GRID_SPACING_PT = 14.17 // ~0.5 cm
-    private const val MARGIN_PT = 72.0 // "ruled" red margin, 1 inch in
+    // Spacings live in [BackgroundGrid] so the editor, the PDF flatten and snapping share one copy.
+    private const val RULE_SPACING_PT = BackgroundGrid.RULE_SPACING_PT
+    private const val GRID_SPACING_PT = BackgroundGrid.GRID_SPACING_PT
+    private const val MARGIN_PT = BackgroundGrid.MARGIN_PT
 
     private val fill = Paint()
     private val line = Paint().apply { color = 0xFFA9C7E8.toInt(); strokeWidth = 1f }

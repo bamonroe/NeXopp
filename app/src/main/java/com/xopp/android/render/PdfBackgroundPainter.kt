@@ -13,9 +13,10 @@ import com.xopp.android.format.model.Page
  */
 object PdfBackgroundPainter {
 
-    private const val RULE_SPACING_PT = 24.0
-    private const val GRID_SPACING_PT = 14.17
-    private const val MARGIN_PT = 72.0
+    // Shared with the editor via [BackgroundGrid] so the flatten can't drift from what's on screen.
+    private const val RULE_SPACING_PT = BackgroundGrid.RULE_SPACING_PT
+    private const val GRID_SPACING_PT = BackgroundGrid.GRID_SPACING_PT
+    private const val MARGIN_PT = BackgroundGrid.MARGIN_PT
     private const val DOT_HALF_PT = 1.0f
 
     private const val LINE_RGB = 0xA9C7E8

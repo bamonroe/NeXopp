@@ -146,6 +146,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   the recogniser doesn't recognise — handwriting above all — is kept exactly as you drew it. The
   result is one ordinary constant-width stroke, so it round-trips to desktop Xournal++ like any
   other. The toggle is off by default and only affects the pen, never the highlighter.
+- **Snapping** — two optional aids under **Settings → Editor**. **Snap to grid** pulls the start and
+  end of a shape drag onto the page background's ruling, so lines and boxes line up with the paper: a
+  **graph** or **dotted** page snaps both axes to its squares, a **lined**/**ruled** page snaps only
+  the vertical position (it rules no vertical lines), and a plain page snaps nothing. **Snap
+  rotation** makes the selection's rotate handle step in 15° increments — handy for turning something
+  exactly upright or square. Both are off by default, and neither changes what is written to the
+  file: the result is still ordinary stroke geometry.
 - **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
   **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** level (None / Light / Medium /
   Heavy / Solid) that floods the inside of a closed stroke or shape. Both save on the `<stroke>`
@@ -257,6 +264,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     primitive it resembles (see **Shape recognition** above).
 
   Under **Editor**:
+  - **Snap to grid** — off by default; when on, the endpoints of a shape you drag out land on the
+    page background's ruling instead of anywhere in between (see **Snapping** above).
+  - **Snap rotation** — off by default; when on, rotating a selection steps in 15° increments.
   - **Default tool** — which tool is active when a document opens: **Pen** (default), **Highlighter**,
     **Eraser**, or **Hand (pan)**.
 

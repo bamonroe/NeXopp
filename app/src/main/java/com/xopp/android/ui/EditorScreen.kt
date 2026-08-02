@@ -122,6 +122,8 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     pressureGamma = s.sensitivity.gamma
     strokePrecision = s.strokePrecision
     recognizeShapes = s.recognizeShapes
+    snapToGrid = s.snapToGrid
+    snapRotation = s.snapRotation
     flingStrength = s.momentum
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity

@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "snapping-grid-and-rotation"
+title = "Snapping: grid and rotation"
+description = "Desktop snaps stroke/shape endpoints to the background grid and snaps shape rotation to 15-degree increments, with toggles in settings. Neither exists here — add both, applied in ShapeBuilder and selection rotate."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["tools", "parity"]
+
+[[task]]
 id = "shape-recognizer"
 title = "Shape recognizer"
 description = "Port Xournal++'s stroke shape recognizer: after a freehand stroke, snap it to the nearest recognised primitive (line, circle, rectangle, triangle, arrow, polyline) when the toggle is on."

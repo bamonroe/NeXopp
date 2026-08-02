@@ -224,6 +224,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
      */
     var recognizeShapes: Boolean = false
 
+    /** When true, a shape tool's start/end points snap to the page background's ruling ([Snapping]). */
+    var snapToGrid: Boolean = false
+
+    /** When true, dragging the selection's rotate handle steps in [Snapping.ROTATION_STEP_DEG]. */
+    var snapRotation: Boolean = false
+
     /** Line pattern applied to strokes and shapes this tool draws (dashed/dotted); default solid. */
     var currentLineStyle: LineStyle = LineStyle.PLAIN
     /** Fill alpha (0..255) flooded inside strokes/shapes drawn now, or null for no fill. */
@@ -849,7 +855,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val sel = selection ?: return
         val start = moveStartDoc ?: return
         val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
-        val angle = atan2(ptY(box, event.y) - rotatePivotY, ptX(box, event.x) - rotatePivotX) - rotateStartAngle
+        val swept = atan2(ptY(box, event.y) - rotatePivotY, ptX(box, event.x) - rotatePivotX) - rotateStartAngle
+        // Snapping the swept angle (not the absolute one) keeps the steps relative to where the
+        // selection started, so a snapped drag returns exactly to the original orientation at rest.
+        val angle = if (snapRotation) Snapping.snapAngle(swept) else swept
         doc = doc.copy(pages = SelectionOps.rotate(start.pages, sel.pageIndex, sel.refs, angle, rotatePivotX, rotatePivotY))
         relayout()
         render()
@@ -1106,6 +1115,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun ptX(box: PageBox, vx: Float): Double = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
     private fun ptY(box: PageBox, vy: Float): Double = ((vy + scrollY - box.topPx) / box.scale).toDouble()
 
+    /** [x] pt pulled onto [box]'s background ruling when the snap-to-grid setting is on. */
+    private fun snapX(box: PageBox, x: Double): Double =
+        if (snapToGrid) Snapping.snap(x, Snapping.spacingX(box.page.background)) else x
+
+    /** [y] pt pulled onto [box]'s background ruling when the snap-to-grid setting is on. */
+    private fun snapY(box: PageBox, y: Double): Double =
+        if (snapToGrid) Snapping.snap(y, Snapping.spacingY(box.page.background)) else y
+
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -1323,8 +1340,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: run { current = null; return }
         currentPage = box.index
         if (shaping) {
-            shapeStartX = ptX(box, event.getX(pointerIndex))
-            shapeStartY = ptY(box, event.getY(pointerIndex))
+            shapeStartX = snapX(box, ptX(box, event.getX(pointerIndex)))
+            shapeStartY = snapY(box, ptY(box, event.getY(pointerIndex)))
             current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, baseWidthPt.toDouble())))
         } else {
             smoother.reset()
@@ -1337,8 +1354,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
         if (shaping) {
-            val ex = ptX(box, event.getX(pointerIndex))
-            val ey = ptY(box, event.getY(pointerIndex))
+            val ex = snapX(box, ptX(box, event.getX(pointerIndex)))
+            val ey = snapY(box, ptY(box, event.getY(pointerIndex)))
             current = ArrayList(
                 ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, baseWidthPt.toDouble()),
             )

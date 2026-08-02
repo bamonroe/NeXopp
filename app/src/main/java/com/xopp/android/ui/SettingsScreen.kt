@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
  */
 enum class SettingsSection(val title: String, val summary: String) {
     STYLUS("Stylus", "Finger drawing, hover preview, barrel button, pressure feel."),
-    EDITOR("Editor", "Default tool and where the tool rail is docked."),
+    EDITOR("Editor", "Default tool and snapping to the grid or to 15° rotations."),
     TOOLBAR("Toolbar", "Which rail buttons appear, and in what order."),
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
 }
