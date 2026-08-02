@@ -1570,7 +1570,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             canvas.drawColor(BACKDROP)
             val visible = layout.visible(scrollY, height.toFloat())
             for (box in visible) {
-                BackgroundRenderer.draw(canvas, box, scrollX, scrollY, pdfBitmapFor(box))
+                BackgroundRenderer.draw(canvas, box, scrollX, scrollY, pdfBitmapFor(box), pdfTilesFor(box))
                 drawPageElements(canvas, box)
             }
             prefetchAround(visible)
@@ -1594,6 +1594,27 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun pdfBitmapFor(box: PageBox): Bitmap? {
         val bg = box.page.background as? Background.Pdf ?: return null
         return pdfSource?.request(bg.pageNo, box.widthPx.toInt())
+    }
+
+    /**
+     * The full-resolution tiles for the visible part of a `pdf`-backed page, drawn over the
+     * (upscaled) whole-page bitmap. Empty until the zoom passes the whole-page raster ceiling, so
+     * normal reading costs exactly what it did before. Like [pdfBitmapFor] this never blocks: a tile
+     * that isn't cached yet is queued and arrives on a later frame.
+     */
+    private fun pdfTilesFor(box: PageBox): List<PdfTile> {
+        val bg = box.page.background as? Background.Pdf ?: return emptyList()
+        val src = pdfSource ?: return emptyList()
+        if (box.widthPx <= 0f || box.heightPx <= 0f) return emptyList()
+        val x = scrollX - box.leftPx
+        val y = scrollY - box.topPx
+        return src.requestTiles(
+            bg.pageNo, box.widthPx.toInt(),
+            (x / box.widthPx).coerceIn(0f, 1f),
+            (y / box.heightPx).coerceIn(0f, 1f),
+            ((x + width) / box.widthPx).coerceIn(0f, 1f),
+            ((y + height) / box.heightPx).coerceIn(0f, 1f),
+        )
     }
 
     /**

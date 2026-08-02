@@ -2,11 +2,24 @@ package com.xopp.android.render
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
 import java.io.Closeable
 import java.io.File
 import java.util.concurrent.Executors
+
+/**
+ * One rasterised piece of a PDF page, positioned by the fraction of the page it covers so the
+ * caller can place it without knowing the scale it was rendered at.
+ */
+data class PdfTile(
+    val bitmap: Bitmap,
+    val left: Float,
+    val top: Float,
+    val right: Float,
+    val bottom: Float,
+)
 
 /**
  * Rasterises the pages of a single PDF to bitmaps for use as page backgrounds. Wraps the framework
@@ -16,12 +29,16 @@ import java.util.concurrent.Executors
  *
  * Rendering is the expensive part of scrolling a long PDF-backed document, so the cache is built to
  * keep it off the drawing frame:
- *  - entries are keyed by (page, target-width bucket) and evicted **least-recently-used** under a
- *    heap-proportional byte budget, so the pages you are actually scrolling through survive;
- *  - [request] returns the best bitmap already cached for that page (any width — the renderer scales
- *    it) and queues the exact size on a worker, calling [onPageReady] when the sharp version lands.
- *    It only rasterises inline when *nothing* is cached for the page, since drawing no background at
- *    all reads as a blank page;
+ *  - entries are keyed by page, target-width bucket and (for tiles) grid cell, and evicted
+ *    **least-recently-used** under a heap-proportional byte budget, so the pages you are actually
+ *    scrolling through survive;
+ *  - [request] returns the best whole-page bitmap already cached for that page (any width — the
+ *    renderer scales it) and queues the exact size on a worker, calling [onPageReady] when the sharp
+ *    version lands. It only rasterises inline when *nothing* is cached for the page, since drawing
+ *    no background at all reads as a blank page;
+ *  - [requestTiles] takes over past the whole-page ceiling: at high zoom only the visible cells of
+ *    the page are rasterised, each at the true on-screen resolution, so text stays sharp however far
+ *    you zoom while the heap stays bounded by the viewport rather than the page;
  *  - [prefetch] warms pages just outside the viewport so scrolling meets a filled cache.
  */
 class PdfPageCache(val source: File) : Closeable {
@@ -33,10 +50,10 @@ class PdfPageCache(val source: File) : Closeable {
     /** Serialises [PdfRenderer], which allows one open page at a time. Never held with [lock]. */
     private val renderLock = Any()
     /** Access-ordered so eviction drops the least recently *used* entry, not the oldest. */
-    private val cache = LinkedHashMap<Long, Bitmap>(16, 0.75f, true)
+    private val cache = LinkedHashMap<Key, Bitmap>(16, 0.75f, true)
     private var cachedBytes = 0L
     private val sizes = HashMap<Int, Pair<Double, Double>>()
-    private val pending = LinkedHashSet<Long>()
+    private val pending = LinkedHashSet<Key>()
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "pdf-raster").apply { isDaemon = true } }
     @Volatile private var closed = false
 
@@ -57,31 +74,75 @@ class PdfPageCache(val source: File) : Closeable {
     }
 
     /**
-     * The best bitmap available for page [i] at [targetWidthPx]. An exact-bucket hit is returned
-     * as-is; otherwise the nearest cached width for that page is returned as a stand-in (upscaled by
-     * the renderer) and the exact size is queued in the background. Only when the page has nothing
-     * cached at all does this rasterise on the calling thread — drawing no background reads as a
-     * blank page, which is worse than one slow frame. Null if the page is out of range or closed.
+     * The best whole-page bitmap available for page [i] at [targetWidthPx]. An exact-bucket hit is
+     * returned as-is; otherwise the nearest cached width for that page is returned as a stand-in
+     * (upscaled by the renderer) and the exact size is queued in the background. Only when the page
+     * has nothing cached at all does this rasterise on the calling thread — drawing no background
+     * reads as a blank page, which is worse than one slow frame. Null if out of range or closed.
      */
     fun request(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
         if (closed || i >= pageCount) return null
-        val w = rasterWidth(i, targetWidthPx)
-        val key = key(i, w)
+        val key = Key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) {
             cache[key]?.let { return it }
-            nearest(i, w)?.let { enqueue(key); return it }
+            nearest(i, key.width)?.let { enqueue(key); return it }
         }
         // Nothing at all is cached for this page: rasterise here rather than draw a blank page. Only
         // ever the first frame of a page — every later width is covered by the stand-in above.
         return rasterise(key)
     }
 
+    /**
+     * The rasterised tiles covering the visible part of page [i], which the caller draws over the
+     * upscaled whole-page bitmap from [request]. The visible region is given as fractions of the
+     * page (0..1) so this needs no screen geometry. Empty below the whole-page ceiling — there a
+     * single page bitmap is already at full resolution and tiles would only duplicate it. Tiles not
+     * yet rasterised are queued and omitted; they appear on a later frame via [onPageReady].
+     */
+    fun requestTiles(
+        i: Int,
+        targetWidthPx: Int,
+        visLeft: Float,
+        visTop: Float,
+        visRight: Float,
+        visBottom: Float,
+    ): List<PdfTile> {
+        if (targetWidthPx <= 0 || i < 0 || closed || i >= pageCount) return emptyList()
+        val scale = tileScale(i, targetWidthPx) ?: return emptyList()
+        val (pw, ph) = pageSizePt(i)
+        if (pw <= 0) return emptyList()
+        val fullH = (scale.toLong() * ph / pw).toInt().coerceAtLeast(1)
+        val cols = (scale + TILE_PX - 1) / TILE_PX
+        val rows = (fullH + TILE_PX - 1) / TILE_PX
+        val c0 = ((visLeft * scale) / TILE_PX).toInt().coerceIn(0, cols - 1)
+        val c1 = ((visRight * scale) / TILE_PX).toInt().coerceIn(0, cols - 1)
+        val r0 = ((visTop * fullH) / TILE_PX).toInt().coerceIn(0, rows - 1)
+        val r1 = ((visBottom * fullH) / TILE_PX).toInt().coerceIn(0, rows - 1)
+        if (c1 < c0 || r1 < r0) return emptyList()
+        // A wildly out-of-proportion viewport (or a fling mid-relayout) could ask for a whole page's
+        // worth of tiles; cap the fan-out so one frame can never queue unbounded work.
+        if ((c1 - c0 + 1).toLong() * (r1 - r0 + 1) > MAX_TILES_PER_FRAME) return emptyList()
+        val tiles = ArrayList<PdfTile>()
+        for (r in r0..r1) for (c in c0..c1) {
+            val key = Key(i, scale, c, r)
+            val bmp = synchronized(lock) { cache[key] ?: run { enqueue(key); null } } ?: continue
+            tiles += PdfTile(
+                bmp,
+                (c * TILE_PX).toFloat() / scale,
+                (r * TILE_PX).toFloat() / fullH,
+                minOf((c + 1) * TILE_PX, scale).toFloat() / scale,
+                minOf((r + 1) * TILE_PX, fullH).toFloat() / fullH,
+            )
+        }
+        return tiles
+    }
+
     /** Queue page [i] at [targetWidthPx] for background rasterisation if it isn't cached already. */
     fun prefetch(i: Int, targetWidthPx: Int) {
         if (targetWidthPx <= 0 || i < 0) return
         if (closed || i >= pageCount) return
-        val key = key(i, rasterWidth(i, targetWidthPx))
+        val key = Key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) {
             if (cache.containsKey(key)) return
             enqueue(key)
@@ -92,18 +153,24 @@ class PdfPageCache(val source: File) : Closeable {
     fun render(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
         if (closed || i >= pageCount) return null
-        val key = key(i, rasterWidth(i, targetWidthPx))
+        val key = Key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) { cache[key]?.let { return it } }
         return rasterise(key)
     }
 
     // --- internals ---------------------------------------------------------------------------
 
+    /** A cache entry: a whole page at a width bucket, or one cell of that width's tile grid. */
+    private data class Key(val page: Int, val width: Int, val col: Int = -1, val row: Int = -1) {
+        val tiled get() = col >= 0
+    }
+
     /**
-     * The bucketed width page [i] may actually be rasterised at. Beyond [MAX_RASTER_WIDTH] this also
-     * clamps so *one* page bitmap can never cost more than [PER_PAGE_SHARE] of the cache budget: a
-     * full-page bitmap larger than the budget makes every insert evict everything else, so at high
-     * zoom the visible pages would keep evicting one another and flash blank between rasterises.
+     * The bucketed width page [i] may actually be rasterised at as a *whole page*. Beyond
+     * [MAX_RASTER_WIDTH] this also clamps so one page bitmap can never cost more than
+     * [PER_PAGE_SHARE] of the cache budget: a full-page bitmap larger than the budget makes every
+     * insert evict everything else, so at high zoom the visible pages would keep evicting one
+     * another and flash blank between rasterises. Past this ceiling sharpness comes from tiles.
      */
     private fun rasterWidth(i: Int, targetWidthPx: Int): Int {
         val (pw, ph) = pageSizePt(i)
@@ -114,8 +181,18 @@ class PdfPageCache(val source: File) : Closeable {
         return bucket(w)
     }
 
+    /**
+     * The page-width the tile grid is built at, or null when tiles aren't wanted — i.e. when the
+     * whole-page bitmap already covers [targetWidthPx] at full resolution. Bucketed like whole-page
+     * widths so a small zoom nudge reuses the same grid instead of re-rasterising every cell.
+     */
+    private fun tileScale(i: Int, targetWidthPx: Int): Int? {
+        val want = bucket(targetWidthPx.coerceAtMost(MAX_TILE_SCALE))
+        return if (want > rasterWidth(i, targetWidthPx)) want else null
+    }
+
     /** Caller holds [lock]. */
-    private fun enqueue(key: Long) {
+    private fun enqueue(key: Key) {
         if (!pending.add(key)) return
         worker.execute {
             val stale = synchronized(lock) {
@@ -127,42 +204,62 @@ class PdfPageCache(val source: File) : Closeable {
     }
 
     /**
-     * Rasterises and caches the page named by [key]. Takes [renderLock] (not [lock]) for the slow
-     * part, so a drawing thread reading the cache is never blocked behind a rasterise.
+     * Rasterises and caches the page (or tile) named by [key]. Takes [renderLock] (not [lock]) for
+     * the slow part, so a drawing thread reading the cache is never blocked behind a rasterise.
      */
-    private fun rasterise(key: Long): Bitmap? {
-        val i = (key ushr 20).toInt()
-        val w = (key and 0xFFFFF).toInt()
-        if (closed || i >= pageCount) return null
+    private fun rasterise(key: Key): Bitmap? {
+        if (closed || key.page >= pageCount) return null
         val bmp = synchronized(renderLock) {
             if (closed) return null
-            renderer.openPage(i).use { page ->
-                if (page.width <= 0) return null
-                val h = (w.toLong() * page.height / page.width).toInt().coerceAtLeast(1)
-                Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
-                    it.eraseColor(Color.WHITE)
-                    page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+            renderer.openPage(key.page).use { page ->
+                if (page.width <= 0 || page.height <= 0) return null
+                val fullW = key.width
+                val fullH = (fullW.toLong() * page.height / page.width).toInt().coerceAtLeast(1)
+                if (!key.tiled) {
+                    return@use newBitmap(fullW, fullH)?.also { page.render(it, null, null, MODE) }
                 }
+                val x = key.col * TILE_PX
+                val y = key.row * TILE_PX
+                val w = minOf(TILE_PX, fullW - x)
+                val h = minOf(TILE_PX, fullH - y)
+                if (w <= 0 || h <= 0) return null
+                // Scale the page to the full grid size, then slide this cell's origin to (0,0) so the
+                // tile is rendered 1:1 — no upscaling of an already-rasterised bitmap anywhere.
+                val m = Matrix().apply {
+                    setScale(fullW.toFloat() / page.width, fullH.toFloat() / page.height)
+                    postTranslate(-x.toFloat(), -y.toFloat())
+                }
+                newBitmap(w, h)?.also { page.render(it, null, m, MODE) }
             }
-        }
+        } ?: return null
         synchronized(lock) { put(key, bmp) }
         return bmp
     }
 
-    /** Caller holds [lock]. The cached bitmap for page [i] whose width is closest to [w], if any. */
+    /** Null rather than a crash if the heap can't take another bitmap; the frame just stays coarse. */
+    private fun newBitmap(w: Int, h: Int): Bitmap? = try {
+        Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.WHITE) }
+    } catch (e: OutOfMemoryError) {
+        null
+    }
+
+    /**
+     * Caller holds [lock]. The cached *whole-page* bitmap for page [i] whose width is closest to
+     * [w], if any. Tiles are never a stand-in — they cover only part of the page.
+     */
     private fun nearest(i: Int, w: Int): Bitmap? {
         var best: Bitmap? = null
         var bestDelta = Int.MAX_VALUE
         for ((k, bmp) in cache) {
-            if ((k ushr 20).toInt() != i) continue
-            val delta = kotlin.math.abs((k and 0xFFFFF).toInt() - w)
+            if (k.page != i || k.tiled) continue
+            val delta = kotlin.math.abs(k.width - w)
             if (delta < bestDelta) { best = bmp; bestDelta = delta }
         }
         return best
     }
 
     /** Caller holds [lock]. */
-    private fun put(key: Long, bmp: Bitmap) {
+    private fun put(key: Key, bmp: Bitmap) {
         cache.put(key, bmp)?.let { cachedBytes -= it.byteCount.toLong() }
         cachedBytes += bmp.byteCount.toLong()
         val it = cache.entries.iterator()
@@ -200,18 +297,31 @@ class PdfPageCache(val source: File) : Closeable {
         val budget: Long = (Runtime.getRuntime().maxMemory() / 4).coerceIn(24L shl 20, 192L shl 20)
 
         /**
-         * Ceiling on the rasterised width. At high zoom the on-screen page width grows without
-         * bound, and a bitmap that wide would blow the heap; past this the background is upscaled
-         * (strokes stay vector-sharp regardless). ~4k keeps a full page under ~50 MB.
+         * Ceiling on the rasterised width of a *whole* page. A bitmap wider than this would blow the
+         * heap; past it the whole-page bitmap is only the coarse under-layer and the sharp pixels
+         * come from tiles. ~4k keeps a full page under ~50 MB.
          */
         const val MAX_RASTER_WIDTH = 4096
 
         /** The largest share of [budget] a single page bitmap may take, so several pages coexist. */
         const val PER_PAGE_SHARE = 0.25
 
+        /** Edge of a tile bitmap in px: 1 MB at ARGB_8888, small enough that a miss is cheap. */
+        const val TILE_PX = 512
+
+        /**
+         * Ceiling on the tile grid's page width. Tiles cost viewport-proportional memory, not
+         * page-proportional, so this only exists to keep the grid arithmetic in `Int` range; it sits
+         * far above any zoom the UI allows.
+         */
+        const val MAX_TILE_SCALE = 1 shl 19
+
+        /** Backstop on tiles queued from one frame, so a degenerate viewport can't flood the worker. */
+        const val MAX_TILES_PER_FRAME = 64
+
+        const val MODE = PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+
         /** Round target widths up to 64px buckets so small zoom nudges reuse a cached bitmap. */
         fun bucket(px: Int) = ((px + 63) / 64) * 64
-
-        fun key(i: Int, w: Int) = (i.toLong() shl 20) or w.toLong()
     }
 }

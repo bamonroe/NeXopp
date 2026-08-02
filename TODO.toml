@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "tile-pdf-rasterisation-so-zoomed-text-stays-sharp"
-title = "Tile PDF rasterisation so zoomed text stays sharp"
-description = "PDF backgrounds are rasterised whole-page and capped at MAX_RASTER_WIDTH (4096px) in app/src/main/java/com/xopp/android/render/PdfPageCache.kt, so past ~400-800% zoom the page bitmap is upscaled and PDF text looks blurry. Instead, rasterise only the visible tile(s) of the page at full device resolution, keyed by (page, tile, scale), so the on-screen region is always rendered 1:1 and the heap stays bounded. Removes the effective sharpness ceiling at high zoom. Ink strokes are already vector and unaffected."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 10
-created = 2026-08-02
-tags = ["pdf", "render", "zoom"]
-rebuild = true
-emulator_debug = true

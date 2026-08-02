@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "tile-pdf-rasterisation-so-zoomed-text-stays-sharp"
+title = "Tile PDF rasterisation so zoomed text stays sharp"
+description = "PDF backgrounds are rasterised whole-page and capped at MAX_RASTER_WIDTH (4096px) in app/src/main/java/com/xopp/android/render/PdfPageCache.kt, so past ~400-800% zoom the page bitmap is upscaled and PDF text looks blurry. Instead, rasterise only the visible tile(s) of the page at full device resolution, keyed by (page, tile, scale), so the on-screen region is always rendered 1:1 and the heap stays bounded. Removes the effective sharpness ceiling at high zoom. Ink strokes are already vector and unaffected."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["pdf", "render", "zoom"]
+
+[[task]]
 id = "round-trip-test-save-reload-xml-equality"
 title = "Round-trip test: save/reload XML equality"
 description = "Unit test that loads a .xopp, saves it, and asserts the emitted XML matches the source (normalized), so format drift fails the build."

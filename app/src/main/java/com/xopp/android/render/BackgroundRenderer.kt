@@ -29,14 +29,36 @@ object BackgroundRenderer {
     }
     private val image = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    fun draw(canvas: Canvas, box: PageBox, scrollX: Float, scrollY: Float, pageImage: Bitmap? = null) {
+    fun draw(
+        canvas: Canvas,
+        box: PageBox,
+        scrollX: Float,
+        scrollY: Float,
+        pageImage: Bitmap? = null,
+        tiles: List<PdfTile> = emptyList(),
+    ) {
         val left = box.leftPx - scrollX
         val top = box.topPx - scrollY
         val solid = box.page.background as? Background.Solid
         fill.color = solid?.color ?: AndroidColor.WHITE
         canvas.drawRect(left, top, left + box.widthPx, top + box.heightPx, fill)
-        if (pageImage != null) {
-            canvas.drawBitmap(pageImage, null, RectF(left, top, left + box.widthPx, top + box.heightPx), image)
+        if (pageImage != null || tiles.isNotEmpty()) {
+            // The whole-page bitmap is the coarse under-layer; tiles land on top at full resolution,
+            // so a tile that hasn't rasterised yet shows the upscaled page rather than a hole.
+            if (pageImage != null) {
+                canvas.drawBitmap(pageImage, null, RectF(left, top, left + box.widthPx, top + box.heightPx), image)
+            }
+            for (t in tiles) {
+                canvas.drawBitmap(
+                    t.bitmap,
+                    null,
+                    RectF(
+                        left + t.left * box.widthPx, top + t.top * box.heightPx,
+                        left + t.right * box.widthPx, top + t.bottom * box.heightPx,
+                    ),
+                    image,
+                )
+            }
             return
         }
         when (solid?.style) {

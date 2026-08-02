@@ -371,10 +371,15 @@ fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`).
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
 backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and
 never above `PdfPageCache.PER_PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
-can't evict one another and flash blank), beyond which the cached bitmap is upscaled to bound
+can't evict one another and flash blank), beyond which the whole-page bitmap is upscaled to bound
 memory — asynchronously, so a zoom step shows the previous resolution stretched and sharpens a
 moment later rather than stalling the frame. A page with *nothing* cached is the one exception: it
-rasterises inline, since an empty background reads as a blank page. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+rasterises inline, since an empty background reads as a blank page. Past that whole-page ceiling
+the sharpness comes from **tiles**: `PdfPageCache.requestTiles` rasterises only the visible cells of
+a `PdfPageCache.TILE_PX` (512 px) grid built at the true on-screen page width, each rendered 1:1 via
+a `Matrix` on `PdfRenderer.Page.render`, and `BackgroundRenderer` draws them over the upscaled page
+bitmap. So PDF text stays sharp to the 1000 % zoom ceiling while cost stays proportional to the
+viewport, not the page; a tile that hasn't rasterised yet simply shows the coarse layer underneath. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is
@@ -449,15 +454,17 @@ and round-trip reasoning for what rotate/resize can touch lives in
 
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
-not thread-safe) and `BackgroundRenderer` draws the rasterised page. The cache is keyed by page and
-target-width bucket, **LRU** under a heap-proportional byte budget (`PdfPageCache.budget`, a quarter
+not thread-safe) and `BackgroundRenderer` draws the rasterised page. The cache is keyed by page,
+target-width bucket and (for tiles) grid cell, **LRU** under a heap-proportional byte budget (`PdfPageCache.budget`, a quarter
 of the heap clamped to 24–192 MB — a page's cost varies ~64× between zoom levels, so counting pages
 budgets nothing). Rasterisation never happens on the drawing frame: `request` returns whatever
 resolution is already cached for that page (the nearest width, upscaled, or nothing) and queues the
 exact size on a single worker thread, which fires `onPageReady` so the view redraws sharp. The view
 also `prefetch`es one page either side of the viewport, so scrolling a long document meets a filled
 cache. Evicted bitmaps are *not* recycled — the drawing thread may still hold one for the frame in
-flight; the GC reclaims them. A `.xopp` whose PDF isn't present falls back to a a `.xopp` whose PDF isn't present falls back to a
+flight; the GC reclaims them. Past the whole-page raster ceiling `requestTiles` supplies
+viewport-sized tiles rendered at the true on-screen scale (see the zoom paragraph above), so text
+keeps sharpening as you zoom. A `.xopp` whose PDF isn't present falls back to a
 plain sheet. **Import PDF** (`PdfImport`, invoked from `MainActivity`) copies the picked PDF into
 app cache and builds a fresh `Document` — one page per PDF page, sized from the PDF, with the
 `filename`+`domain` on page 1 only and `pageno` thereafter (the desktop on-disk convention). **Export

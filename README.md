@@ -191,8 +191,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   the one gesture. The **%** button on the rail also opens a zoom pop-up with **−** / **+** buttons;
   tap the percentage to reset to 100%. Zooming wider than the screen lets you pan sideways. Zoom
   ranges from **25% to 1000%**, so you can work on fine detail; ink stays sharp at every level.
-  (PDF page backgrounds are rasterised, so PDF text itself softens once you zoom past the raster
-  ceiling — your own strokes do not.)
+  PDF page backgrounds stay sharp too: past a certain zoom only the part of the page you can
+  actually see is re-rendered, at full screen resolution, so PDF text is crisp all the way to 1000%.
+  A freshly zoomed or panned area may look soft for a moment before the sharp version lands.
 - **Background** — the **grid** button on the rail opens the **page-background** pop-up, which sets the
   paper ruling of the page in view: **Plain** (bare sheet), **Lined**, **Ruled** (lined with a red
   margin), **Graph**, or **Dotted**. The current style is check-marked; picking another re-rules the
