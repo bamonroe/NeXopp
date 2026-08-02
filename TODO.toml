@@ -19,3 +19,120 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "vertical-space-tool"
+title = "Vertical space tool"
+description = "Add Xournal++'s vertical-space tool: drag down/up on a page to insert or remove vertical space, shifting all elements below the grab line. Desktop has this as a core rail tool; we have no equivalent. Round-trips fine since it only moves element coordinates."
+status = "active"
+category = "feature"
+urgency = "high"
+order = 10
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "spline-shape-tool"
+title = "Spline shape tool"
+description = "Add the spline/bezier draw tool from desktop Xournal++: click to lay down control points, drag to curve, Enter/double-tap to finish. Commits as an ordinary pen stroke like the other ShapeKinds in render/ShapeBuilder.kt."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "coordinate-axis-and-double-arrow-shapes"
+title = "Coordinate-axis and double-arrow shapes"
+description = "Extend ShapeKind with desktop's remaining shapes: coordinate axis (draw x/y axes) and double-ended arrow. Same commit path as LINE/ARROW/RECTANGLE/ELLIPSE."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "shape-recognizer"
+title = "Shape recognizer"
+description = "Port Xournal++'s stroke shape recognizer: after a freehand stroke, snap it to the nearest recognised primitive (line, circle, rectangle, triangle, arrow, polyline) when the toggle is on."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 40
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "snapping-grid-and-rotation"
+title = "Snapping: grid and rotation"
+description = "Desktop snaps stroke/shape endpoints to the background grid and snaps shape rotation to 15-degree increments, with toggles in settings. Neither exists here — add both, applied in ShapeBuilder and selection rotate."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 50
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "setsquare-and-compass-tools"
+title = "Setsquare and compass tools"
+description = "Add the desktop setsquare (geometry triangle) and compass overlays: an on-canvas manipulable guide that constrains drawing to its edge/arc. Purely an input aid; output is normal strokes."
+status = "active"
+category = "feature"
+urgency = "low"
+order = 60
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "clipboard-cut-copy-paste-for-selections"
+title = "Clipboard: cut, copy, paste for selections"
+description = "SelectionOps has no clipboard support. Add cut/copy/paste (within a page, across pages, and across layers) for the current selection, wired into undo/redo."
+status = "active"
+category = "feature"
+urgency = "high"
+order = 70
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "fill-tool-as-a-first-class-option"
+title = "Fill tool as a first-class option"
+description = "Desktop exposes fill as a toggle with an alpha slider for pen and highlighter. We store the fill attribute in the model but never let the user set it — surface it in the rail/style panel."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 80
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "audio-recording-and-playback"
+title = "Audio recording and playback"
+description = "Xournal++ can attach an audio recording to strokes (fn/ts attributes) and replay from a stroke. We only preserve those attrs as extraAttrs. Add record/play/stop tools and the .wav sidecar handling so audio-annotated files round-trip and are usable."
+status = "active"
+category = "feature"
+urgency = "low"
+order = 90
+created = 2026-08-02
+tags = ["tools", "parity"]
+rebuild = true
+emulator_debug = true
