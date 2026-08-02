@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "shape-recognition-toggle-on-the-rail"
+title = "Shape-recognition toggle on the rail"
+description = "Shape recognition is Settings-only today; add a rail button (or a Style pop-up switch) so it can be flipped mid-page without leaving the editor."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
 id = "audio-recording-and-playback"
 title = "Audio recording and playback"
 description = "Xournal++ can attach an audio recording to strokes (fn/ts attributes) and replay from a stroke. We only preserve those attrs as extraAttrs. Add record/play/stop tools and the .wav sidecar handling so audio-annotated files round-trip and are usable."

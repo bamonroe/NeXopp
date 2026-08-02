@@ -279,6 +279,11 @@ fun EditorScreen(
                 onEraserMode = { eraserMode = it; surface?.eraserMode = it },
                 eraserSize = eraserSize,
                 onEraserSize = { eraserSize = it; surface?.eraserSize = it },
+                recognizeShapes = settings.recognizeShapes,
+                onRecognizeShapes = {
+                    surface?.recognizeShapes = it
+                    onSettingsChange(settings.copy(recognizeShapes = it))
+                },
                 guideKind = settings.guideKind,
                 onGuideKind = {
                     surface?.placeGuide(it)

@@ -205,6 +205,8 @@ fun SideToolbar(
     onEraserMode: (EraserMode) -> Unit,
     eraserSize: EraserSize,
     onEraserSize: (EraserSize) -> Unit,
+    recognizeShapes: Boolean = false,
+    onRecognizeShapes: (Boolean) -> Unit = {},
     guideKind: GuideKind,
     onGuideKind: (GuideKind) -> Unit,
     layers: List<LayerInfo>,
@@ -254,6 +256,7 @@ fun SideToolbar(
                 "style" -> StylePopupButton(
                     lineStyle, onLineStyle, fill, onFill, eraserMode, onEraserMode, eraserSize, onEraserSize,
                 )
+                "shapes" -> ShapeRecognitionButton(recognizeShapes, onRecognizeShapes)
                 "guides" -> GuidePopupButton(guideKind, onGuideKind)
                 "layers" -> LayersPopupButton(
                     layers, hasSelection, onAddLayer, onDeleteLayer, onRenameLayer,
@@ -936,6 +939,34 @@ private fun StylePopupButton(
                 )
             }
         }
+    }
+}
+
+/**
+ * Shape recognition as a one-tap rail slot: no pop-up, the tap flips it and the slot tints like a
+ * tool button while it's on, so a freehand circle can be snapped to a real one (or not) without
+ * leaving the page for Settings. Backed by the same persisted `recognizeShapes` setting.
+ */
+@Composable
+private fun ShapeRecognitionButton(enabled: Boolean, onEnabled: (Boolean) -> Unit) {
+    val tint =
+        if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .then(
+                if (enabled) Modifier.background(MaterialTheme.colorScheme.primaryContainer)
+                else Modifier,
+            )
+            .clickable { onEnabled(!enabled) },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Filled.ChangeHistory,
+            contentDescription = if (enabled) "Shape recognition on" else "Shape recognition off",
+            tint = tint,
+        )
     }
 }
 

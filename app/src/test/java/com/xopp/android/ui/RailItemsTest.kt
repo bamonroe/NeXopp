@@ -69,6 +69,14 @@ class RailItemsTest {
     }
 
     @Test
+    fun `shape recognition has a rail slot that is not a tool group`() {
+        assertTrue(RAIL_ITEMS.any { it.id == "shapes" })
+        assertEquals(null, toolGroupForRailItem("shapes"))
+        // Existing installs stored an order without it; it must still appear on the rail.
+        assertTrue(visibleRailItems(listOf("pages", "zoom"), emptySet()).any { it.id == "shapes" })
+    }
+
+    @Test
     fun `tool groups resolve from their rail id and panels do not`() {
         assertEquals(TOOL_GROUPS.first(), toolGroupForRailItem(TOOL_GROUPS.first().id))
         assertEquals(null, toolGroupForRailItem("zoom"))

@@ -139,7 +139,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   **Enter** on a hardware keyboard, to finish; **Escape** throws the curve away, and switching to
   another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
   the current pen colour and width, so it round-trips to desktop Xournal++ like any other stroke.
-- **Shape recognition** — turn on **Settings → Stylus → Shape recognition** and a freehand stroke is
+- **Shape recognition** — turn it on from the rail's **Shape recognition** button (the triangle; it
+  tints while on, and the state is the same persisted setting as **Settings → Stylus → Shape
+  recognition**, so you can flip it mid-page without leaving the editor) and a freehand stroke is
   snapped, the moment you lift, to the shape it clearly resembles: a straight **line**, an **arrow**
   (shaft plus a barb folded back over it), a **circle/ellipse**, a **rectangle** (squared to its
   bounding box when you drew it roughly upright), a **triangle**, or a short **polyline**. Anything
