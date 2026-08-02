@@ -369,9 +369,12 @@ when a page is wider than the view the same pan gesture scrolls horizontally, an
 are centred in the content band (`PageBox.leftPx`). Zoom keeps the viewport-centre point roughly
 fixed, and is clamped to 25%–800% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
-backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px),
-beyond which the cached bitmap is upscaled to bound memory — asynchronously, so a zoom step shows
-the previous resolution stretched and sharpens a moment later rather than stalling the frame. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and
+never above `PdfPageCache.PER_PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
+can't evict one another and flash blank), beyond which the cached bitmap is upscaled to bound
+memory — asynchronously, so a zoom step shows the previous resolution stretched and sharpens a
+moment later rather than stalling the frame. A page with *nothing* cached is the one exception: it
+rasterises inline, since an empty background reads as a blank page. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is

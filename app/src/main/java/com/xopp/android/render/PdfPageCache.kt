@@ -12,64 +12,77 @@ import java.util.concurrent.Executors
  * Rasterises the pages of a single PDF to bitmaps for use as page backgrounds. Wraps the framework
  * [PdfRenderer] (dependency-free, API 21+ — see the dependency-free goal in `docs/architecture.md`).
  * `PdfRenderer` is not thread-safe and only one page may be open at a time, so every access is
- * serialised on [lock].
+ * serialised on [renderLock], separately from the [lock] guarding the cache map.
  *
  * Rendering is the expensive part of scrolling a long PDF-backed document, so the cache is built to
  * keep it off the drawing frame:
  *  - entries are keyed by (page, target-width bucket) and evicted **least-recently-used** under a
  *    heap-proportional byte budget, so the pages you are actually scrolling through survive;
- *  - [request] never rasterises on the calling thread: it returns the best bitmap already cached for
- *    that page (any width — the renderer scales it) and queues the exact size on a worker, calling
- *    [onPageReady] when the sharp version lands;
+ *  - [request] returns the best bitmap already cached for that page (any width — the renderer scales
+ *    it) and queues the exact size on a worker, calling [onPageReady] when the sharp version lands.
+ *    It only rasterises inline when *nothing* is cached for the page, since drawing no background at
+ *    all reads as a blank page;
  *  - [prefetch] warms pages just outside the viewport so scrolling meets a filled cache.
  */
 class PdfPageCache(val source: File) : Closeable {
 
     private val descriptor = ParcelFileDescriptor.open(source, ParcelFileDescriptor.MODE_READ_ONLY)
     private val renderer = PdfRenderer(descriptor)
+    /** Guards the cache map and its bookkeeping. Held only for fast map operations. */
     private val lock = Any()
+    /** Serialises [PdfRenderer], which allows one open page at a time. Never held with [lock]. */
+    private val renderLock = Any()
     /** Access-ordered so eviction drops the least recently *used* entry, not the oldest. */
     private val cache = LinkedHashMap<Long, Bitmap>(16, 0.75f, true)
     private var cachedBytes = 0L
     private val sizes = HashMap<Int, Pair<Double, Double>>()
     private val pending = LinkedHashSet<Long>()
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "pdf-raster").apply { isDaemon = true } }
-    private var closed = false
+    @Volatile private var closed = false
 
     /** Invoked (on the worker thread) whenever a newly rasterised page enters the cache. */
     @Volatile var onPageReady: (() -> Unit)? = null
 
-    val pageCount: Int get() = renderer.pageCount
+    /** Read once: the renderer is unusable after [close], but the count stays meaningful. */
+    val pageCount: Int = renderer.pageCount
 
     /** Page [i]'s (width, height) in points (1/72"), the same unit `.xopp` uses. */
-    fun pageSizePt(i: Int): Pair<Double, Double> = synchronized(lock) {
-        sizes.getOrPut(i) { renderer.openPage(i).use { Pair(it.width.toDouble(), it.height.toDouble()) } }
+    fun pageSizePt(i: Int): Pair<Double, Double> {
+        synchronized(lock) { sizes[i] }?.let { return it }
+        val size = synchronized(renderLock) {
+            renderer.openPage(i).use { Pair(it.width.toDouble(), it.height.toDouble()) }
+        }
+        synchronized(lock) { sizes[i] = size }
+        return size
     }
 
     /**
-     * The best bitmap available *right now* for page [i] at [targetWidthPx] — never rasterises on the
-     * calling thread. An exact-bucket hit is returned as-is; otherwise the nearest cached width for
-     * that page is returned as a stand-in (upscaled by the renderer) and the exact size is queued in
-     * the background. Null when nothing is cached yet, the page is out of range, or the cache closed.
+     * The best bitmap available for page [i] at [targetWidthPx]. An exact-bucket hit is returned
+     * as-is; otherwise the nearest cached width for that page is returned as a stand-in (upscaled by
+     * the renderer) and the exact size is queued in the background. Only when the page has nothing
+     * cached at all does this rasterise on the calling thread — drawing no background reads as a
+     * blank page, which is worse than one slow frame. Null if the page is out of range or closed.
      */
     fun request(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
+        if (closed || i >= pageCount) return null
+        val w = rasterWidth(i, targetWidthPx)
+        val key = key(i, w)
         synchronized(lock) {
-            if (closed || i >= renderer.pageCount) return null
-            val w = rasterWidth(i, targetWidthPx)
-            val key = key(i, w)
             cache[key]?.let { return it }
-            enqueue(key)
-            return nearest(i, w)
+            nearest(i, w)?.let { enqueue(key); return it }
         }
+        // Nothing at all is cached for this page: rasterise here rather than draw a blank page. Only
+        // ever the first frame of a page — every later width is covered by the stand-in above.
+        return rasterise(key)
     }
 
     /** Queue page [i] at [targetWidthPx] for background rasterisation if it isn't cached already. */
     fun prefetch(i: Int, targetWidthPx: Int) {
         if (targetWidthPx <= 0 || i < 0) return
+        if (closed || i >= pageCount) return
+        val key = key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) {
-            if (closed || i >= renderer.pageCount) return
-            val key = key(i, rasterWidth(i, targetWidthPx))
             if (cache.containsKey(key)) return
             enqueue(key)
         }
@@ -78,11 +91,10 @@ class PdfPageCache(val source: File) : Closeable {
     /** Rasterise page [i] at [targetWidthPx] synchronously (used off the drawing path, e.g. tests). */
     fun render(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
-        synchronized(lock) {
-            if (closed || i >= renderer.pageCount) return null
-            val key = key(i, rasterWidth(i, targetWidthPx))
-            return cache[key] ?: rasterise(key)
-        }
+        if (closed || i >= pageCount) return null
+        val key = key(i, rasterWidth(i, targetWidthPx))
+        synchronized(lock) { cache[key]?.let { return it } }
+        return rasterise(key)
     }
 
     // --- internals ---------------------------------------------------------------------------
@@ -106,31 +118,34 @@ class PdfPageCache(val source: File) : Closeable {
     private fun enqueue(key: Long) {
         if (!pending.add(key)) return
         worker.execute {
-            val produced = synchronized(lock) {
-                if (closed) null
-                else {
-                    pending.remove(key)
-                    if (cache.containsKey(key)) null else rasterise(key)
-                }
+            val stale = synchronized(lock) {
+                pending.remove(key)
+                closed || cache.containsKey(key)
             }
-            if (produced != null) onPageReady?.invoke()
+            if (!stale && rasterise(key) != null) onPageReady?.invoke()
         }
     }
 
-    /** Caller holds [lock]. Rasterises and caches the page named by [key]. */
+    /**
+     * Rasterises and caches the page named by [key]. Takes [renderLock] (not [lock]) for the slow
+     * part, so a drawing thread reading the cache is never blocked behind a rasterise.
+     */
     private fun rasterise(key: Long): Bitmap? {
         val i = (key ushr 20).toInt()
         val w = (key and 0xFFFFF).toInt()
-        if (i >= renderer.pageCount) return null
-        val bmp = renderer.openPage(i).use { page ->
-            if (page.width <= 0) return null
-            val h = (w.toLong() * page.height / page.width).toInt().coerceAtLeast(1)
-            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
-                it.eraseColor(Color.WHITE)
-                page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+        if (closed || i >= pageCount) return null
+        val bmp = synchronized(renderLock) {
+            if (closed) return null
+            renderer.openPage(i).use { page ->
+                if (page.width <= 0) return null
+                val h = (w.toLong() * page.height / page.width).toInt().coerceAtLeast(1)
+                Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+                    it.eraseColor(Color.WHITE)
+                    page.render(it, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                }
             }
         }
-        put(key, bmp)
+        synchronized(lock) { put(key, bmp) }
         return bmp
     }
 
@@ -167,6 +182,9 @@ class PdfPageCache(val source: File) : Closeable {
             pending.clear()
             cache.clear()
             cachedBytes = 0
+        }
+        // Under [renderLock] so an in-flight rasterise finishes before the renderer goes away.
+        synchronized(renderLock) {
             renderer.close()
             descriptor.close()
         }
