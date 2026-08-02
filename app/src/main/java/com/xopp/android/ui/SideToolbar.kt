@@ -66,6 +66,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -773,14 +774,8 @@ private val LINE_STYLE_LABELS: List<Pair<LineStyle, String>> = listOf(
     LineStyle.DOTTED to "Dotted",
 )
 
-/** Fill presets for the style pop-up: a label and the alpha (null = no fill). */
-private val FILL_LEVELS: List<Pair<String, Int?>> = listOf(
-    "None" to null,
-    "Light (25%)" to 64,
-    "Medium (50%)" to 128,
-    "Heavy (75%)" to 192,
-    "Solid (100%)" to 255,
-)
+/** Alpha used when fill is switched on and no alpha has been chosen yet (50%, as on desktop). */
+const val DEFAULT_FILL_ALPHA: Int = 128
 
 /**
  * The line-style / fill / eraser-mode pop-up. Line style and fill apply to strokes and shapes drawn
@@ -813,13 +808,7 @@ private fun StylePopupButton(
                 )
             }
             MenuHeading("Fill")
-            for ((label, alpha) in FILL_LEVELS) {
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    trailingIcon = { if (alpha == fill) Icon(Icons.Filled.Check, contentDescription = "selected") },
-                    onClick = { onFill(alpha) },
-                )
-            }
+            FillControls(fill, onFill)
             MenuHeading("Eraser")
             DropdownMenuItem(
                 text = { Text("Standard (partial)") },
@@ -842,6 +831,40 @@ private fun StylePopupButton(
         }
     }
 }
+
+/**
+ * Fill as a first-class control: a switch that turns fill on/off plus a continuous alpha slider,
+ * mirroring desktop Xournal++. The alpha the user last picked is remembered while the switch is
+ * off, so toggling fill back on restores it rather than snapping to a preset.
+ */
+@Composable
+private fun FillControls(fill: Int?, onFill: (Int?) -> Unit) {
+    var lastAlpha by remember { mutableStateOf(fill ?: DEFAULT_FILL_ALPHA) }
+    val alpha = fill ?: lastAlpha
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(if (fill == null) "Off" else "${alphaPercent(alpha)}%")
+        Switch(
+            checked = fill != null,
+            onCheckedChange = { on -> onFill(if (on) lastAlpha else null) },
+        )
+    }
+    Slider(
+        value = alpha.toFloat(),
+        onValueChange = { v ->
+            lastAlpha = v.toInt().coerceIn(1, 255)
+            onFill(lastAlpha)
+        },
+        valueRange = 1f..255f,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
+}
+
+/** The alpha 1..255 as a rounded 0..100 percentage, for the fill readout. */
+internal fun alphaPercent(alpha: Int): Int = Math.round(alpha * 100f / 255f)
 
 /**
  * The layer manager: a top-down list of the visible page's layers, each row toggling visibility,

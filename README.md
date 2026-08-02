@@ -154,9 +154,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   exactly upright or square. Both are off by default, and neither changes what is written to the
   file: the result is still ordinary stroke geometry.
 - **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
-  **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** level (None / Light / Medium /
-  Heavy / Solid) that floods the inside of a closed stroke or shape. Both save on the `<stroke>`
-  element (`style` / `fill`) and reopen the same way in desktop Xournal++.
+  **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** switch with an opacity slider
+  (1–100%) that floods the inside of a closed stroke or shape with the pen/highlighter colour.
+  Turning fill off keeps the opacity you last picked, so switching it back on restores it. The
+  switch and its opacity are remembered across launches. Both save on the `<stroke>` element
+  (`style` / `fill`) and reopen the same way in desktop Xournal++.
 - **Erase** — pick **Eraser** from the Tool pop-up and drag over strokes. The **Style** pop-up's
   **Eraser** setting picks the mode: **Standard (partial)** rubs out just the part of a stroke the
   eraser passes over, splitting it into the surviving pieces; **Delete whole stroke** removes any

@@ -62,6 +62,10 @@ data class AppSettings(
     val lastColor: Int = DEFAULT_LAST_COLOR,
     /** The pen width (pt) in use when the app last ran, restored on the next launch. */
     val lastWidth: Float = DEFAULT_PEN_WIDTHS[1],
+    /** Whether new strokes/shapes are flooded with fill, restored on the next launch. */
+    val fillEnabled: Boolean = false,
+    /** The fill alpha (1..255) last chosen, kept while [fillEnabled] is off. */
+    val fillAlpha: Int = DEFAULT_FILL_ALPHA,
     /**
      * Which tool each grouped rail slot currently stands for, keyed by [ToolGroup.id]. Missing
      * entries fall back to the group's first tool (see [selected]).
@@ -125,6 +129,8 @@ class SettingsStore(context: Context) {
             recentColors = decodeColors(prefs.getString(KEY_RECENT_COLORS, null)),
             lastColor = prefs.getInt(KEY_LAST_COLOR, d.lastColor),
             lastWidth = prefs.getFloat(KEY_LAST_WIDTH, d.lastWidth),
+            fillEnabled = prefs.getBoolean(KEY_FILL_ENABLED, d.fillEnabled),
+            fillAlpha = prefs.getInt(KEY_FILL_ALPHA, d.fillAlpha).coerceIn(1, 255),
             toolGroupSelections = decodeToolGroupSelections(prefs.getString(KEY_TOOL_GROUPS, null)),
             railOrder = decodeRailIds(prefs.getString(KEY_RAIL_ORDER, null)),
             railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
@@ -151,6 +157,8 @@ class SettingsStore(context: Context) {
         e.putString(KEY_RECENT_COLORS, s.recentColors.joinToString(",") { it.toString() })
         e.putInt(KEY_LAST_COLOR, s.lastColor)
         e.putFloat(KEY_LAST_WIDTH, s.lastWidth)
+        e.putBoolean(KEY_FILL_ENABLED, s.fillEnabled)
+        e.putInt(KEY_FILL_ALPHA, s.fillAlpha)
         e.putString(KEY_TOOL_GROUPS, encodeToolGroupSelections(s.toolGroupSelections))
         e.putString(KEY_RAIL_ORDER, encodeRailIds(s.railOrder))
         e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
@@ -177,6 +185,8 @@ class SettingsStore(context: Context) {
         const val KEY_RECENT_COLORS = "recent_colors"
         const val KEY_LAST_COLOR = "last_color"
         const val KEY_LAST_WIDTH = "last_width"
+        const val KEY_FILL_ENABLED = "fill_enabled"
+        const val KEY_FILL_ALPHA = "fill_alpha"
         const val KEY_TOOL_GROUPS = "tool_group_selections"
         const val KEY_RAIL_ORDER = "rail_order"
         const val KEY_RAIL_HIDDEN = "rail_hidden"

@@ -478,7 +478,10 @@ deletes/renames/reorders layers and moves a selection between them (all undoable
 layer (where new ink lands) and per-layer *visibility* are view-only editor state on the surface —
 visibility just skips a layer in `PageRenderer.drawElements`, so it never touches the file. The UI for
 all four lives in the rail's **Tool** (shapes), **Style** (line style / fill / eraser mode), and
-**Layers** pop-ups (`SideToolbar`).
+**Layers** pop-ups (`SideToolbar`). Fill is a switch plus a continuous alpha `Slider`
+(`SideToolbar.FillControls`) rather than preset levels; its on/off state and alpha persist as
+`AppSettings.fillEnabled` / `fillAlpha`, and `EditorScreen` derives the surface's `currentFill`
+from that pair (`null` when off) instead of holding separate session state.
 
 **Authoring non-stroke elements.** With the **Text**, **Image**, or **LaTeX** tool active, the
 surface is in a *placement* mode (`placeKind`): a one-finger tap (not a drag) raises `onPlace` with

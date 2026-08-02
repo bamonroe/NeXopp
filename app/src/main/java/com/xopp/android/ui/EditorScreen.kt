@@ -182,7 +182,7 @@ fun EditorScreen(
     var textSize by remember { mutableStateOf(TEXT_SIZE_PT) }
     var textColor by remember { mutableStateOf(PEN_COLORS.first()) }
     var lineStyle by remember { mutableStateOf(LineStyle.PLAIN) }
-    var fill by remember { mutableStateOf<Int?>(null) }
+    val fill = if (settings.fillEnabled) settings.fillAlpha else null
     var eraserMode by remember { mutableStateOf(EraserMode.STANDARD) }
     var eraserSize by remember { mutableStateOf(EraserSize.MEDIUM) }
     var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
@@ -258,7 +258,12 @@ fun EditorScreen(
                 lineStyle = lineStyle,
                 onLineStyle = { lineStyle = it; surface?.currentLineStyle = it },
                 fill = fill,
-                onFill = { fill = it; surface?.currentFill = it },
+                onFill = {
+                    surface?.currentFill = it
+                    onSettingsChange(
+                        settings.copy(fillEnabled = it != null, fillAlpha = it ?: settings.fillAlpha)
+                    )
+                },
                 eraserMode = eraserMode,
                 onEraserMode = { eraserMode = it; surface?.eraserMode = it },
                 eraserSize = eraserSize,

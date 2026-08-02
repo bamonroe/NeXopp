@@ -34,19 +34,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "fill-tool-as-a-first-class-option"
-title = "Fill tool as a first-class option"
-description = "Desktop exposes fill as a toggle with an alpha slider for pen and highlighter. We store the fill attribute in the model but never let the user set it — surface it in the rail/style panel."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 80
-created = 2026-08-02
-tags = ["tools", "parity"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "audio-recording-and-playback"
 title = "Audio recording and playback"
 description = "Xournal++ can attach an audio recording to strokes (fn/ts attributes) and replay from a stroke. We only preserve those attrs as extraAttrs. Add record/play/stop tools and the .wav sidecar handling so audio-annotated files round-trip and are usable."
