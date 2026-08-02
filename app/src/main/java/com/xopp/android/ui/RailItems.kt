@@ -22,6 +22,7 @@ val PANEL_RAIL_ITEMS: List<RailItem> = listOf(
     RailItem("zoom", "Zoom"),
     RailItem("background", "Background"),
     RailItem("pages", "Pages"),
+    RailItem("audio", "Audio"),
 )
 
 /**

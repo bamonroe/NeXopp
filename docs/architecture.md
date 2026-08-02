@@ -162,8 +162,10 @@ format attribute — it's a view-only editor state (a hidden layer still round-t
   (`StrokePainter.dashIntervalsPt`, shared by screen and PDF export).
 - `fill` — fill alpha `0..255` painted inside the closed stroke (shapes/highlighter fill), or absent
   for no fill.
-- `ts`, `fn` — audio-recording timestamp / filename for pen-replay; `ts="0" fn=""` when
-  unused. Preserve verbatim on round-trip; no rendering meaning for us.
+- `ts`, `fn` — audio-recording offset (**milliseconds**) and sidecar **file name** for pen-replay;
+  `ts="0" fn=""` when unused. Read/written as a pair by `audio/AudioAnnotation.kt`; any stroke we
+  don't stamp keeps whatever the file had, verbatim. The named file is **not** in the `.xopp` — it
+  is a `.wav` sidecar beside it (see *Audio* below). No rendering meaning.
 - **Inner text**: a flat space-separated coordinate list `x0 y0 x1 y1 …` (pt). Vertex *i* is
   `(text[2i], text[2i+1])` and its width is `width[i+1]` (or `width[0]` if constant).
 
@@ -346,6 +348,13 @@ app/
       VelocityEstimator.kt   # pan release-velocity from a trailing sample window (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
       PageOps.kt             # insert / delete pages in a page list (pure)
+    audio/                   # audio-annotated strokes: record, replay, sidecar transfer
+      AudioAnnotation.kt     # AudioRef <-> a stroke's fn/ts attrs; document sidecar set (pure)
+      WavWriter.kt           # streaming 16-bit PCM RIFF/WAVE writer, header patched on close (pure)
+      AudioRecorder.kt       # AudioRecord capture thread -> WavWriter; byte-accurate elapsed clock
+      AudioPlayer.kt         # MediaPlayer wrapper: play one clip from an offset
+      AudioStore.kt          # app-private recordings dir + SAF tree import/export of sidecars
+      AudioSession.kt        # the editor's single audio facade (record / stamp / play / sync)
     ui/                      # Compose Material 3
       EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
       SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
@@ -358,6 +367,7 @@ app/
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
   src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid/LaTeX geometry
+  src/test/java/com/xopp/android/audio/                    # JVM unit tests for fn/ts mapping + WAV framing
   src/androidTest/java/com/xopp/android/                   # on-device smoke test (load/draw/save/reopen)
 ```
 
@@ -514,6 +524,38 @@ an `onPickImage` callback up to `MainActivity`'s SAF picker. The chosen content 
 layer. Tapping an existing text box reopens it for editing (clearing the content deletes it);
 matched by element identity. The view keeps the loaded document intact and only appends/edits, so
 every page, layer, and element round-trips through save.
+
+**Audio-annotated strokes (`audio/`).** Xournal++ can record while you write and then replay from
+any stroke: the stroke carries `fn` (a `.wav` file name) and `ts` (how far into that recording it was
+started). We implement both ends of that.
+
+*Recording.* The **Audio** rail slot toggles capture. `AudioSession.startRecording` names the file
+with the desktop's local-time `yyyy-MM-ddTHH-mm-ss.wav` convention and hands it to `AudioRecorder`,
+which pumps `AudioRecord` (44.1 kHz mono 16-bit PCM) into a `WavWriter` on its own thread — Android
+has no WAV encoder, so `WavWriter` frames the RIFF header itself and patches its two length fields on
+close. `RECORD_AUDIO` is requested the first time Record is pressed; everything else in the app works
+without it.
+
+The surface's `audioStamp` hook is read **inside `appendStroke`**, which is the single funnel every
+committed stroke passes through — so freehand, shapes and splines are all stamped, and the audio
+machinery stays out of the drawing hot path. The `ts` it stamps comes from the *bytes written so far*
+(`WavWriter.durationMs`), not wall time, so a stroke's offset points at the sample it was really
+drawn over even if the capture thread stalls.
+
+*Replay.* The **Play object** tool sets `audioPlayMode`, which short-circuits `beginPointer` before
+the gesture classifier — it is a pure query that never edits the document, so it earns no
+`GestureIntent`. A tap picks the topmost stroke (`SelectionTester.pickTopmost`), reads its `AudioRef`,
+and `AudioPlayer` seeks a `MediaPlayer` to that offset. A tap that misses, or lands on a stroke with
+no recording, says so rather than failing silently.
+
+*Sidecars.* A `.xopp` never carries its audio, and SAF grants access to the single document the user
+picked — not to its folder — so we can't write a sibling from a `CreateDocument` URI alone. Instead
+recordings are captured into an app-private directory (always available, no permission needed), and
+the user nominates an **audio folder** once from the Audio pop-up; that persisted `OpenDocumentTree`
+grant is the sidecars' home on disk. Opening a document pulls the files it references in; saving (and
+stopping a recording) pushes them back out. Without a nominated folder audio still records and plays
+for the session — only the hand-off to and from the desktop is missing, and the app says so. `fn` is
+reduced to a bare file name before use, so a hand-edited path in a document can't escape that folder.
 
 **Vertical space (`render/VerticalSpaceOps.kt`).** The **Vertical space** tool
 (`EditorTool.VERTICAL_SPACE` → the surface's `verticalSpaceMode`, classified as

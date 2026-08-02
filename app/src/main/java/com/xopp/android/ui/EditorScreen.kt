@@ -88,6 +88,7 @@ private fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     selectMode = tool == EditorTool.SELECT
     textSelectMode = tool == EditorTool.TEXT_SELECT
     verticalSpaceMode = tool == EditorTool.VERTICAL_SPACE
+    audioPlayMode = tool == EditorTool.PLAY_OBJECT
     placeKind = when (tool) {
         EditorTool.TEXT -> PlaceKind.TEXT
         EditorTool.IMAGE -> PlaceKind.IMAGE
@@ -157,6 +158,7 @@ fun EditorScreen(
     onSurfaceCreated: (DrawingSurfaceView) -> Unit,
     settings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit,
+    audio: AudioUiState = AudioUiState(),
 ) {
     var tool by remember {
         mutableStateOf(startingTool(settings.defaultTool, settings.toolGroupSelections))
@@ -232,6 +234,7 @@ fun EditorScreen(
                 horizontal = settings.toolbarPosition.isHorizontal,
                 tool = tool,
                 onTool = { tool = it; surface?.applyTool(it) },
+                audio = audio,
                 railOrder = settings.railOrder,
                 railHidden = settings.railHidden,
                 toolGroupSelections = settings.toolGroupSelections,

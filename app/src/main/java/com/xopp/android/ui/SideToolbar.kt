@@ -49,6 +49,9 @@ import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.PlayCircleOutline
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.TextFields
@@ -126,6 +129,7 @@ val PEN_COLORS: List<Int> = listOf(
 enum class EditorTool {
     PEN, HIGHLIGHTER, ERASER, HAND, SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
     LINE, ARROW, DOUBLE_ARROW, COORDINATE_AXIS, RECTANGLE, ELLIPSE, SPLINE, VERTICAL_SPACE,
+    PLAY_OBJECT,
 }
 
 /** The geometric shape tools — drawn as ordinary pen strokes (see [ShapeKind]). */
@@ -154,6 +158,7 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
     ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),
     ToolInfo(EditorTool.VERTICAL_SPACE, "Vertical space", Icons.Filled.SwapVert),
+    ToolInfo(EditorTool.PLAY_OBJECT, "Play object", Icons.Filled.PlayCircleOutline),
 )
 
 /** Human-readable label for a tool (the same text the rail's tool menu shows). */
@@ -224,6 +229,7 @@ fun SideToolbar(
     onBackgroundStyle: (String) -> Unit,
     pageSize: Pair<Double, Double>?,
     onPageSize: (Double, Double) -> Unit,
+    audio: AudioUiState = AudioUiState(),
     railOrder: List<String> = emptyList(),
     railHidden: Set<String> = emptySet(),
     modifier: Modifier = Modifier,
@@ -258,6 +264,7 @@ fun SideToolbar(
                 "pages" -> PagesPopupButton(
                     pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
                 )
+                "audio" -> AudioPopupButton(audio)
             }
         }
     }
@@ -773,6 +780,70 @@ private fun PageSizeDialog(
 }
 
 /** Line-style labels for the style pop-up, paired with their [LineStyle]. */
+/**
+ * The audio slot: start/stop the recording that new strokes are stamped against, stop playback, and
+ * nominate the folder sidecar `.wav` files are kept in. The button turns primary-coloured while the
+ * microphone is live, because a forgotten recording is the one mistake here that costs the user
+ * something (battery, privacy, a pile of stamped strokes).
+ */
+@Composable
+private fun AudioPopupButton(state: AudioUiState) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
+                contentDescription = "Audio",
+                tint = if (state.recording || state.playing) MaterialTheme.colorScheme.primary
+                else LocalContentColor.current,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            MenuHeading("Audio")
+            DropdownMenuItem(
+                text = { Text(if (state.recording) "Stop recording" else "Record") },
+                leadingIcon = {
+                    Icon(
+                        if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
+                        contentDescription = null,
+                    )
+                },
+                onClick = { state.onToggleRecord(); open = false },
+            )
+            DropdownMenuItem(
+                text = { Text("Stop playback") },
+                enabled = state.playing,
+                leadingIcon = { Icon(Icons.Filled.Stop, contentDescription = null) },
+                onClick = { state.onStopPlayback(); open = false },
+            )
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text(if (state.folderChosen) "Change audio folder…" else "Choose audio folder…") },
+                onClick = { state.onChooseFolder(); open = false },
+            )
+            Text(
+                text = if (state.folderChosen) {
+                    "Recordings are saved beside your .xopp files."
+                } else {
+                    "Recordings stay in the app until you choose a folder next to your .xopp files."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).width(220.dp),
+            )
+        }
+    }
+}
+
+/** Everything the [AudioPopupButton] needs, bundled so the rail's parameter list stays readable. */
+data class AudioUiState(
+    val recording: Boolean = false,
+    val playing: Boolean = false,
+    val folderChosen: Boolean = false,
+    val onToggleRecord: () -> Unit = {},
+    val onStopPlayback: () -> Unit = {},
+    val onChooseFolder: () -> Unit = {},
+)
+
 /**
  * The drawing-guide pop-up: lay a setsquare or a compass on the page, or take it off again. The
  * guide is an input aid — a finger drags it around and re-poses it by its tip handle, and anything

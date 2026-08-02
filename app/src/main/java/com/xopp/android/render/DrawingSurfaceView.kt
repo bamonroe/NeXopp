@@ -15,6 +15,9 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewConfiguration
+import com.xopp.android.audio.AudioRef
+import com.xopp.android.audio.audioRef
+import com.xopp.android.audio.withAudio
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Element
@@ -204,6 +207,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** When true, a drag inserts/removes vertical space on a page instead of drawing (see [VerticalSpaceOps]). */
     var verticalSpaceMode: Boolean = false
+
+    /** When true, a one-finger tap replays the tapped stroke's recording instead of drawing. */
+    var audioPlayMode: Boolean = false
+
+    /**
+     * Consulted the instant a stroke is committed: returns the recording position to stamp onto it
+     * (`fn`/`ts`), or null when nothing is recording. Reading it at commit rather than at the start
+     * of the gesture is deliberate — it keeps the whole audio machinery out of the drawing hot path.
+     */
+    var audioStamp: (() -> AudioRef?)? = null
+
+    /** Notified when an [audioPlayMode] tap lands, with the tapped stroke's link (null if it has none). */
+    var onAudioTap: ((AudioRef?) -> Unit)? = null
 
     /** When true, the Select tool's marquee is a free-form lasso instead of a rectangle. */
     var lassoMode: Boolean = false
@@ -1450,6 +1466,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // A finger laid on the guide manipulates it, whatever the active tool — the pen keeps
         // drawing against it meanwhile, exactly as you'd hold a real setsquare down and rule along it.
         if (kind == PointerKind.FINGER && beginGuideDrag(event, pointerIndex)) return
+        // Play-object is a pure query — it never edits the document, so it short-circuits the whole
+        // gesture machinery rather than earning a GestureIntent of its own.
+        if (audioPlayMode) { audioTap(event, pointerIndex); return }
         val intent = InputClassifier.classify(kind, barrelPressed(event), activeTool(), inputSettings)
         stylusOwner = (kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP) &&
             (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE)
@@ -1960,13 +1979,39 @@ class DrawingSurfaceView @JvmOverloads constructor(
             colorArgb
         }
 
+    // --- audio: stamp strokes while recording, replay them on a play-object tap ------------------
+
+    /**
+     * Report the recording behind the topmost stroke under a play-object tap. Reports null (rather
+     * than staying silent) when the tap misses or lands on a stroke that was drawn without audio, so
+     * the editor can say so instead of leaving the tap looking broken.
+     */
+    private fun audioTap(event: MotionEvent, pointerIndex: Int) {
+        val x = event.getX(pointerIndex)
+        val y = event.getY(pointerIndex)
+        val box = layout.pageAt(y + scrollY) ?: return
+        val xPt = ((x + scrollX - box.leftPx) / box.scale).toDouble()
+        val yPt = ((y + scrollY - box.topPx) / box.scale).toDouble()
+        val page = doc.pages.getOrNull(box.index) ?: return
+        val ref = SelectionTester.pickTopmost(page, xPt, yPt)
+            ?.let { page.layers.getOrNull(it.layerIndex)?.elements?.getOrNull(it.elementIndex) }
+            ?.let { it as? Stroke }
+            ?.audioRef()
+        onAudioTap?.invoke(ref)
+    }
+
+    /** [stroke] with the live recording position stamped on, or unchanged when nothing is recording. */
+    private fun withAudioStamp(stroke: Stroke): Stroke =
+        audioStamp?.invoke()?.let(stroke::withAudio) ?: stroke
+
     /** Append [stroke] to the active (or top) layer of page [pageIndex], rebuilding the model. */
     private fun appendStroke(pageIndex: Int, stroke: Stroke) {
         val pages = doc.pages.toMutableList()
         val page = pages[pageIndex]
         val layers = page.layers.ifEmpty { listOf(Layer(emptyList())) }.toMutableList()
         val target = resolvedActiveLayer(page).coerceIn(0, layers.lastIndex)
-        layers[target] = Layer(layers[target].elements + stroke, layers[target].name)
+        // Stamping here rather than at each commit site covers freehand, shapes and splines alike.
+        layers[target] = Layer(layers[target].elements + withAudioStamp(stroke), layers[target].name)
         pages[pageIndex] = page.copy(layers = layers)
         doc = doc.copy(pages = pages)
         relayout() // rebuild boxes so they reference the updated pages, not stale ones

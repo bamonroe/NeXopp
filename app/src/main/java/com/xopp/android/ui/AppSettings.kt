@@ -81,6 +81,12 @@ data class AppSettings(
     val railOrder: List<String> = emptyList(),
     /** The [RailItem.id]s the user has hidden from the rail. Empty means everything is shown. */
     val railHidden: Set<String> = emptySet(),
+    /**
+     * The persisted `OpenDocumentTree` URI of the folder audio sidecars are kept in (empty = none
+     * nominated). A `.xopp` references its recordings by bare file name, so they have to live in a
+     * folder we can both read and write — see [com.xopp.android.audio.AudioStore].
+     */
+    val audioFolderUri: String = "",
 ) {
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
@@ -138,6 +144,7 @@ class SettingsStore(context: Context) {
             toolGroupSelections = decodeToolGroupSelections(prefs.getString(KEY_TOOL_GROUPS, null)),
             railOrder = decodeRailIds(prefs.getString(KEY_RAIL_ORDER, null)),
             railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
+            audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
         )
     }
 
@@ -167,6 +174,7 @@ class SettingsStore(context: Context) {
         e.putString(KEY_TOOL_GROUPS, encodeToolGroupSelections(s.toolGroupSelections))
         e.putString(KEY_RAIL_ORDER, encodeRailIds(s.railOrder))
         e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
+        e.putString(KEY_AUDIO_FOLDER, s.audioFolderUri)
         e.apply()
     }
 
@@ -196,6 +204,7 @@ class SettingsStore(context: Context) {
         const val KEY_TOOL_GROUPS = "tool_group_selections"
         const val KEY_RAIL_ORDER = "rail_order"
         const val KEY_RAIL_HIDDEN = "rail_hidden"
+        const val KEY_AUDIO_FOLDER = "audio_folder_uri"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

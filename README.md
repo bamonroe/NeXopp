@@ -327,6 +327,22 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
   editable `.xopp`.
+- **Audio (record & replay)** — the rail's **Audio** slot records the microphone while you write,
+  and every stroke you draw is tagged with the moment in that recording it was started. Tap
+  **Record** to start (Android asks for microphone permission the first time), and **Stop
+  recording** to finish. Then pick the **Play object** tool from the rail and **tap any stroke** to
+  hear the audio from the instant that stroke was drawn — the same `fn`/`ts` stroke tagging desktop
+  Xournal++ uses, so recordings made there replay here and vice versa. **Stop playback** in the same
+  pop-up silences it.
+
+  Audio is **not** stored inside the `.xopp` — it lives in a `.wav` file *beside* it, exactly as on
+  the desktop. Android only grants an app access to the one file you picked, not its folder, so the
+  first time you record, use **Choose audio folder…** in the Audio pop-up and pick the folder your
+  `.xopp` files live in. Xopp then writes new recordings there when you save, and loads a document's
+  recordings from there when you open it. Until you choose a folder, recording and playback still
+  work for the session, but the `.wav` never leaves the app — so a file you take back to the desktop
+  won't have its audio.
+
 - **Save** — the menu's **Save** writes the whole document back out to a `.xopp` file, preserving
   every page, layer, background, and element — strokes plus the text, images, and LaTeX images you
   authored on-device. Save writes in whichever **format you last chose in Save As…** (see below):
