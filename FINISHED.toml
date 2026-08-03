@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "pdf-import-with-replace-or-append-choice"
+title = "PDF import with Replace or Append choice"
+description = "When importing a PDF into an already-open document, prompt for one of two modes: Replace (the imported PDF becomes the document's page backgrounds, discarding/overwriting the current ones) or Append (the PDF's pages are appended as new pages after the existing pages of the current document). Both must save back to .xopp so the PDF background reference round-trips to desktop Xournal++."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["pdf", "import"]
+
+[[task]]
 id = "open-pdf-xopp-and-zipped-xopp-files"
 title = "Open PDF, .xopp, and zipped .xopp files"
 description = "The open/file-picker path should accept three input kinds: a raw PDF (opened as an annotatable document backed by the PDF pages), a plain .xopp file, and a zipped .xopp archive (unpack, then load the contained .xopp plus any bundled assets). Detect by content/magic bytes rather than extension alone, and keep round-trip safety with desktop Xournal++."

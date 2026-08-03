@@ -25,6 +25,7 @@ import com.xopp.android.format.XoppZip
 import com.xopp.android.format.model.Background
 import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.PdfImport
 import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
@@ -48,6 +49,9 @@ class MainActivity : ComponentActivity() {
 
     /** Where a pending image-insert tap landed, kept until the SAF picker returns the image bytes. */
     private var pendingImagePlacement: Placement? = null
+
+    /** The mode chosen in the Import PDF dialog, kept until the SAF picker returns the PDF. */
+    private var pendingImportMode: ImportPdfMode = ImportPdfMode.REPLACE
 
     /** The file name last chosen in the Save As dialog; reused by plain Save. */
     private var pendingSaveName: String = "document.xopp"
@@ -91,7 +95,7 @@ class MainActivity : ComponentActivity() {
 
     private val importPdfLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let(::importPdf)
+            uri?.let { importPdf(it, pendingImportMode) }
         }
 
     private val audioFolderLauncher =
@@ -141,7 +145,10 @@ class MainActivity : ComponentActivity() {
                     onSave = { saveLauncher.launch(pendingSaveName) },
                     onSaveAs = ::beginSaveAs,
                     currentSaveFormat = { saveFormat },
-                    onImportPdf = { importPdfLauncher.launch(arrayOf(PDF_MIME)) },
+                    onImportPdf = { mode ->
+                        pendingImportMode = mode
+                        importPdfLauncher.launch(arrayOf(PDF_MIME))
+                    },
                     onExportPdf = { exportPdfLauncher.launch("document.pdf") },
                     onPickImage = { placement ->
                         pendingImagePlacement = placement
@@ -229,8 +236,14 @@ class MainActivity : ComponentActivity() {
         out
     }.getOrNull()
 
-    /** Import a PDF as a fresh annotatable document: one page per PDF page, rendered as backgrounds. */
-    private fun importPdf(uri: Uri) = runCatching {
+    /**
+     * Import a PDF as annotatable pages — one `.xopp` page per PDF page, rendered as backgrounds.
+     *
+     * [ImportPdfMode.REPLACE] makes the PDF the whole document; [ImportPdfMode.APPEND] keeps the open
+     * document and adds the PDF's pages after it (one undoable edit). Append is refused when the
+     * document already links a PDF: a `.xopp` can reference only one, so a second wouldn't round-trip.
+     */
+    private fun importPdf(uri: Uri, mode: ImportPdfMode = ImportPdfMode.REPLACE) = runCatching {
         // Persist read access so the same content URI still resolves when the saved .xopp is reopened
         // later (this is the reference plain Save records for domain="absolute"). Best-effort: import
         // still works if the grant isn't persistable.
@@ -240,11 +253,19 @@ class MainActivity : ComponentActivity() {
             requireNotNull(input) { "could not open $uri" }
             file.outputStream().use { input.copyTo(it) }
         }
+        val view = surface
+        if (mode == ImportPdfMode.APPEND && view?.hasPdfBackground() == true) {
+            toast("This document already has a PDF background; a .xopp can link only one")
+            return@runCatching
+        }
         val cache = PdfPageCache(file)
-        val doc = PdfImport.documentFor(cache, uri.toString())
-        surface?.setPdfSource(cache)
-        surface?.setPdfTextIndex(null) // cleared until extraction below finishes
-        surface?.load(doc)
+        val reference = uri.toString()
+        view?.setPdfSource(cache)
+        view?.setPdfTextIndex(null) // cleared until extraction below finishes
+        when (mode) {
+            ImportPdfMode.REPLACE -> view?.load(PdfImport.documentFor(cache, reference))
+            ImportPdfMode.APPEND -> view?.appendPages(PdfImport.pagesFor(cache, reference))
+        }
         extractPdfTextInBackground(file)
     }.onFailure { toast("PDF import failed: ${it.message}") }
 

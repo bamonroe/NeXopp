@@ -35,6 +35,21 @@ object PageOps {
         else -> Background.Solid(WHITE, "plain")
     }
 
+    /**
+     * [pages] with [added] appended after them — the "Append" half of PDF import. A brand-new
+     * document is a single empty sheet nobody has drawn on; keeping it would leave a stray blank page
+     * in front of the imported PDF, so that one case is dropped and the appended pages stand alone.
+     */
+    fun appendPages(pages: List<Page>, added: List<Page>): List<Page> {
+        if (added.isEmpty()) return pages
+        if (pages.size == 1 && isPristineBlank(pages[0])) return added
+        return pages + added
+    }
+
+    /** True for an untouched blank sheet: a solid background and not a single element on any layer. */
+    private fun isPristineBlank(page: Page): Boolean =
+        page.background is Background.Solid && page.layers.all { it.elements.isEmpty() }
+
     /** A copy of [pages] with page [index] removed. The last remaining page is never removed. */
     fun removeAt(pages: List<Page>, index: Int): List<Page> {
         if (pages.size <= 1) return pages

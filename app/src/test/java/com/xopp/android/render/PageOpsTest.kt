@@ -63,4 +63,30 @@ class PageOpsTest {
         val only = listOf(page(100.0, "a"))
         assertSame("last page is kept", only, PageOps.removeAt(only, 0))
     }
+
+    @Test fun appendPagesAddsImportedPagesAfterExistingOnes() {
+        val existing = listOf(page(100.0, "graph", withStroke = true), page(100.0, "lined"))
+        val added = listOf(Page(400.0, 600.0, Background.Pdf("doc.pdf", 0, "absolute"), listOf(Layer(emptyList()))))
+        val out = PageOps.appendPages(existing, added)
+        assertEquals(3, out.size)
+        assertSame(existing[0], out[0])
+        assertSame(added[0], out[2])
+    }
+
+    @Test fun appendPagesDropsTheLoneUntouchedBlankSheet() {
+        // A brand-new document is one empty page; keeping it would leave a stray blank before the PDF.
+        val added = listOf(Page(400.0, 600.0, Background.Pdf("doc.pdf", 0, "absolute"), listOf(Layer(emptyList()))))
+        assertEquals(added, PageOps.appendPages(listOf(page(100.0, "plain")), added))
+    }
+
+    @Test fun appendPagesKeepsALoneBlankSheetThatHasContent() {
+        val existing = listOf(page(100.0, "plain", withStroke = true))
+        val added = listOf(Page(400.0, 600.0, Background.Pdf("doc.pdf", 0, "absolute"), listOf(Layer(emptyList()))))
+        assertEquals(2, PageOps.appendPages(existing, added).size)
+    }
+
+    @Test fun appendPagesWithNothingToAddIsANoOp() {
+        val existing = listOf(page(100.0, "plain"))
+        assertSame(existing, PageOps.appendPages(existing, emptyList()))
+    }
 }

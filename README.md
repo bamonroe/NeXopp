@@ -87,9 +87,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   stores is resolved and the PDF pages render underneath your annotations again, so a saved
   project reopens intact. If the referenced PDF can't be found (e.g. a desktop path that doesn't
   exist on the device), those pages open blank and a notice is shown.
-- **Import PDF** — the menu's **Import PDF** launches the picker filtered to PDFs; choosing one
-  builds a fresh document with **one page per PDF page**, each PDF page rasterised and shown as the
-  page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
+- **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
+  **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
+  **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —
+  and it's a single undo away). Append is offered only while the open document has no PDF background
+  of its own: a `.xopp` can reference just **one** PDF, so a second one couldn't round-trip to desktop
+  Xournal++. Appending onto a brand-new, untouched blank page drops that stray blank sheet. Choosing a
+  mode launches the picker filtered to PDFs; the import gives you **one page per PDF page**, each PDF
+  page rasterised and shown as the page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
   The source PDF's reference is recorded in the saved file (as an absolute reference to the picked
   PDF), so reopening the `.xopp` later **reloads that PDF** and shows the same backgrounds again —

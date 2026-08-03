@@ -66,8 +66,10 @@ import com.xopp.android.format.FontDescription
 import com.xopp.android.format.SaveFormat
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
+import androidx.compose.ui.draw.alpha
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.GuideKind
+import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.EraserMode
 import com.xopp.android.render.InputSettings
 import com.xopp.android.render.LayerInfo
@@ -161,7 +163,7 @@ fun EditorScreen(
     onSave: () -> Unit,
     onSaveAs: (filename: String, format: SaveFormat) -> Unit,
     currentSaveFormat: () -> SaveFormat,
-    onImportPdf: () -> Unit,
+    onImportPdf: (ImportPdfMode) -> Unit,
     onExportPdf: () -> Unit,
     onPickImage: (Placement) -> Unit,
     onSurfaceCreated: (DrawingSurfaceView) -> Unit,
@@ -185,6 +187,7 @@ fun EditorScreen(
     var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showSaveAs by remember { mutableStateOf(false) }
+    var showImportPdf by remember { mutableStateOf(false) }
     // Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar.
     var fullPage by remember { mutableStateOf(false) }
     var hasSelection by remember { mutableStateOf(false) }
@@ -225,7 +228,7 @@ fun EditorScreen(
                             onOpen = onOpen,
                             onSave = onSave,
                             onSaveAs = { showSaveAs = true },
-                            onImportPdf = onImportPdf,
+                            onImportPdf = { showImportPdf = true },
                             onExportPdf = onExportPdf,
                             onSettings = { showSettings = true },
                         )
@@ -466,6 +469,13 @@ fun EditorScreen(
                 onDismiss = { texPlacement = null },
             )
         }
+        if (showImportPdf) {
+            ImportPdfDialog(
+                canAppend = surface?.hasPdfBackground() != true,
+                onConfirm = { mode -> showImportPdf = false; onImportPdf(mode) },
+                onDismiss = { showImportPdf = false },
+            )
+        }
         if (showSaveAs) {
             SaveAsDialog(
                 initialFormat = currentSaveFormat(),
@@ -690,21 +700,63 @@ private fun SaveAsDialog(
     )
 }
 
-/** One selectable format row in [SaveAsDialog]: a radio plus a title and one-line explanation. */
+/**
+ * "Import PDF" chooser: does the picked PDF become the whole document ([ImportPdfMode.REPLACE], which
+ * discards the current pages) or land after the pages already open ([ImportPdfMode.APPEND])? Append is
+ * offered only while the document has no PDF background of its own — a `.xopp` can reference just one
+ * PDF, so a second one couldn't round-trip to desktop Xournal++ (see [ImportPdfMode]).
+ */
+@Composable
+private fun ImportPdfDialog(
+    canAppend: Boolean,
+    onConfirm: (ImportPdfMode) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var mode by remember { mutableStateOf(if (canAppend) ImportPdfMode.APPEND else ImportPdfMode.REPLACE) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import PDF") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FormatOption(
+                    selected = mode == ImportPdfMode.REPLACE,
+                    title = "Replace",
+                    subtitle = "The PDF's pages become this document, replacing the current pages.",
+                    onClick = { mode = ImportPdfMode.REPLACE },
+                )
+                FormatOption(
+                    selected = mode == ImportPdfMode.APPEND,
+                    title = "Append",
+                    subtitle = if (canAppend) "Add the PDF's pages after the pages already open."
+                    else "Unavailable: this document already has a PDF background, and a .xopp can link only one.",
+                    onClick = { mode = ImportPdfMode.APPEND },
+                    enabled = canAppend,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { onConfirm(mode) }) { Text("Choose PDF…") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** One selectable option row in [SaveAsDialog]/[ImportPdfDialog]: a radio plus a title and explanation. */
 @Composable
 private fun FormatOption(
     selected: Boolean,
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Column {
+        RadioButton(selected = selected, onClick = onClick, enabled = enabled)
+        // A disabled option stays visible (so the choice is explained) but reads as unavailable.
+        val alpha = if (enabled) 1f else 0.38f
+        Column(modifier = Modifier.alpha(alpha)) {
             Text(title)
             Text(subtitle, style = MaterialTheme.typography.bodySmall)
         }

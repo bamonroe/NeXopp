@@ -563,6 +563,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
         editPages(PageOps.addAfter(doc.pages, at))
     }
 
+    /**
+     * Append [pages] after the document's existing pages as one undoable edit — the "Append" half of
+     * PDF import (see [PageOps.appendPages]). Unlike [load] this keeps the current annotations and
+     * undo history, so an accidental import is one undo away.
+     */
+    fun appendPages(pages: List<Page>) = editPages(PageOps.appendPages(doc.pages, pages))
+
+    /** True when any page is backed by an imported PDF — i.e. the document already has a PDF source. */
+    fun hasPdfBackground(): Boolean = doc.pages.any { it.background is Background.Pdf }
+
     /** Delete the page currently in view. No-op when only one page remains. */
     fun removePage() {
         val at = currentPageIndex()

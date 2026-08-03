@@ -17,8 +17,16 @@ import com.xopp.android.format.model.Page
  */
 object PdfImport {
 
-    fun documentFor(cache: PdfPageCache, reference: String): Document {
-        val pages = (0 until cache.pageCount).map { i ->
+    fun documentFor(cache: PdfPageCache, reference: String): Document =
+        Document(pages = pagesFor(cache, reference))
+
+    /**
+     * The pages one `.xopp` page per PDF page, ready to become a whole document ([documentFor]) or to
+     * be appended after an existing document's pages ([PageOps.appendPages]). Only the first page
+     * carries `filename`/`domain`, so these pages must land as the document's *only* PDF-backed run.
+     */
+    fun pagesFor(cache: PdfPageCache, reference: String): List<Page> =
+        (0 until cache.pageCount).map { i ->
             val (w, h) = cache.pageSizePt(i)
             Page(
                 width = w,
@@ -31,6 +39,4 @@ object PdfImport {
                 layers = listOf(Layer(emptyList())),
             )
         }
-        return Document(pages = pages)
-    }
 }
