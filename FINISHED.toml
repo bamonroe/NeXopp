@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "stage-remote-opens-to-unique-temp-files-open-tmp-is-shared"
+title = "Stage remote opens to unique temp files (open.tmp is shared)"
+description = "Likely root cause of the tabs-overwriting-each-other bug. UriStaging.newFile builds a fixed path '<name>.tmp' (io/UriStaging.kt:45), so every open uses cacheDir/staging/open.tmp. MainActivity.openDocument runs stageIn on a background thread (inBackground, MainActivity.kt:254); over a slow remote provider two opens overlap and the second download overwrites the first's bytes before or while it is parsed, so both tabs end up loading the same document. Fix: make newFile unique per call (counter or tab id) and delete it after the load; consider serialising opens or cancelling a superseded one."
+status = "finished"
+category = "bug"
+created = 2026-08-03
+completed = 2026-08-03
+tags = []
+
+[[task]]
 id = "give-every-document-its-own-background-pdf-file-fixed-cache-names-collide"
 title = "Give every document its own background PDF file (fixed cache names collide)"
 description = "Root cause of the blanked-pages bug. Three call sites write a background PDF to a single fixed path shared by every document and both panes: XoppZip.open extracts to cacheDir/background.pdf (format/XoppZip.kt:76), MainActivity.resolvePdfBackground copies to cacheDir/background.pdf (MainActivity.kt:348), and adoptPdf copies to cacheDir/imported.pdf (MainActivity.kt:377). Pane A keeps a PdfPageCache holding a ParcelFileDescriptor open on that path; opening a PDF-backed document in pane B (or in a second tab) rewrites the bytes underneath it, so pages A has not rasterised yet come back blank while already-cached pages stay correct - exactly the reported symptom, and reloading fixes it. Fix: key the staged PDF by tab/doc id (e.g. cacheDir/pdf/<docKey>.pdf), have TabStore/OpenTab.pdfPath point at that per-document file, and delete it when the tab closes."

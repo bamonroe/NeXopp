@@ -41,8 +41,14 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
         }
     }
 
-    /** A private scratch file for a caller that wants to serialise before [stageOut]. */
-    fun newFile(name: String): File = File(dir.apply { mkdirs() }, "$name.tmp").apply { delete() }
+    /**
+     * A private scratch file for a caller that wants to serialise before [stageOut]. Unique per
+     * call — see [ScratchDir] for why a shared `<name>.tmp` made overlapping opens clobber each
+     * other. The caller deletes it when done.
+     */
+    fun newFile(name: String): File = scratch.newFile(name)
+
+    private val scratch = ScratchDir(dir)
 
     /**
      * Hold onto [uri] across restarts, so a restored tab can still write back to the file it came

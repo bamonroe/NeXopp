@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "stage-remote-opens-to-unique-temp-files-open-tmp-is-shared"
-title = "Stage remote opens to unique temp files (open.tmp is shared)"
-description = "Likely root cause of the tabs-overwriting-each-other bug. UriStaging.newFile builds a fixed path '<name>.tmp' (io/UriStaging.kt:45), so every open uses cacheDir/staging/open.tmp. MainActivity.openDocument runs stageIn on a background thread (inBackground, MainActivity.kt:254); over a slow remote provider two opens overlap and the second download overwrites the first's bytes before or while it is parsed, so both tabs end up loading the same document. Fix: make newFile unique per call (counter or tab id) and delete it after the load; consider serialising opens or cancelling a superseded one."
-status = "active"
-category = "bug"
-urgency = "high"
-order = 30
-created = 2026-08-03
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "unit-test-per-document-pdf-and-staging-paths-for-collisions"
 title = "Unit-test per-document PDF and staging paths for collisions"
 description = "Guard the two fixes above with JVM tests: two XoppZip.open calls into the same cacheDir must yield two distinct extant PDF files; two UriStaging.stageIn calls must return distinct files whose contents match their own sources; a two-tab session must round-trip through TabIndex/TabStore with distinct pdfPath values."

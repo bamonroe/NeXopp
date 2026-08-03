@@ -267,7 +267,9 @@ class MainActivity : ComponentActivity() {
         // The bytes may be coming off a network share, so fetch them on a worker and only touch the
         // canvas once they have landed. A failure takes the half-built tab back down with it.
         inBackground("Opening ${displayName(uri)}…", { staging.stageIn(uri, "open") }) { result ->
-            result.mapCatching { staged -> loadDocument(staged, uri) }
+            // Staging names are unique per open, so the copy has to be swept once it has been read
+            // or the cache would grow a file per document opened.
+            result.mapCatching { staged -> try { loadDocument(staged, uri) } finally { staged.delete() } }
                 .onSuccess { snapshotActiveTab() }
                 .onFailure {
                     toast("Open failed: ${it.message}")
@@ -382,7 +384,8 @@ class MainActivity : ComponentActivity() {
         runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         // The PDF may live on a network share: fetch it on a worker, then build pages from the copy.
         inBackground("Importing ${displayName(uri)}…", { staging.stageIn(uri, "import") }) { result ->
-            result.mapCatching { adoptPdf(it, mode, uri.toString()) }
+            // adoptPdf copies the bytes into the PdfStore, so the staged copy is scratch either way.
+            result.mapCatching { staged -> try { adoptPdf(staged, mode, uri.toString()) } finally { staged.delete() } }
                 .onFailure { toast("PDF import failed: ${it.message}") }
         }
     }
@@ -485,6 +488,7 @@ class MainActivity : ComponentActivity() {
         }.getOrElse { toast("Save failed: ${it.message}"); return }
 
         inBackground("Saving ${displayName(uri)}…", { staging.stageOut(staged, uri) }) { result ->
+            staged.delete()
             result.onFailure { toast("Save failed: ${it.message}") }
                 .onSuccess { afterSaved(view, uri) }
         }

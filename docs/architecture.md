@@ -292,6 +292,11 @@ is staged through a local file by `io/UriStaging.kt` and run off the UI thread b
 - **Write** — the document is serialised locally *first* and only then pushed out in one pass, so a
   link that drops mid-encode can't leave a truncated `.xopp` on the far end.
 
+Every staging file is allocated by `io/ScratchDir.kt` under a name **no other transfer reuses**, and
+deleted by its caller once read. Since transfers run on worker threads, two of them overlap easily;
+the fixed `open.tmp` this replaced meant a second, slower download overwrote the first document's
+bytes before they were parsed, and both tabs came up holding the same document.
+
 A document's **background PDF** gets its own file, allocated by `io/PdfStore.kt`. Whether it came
 out of a ZIP package (`XoppZip.open`), was resolved from a `pdf` background reference
 (`MainActivity.resolvePdfBackground`) or was imported (`adoptPdf`), the bytes land under a name no
@@ -433,6 +438,7 @@ app/
       FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
+      ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
       PdfStore.kt            # one background-PDF file per open document; never rewritten
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
