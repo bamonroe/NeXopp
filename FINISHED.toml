@@ -17,6 +17,25 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "append-a-second-pdf-by-merging-into-one-joined-background-pdf"
+title = "Append a second PDF by merging into one joined background PDF"
+description = """
+A .xopp document can reference only ONE background PDF, so importing a second PDF as Append currently can't work — Xournal++ sees two separate PDFs and the file can't span both. Fix by merging on our side:
+
+- In edit mode, importing a PDF with Append merges the incoming PDF's pages onto the end of the existing background PDF, producing a single joined PDF that is the document's one background source.
+- Hold the joined PDF in memory or in a local cache file while editing, so repeated appends compose without touching the original files.
+- On Save, write the joined PDF out and point the .xopp background references at it (page numbers renumbered against the joined document).
+- Save As is the easy case: we bundle/zip the PDF alongside the .xopp anyway, so just emit the joined PDF there.
+- Round-trip check: the saved document must reopen in desktop Xournal++ with every appended page's background intact and strokes on the right pages.
+
+Needs a minimal PDF page-concatenation path (dependency-free if practical, per the stack rules). Document the behaviour in README.md and the PDF background handling in docs/architecture.md."""
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
 id = "add-a-view-edit-mode-toggle-to-the-page-overview"
 title = "Add a view/edit mode toggle to the page overview"
 description = """

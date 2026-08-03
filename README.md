@@ -90,9 +90,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
   **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —
-  and it's a single undo away). Append is offered only while the open document has no PDF background
-  of its own: a `.xopp` can reference just **one** PDF, so a second one couldn't round-trip to desktop
-  Xournal++. Appending onto a brand-new, untouched blank page drops that stray blank sheet. Choosing a
+  and it's a single undo away). A `.xopp` can reference just **one** background PDF, so appending onto a
+  document that *already* has one **merges the two into a single joined PDF** — the incoming PDF's
+  pages are added to the end of the existing background PDF, that joined file becomes the document's
+  one background source, and the appended pages are renumbered against it. Repeat appends keep
+  composing onto the joined PDF without touching the original files, and the joined PDF is what the
+  saved `.xopp` links to (or embeds, for a zipped **Save As**), so the result reopens in desktop
+  Xournal++ with every appended page's background intact. Appending onto a brand-new, untouched blank page drops that stray blank sheet. Choosing a
   mode launches the picker filtered to PDFs; the import gives you **one page per PDF page**, each PDF
   page rasterised and shown as the page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.

@@ -492,7 +492,7 @@ fun EditorScreen(
         }
         if (showImportPdf) {
             ImportPdfDialog(
-                canAppend = surface?.hasPdfBackground() != true,
+                merging = surface?.hasPdfBackground() == true,
                 onConfirm = { mode -> showImportPdf = false; onImportPdf(mode) },
                 onDismiss = { showImportPdf = false },
             )
@@ -723,17 +723,18 @@ private fun SaveAsDialog(
 
 /**
  * "Import PDF" chooser: does the picked PDF become the whole document ([ImportPdfMode.REPLACE], which
- * discards the current pages) or land after the pages already open ([ImportPdfMode.APPEND])? Append is
- * offered only while the document has no PDF background of its own — a `.xopp` can reference just one
- * PDF, so a second one couldn't round-trip to desktop Xournal++ (see [ImportPdfMode]).
+ * discards the current pages) or land after the pages already open ([ImportPdfMode.APPEND])? A `.xopp`
+ * can reference just one background PDF, so when the document already has one ([merging]) the append
+ * merges the two into a single joined PDF — the subtitle says so, since the joined file is what later
+ * saves link to (see [ImportPdfMode]).
  */
 @Composable
 private fun ImportPdfDialog(
-    canAppend: Boolean,
+    merging: Boolean,
     onConfirm: (ImportPdfMode) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var mode by remember { mutableStateOf(if (canAppend) ImportPdfMode.APPEND else ImportPdfMode.REPLACE) }
+    var mode by remember { mutableStateOf(ImportPdfMode.APPEND) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Import PDF") },
@@ -748,10 +749,10 @@ private fun ImportPdfDialog(
                 FormatOption(
                     selected = mode == ImportPdfMode.APPEND,
                     title = "Append",
-                    subtitle = if (canAppend) "Add the PDF's pages after the pages already open."
-                    else "Unavailable: this document already has a PDF background, and a .xopp can link only one.",
+                    subtitle = if (merging)
+                        "Add the PDF's pages after the pages already open, merging it into this document's background PDF."
+                    else "Add the PDF's pages after the pages already open.",
                     onClick = { mode = ImportPdfMode.APPEND },
-                    enabled = canAppend,
                 )
             }
         },

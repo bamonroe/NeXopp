@@ -21,11 +21,16 @@ object PdfImport {
         Document(pages = pagesFor(cache, reference))
 
     /**
-     * The pages one `.xopp` page per PDF page, ready to become a whole document ([documentFor]) or to
-     * be appended after an existing document's pages ([PageOps.appendPages]). Only the first page
-     * carries `filename`/`domain`, so these pages must land as the document's *only* PDF-backed run.
+     * One `.xopp` page per page of [cache], ready to become a whole document ([documentFor]) or to be
+     * appended after an existing document's pages ([PageOps.appendPages]).
+     *
+     * [reference] is carried by the *first* produced page (with `domain="absolute"`), so these pages
+     * normally land as the document's only PDF-backed run. Pass `null` when appending onto a document
+     * that already carries the reference — the case where the incoming PDF has been merged into the
+     * existing background PDF ([PdfMerger]) and the existing reference is re-pointed at the joined
+     * file instead. [pageNoOffset] is then where these pages start inside that joined PDF.
      */
-    fun pagesFor(cache: PdfPageCache, reference: String): List<Page> =
+    fun pagesFor(cache: PdfPageCache, reference: String?, pageNoOffset: Int = 0): List<Page> =
         (0 until cache.pageCount).map { i ->
             val (w, h) = cache.pageSizePt(i)
             Page(
@@ -33,8 +38,8 @@ object PdfImport {
                 height = h,
                 background = Background.Pdf(
                     filename = if (i == 0) reference else null,
-                    pageNo = i,
-                    domain = if (i == 0) "absolute" else null,
+                    pageNo = i + pageNoOffset,
+                    domain = if (i == 0 && reference != null) ABSOLUTE_DOMAIN else null,
                 ),
                 layers = listOf(Layer(emptyList())),
             )

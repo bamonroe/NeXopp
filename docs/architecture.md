@@ -348,6 +348,7 @@ app/
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
+      PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
       PdfTextExtractor.kt    # pulls a PDF's positioned text layer via PDFBox PDFTextStripper
       PdfExporter.kt         # flattens a Document to a PDF (PDFBox; preserves source vector pages)
@@ -683,8 +684,19 @@ convention). An `ImportPdfMode` chosen up front (the `ImportPdfDialog`) decides 
 the open document's pages as one undoable edit (`PageOps.appendPages` → `DrawingSurfaceView.appendPages`,
 which also drops a lone untouched blank sheet so it isn't stranded in front of the PDF). Because the
 `filename`/`domain` convention — and `XoppZip`'s single embedded `bg.pdf` — allow exactly **one** PDF
-per document, `APPEND` is refused (in the dialog and again in `MainActivity`) when any page is already
-`Background.Pdf`; that keeps the result round-trippable rather than silently unrenderable. **Export
+per document, `APPEND` onto a document that already has a PDF background does not add a second
+reference: `MainActivity.appendMergedPdf` **merges** the two PDFs into one. `PdfMerger.join`
+concatenates the current background PDF and the incoming one with PDFBox's `PDFMergerUtility` (source
+pages imported verbatim, so they rasterise and re-export unchanged); the joined file is written to
+`filesDir` — not the cache, so the link a plain `Save` records survives — under one of two
+ping-ponged names (`PdfMerger.nextJoinedFile`) so a merge never writes the file it is reading. The
+new pages are sized from the incoming PDF with `PdfImport.pagesFor(reference = null, pageNoOffset =
+<existing PDF page count>)`, and `DrawingSurfaceView.appendPdfPages` then re-points the document's one
+reference at the joined file (`documentWithPdfReference`) **and** appends the pages in a **single
+undoable edit** — the two halves must move together, since the appended `pageno` values index the
+joined document. Existing pages keep their `pageno`, being at the front of the join. `Save`
+(`ORIGINAL`) links the joined PDF by path; `Save As` (`ZIPPED`) embeds it as `bg.pdf` through the
+usual `documentWithPdfDomain` rewrite, which is the easy case. **Export
 PDF** (`PdfExporter`) flattens the document back out with **PDFBox** (`com.tom-roush:pdfbox-android`,
 the one non-framework runtime dependency — see the note below): a `pdf`-backed page whose source PDF
 is available (`PdfPageCache.source`, the cached import) is **imported verbatim so its original vector

@@ -27,6 +27,7 @@ import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.PdfImport
+import com.xopp.android.render.PdfMerger
 import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
@@ -240,8 +241,11 @@ class MainActivity : ComponentActivity() {
      * Import a PDF as annotatable pages — one `.xopp` page per PDF page, rendered as backgrounds.
      *
      * [ImportPdfMode.REPLACE] makes the PDF the whole document; [ImportPdfMode.APPEND] keeps the open
-     * document and adds the PDF's pages after it (one undoable edit). Append is refused when the
-     * document already links a PDF: a `.xopp` can reference only one, so a second wouldn't round-trip.
+     * document and adds the PDF's pages after it (one undoable edit).
+     *
+     * A `.xopp` can reference only **one** background PDF, so appending onto a document that already
+     * has one goes through [appendMergedPdf]: the two PDFs are merged into a single joined PDF that
+     * becomes the document's one background source.
      */
     private fun importPdf(uri: Uri, mode: ImportPdfMode = ImportPdfMode.REPLACE) = runCatching {
         // Persist read access so the same content URI still resolves when the saved .xopp is reopened
@@ -254,8 +258,9 @@ class MainActivity : ComponentActivity() {
             file.outputStream().use { input.copyTo(it) }
         }
         val view = surface
-        if (mode == ImportPdfMode.APPEND && view?.hasPdfBackground() == true) {
-            toast("This document already has a PDF background; a .xopp can link only one")
+        val existing = view?.pdfSourceFile()
+        if (mode == ImportPdfMode.APPEND && existing != null && view.hasPdfBackground()) {
+            appendMergedPdf(view, existing, file)
             return@runCatching
         }
         val cache = PdfPageCache(file)
@@ -268,6 +273,27 @@ class MainActivity : ComponentActivity() {
         }
         extractPdfTextInBackground(file)
     }.onFailure { toast("PDF import failed: ${it.message}") }
+
+    /**
+     * Append [incoming]'s pages to a document that already has a background PDF, by **merging** the
+     * two into one joined PDF ([PdfMerger]) — the only shape a `.xopp` can represent, since it holds
+     * a single background reference.
+     *
+     * The joined file lands in `filesDir` (not the cache) so the link a plain Save records survives;
+     * successive appends ping-pong between two names so a merge never writes the file it's reading.
+     * The document's one reference is re-pointed at the joined PDF and the new pages' `pageno` values
+     * are renumbered against it, both in a single undoable edit.
+     */
+    private fun appendMergedPdf(view: DrawingSurfaceView, existing: File, incoming: File) {
+        val offset = view.pdfSourcePageCount()
+        // Size the new pages from the incoming PDF before anything is closed or replaced.
+        val added = PdfPageCache(incoming).use { PdfImport.pagesFor(it, reference = null, pageNoOffset = offset) }
+        val joined = PdfMerger.join(existing, incoming, PdfMerger.nextJoinedFile(filesDir, existing))
+        view.setPdfSource(PdfPageCache(joined)) // closes the old rasteriser, releasing the old file
+        view.setPdfTextIndex(null) // cleared until extraction below finishes
+        view.appendPdfPages(added, joined.absolutePath)
+        extractPdfTextInBackground(joined)
+    }
 
     /** Extract a PDF's text layer off the UI thread (slow on big PDFs), then attach it for text-select. */
     private fun extractPdfTextInBackground(file: File) {

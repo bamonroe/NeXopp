@@ -29,12 +29,23 @@ const val ATTACH_PDF_FILENAME = "bg.pdf"
  */
 fun documentWithPdfDomain(doc: Document, domain: String): Document {
     if (domain != ATTACH_DOMAIN) return doc
+    return documentWithPdfReference(doc, ATTACH_PDF_FILENAME, ATTACH_DOMAIN)
+}
+
+/**
+ * Re-point the document's single PDF background reference at [filename] under [domain], leaving
+ * every page's `pageno` alone. Used when appending a second PDF: the two PDFs are merged into one
+ * joined file ([PdfMerger]) and the document's one reference has to name the joined file instead of
+ * the original. Only the *first* PDF-backed page that carries a reference is rewritten — the rest
+ * reference the same PDF by bare `pageno`. Returns a copy; the input is left unchanged.
+ */
+fun documentWithPdfReference(doc: Document, filename: String, domain: String): Document {
     var rewritten = false
     val pages = doc.pages.map { page ->
         val bg = page.background
         if (!rewritten && bg is Background.Pdf && bg.filename != null) {
             rewritten = true
-            page.copy(background = bg.copy(domain = ATTACH_DOMAIN, filename = ATTACH_PDF_FILENAME))
+            page.copy(background = bg.copy(domain = domain, filename = filename))
         } else {
             page
         }

@@ -41,6 +41,24 @@ class PdfBackgroundDomainTest {
         assertSame("absolute leaves the document object untouched", doc, documentWithPdfDomain(doc, ABSOLUTE_DOMAIN))
     }
 
+    /**
+     * Appending a second PDF merges the two into one joined PDF, so the document's single reference
+     * has to name the joined file. Only the reference page moves; every `pageno` stays put, because
+     * the existing pages keep their positions at the front of the joined document.
+     */
+    @Test fun referenceRetargetsOnlyTheReferencePage() {
+        val out = documentWithPdfReference(pdfDoc(), "/data/joined-a.pdf", ABSOLUTE_DOMAIN)
+
+        val first = out.pages[0].background as Background.Pdf
+        assertEquals("/data/joined-a.pdf", first.filename)
+        assertEquals(ABSOLUTE_DOMAIN, first.domain)
+        assertEquals("pageno is untouched", 0, first.pageNo)
+
+        val second = out.pages[1].background as Background.Pdf
+        assertNull(second.filename)
+        assertEquals(1, second.pageNo)
+    }
+
     @Test fun attachIgnoresPlainDocuments() {
         val plain = Document(pages = listOf(Page(595.0, 842.0, Background.Solid(0xFFFFFFFF.toInt(), "plain"), listOf(Layer(emptyList())))))
         val out = documentWithPdfDomain(plain, ATTACH_DOMAIN)

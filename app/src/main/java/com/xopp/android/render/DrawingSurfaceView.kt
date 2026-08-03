@@ -543,6 +543,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** The on-disk PDF backing this document's `pdf` backgrounds, or null when there is none. */
     fun pdfSourceFile(): java.io.File? = pdfSource?.source
 
+    /** How many pages the backing PDF has — where an appended PDF's pages start once merged in. */
+    fun pdfSourcePageCount(): Int = pdfSource?.pageCount ?: 0
+
     /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
     fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource).export(doc, out)
 
@@ -645,6 +648,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * undo history, so an accidental import is one undo away.
      */
     fun appendPages(pages: List<Page>) = editPages(PageOps.appendPages(doc.pages, pages))
+
+    /**
+     * Append [pages] *and* re-point the document's PDF background reference at [reference] in one
+     * undoable edit — appending a second PDF, which merges into a single joined background PDF (see
+     * [PdfMerger]). Both halves have to move together: the appended pages' `pageno` values index the
+     * joined PDF, so a document holding the old reference with the new pages wouldn't round-trip.
+     */
+    fun appendPdfPages(pages: List<Page>, reference: String) {
+        val retargeted = documentWithPdfReference(doc, reference, ABSOLUTE_DOMAIN)
+        editPages(PageOps.appendPages(retargeted.pages, pages))
+    }
 
     /** True when any page is backed by an imported PDF — i.e. the document already has a PDF source. */
     fun hasPdfBackground(): Boolean = doc.pages.any { it.background is Background.Pdf }
