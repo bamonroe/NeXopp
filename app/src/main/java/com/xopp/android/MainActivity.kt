@@ -34,6 +34,7 @@ import com.xopp.android.render.PdfMerger
 import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
+import com.xopp.android.panes.EditorPane
 import com.xopp.android.tabs.OpenTab
 import com.xopp.android.tabs.TabManager
 import com.xopp.android.tabs.TabStore
@@ -53,7 +54,24 @@ import java.io.File
  */
 class MainActivity : ComponentActivity() {
 
-    private var surface: DrawingSurfaceView? = null
+    /**
+     * The two editing panes. Only the first is shown until the user turns on split view, at which
+     * point the second gets its own canvas and its own restored tab session (see [EditorPane]).
+     */
+    private val panes: List<EditorPane> by lazy {
+        TABS_DIRS.map { EditorPane(TabStore(File(filesDir, it))) }
+    }
+
+    /** Which pane every menu/toolbar action applies to — the one last touched. */
+    private var activePane = mutableStateOf(0)
+
+    /** Whether the editor is showing both panes side by side. */
+    private var splitView = mutableStateOf(false)
+
+    /** The pane in focus. Everything below is written against this one document. */
+    private val pane: EditorPane get() = panes[activePane.value.coerceIn(panes.indices)]
+
+    private val surface: DrawingSurfaceView? get() = pane.surface
 
     /** Where a pending image-insert tap landed, kept until the SAF picker returns the image bytes. */
     private var pendingImagePlacement: Placement? = null
@@ -61,14 +79,18 @@ class MainActivity : ComponentActivity() {
     /** The mode chosen in the Import PDF dialog, kept until the SAF picker returns the PDF. */
     private var pendingImportMode: ImportPdfMode = ImportPdfMode.REPLACE
 
-    /** The file name last chosen in the Save As dialog; reused by plain Save. */
-    private var pendingSaveName: String = "document.xopp"
+    /** The file name last chosen in the Save As dialog; reused by plain Save. Per pane. */
+    private var pendingSaveName: String
+        get() = pane.pendingSaveName
+        set(value) { pane.pendingSaveName = value }
 
     /**
      * The sticky save format. "Save As" sets it; every later plain Save reuses it, so once you save
      * ZIPPED once, Save keeps writing ZIPPED. Opening a document adopts the format it was stored in.
      */
-    private var saveFormat: SaveFormat = SaveFormat.ORIGINAL
+    private var saveFormat: SaveFormat
+        get() = pane.saveFormat
+        set(value) { pane.saveFormat = value }
 
     /** Recording, playback and sidecar transfer for audio-annotated strokes (`fn`/`ts`). */
     private val audio: AudioSession by lazy { AudioSession(this) }
@@ -86,14 +108,11 @@ class MainActivity : ComponentActivity() {
     /** Bumped whenever recording/playback state changes, so the Compose chrome re-reads it. */
     private var audioTick = mutableStateOf(0)
 
-    /** The open documents and which one is showing (see `com.xopp.android.tabs`). */
-    private val tabs = TabManager()
+    /** The active pane's open documents and which one is showing (see `com.xopp.android.tabs`). */
+    private val tabs: TabManager get() = pane.tabs
 
-    /** Bumped whenever the tab list or selection changes, so the tab strip re-reads it. */
+    /** Bumped whenever a tab list or selection changes, so the tab strips re-read them. */
     private var tabsTick = mutableStateOf(0)
-
-    /** The cache that carries the open tabs (unsaved edits included) across app restarts. */
-    private val tabStore: TabStore by lazy { TabStore(File(filesDir, TABS_DIR)) }
 
     /** Staging for document bytes, so slow remote (SSHFS/FTP/cloud) URIs never block the canvas. */
     private val staging: UriStaging by lazy { UriStaging(contentResolver, File(cacheDir, STAGING_DIR)) }
@@ -191,11 +210,20 @@ class MainActivity : ComponentActivity() {
                         pendingImagePlacement = placement
                         pickImageLauncher.launch(arrayOf("image/*"))
                     },
-                    onSurfaceCreated = { surface = it; attachAudio(it); restoreTabs() },
+                    onSurfaceCreated = { index, view ->
+                        val p = panes[index]
+                        p.surface = view
+                        attachAudio(view)
+                        restoreTabs(p)
+                    },
                     settings = settings,
                     onSettingsChange = { settings = it; store.save(it) },
                     audio = audioUiState(),
-                    tabs = tabsUiState(),
+                    tabs = panes.map(::tabsUiState),
+                    splitView = splitView.value,
+                    onToggleSplitView = ::toggleSplitView,
+                    activePane = activePane.value,
+                    onActivePane = { activePane.value = it },
                 )
             }
         }
@@ -380,10 +408,13 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Extract a PDF's text layer off the UI thread (slow on big PDFs), then attach it for text-select. */
-    private fun extractPdfTextInBackground(file: File) {
+    private fun extractPdfTextInBackground(file: File, into: DrawingSurfaceView? = surface) {
+        // Bind the destination canvas up front: with two panes open, the focus may well have moved
+        // by the time a big PDF finishes extracting, and the index belongs to the pane that asked.
+        val view = into ?: return
         Thread {
             val index = PdfTextExtractor().extract(file)
-            surface?.post { surface?.setPdfTextIndex(index) }
+            view.post { view.setPdfTextIndex(index) }
         }.start()
     }
 
@@ -484,107 +515,129 @@ class MainActivity : ComponentActivity() {
 
     // --- tabs: several documents open at once, restored on the next launch ----------------------
     //
-    // There is exactly one canvas, so a tab switch is a swap: snapshot the outgoing document out of
+    // A pane has exactly one canvas, so a tab switch is a swap: snapshot the outgoing document out of
     // the surface ([snapshotActiveTab]), then load the incoming one into it ([showTab]). Everything a
     // tab needs to come back — its document, source URI, save format, background PDF and page — lives
     // in its [OpenTab] record, which is also what [TabStore] writes to disk.
     //
+    // Every function here takes the [EditorPane] it applies to, defaulting to the pane in focus, so
+    // split view is just "the same thing, twice" — each pane keeps its own session and its own file.
+    //
     // Undo history belongs to the surface, not the document, so it does not follow a tab switch: the
     // incoming tab starts with a clean history. Its content, including unsaved edits, is intact.
 
-    /** The tab strip's view of the session, re-read whenever [tabsTick] changes. */
-    private fun tabsUiState(): TabsUiState {
+    /** A pane's tab strip view of its session, re-read whenever [tabsTick] changes. */
+    private fun tabsUiState(p: EditorPane): TabsUiState {
         tabsTick.value // read so Compose re-invokes this when the session changes
         return TabsUiState(
-            titles = tabs.tabs.map { it.title },
-            activeIndex = tabs.activeIndex,
-            onSelect = ::selectTab,
-            onClose = ::closeTab,
-            onNew = ::newTab,
+            titles = p.tabs.tabs.map { it.title },
+            activeIndex = p.tabs.activeIndex,
+            onSelect = { selectTab(it, p) },
+            onClose = { closeTab(it, p) },
+            onNew = { newTab(p) },
         )
     }
 
     /** Copy the live canvas back into the showing tab's record, so switching away doesn't lose it. */
-    private fun snapshotActiveTab() {
-        val view = surface ?: return
-        tabs.updateActive {
+    private fun snapshotActiveTab(p: EditorPane = pane) {
+        val view = p.surface ?: return
+        p.tabs.updateActive {
             it.copy(
                 document = view.toDocument(),
-                format = saveFormat,
+                format = p.saveFormat,
                 pdfPath = view.pdfSourceFile()?.absolutePath,
                 page = view.visiblePageIndex(),
             )
         }
     }
 
-    /** Load [tab] onto the canvas: its document, its background PDF, its save format and its page. */
-    private fun showTab(tab: OpenTab) {
-        val view = surface ?: return
-        saveFormat = tab.format
-        pendingSaveName = tab.title
+    /** Load [tab] onto [p]'s canvas: its document, background PDF, save format and page. */
+    private fun showTab(tab: OpenTab, p: EditorPane = pane) {
+        val view = p.surface ?: return
+        p.saveFormat = tab.format
+        p.pendingSaveName = tab.title
         val pdf = tab.pdfPath?.let(::File)?.takeIf(File::exists)
         view.setPdfSource(pdf?.let(::PdfPageCache))
         view.setPdfTextIndex(null) // cleared until extraction below finishes
         view.load(tab.document)
         if (tab.page > 0) view.goToPage(tab.page)
-        if (pdf != null) extractPdfTextInBackground(pdf)
+        if (pdf != null) extractPdfTextInBackground(pdf, view)
     }
 
-    /** Switch to the tab at [index], snapshotting the one being left. */
-    private fun selectTab(index: Int) {
-        snapshotActiveTab()
-        if (!tabs.select(index)) return
-        tabs.active?.let(::showTab)
+    /** Switch [p] to the tab at [index], snapshotting the one being left. */
+    private fun selectTab(index: Int, p: EditorPane = pane) {
+        snapshotActiveTab(p)
+        if (!p.tabs.select(index)) return
+        p.tabs.active?.let { showTab(it, p) }
         tabsTick.value++
-        persistTabs()
+        p.persist()
     }
 
     /**
-     * Close the tab at [index]. Closing the last one leaves a fresh blank document rather than an
-     * empty editor, and the canvas is only reloaded when the *showing* tab actually changed.
+     * Close [p]'s tab at [index]. Closing the last one leaves a fresh blank document rather than an
+     * empty pane, and the canvas is only reloaded when the *showing* tab actually changed.
      */
-    private fun closeTab(index: Int) {
-        snapshotActiveTab()
-        val showing = tabs.active?.id
-        tabs.close(index) ?: return
-        if (tabs.isEmpty) tabs.open(blankTab())
-        tabs.active?.takeIf { it.id != showing }?.let(::showTab)
+    private fun closeTab(index: Int, p: EditorPane = pane) {
+        snapshotActiveTab(p)
+        val showing = p.tabs.active?.id
+        p.tabs.close(index) ?: return
+        if (p.tabs.isEmpty) p.tabs.open(blankTab())
+        p.tabs.active?.takeIf { it.id != showing }?.let { showTab(it, p) }
         tabsTick.value++
-        persistTabs()
+        p.persist()
     }
 
-    /** Open a fresh blank document in a new tab and switch to it. */
-    private fun newTab() {
-        snapshotActiveTab()
-        tabs.open(blankTab())
-        tabs.active?.let(::showTab)
+    /** Open a fresh blank document in a new tab of [p] and switch to it. */
+    private fun newTab(p: EditorPane = pane) {
+        snapshotActiveTab(p)
+        p.tabs.open(blankTab())
+        p.tabs.active?.let { showTab(it, p) }
         tabsTick.value++
-        persistTabs()
+        p.persist()
     }
 
     private fun blankTab() =
         OpenTab(TabStore.newId(), UNTITLED, DrawingSurfaceView.blankDocument())
 
     /**
-     * Bring back the tabs the app was last closed with, or start on a single blank one. Called once
-     * the canvas exists; guarded so a surface rebuilt within this activity doesn't restore twice.
+     * Bring back the tabs [p] was last closed with, or start it on a single blank one. Called once
+     * that pane's canvas exists; guarded so a surface rebuilt within this activity doesn't restore
+     * twice (and so the right-hand pane only restores when split view actually opens it).
      */
-    private fun restoreTabs() {
-        if (!tabs.isEmpty) return
-        val session = tabStore.load()
+    private fun restoreTabs(p: EditorPane) {
+        // A pane that already has a session is being handed a *replacement* canvas (split view was
+        // switched off and on again): put its showing document straight back onto the new surface.
+        if (!p.tabs.isEmpty) {
+            p.tabs.active?.let { showTab(it, p) }
+            return
+        }
+        val session = p.store.load()
         if (session == null) {
-            tabs.open(blankTab())
+            p.tabs.open(blankTab())
+            p.tabs.active?.let { showTab(it, p) }
         } else {
-            session.tabs.forEach(tabs::open)
-            tabs.select(session.activeIndex)
-            tabs.active?.let(::showTab)
+            session.tabs.forEach(p.tabs::open)
+            p.tabs.select(session.activeIndex)
+            p.tabs.active?.let { showTab(it, p) }
         }
         tabsTick.value++
     }
 
-    /** Write the session out. Cheap enough to call on every tab change and on the way to the background. */
-    private fun persistTabs() {
-        tabStore.save(tabs.session())
+    /** Write the focused pane's session out, on every tab change and on the way to the background. */
+    private fun persistTabs() = pane.persist()
+
+    /**
+     * Turn split view on or off. Leaving it snapshots the right-hand pane and hands focus back to the
+     * left one, so a menu action never targets a canvas that is no longer on screen. The pane's tabs
+     * are kept (and stay on disk), so turning split view back on brings the same documents back.
+     */
+    private fun toggleSplitView() {
+        val on = !splitView.value
+        if (!on) {
+            panes.forEach { snapshotActiveTab(it); it.persist() }
+            activePane.value = 0
+        }
+        splitView.value = on
     }
 
     /** The file name behind a `content://` URI, for the tab's label. Falls back to [UNTITLED]. */
@@ -669,11 +722,10 @@ class MainActivity : ComponentActivity() {
         audio.exportSidecars(folder, doc)
     }
 
-    /** Cache the open tabs on the way to the background — the app may not come back. */
+    /** Cache both panes' open tabs on the way to the background — the app may not come back. */
     override fun onPause() {
         super.onPause()
-        snapshotActiveTab()
-        persistTabs()
+        panes.forEach { snapshotActiveTab(it); it.persist() }
     }
 
     override fun onDestroy() {
@@ -692,8 +744,11 @@ class MainActivity : ComponentActivity() {
         const val XOPP_MIME = "application/octet-stream"
         const val PDF_MIME = "application/pdf"
 
-        /** Folder under `filesDir` holding the cached tab session (see [TabStore]). */
-        const val TABS_DIR = "tabs"
+        /**
+         * Folders under `filesDir` holding each pane's cached tab session (see [TabStore]), in pane
+         * order. The first keeps its historical name so an existing session still restores.
+         */
+        val TABS_DIRS = listOf("tabs", "tabs-right")
 
         /** Cache subfolder holding the local staging copies of documents in transit (see `UriStaging`). */
         const val STAGING_DIR = "staging"

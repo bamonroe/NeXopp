@@ -326,6 +326,34 @@ Consequences worth knowing:
 - Tabs that were opened from a file keep that `content://` URI, so **Save** after a restart still
   writes back to the same document.
 
+### Split view: the same thing, twice
+
+Split view is modelled as **panes**, not as a second mode. An `EditorPane` (`panes/EditorPane.kt`)
+bundles everything that used to be a per-activity singleton — the canvas, a `TabManager`, the sticky
+`SaveFormat`, the pending save name and its own `TabStore` directory. `MainActivity` holds a fixed
+list of two of them plus an `activePane` index; `surface`, `tabs`, `saveFormat` and `pendingSaveName`
+are now *accessors* onto the pane in focus, which is why the open/save/import/audio code above is
+still written against "the" document and needed no changes.
+
+The design decisions worth keeping:
+
+- **One pane has focus; the chrome drives that pane.** A touch anywhere in a pane (observed on the
+  pointer-input *initial* pass, so the canvas still receives the event) makes it active. There is no
+  second toolbar and no per-pane menu — the single top bar and rail always act on the focused pane.
+- **Each pane persists separately.** `TABS_DIRS` gives pane 0 the historical `filesDir/tabs` and pane
+  1 `filesDir/tabs-right`, so an existing session still restores and the right-hand pane's documents
+  survive both a split-view toggle and a restart. `onPause` snapshots and writes *both*.
+- **A pane's Compose mirror is per pane too.** `ui/PaneState.kt` holds the zoom/page/layer/undo state
+  a canvas pushes up through its callbacks; `EditorScreen` keeps one per pane and aliases the active
+  one into the names the chrome reads. Each surface's callbacks write into *its own* `PaneState`, so
+  a background pane stays current instead of scribbling over the focused one.
+- **Turning split view off doesn't destroy the pane.** Its canvas is disposed, so when it comes back
+  `restoreTabs` finds a non-empty session and re-loads the showing tab onto the *replacement*
+  surface. (Undo history is per surface, so it does not survive that round trip — same rule as a tab
+  switch.)
+- The split position (`SplitLayout` in `ui/`) is a UI-only fraction: dragged, clamped to leave each
+  half at least 15% of the width, and deliberately **not** persisted.
+
 ### In-memory document model
 
 The native-Android analogue of the reference's `Xpp*` types — one small Kotlin data
@@ -379,6 +407,8 @@ app/
       FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
+    panes/                   # split view: one or two editing panes, each with its own tabs
+      EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
     tabs/                    # several documents open at once, cached across app restarts
       OpenTab.kt             # one open document: id, title, source URI, save format, PDF, page
       TabManager.kt          # the tab list + selection rules (pure; no Android, no canvas)

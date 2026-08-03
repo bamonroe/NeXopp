@@ -38,6 +38,10 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VerticalSplit
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -171,11 +175,19 @@ fun EditorScreen(
     onImportPdf: (ImportPdfMode) -> Unit,
     onExportPdf: () -> Unit,
     onPickImage: (Placement) -> Unit,
-    onSurfaceCreated: (DrawingSurfaceView) -> Unit,
+    /** A pane's canvas has just been built: its index, then the view. */
+    onSurfaceCreated: (Int, DrawingSurfaceView) -> Unit,
     settings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit,
     audio: AudioUiState = AudioUiState(),
-    tabs: TabsUiState = TabsUiState(),
+    /** One tab session per pane, in pane order (see [com.xopp.android.panes.EditorPane]). */
+    tabs: List<TabsUiState> = listOf(TabsUiState()),
+    /** Whether both panes are shown side by side. */
+    splitView: Boolean = false,
+    onToggleSplitView: () -> Unit = {},
+    /** Which pane the chrome drives; touching a pane's canvas makes it the active one. */
+    activePane: Int = 0,
+    onActivePane: (Int) -> Unit = {},
     /** A document transfer in flight (label shown), or null. Remote files can take a while. */
     busy: String? = null,
 ) {
@@ -184,29 +196,31 @@ fun EditorScreen(
     }
     var color by remember { mutableStateOf(settings.lastColor) }
     var width by remember { mutableStateOf(settings.lastWidth) }
-    var zoom by remember { mutableStateOf(1f) }
-    var pageCount by remember { mutableStateOf(1) }
-    /** How many pages are picked in the overview grid — drives the bulk-delete entries in the Pages menu. */
-    var selectedPages by remember { mutableStateOf(0) }
-    var copiedPages by remember { mutableStateOf(0) }
-    /** Overview edit mode: off means the grid is display/navigation only (see `DrawingSurfaceView`). */
-    var pagesEditMode by remember { mutableStateOf(false) }
-    var currentPage by remember { mutableStateOf(0) }
-    // Vertical scroll geometry (content px) fed from the surface, driving the right-edge scroll thumb.
-    var scrollY by remember { mutableStateOf(0f) }
-    var contentHeight by remember { mutableStateOf(0f) }
-    var viewportHeight by remember { mutableStateOf(0f) }
-    var canUndo by remember { mutableStateOf(false) }
-    var canRedo by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
     var showSaveAs by remember { mutableStateOf(false) }
     var showImportPdf by remember { mutableStateOf(false) }
     // Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar.
     var fullPage by remember { mutableStateOf(false) }
-    var hasSelection by remember { mutableStateOf(false) }
-    var hasTextSelection by remember { mutableStateOf(false) }
-    var hasClipboard by remember { mutableStateOf(false) }
-    var surface by remember { mutableStateOf<DrawingSurfaceView?>(null) }
+    /** Where the split bar sits, as the left pane's share of the width. Dragged, not persisted. */
+    var splitFraction by remember { mutableStateOf(0.5f) }
+    // One mirror of canvas state per pane; the chrome below reads whichever pane has focus.
+    val panes = remember { List(PANE_COUNT) { PaneState() } }
+    val p = panes[activePane.coerceIn(panes.indices)]
+    var zoom by p::zoom
+    var pageCount by p::pageCount
+    var selectedPages by p::selectedPages
+    var copiedPages by p::copiedPages
+    var pagesEditMode by p::pagesEditMode
+    var currentPage by p::currentPage
+    var scrollY by p::scrollY
+    var contentHeight by p::contentHeight
+    var viewportHeight by p::viewportHeight
+    var canUndo by p::canUndo
+    var canRedo by p::canRedo
+    var hasSelection by p::hasSelection
+    var hasTextSelection by p::hasTextSelection
+    var hasClipboard by p::hasClipboard
+    var surface by p::surface
     var textPlacement by remember { mutableStateOf<Placement?>(null) }
     var texPlacement by remember { mutableStateOf<Placement?>(null) }
     // Remembered defaults for a newly authored text box (an edit seeds from the element instead).
@@ -217,15 +231,14 @@ fun EditorScreen(
     var textColor by remember { mutableStateOf(PEN_COLORS.first()) }
     var lineStyle by remember { mutableStateOf(LineStyle.PLAIN) }
     val fill = if (settings.fillEnabled) settings.fillAlpha else null
-    var layers by remember { mutableStateOf<List<LayerInfo>>(emptyList()) }
-    var backgroundStyle by remember { mutableStateOf<String?>(null) }
-    var pageSize by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var layers by p::layers
+    var backgroundStyle by p::backgroundStyle
+    var pageSize by p::pageSize
 
     Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             if (!fullPage) {
-              Column {
                 TopAppBar(
                     // No title and a compact height: the bar is just the action row, so it eats as
                     // little of the drawing area as possible.
@@ -240,18 +253,17 @@ fun EditorScreen(
                         }
                         OverflowMenu(
                             onOpen = onOpen,
-                            onNewTab = tabs.onNew,
+                            onNewTab = { tabs[activePane.coerceIn(tabs.indices)].onNew() },
                             onSave = onSave,
                             onSaveAs = { showSaveAs = true },
                             onImportPdf = { showImportPdf = true },
                             onExportPdf = onExportPdf,
                             onSettings = { showSettings = true },
+                            splitView = splitView,
+                            onToggleSplitView = onToggleSplitView,
                         )
                     },
                 )
-                // Only drawn once a second document is open (see [TabStrip]).
-                TabStrip(tabs, modifier = Modifier.fillMaxWidth())
-              }
             }
         },
     ) { padding ->
@@ -350,10 +362,27 @@ fun EditorScreen(
             )
             }
         }
-        val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
+        /**
+         * One pane: its tab strip over its canvas. All of the surface's callbacks write into *that*
+         * pane's [PaneState], never the active one, so a background pane keeps its own page, zoom and
+         * undo state up to date while the toolbar drives the other. A touch anywhere in the pane
+         * (observed on the initial pass, so the canvas still gets the event) hands it focus.
+         */
+        val pane: @Composable (Int, Modifier) -> Unit = { index, paneModifier ->
+            val state = panes[index]
             // The canvas lives outside the Compose tree, so its chrome colours are pushed in.
             val chrome = rememberCanvasChromeColors()
-            Box(modifier = canvasModifier) {
+            Column(
+                modifier = paneModifier.pointerInput(index) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        onActivePane(index)
+                    }
+                },
+            ) {
+            // Only drawn once a document is open (see [TabStrip]).
+            if (!fullPage) TabStrip(tabs[index.coerceIn(tabs.indices)], modifier = Modifier.fillMaxWidth())
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             AndroidView(
                 factory = { ctx ->
                     DrawingSurfaceView(ctx).also {
@@ -364,25 +393,26 @@ fun EditorScreen(
                         it.currentLineStyle = lineStyle
                         it.currentFill = fill
                         it.onLayersChanged = {
-                            layers = it.visibleLayers()
-                            backgroundStyle = it.visiblePageBackgroundStyle()
-                            pageSize = it.visiblePageSize()
+                            state.layers = it.visibleLayers()
+                            state.backgroundStyle = it.visiblePageBackgroundStyle()
+                            state.pageSize = it.visiblePageSize()
                         }
-                        layers = it.visibleLayers()
-                        backgroundStyle = it.visiblePageBackgroundStyle()
-                        pageSize = it.visiblePageSize()
-                        it.onHistoryChanged = { u, r -> canUndo = u; canRedo = r }
-                        it.onZoomChanged = { z -> zoom = z }
-                        it.onPageCountChanged = { n -> pageCount = n }
-                        it.onPageSelectionChanged = { n -> selectedPages = n }
-                        it.onPageClipboardChanged = { n -> copiedPages = n }
-                        it.onCurrentPageChanged = { p -> currentPage = p; backgroundStyle = it.visiblePageBackgroundStyle(); pageSize = it.visiblePageSize() }
-                        it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
-                        it.onSelectionChanged = { s -> hasSelection = s }
-                        it.onTextSelectionChanged = { s -> hasTextSelection = s }
-                        it.onClipboardChanged = { c -> hasClipboard = c }
+                        state.layers = it.visibleLayers()
+                        state.backgroundStyle = it.visiblePageBackgroundStyle()
+                        state.pageSize = it.visiblePageSize()
+                        it.onHistoryChanged = { u, r -> state.canUndo = u; state.canRedo = r }
+                        it.onZoomChanged = { z -> state.zoom = z }
+                        it.onPageCountChanged = { n -> state.pageCount = n }
+                        it.onPageSelectionChanged = { n -> state.selectedPages = n }
+                        it.onPageClipboardChanged = { n -> state.copiedPages = n }
+                        it.onCurrentPageChanged = { page -> state.currentPage = page; state.backgroundStyle = it.visiblePageBackgroundStyle(); state.pageSize = it.visiblePageSize() }
+                        it.onScrollChanged = { y, total, vp -> state.scrollY = y; state.contentHeight = total; state.viewportHeight = vp }
+                        it.onSelectionChanged = { s -> state.hasSelection = s }
+                        it.onTextSelectionChanged = { s -> state.hasTextSelection = s }
+                        it.onClipboardChanged = { c -> state.hasClipboard = c }
                         it.onToggleFullPage = { fullPage = !fullPage }
                         it.onPlace = { kind, placement ->
+                            onActivePane(index)
                             when (kind) {
                                 PlaceKind.TEXT -> textPlacement = placement
                                 PlaceKind.TEX -> texPlacement = placement
@@ -392,22 +422,38 @@ fun EditorScreen(
                         // Restore the pen the user left off with (the view's own defaults are fixed).
                         it.colorArgb = color
                         it.baseWidthPt = width
-                        surface = it
-                        onSurfaceCreated(it)
+                        state.surface = it
+                        onSurfaceCreated(index, it)
                     }
                 },
                 update = { it.applyChromeColors(chrome.backdrop, chrome.selection, chrome.guide) },
                 modifier = Modifier.fillMaxSize(),
             )
             ScrollThumb(
-                scrollY = scrollY,
-                totalHeightPx = contentHeight,
-                viewportPx = viewportHeight,
-                currentPage = currentPage,
-                pageCount = pageCount,
-                onScrollTo = { surface?.scrollToY(it) },
+                scrollY = state.scrollY,
+                totalHeightPx = state.contentHeight,
+                viewportPx = state.viewportHeight,
+                currentPage = state.currentPage,
+                pageCount = state.pageCount,
+                onScrollTo = { state.surface?.scrollToY(it) },
                 modifier = Modifier.matchParentSize(),
             )
+            }
+            }
+        }
+
+        /** The drawing area: one pane, or both with a draggable bar between them. */
+        val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
+            if (splitView) {
+                SplitLayout(
+                    fraction = splitFraction,
+                    onFraction = { splitFraction = it },
+                    modifier = canvasModifier,
+                    first = { pane(0, it) },
+                    second = { pane(1, it) },
+                )
+            } else {
+                pane(0, canvasModifier)
             }
         }
         when (settings.toolbarPosition) {
@@ -427,7 +473,7 @@ fun EditorScreen(
     }
 
         // Re-apply settings to the live surface whenever the user changes them in Settings.
-        LaunchedEffect(settings) { surface?.applySettings(settings) }
+        LaunchedEffect(settings) { panes.forEach { it.surface?.applySettings(settings) } }
 
         // Settings is overlaid on top of the still-composed editor rather than replacing it, so the
         // AndroidView-hosted DrawingSurfaceView is never detached — the drawing (and undo history)
@@ -938,6 +984,8 @@ private fun OverflowMenu(
     onImportPdf: () -> Unit,
     onExportPdf: () -> Unit,
     onSettings: () -> Unit,
+    splitView: Boolean,
+    onToggleSplitView: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
@@ -973,6 +1021,11 @@ private fun OverflowMenu(
             text = { Text("Save As…") },
             leadingIcon = { Icon(Icons.Filled.SaveAs, contentDescription = null) },
             onClick = { open = false; onSaveAs() },
+        )
+        DropdownMenuItem(
+            text = { Text(if (splitView) "Close split view" else "Split view") },
+            leadingIcon = { Icon(Icons.Filled.VerticalSplit, contentDescription = null) },
+            onClick = { open = false; onToggleSplitView() },
         )
         DropdownMenuItem(
             text = { Text("Settings") },

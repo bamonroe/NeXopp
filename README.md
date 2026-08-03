@@ -103,6 +103,18 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   left off. Closing the last tab leaves you on a fresh blank document. One thing to note: **undo
   history doesn't follow a tab switch** — the incoming document starts with a clean undo history,
   though all of its content and unsaved edits are intact.
+- **Split view — two documents side by side** — **Split view** in the ☰ menu divides the drawing
+  area into a left and a right **pane**, each showing its own document. Drag the bar down the
+  middle to rebalance the two halves (it's a finger-wide grab strip, and neither pane can be
+  squeezed below about a sixth of the width). Each pane has its **own tab strip**, so the two
+  halves hold entirely separate sets of open documents, and each keeps its own scroll position,
+  zoom, current page, layers and undo history. Handy for copying between two notebooks, or for
+  writing notes beside a PDF you're reading.
+
+  The toolbar and the ☰ menu always drive **the pane you last touched** — tap or draw in a pane to
+  give it focus, and Save, Import PDF, the pen settings and undo/redo then apply to that document.
+  Choosing **Close split view** hands the whole area back to the left pane; the right pane's tabs
+  are kept, so turning split view on again brings the same documents back.
 - **Tabs are restored when you reopen the app** — the set of open tabs is cached on the device
   (including edits you hadn't saved yet), so closing the app and starting it again brings back
   exactly the tabs you had, with the same one showing. This is a convenience cache, **not a
@@ -467,6 +479,7 @@ app/src/main/java/com/xopp/android/
   format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
   render/      # stylus canvas, page layout/rendering, PDF import & export
   tabs/        # multiple open documents + the session cache that restores them on launch
+  panes/       # the one-or-two editing panes of split view, each with its own tabs and canvas
   ui/          # Compose Material 3 editor screen, dockable toolbar rail pop-ups, settings, theme
   MainActivity.kt
 app/src/test/  # JVM unit tests for the format and render layers

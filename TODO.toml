@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "split-view-two-documents-side-by-side"
-title = "Split view: two documents side by side"
-description = "Add a split-view option to the hamburger menu: one document open on the left half of the screen, another on the right, with a draggable resize bar down the middle to rebalance the two panes. Each pane should have its own document/tab selection and its own scroll/zoom state."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 20
-created = 2026-08-03
-tags = []
-rebuild = true
-emulator_debug = true
