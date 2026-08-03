@@ -453,6 +453,11 @@ app/
       TabStore.kt            # filesDir/tabs: index + one .xopp snapshot per tab
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
+      CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover
+      MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
+      PageOverview.kt        # the overview grid's view state: edit mode, selection, clipboard, lift
+      TextEditController.kt  # placing/editing text boxes, images and LaTeX images from a tap
+      ElementEdits.kt        # the document edits behind those placements (pure, tested)
       PageStacker.kt         # lays pages out in rows of N columns, fit to column (pure geometry)
       BackgroundGrid.kt      # ruling line/dot offsets + the pt spacings themselves (pure geometry)
       Snapping.kt            # shape endpoints -> the ruling; rotation -> 15-degree steps (pure)
@@ -553,7 +558,7 @@ centred, so 1 is the plain stack and 2-4 a grid of page thumbnails. Because a ro
 pages, hit-testing takes both axes — `StackedLayout.pageAt(x, y)` picks the page under a touch and
 `nearestPage(x, y)` resolves a probe that lands in a gap (e.g. the viewport centre). Those two hit-tests
 also drive the overview's **edit mode**. The grid has two modes, held in
-`DrawingSurfaceView.pagesEditMode` (view-only, default off, toggled from the Pages menu via
+`PageOverview.editMode` (view-only, default off, toggled from the Pages menu via
 `setPagesEditMode`): in **view mode** the grid is display/navigation only — a confirmed Hand-tap
 `goToPage`s the page it hit and neither selection nor reordering is armed; **edit mode** enables the
 page tooling below, and leaving it cancels any lift and clears the selection. In edit mode those
@@ -562,11 +567,11 @@ disarmed by touch-slop travel or a second pointer, and never armed for a stylus 
 lifts the page under it, the drag tracks a drop slot with `nearestPage`, and the release commits one
 undoable `PageOps.move(pages, from, to)` through `editPages`. The same `pageAt(x, y)` hit-test drives
 **multi-select delete**: at more than one column a confirmed Hand-tool tap (the double-tap tracker's
-tap, rather than a second gesture) toggles the page under it in `DrawingSurfaceView.selectedPages`,
+tap, rather than a second gesture) toggles the page under it in `PageOverview.selected`,
 and `deleteSelectedPages()` commits one `PageOps.removeAll(pages, indices)` through `editPages`.
 `removeAll` refuses a selection covering every page, so the document is never emptied. The same
 selection feeds **copy/paste**: `copySelectedPages()` stashes `PageOps.copyOf(pages, indices)` (the
-picked pages in ascending order) in the view-only `pageClipboard`, and `pasteCopiedPages()` commits
+picked pages in ascending order) in the view-only `PageOverview.clipboard`, and `pasteCopiedPages()` commits
 one `PageOps.insertAfter(pages, after, clipboard)` through `editPages`, inserting after the
 highest-numbered selected page (or `currentPageIndex()` when nothing is picked). Pages are immutable,
 so a "copy" is a shared reference — the duplicate carries the same strokes, layers, size and
