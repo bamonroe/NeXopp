@@ -433,7 +433,12 @@ into the **page overview**: pages are chunked into rows of N, each fit to `viewW
 centred, so 1 is the plain stack and 2-4 a grid of page thumbnails. Because a row now holds several
 pages, hit-testing takes both axes — `StackedLayout.pageAt(x, y)` picks the page under a touch and
 `nearestPage(x, y)` resolves a probe that lands in a gap (e.g. the viewport centre). Those two hit-tests
-also drive **drag-to-reorder** in the overview: a finger long-press (`ViewConfiguration`'s timeout,
+also drive the overview's **edit mode**. The grid has two modes, held in
+`DrawingSurfaceView.pagesEditMode` (view-only, default off, toggled from the Pages menu via
+`setPagesEditMode`): in **view mode** the grid is display/navigation only — a confirmed Hand-tap
+`goToPage`s the page it hit and neither selection nor reordering is armed; **edit mode** enables the
+page tooling below, and leaving it cancels any lift and clears the selection. In edit mode those
+hit-tests drive **drag-to-reorder**: a finger long-press (`ViewConfiguration`'s timeout,
 disarmed by touch-slop travel or a second pointer, and never armed for a stylus or at one column)
 lifts the page under it, the drag tracks a drop slot with `nearestPage`, and the release commits one
 undoable `PageOps.move(pages, from, to)` through `editPages`. The same `pageAt(x, y)` hit-test drives

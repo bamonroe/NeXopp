@@ -238,6 +238,8 @@ fun SideToolbar(
     onPageSize: (Double, Double) -> Unit,
     pageColumns: Int,
     onPageColumns: (Int) -> Unit,
+    pagesEditMode: Boolean = false,
+    onPagesEditMode: (Boolean) -> Unit = {},
     selectedPages: Int = 0,
     onDeleteSelectedPages: () -> Unit = {},
     onClearPageSelection: () -> Unit = {},
@@ -277,7 +279,8 @@ fun SideToolbar(
                 "background" -> BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
                 "pages" -> PagesPopupButton(
                     pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
-                    pageColumns, onPageColumns, selectedPages, onDeleteSelectedPages, onClearPageSelection,
+                    pageColumns, onPageColumns, pagesEditMode, onPagesEditMode,
+                    selectedPages, onDeleteSelectedPages, onClearPageSelection,
                     copiedPages, onCopySelectedPages, onPastePages,
                 )
                 "audio" -> AudioPopupButton(audio)
@@ -646,6 +649,8 @@ private fun PagesPopupButton(
     onPageSize: (Double, Double) -> Unit,
     pageColumns: Int,
     onPageColumns: (Int) -> Unit,
+    pagesEditMode: Boolean,
+    onPagesEditMode: (Boolean) -> Unit,
     selectedPages: Int,
     onDeleteSelectedPages: () -> Unit,
     onClearPageSelection: () -> Unit,
@@ -717,6 +722,7 @@ private fun PagesPopupButton(
             }
             HorizontalDivider()
             PagesPerRowRow(pageColumns, onPageColumns)
+            OverviewModeRow(pageColumns, pagesEditMode, onPagesEditMode)
             HorizontalDivider()
             DropdownMenuItem(
                 text = { Text("Page size…") },
@@ -1264,6 +1270,34 @@ private fun PagesPerRowRow(pageColumns: Int, onPageColumns: (Int) -> Unit) {
                     modifier = Modifier.padding(end = 4.dp),
                 )
             }
+        }
+    }
+}
+
+/**
+ * The page-overview mode control: **View** keeps the grid a pure display/navigation surface (a tap
+ * jumps to the page you hit), **Edit** turns on selection, drag-to-reorder and the copy/delete
+ * tooling. Only meaningful in the grid, so it's disabled at a single column.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OverviewModeRow(pageColumns: Int, editMode: Boolean, onEditMode: (Boolean) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Text("Overview mode", style = MaterialTheme.typography.labelMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            FilterChip(
+                selected = !editMode,
+                enabled = pageColumns > 1,
+                onClick = { onEditMode(false) },
+                label = { Text("View") },
+                modifier = Modifier.padding(end = 4.dp),
+            )
+            FilterChip(
+                selected = editMode,
+                enabled = pageColumns > 1,
+                onClick = { onEditMode(true) },
+                label = { Text("Edit") },
+            )
         }
     }
 }

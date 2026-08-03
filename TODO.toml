@@ -21,25 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "add-a-view-edit-mode-toggle-to-the-page-overview"
-title = "Add a view/edit mode toggle to the page overview"
-description = """
-The multi-column page overview currently conflates navigation with editing: tapping any page selects it, which is disorienting when you only want a multi-column layout to read and navigate. Split the overview into two modes with an explicit toggle in the page overview chrome:
-
-- View mode (default): multi-column grid is purely a display/navigation feature. Tapping a page jumps to it; no selection, no drag-to-reorder, no selection chrome. Column count (1-4) still works here.
-- Edit mode: the current behaviour — tap to select pages, multi-select, drag to reorder, copy/paste, and delete selected pages as undoable edits.
-
-The mode toggle lives in the same pages tooling that already hosts the column-count control. Mode should be obvious at a glance (e.g. toggle state plus selection chrome only appearing in edit mode), and leaving edit mode should clear any selection. Document in README.md."""
-status = "active"
-category = "feature"
-urgency = "high"
-order = 20
-created = 2026-08-02
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "append-a-second-pdf-by-merging-into-one-joined-background-pdf"
 title = "Append a second PDF by merging into one joined background PDF"
 description = """

@@ -290,14 +290,22 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     the grid — you can draw, erase and select on whichever page you touch — so it doubles as a
     two-page spread for reading and a thumbnail overview for finding a page. The choice is
     remembered across launches; **1** returns to the single-page stack.
-  - **Reorder pages in the overview** — while the grid is showing (2, 3 or 4 per row), **press and
+  - **Overview mode — View or Edit** — under the columns chips, the **View / Edit** chips decide what
+    the grid does with a tap. **View** (the default) keeps the overview a pure reading-and-navigation
+    layout: tapping a page with the **Hand** tool simply **jumps to that page**, and there is no
+    selection, no selection tint, and no drag-to-reorder. **Edit** turns the page tooling on — tap to
+    select, drag to reorder, and copy/paste/delete the selected pages (all described below). Leaving
+    edit mode clears any selection, so the grid never keeps stale selection chrome on it. The chips
+    are only available at 2 or more pages per row; drawing, erasing and selecting on a page work the
+    same in either mode.
+  - **Reorder pages in the overview** — while the grid is showing in **Edit** mode, **press and
     hold a page with your finger** until it dims: that lifts it. Drag to another page — the slot it
     would land in is outlined — and lift your finger to drop it there; the page moves to that
     position and the pages after it shift along. The move is a single undoable edit, and the new
     order is what gets written to the `.xopp`, so it round-trips to desktop Xournal++. The pen is
     never a candidate for the lift, so drawing on a grid page is unaffected; sliding your finger
     before the press registers pans as usual.
-  - **Delete pages from the overview** — while the grid is showing, pick the **Hand** tool and **tap
+  - **Delete pages from the overview** — while the grid is showing in **Edit** mode, pick the **Hand** tool and **tap
     pages** to select them: each picked page is tinted and outlined, and tapping it again unpicks it.
     The Pages pop-up then grows three entries — **Copy N selected**, **Delete N selected**, which
     removes every picked page in **one undoable edit**, and **Clear selection**. A document always keeps at least one page, so

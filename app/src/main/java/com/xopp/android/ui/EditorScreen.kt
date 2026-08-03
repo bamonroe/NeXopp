@@ -182,6 +182,8 @@ fun EditorScreen(
     /** How many pages are picked in the overview grid — drives the bulk-delete entries in the Pages menu. */
     var selectedPages by remember { mutableStateOf(0) }
     var copiedPages by remember { mutableStateOf(0) }
+    /** Overview edit mode: off means the grid is display/navigation only (see `DrawingSurfaceView`). */
+    var pagesEditMode by remember { mutableStateOf(false) }
     var currentPage by remember { mutableStateOf(0) }
     // Vertical scroll geometry (content px) fed from the surface, driving the right-edge scroll thumb.
     var scrollY by remember { mutableStateOf(0f) }
@@ -325,6 +327,8 @@ fun EditorScreen(
                     surface?.setColumns(it)
                     onSettingsChange(settings.copy(pageColumns = it))
                 },
+                pagesEditMode = pagesEditMode,
+                onPagesEditMode = { pagesEditMode = it; surface?.setPagesEditMode(it) },
                 selectedPages = selectedPages,
                 onDeleteSelectedPages = { surface?.deleteSelectedPages() },
                 onClearPageSelection = { surface?.clearPageSelection() },

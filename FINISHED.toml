@@ -17,6 +17,22 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-a-view-edit-mode-toggle-to-the-page-overview"
+title = "Add a view/edit mode toggle to the page overview"
+description = """
+The multi-column page overview currently conflates navigation with editing: tapping any page selects it, which is disorienting when you only want a multi-column layout to read and navigate. Split the overview into two modes with an explicit toggle in the page overview chrome:
+
+- View mode (default): multi-column grid is purely a display/navigation feature. Tapping a page jumps to it; no selection, no drag-to-reorder, no selection chrome. Column count (1-4) still works here.
+- Edit mode: the current behaviour — tap to select pages, multi-select, drag to reorder, copy/paste, and delete selected pages as undoable edits.
+
+The mode toggle lives in the same pages tooling that already hosts the column-count control. Mode should be obvious at a glance (e.g. toggle state plus selection chrome only appearing in edit mode), and leaving edit mode should clear any selection. Document in README.md."""
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
 id = "fix-rearranging-rail-items-in-settings-resets-enable-toggles"
 title = "Fix: rearranging rail items in settings resets enable toggles"
 description = "In the settings page, reordering items in the toolbar rail resets every item's enabled/disabled state back to enabled. Steps: disable some rail items, then drag to rearrange one — all previously disabled items flip back to enabled. The reorder path is likely rebuilding the rail item list from defaults instead of preserving each item's enabled flag. Fix so reordering preserves enabled/disabled state."

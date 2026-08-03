@@ -168,6 +168,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var pageDragDownY = 0f
     private val pageDragArm = Runnable { startPageDrag() }
 
+    /**
+     * Is the overview grid in edit mode? In view mode (the default) the grid is purely a way to look
+     * at and navigate the document — a tap jumps to a page, and there is no selection or reordering.
+     * Edit mode turns on tap-to-select, drag-to-reorder and the copy/delete tooling. View-only state.
+     */
+    private var pagesEditMode = false
+
     /** Pages picked in the overview grid (by index), the set a delete acts on. View-only state. */
     private val selectedPages = mutableSetOf<Int>()
 
@@ -652,6 +659,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // In the multi-column grid a Hand-tool finger tap picks pages out; the picked set is what
     // [deleteSelectedPages] removes in one undoable edit. Purely view state — nothing is written to
     // the `.xopp` until a delete commits.
+
+    /**
+     * Turn overview editing on or off. Leaving edit mode abandons any lift in flight and clears the
+     * selection, so coming back to the grid to read never has stale selection chrome on it.
+     */
+    fun setPagesEditMode(on: Boolean) {
+        if (on == pagesEditMode) return
+        pagesEditMode = on
+        if (!on) { cancelPageDrag(); clearPageSelection() }
+        render()
+    }
+
+    fun pagesEditMode(): Boolean = pagesEditMode
 
     /** How many overview pages are currently selected. */
     fun selectedPageCount(): Int = selectedPages.size
@@ -1567,7 +1587,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Arm the long-press that lifts a page, for a single finger down on the overview grid. */
     private fun armPageDrag(event: MotionEvent) {
         cancelPageDrag()
-        if (columns <= 1 || event.pointerCount != 1) return
+        if (columns <= 1 || !pagesEditMode || event.pointerCount != 1) return
         if (pointerKindOf(event, 0) != PointerKind.FINGER) return
         pageDragArmed = true
         pageDragDownX = event.x
@@ -1671,10 +1691,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!handTapCandidate) return
         handTapCandidate = false
         if (handTapMoved) { handFirstTapTime = 0L; return }
-        // In the overview grid a tap picks pages for a bulk delete rather than paging/zooming around.
+        // In the overview grid a tap is about pages, not paging/zooming around: in edit mode it picks
+        // pages out for a bulk edit, in view mode it just jumps to the page you tapped.
         if (columns > 1) {
             handFirstTapTime = 0L
-            layout.pageAt(scrollX + handTapDownX, scrollY + handTapDownY)?.let { togglePageSelection(it.index) }
+            val box = layout.pageAt(scrollX + handTapDownX, scrollY + handTapDownY) ?: return
+            if (pagesEditMode) togglePageSelection(box.index) else goToPage(box.index)
             return
         }
         val pairsWithPrevious = handFirstTapTime != 0L &&
