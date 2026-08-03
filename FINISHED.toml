@@ -17,6 +17,23 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "investigate-split-pane-rendering-tab-overwrite-bugs-remote-connection"
+title = "Investigate split-pane rendering + tab-overwrite bugs (remote connection)"
+description = """
+Root-cause investigation, primary goal: map out the follow-up fix to-dos. Two reported symptoms, all observed over a remote connection (an external provider app), so it is unclear whether the fault is in split-pane view state, the remote connection provider, or their interaction.
+
+Bug 1 - blanked pages: with split panes open, scroll in pane A, then open a document in pane B. Scrolling further down in pane A shows the rest of the document as blank white pages - page frames still laid out, but no content rendered. Reloading the document restores the content, so it is a rendering/cache wipe, not data loss.
+
+Bug 2 - tabs overwriting each other: opening multiple documents in a single pane sometimes leaves the tabs showing the same document - swapping between the two tabs in one pane does not show different content, as if one document's state overwrote the other's.
+
+Deliverable: determine which layer owns each bug (split-pane view state, page render cache/bitmap recycling, tab/document identity keying, or the remote content provider), and add concrete fix tasks to TODO.toml."""
+status = "finished"
+category = "bug"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["split-pane", "remote", "rendering"]
+
+[[task]]
 id = "live-two-way-mirroring-of-a-document-across-split-panes"
 title = "Live two-way mirroring of a document across split panes"
 description = "Today 'Mirror on other view' copies the document into the other pane as a snapshot; the two sides then edit independently. A true mirror would share one document between both canvases so strokes appear on both sides at once (and both scroll/zoom independently). Needs a shared document model rather than one document per pane."
