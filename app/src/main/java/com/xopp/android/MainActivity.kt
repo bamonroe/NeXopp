@@ -535,7 +535,47 @@ class MainActivity : ComponentActivity() {
             onSelect = { selectTab(it, p) },
             onClose = { closeTab(it, p) },
             onNew = { newTab(p) },
+            onMove = { sendTabToOtherPane(it, p, keepHere = false) },
+            onMirror = { sendTabToOtherPane(it, p, keepHere = true) },
         )
+    }
+
+    /**
+     * Hand [p]'s tab at [index] to the other pane — the long-press actions on a tab.
+     *
+     * With [keepHere] false this is a *move*: the tab leaves this pane (which falls back to a blank
+     * document if it was the last one) and opens in the other. With [keepHere] true it is a *mirror*:
+     * the document is copied into the other pane so the same content shows on both sides. The copy is
+     * a snapshot, not a live link — the two sides then edit independently, and each saves to its own
+     * tab's file. Split view is opened if it was closed, since otherwise there is nowhere to put it.
+     */
+    private fun sendTabToOtherPane(index: Int, from: EditorPane, keepHere: Boolean) {
+        val other = panes.firstOrNull { it !== from } ?: return
+        snapshotActiveTab(from)
+        val source = from.tabs.tabs.getOrNull(index) ?: return
+        hydrate(other)
+        other.tabs.open(source.copy(id = TabStore.newId()))
+        if (!keepHere) {
+            val showing = from.tabs.active?.id
+            from.tabs.close(index)
+            if (from.tabs.isEmpty) from.tabs.open(blankTab())
+            from.tabs.active?.takeIf { it.id != showing }?.let { showTab(it, from) }
+        }
+        // Only paints now if that pane already has a canvas; otherwise [restoreTabs] shows it when
+        // split view builds one.
+        other.tabs.active?.let { showTab(it, other) }
+        splitView.value = true
+        from.persist()
+        other.persist()
+        tabsTick.value++
+    }
+
+    /** Load a pane's stored session into its manager without touching a canvas, if it has none yet. */
+    private fun hydrate(p: EditorPane) {
+        if (!p.tabs.isEmpty) return
+        val session = p.store.load() ?: return
+        session.tabs.forEach(p.tabs::open)
+        p.tabs.select(session.activeIndex)
     }
 
     /** Copy the live canvas back into the showing tab's record, so switching away doesn't lose it. */

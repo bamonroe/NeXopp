@@ -1,7 +1,9 @@
 package com.xopp.android.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,11 +17,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +47,10 @@ data class TabsUiState(
     val onSelect: (Int) -> Unit = {},
     val onClose: (Int) -> Unit = {},
     val onNew: () -> Unit = {},
+    /** Long-press action: hand this tab to the other pane, opening split view if it is closed. */
+    val onMove: (Int) -> Unit = {},
+    /** Long-press action: open a second copy of this tab in the other pane, keeping this one. */
+    val onMirror: (Int) -> Unit = {},
 )
 
 /**
@@ -65,6 +77,8 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
                 selected = index == state.activeIndex,
                 onSelect = { state.onSelect(index) },
                 onClose = { state.onClose(index) },
+                onMove = { state.onMove(index) },
+                onMirror = { state.onMirror(index) },
             )
         }
         IconButton(onClick = state.onNew, modifier = Modifier.size(TAB_TOUCH_TARGET)) {
@@ -73,20 +87,44 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
     }
 }
 
-/** One tab: its (elided) title, and a close button that is only offered on the selected tab. */
+/**
+ * One tab: its (elided) title, and a close button that is only offered on the selected tab.
+ *
+ * A long press opens the pane menu — move this document to the other half of a split, or mirror a
+ * copy of it there — so both live where the tab does rather than in the app bar.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TabChip(title: String, selected: Boolean, onSelect: () -> Unit, onClose: () -> Unit) {
+private fun TabChip(
+    title: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onClose: () -> Unit,
+    onMove: () -> Unit,
+    onMirror: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .padding(horizontal = 4.dp, vertical = 4.dp)
             .heightIn(min = TAB_TOUCH_TARGET)
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) colors.secondaryContainer else colors.surfaceVariant)
-            .clickable(onClick = onSelect)
+            .combinedClickable(onClick = onSelect, onLongClick = { menuOpen = true })
             .padding(start = 16.dp, end = if (selected) 0.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text("Move to other view") },
+                onClick = { menuOpen = false; onMove() },
+            )
+            DropdownMenuItem(
+                text = { Text("Mirror on other view") },
+                onClick = { menuOpen = false; onMirror() },
+            )
+        }
         Text(
             text = title,
             maxLines = 1,

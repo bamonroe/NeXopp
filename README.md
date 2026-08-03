@@ -115,6 +115,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   give it focus, and Save, Import PDF, the pen settings and undo/redo then apply to that document.
   Choosing **Close split view** hands the whole area back to the left pane; the right pane's tabs
   are kept, so turning split view on again brings the same documents back.
+- **Long-press a tab to send it to the other view** — holding a tab pops up a small menu with two
+  entries. **Move to other view** takes that document out of this pane and opens it in the other
+  one; **Mirror on other view** leaves it where it is and opens a second copy of it in the other
+  pane, so the same content shows on both sides. Either one opens split view automatically if it
+  was closed. A mirror is a **copy taken at that moment, not a live link** — from then on the two
+  sides are independent documents that scroll, edit and save separately, so don't expect a stroke
+  drawn on the left to appear on the right.
 - **Tabs are restored when you reopen the app** — the set of open tabs is cached on the device
   (including edits you hadn't saved yet), so closing the app and starting it again brings back
   exactly the tabs you had, with the same one showing. This is a convenience cache, **not a
