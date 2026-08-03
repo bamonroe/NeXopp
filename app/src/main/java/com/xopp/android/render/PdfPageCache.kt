@@ -43,12 +43,16 @@ data class PdfTile(
  */
 class PdfPageCache(val source: File) : Closeable {
 
-    private val descriptor = ParcelFileDescriptor.open(source, ParcelFileDescriptor.MODE_READ_ONLY)
-    private val renderer = PdfRenderer(descriptor)
+    private var descriptor = ParcelFileDescriptor.open(source, ParcelFileDescriptor.MODE_READ_ONLY)
+    private var renderer = PdfRenderer(descriptor)
+    /** Identity of the bytes [renderer] was opened on, so a rewrite of [source] is detectable. */
+    private var stamp = Stamp(source)
     /** Guards the cache map and its bookkeeping. Held only for fast map operations. */
     private val lock = Any()
     /** Serialises [PdfRenderer], which allows one open page at a time. Never held with [lock]. */
     private val renderLock = Any()
+    /** Serialises [checkSource] so two threads can't both reopen the renderer. Outermost lock. */
+    private val reopenLock = Any()
     /** Access-ordered so eviction drops the least recently *used* entry, not the oldest. */
     private val cache = LinkedHashMap<Key, Bitmap>(16, 0.75f, true)
     private var cachedBytes = 0L
@@ -85,11 +89,16 @@ class PdfPageCache(val source: File) : Closeable {
     /** Invoked (on the worker thread) whenever a newly rasterised page enters the cache. */
     @Volatile var onPageReady: (() -> Unit)? = null
 
-    /** Read once: the renderer is unusable after [close], but the count stays meaningful. */
-    val pageCount: Int = renderer.pageCount
+    /**
+     * The renderer is unusable after [close], but the count stays meaningful. Re-read when the
+     * source file is replaced ([checkSource]) — the new PDF may have a different page count.
+     */
+    var pageCount: Int = renderer.pageCount
+        private set
 
     /** Page [i]'s (width, height) in points (1/72"), the same unit `.xopp` uses. */
     fun pageSizePt(i: Int): Pair<Double, Double> {
+        checkSource()
         synchronized(lock) { sizes[i] }?.let { return it }
         val size = synchronized(renderLock) {
             renderer.openPage(i).use { Pair(it.width.toDouble(), it.height.toDouble()) }
@@ -107,6 +116,7 @@ class PdfPageCache(val source: File) : Closeable {
      */
     fun request(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
+        checkSource()
         if (closed || i >= pageCount) return null
         val key = Key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) {
@@ -133,7 +143,9 @@ class PdfPageCache(val source: File) : Closeable {
         visRight: Float,
         visBottom: Float,
     ): List<PdfTile> {
-        if (targetWidthPx <= 0 || i < 0 || closed || i >= pageCount) return emptyList()
+        if (targetWidthPx <= 0 || i < 0) return emptyList()
+        checkSource()
+        if (closed || i >= pageCount) return emptyList()
         val scale = tileScale(i, targetWidthPx) ?: return emptyList()
         val (pw, ph) = pageSizePt(i)
         if (pw <= 0) return emptyList()
@@ -248,6 +260,7 @@ class PdfPageCache(val source: File) : Closeable {
     /** Queue page [i] at [targetWidthPx] for background rasterisation if it isn't cached already. */
     fun prefetch(i: Int, targetWidthPx: Int) {
         if (targetWidthPx <= 0 || i < 0) return
+        checkSource()
         if (closed || i >= pageCount) return
         val key = Key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) {
@@ -259,6 +272,7 @@ class PdfPageCache(val source: File) : Closeable {
     /** Rasterise page [i] at [targetWidthPx] synchronously (used off the drawing path, e.g. tests). */
     fun render(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
+        checkSource()
         if (closed || i >= pageCount) return null
         val key = Key(i, rasterWidth(i, targetWidthPx))
         synchronized(lock) { cache[key]?.let { return it } }
@@ -266,6 +280,59 @@ class PdfPageCache(val source: File) : Closeable {
     }
 
     // --- internals ---------------------------------------------------------------------------
+
+    /** The identity of a file's contents, as far as the filesystem will tell us cheaply. */
+    private data class Stamp(val length: Long, val modified: Long) {
+        constructor(f: File) : this(f.length(), f.lastModified())
+    }
+
+    /**
+     * Re-open the renderer when [source] has been rewritten underneath us. The descriptor opened in
+     * the constructor keeps pointing at the bytes it was opened on, so a document whose background
+     * PDF is replaced (import, page append) would otherwise keep rasterising the *old* file — or,
+     * if it was truncated in place, render white pages with no error at all. Cheap enough to call
+     * on every request: two stat calls, and nothing else happens while the stamp is unchanged.
+     *
+     * Takes no other lock while entering [renderLock], preserving the "never held with [lock]"
+     * rule; the cache is cleared afterwards, since every bitmap in it came from the old bytes.
+     */
+    private fun checkSource() {
+        if (closed) return
+        synchronized(reopenLock) {
+            val now = Stamp(source)
+            if (now == stamp) return
+            try {
+                synchronized(renderLock) {
+                    renderer.close()
+                    descriptor.close()
+                    descriptor = ParcelFileDescriptor.open(source, ParcelFileDescriptor.MODE_READ_ONLY)
+                    renderer = PdfRenderer(descriptor)
+                    pageCount = renderer.pageCount
+                    stamp = now
+                }
+            } catch (e: Exception) {
+                // The replacement isn't a readable PDF (or vanished). Surface it as "no background"
+                // rather than blank white pages: close makes every later call return null.
+                android.util.Log.w("PdfPageCache", "reopen of ${source.name} failed", e)
+                close()
+                return
+            }
+            synchronized(lock) { discard() }
+        }
+    }
+
+    /** Caller holds [lock]. Drop everything derived from the bytes we were rendering. */
+    private fun discard() {
+        pending.clear()
+        cache.clear()
+        pageWidths.clear()
+        tileMemo.clear()
+        pinnedByPage.clear()
+        pinnedKeys.clear()
+        sizes.clear()
+        generation++
+        cachedBytes = 0
+    }
 
     /** A cache entry: a whole page at a width bucket, or one cell of that width's tile grid. */
     private data class Key(val page: Int, val width: Int, val col: Int = -1, val row: Int = -1) {
@@ -429,19 +496,14 @@ class PdfPageCache(val source: File) : Closeable {
         synchronized(lock) {
             if (closed) return
             closed = true
-            pending.clear()
-            cache.clear()
-            pageWidths.clear()
-            tileMemo.clear()
-            pinnedByPage.clear()
-            pinnedKeys.clear()
-            generation++
-            cachedBytes = 0
+            discard()
         }
         // Under [renderLock] so an in-flight rasterise finishes before the renderer goes away.
+        // Tolerant of an already-closed renderer: a failed reopen in [checkSource] closes the old
+        // one before calling us, and closing twice throws.
         synchronized(renderLock) {
-            renderer.close()
-            descriptor.close()
+            runCatching { renderer.close() }
+            runCatching { descriptor.close() }
         }
         worker.shutdown()
     }

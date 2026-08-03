@@ -305,7 +305,11 @@ requirement, not housekeeping: `PdfPageCache` rasterises through a file descript
 as long as the document is on a canvas, so a shared fixed name (the old `background.pdf`) let the
 next document opened — in the other split pane, or another tab — overwrite the bytes underneath a
 live renderer, and every page not yet rasterised came back blank. Since the files are never
-rewritten, two views of one document (a mirrored tab) can share a path safely. Unique names would
+rewritten, two views of one document (a mirrored tab) can share a path safely. As defence in depth
+`PdfPageCache.checkSource` stamps the file's size and mtime when it opens the renderer and re-checks
+on every request, re-opening (and dropping the whole cache) if the bytes were replaced anyway, and
+closing itself — so the page draws with no background rather than white — if the replacement can't
+be opened as a PDF. Unique names would
 otherwise accumulate, so `MainActivity.prunePdfCache` sweeps the store against the paths the open
 tabs *and* the live surfaces still reference, on every session persist and tab close.
 
