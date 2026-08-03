@@ -1704,7 +1704,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun handleHandTapUp(event: MotionEvent) {
         if (!handTapCandidate) return
         handTapCandidate = false
-        if (handTapMoved) { handFirstTapTime = 0L; return }
+        // A flick is a pan, not a tap — even one whose travel stayed inside the tap slop. Without this
+        // a short-but-fast swipe in the overview grid would count as a tap and jump back to the page
+        // under the finger, cancelling the glide it should have started.
+        if (handTapMoved || releaseVx != 0f || releaseVy != 0f) { handFirstTapTime = 0L; return }
         // In the overview grid a tap is about pages, not paging/zooming around: in edit mode it picks
         // pages out for a bulk edit, in view mode it just jumps to the page you tapped.
         if (columns > 1) {
