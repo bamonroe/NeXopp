@@ -292,6 +292,18 @@ is staged through a local file by `io/UriStaging.kt` and run off the UI thread b
 - **Write** — the document is serialised locally *first* and only then pushed out in one pass, so a
   link that drops mid-encode can't leave a truncated `.xopp` on the far end.
 
+A document's **background PDF** gets its own file, allocated by `io/PdfStore.kt`. Whether it came
+out of a ZIP package (`XoppZip.open`), was resolved from a `pdf` background reference
+(`MainActivity.resolvePdfBackground`) or was imported (`adoptPdf`), the bytes land under a name no
+other document uses, and that name is what `OpenTab.pdfPath` records. This is a correctness
+requirement, not housekeeping: `PdfPageCache` rasterises through a file descriptor it holds open for
+as long as the document is on a canvas, so a shared fixed name (the old `background.pdf`) let the
+next document opened — in the other split pane, or another tab — overwrite the bytes underneath a
+live renderer, and every page not yet rasterised came back blank. Since the files are never
+rewritten, two views of one document (a mirrored tab) can share a path safely. Unique names would
+otherwise accumulate, so `MainActivity.prunePdfCache` sweeps the store against the paths the open
+tabs *and* the live surfaces still reference, on every session persist and tab close.
+
 The open picker asks for a **persistable read+write** grant (`OpenDocumentForEditing`), so plain
 Save writes back to the tab's own `OpenTab.uri` (`MainActivity.saveActiveTab`) instead of asking for
 a location, and a restored tab can still reach its file after a restart. The `CreateDocument` path
@@ -421,6 +433,7 @@ app/
       FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
+      PdfStore.kt            # one background-PDF file per open document; never rewritten
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
     tabs/                    # several documents open at once, cached across app restarts
@@ -783,8 +796,8 @@ per document, `APPEND` onto a document that already has a PDF background does no
 reference: `MainActivity.appendMergedPdf` **merges** the two PDFs into one. `PdfMerger.join`
 concatenates the current background PDF and the incoming one with PDFBox's `PDFMergerUtility` (source
 pages imported verbatim, so they rasterise and re-export unchanged); the joined file is written to
-`filesDir` — not the cache, so the link a plain `Save` records survives — under one of two
-ping-ponged names (`PdfMerger.nextJoinedFile`) so a merge never writes the file it is reading. The
+`filesDir` — not the cache, so the link a plain `Save` records survives — under a name allocated by
+that pane's joined-PDF `PdfStore`, so a merge never writes the file it is reading. The
 new pages are sized from the incoming PDF with `PdfImport.pagesFor(reference = null, pageNoOffset =
 <existing PDF page count>)`, and `DrawingSurfaceView.appendPdfPages` then re-points the document's one
 reference at the joined file (`documentWithPdfReference`) **and** appends the pages in a **single

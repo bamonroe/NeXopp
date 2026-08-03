@@ -34,6 +34,7 @@ import com.xopp.android.render.PdfMerger
 import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
+import com.xopp.android.io.PdfStore
 import com.xopp.android.panes.EditorPane
 import com.xopp.android.panes.MirrorSync
 import com.xopp.android.tabs.DocColors
@@ -121,6 +122,20 @@ class MainActivity : ComponentActivity() {
 
     /** Staging for document bytes, so slow remote (SSHFS/FTP/cloud) URIs never block the canvas. */
     private val staging: UriStaging by lazy { UriStaging(contentResolver, File(cacheDir, STAGING_DIR)) }
+
+    /**
+     * Where a document's background PDF is kept while it is open — one file per document, never
+     * rewritten (see [PdfStore]). Lives in the cache: a tab whose copy the OS reclaims falls back to
+     * blank backgrounds, which [showTab] already handles.
+     */
+    private val pdfStore: PdfStore by lazy { PdfStore(File(cacheDir, PDF_DIR)) }
+
+    /**
+     * Where a *merged* background PDF is kept ([appendMergedPdf]). In `filesDir` rather than the
+     * cache, because a plain Save records this path in the document and it has to still resolve on
+     * reopen.
+     */
+    private val joinedPdfStore: PdfStore by lazy { PdfStore(File(filesDir, JOINED_PDF_DIR)) }
 
     /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */
     private var busy = mutableStateOf<String?>(null)
@@ -308,7 +323,7 @@ class MainActivity : ComponentActivity() {
 
     /** Open a ZIP-package .xopp: the PDF travels inside, so the background rasterises without a sibling. */
     private fun openZip(input: java.io.InputStream) {
-        val (doc, pdfFile) = XoppZip.open(input, cacheDir)
+        val (doc, pdfFile) = XoppZip.open(input, pdfStore::newFile)
         saveFormat = SaveFormat.ZIPPED
         surface?.setPdfSource(pdfFile?.let(::PdfPageCache))
         surface?.setPdfTextIndex(null)
@@ -345,7 +360,7 @@ class MainActivity : ComponentActivity() {
             ref.startsWith("content://") -> contentResolver.openInputStream(Uri.parse(ref))
             else -> File(ref).takeIf(File::exists)?.inputStream()
         } ?: return@runCatching null
-        val out = File(cacheDir, "background.pdf")
+        val out = pdfStore.newFile()
         stream.use { input -> out.outputStream().use { input.copyTo(it) } }
         out
     }.getOrNull()
@@ -374,7 +389,7 @@ class MainActivity : ComponentActivity() {
 
     /** Turn an already-local [source] PDF into annotatable pages, per [mode]. */
     private fun adoptPdf(source: File, mode: ImportPdfMode, reference: String) {
-        val file = File(cacheDir, "imported.pdf")
+        val file = pdfStore.newFile()
         source.inputStream().use { input -> file.outputStream().use { input.copyTo(it) } }
         val view = surface
         val existing = view?.pdfSourceFile()
@@ -406,7 +421,7 @@ class MainActivity : ComponentActivity() {
         val offset = view.pdfSourcePageCount()
         // Size the new pages from the incoming PDF before anything is closed or replaced.
         val added = PdfPageCache(incoming).use { PdfImport.pagesFor(it, reference = null, pageNoOffset = offset) }
-        val joined = PdfMerger.join(existing, incoming, PdfMerger.nextJoinedFile(filesDir, existing))
+        val joined = PdfMerger.join(existing, incoming, joinedPdfStore.newFile())
         view.setPdfSource(PdfPageCache(joined)) // closes the old rasteriser, releasing the old file
         view.setPdfTextIndex(null) // cleared until extraction below finishes
         view.appendPdfPages(added, joined.absolutePath)
@@ -647,6 +662,7 @@ class MainActivity : ComponentActivity() {
         p.tabs.active?.takeIf { it.id != showing }?.let { showTab(it, p) }
         tabsTick.value++
         p.persist()
+        prunePdfCache() // the closed tab's background PDF is now unreferenced
     }
 
     /** Open a fresh blank document in a new tab of [p] and switch to it. */
@@ -686,7 +702,26 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Write the focused pane's session out, on every tab change and on the way to the background. */
-    private fun persistTabs() = pane.persist()
+    private fun persistTabs() {
+        pane.persist()
+        prunePdfCache()
+    }
+
+    /**
+     * Drop the background PDFs no open tab refers to any more. Each open allocates its own file
+     * ([PdfStore]), so without this sweep the folders would grow with every document opened.
+     *
+     * The live surfaces are counted alongside the tab records: a document whose PDF was just
+     * imported has not been snapshotted back into its tab yet, and deleting the file out from under
+     * the canvas is precisely the bug this store exists to prevent.
+     */
+    private fun prunePdfCache() {
+        val live = panes.flatMap { p ->
+            p.tabs.tabs.map(OpenTab::pdfPath) + listOf(p.surface?.pdfSourceFile()?.absolutePath)
+        }
+        pdfStore.prune(live)
+        joinedPdfStore.prune(live)
+    }
 
     /**
      * Turn split view on or off. Leaving it snapshots the right-hand pane and hands focus back to the
@@ -814,6 +849,12 @@ class MainActivity : ComponentActivity() {
 
         /** Cache subfolder holding the local staging copies of documents in transit (see `UriStaging`). */
         const val STAGING_DIR = "staging"
+
+        /** Cache subfolder holding one background PDF per open document (see [PdfStore]). */
+        const val PDF_DIR = "pdf"
+
+        /** `filesDir` subfolder holding merged background PDFs, which saved documents link to. */
+        const val JOINED_PDF_DIR = "pdf-joined"
 
         /** Tab label for a document that has never been opened from, or saved to, a file. */
         const val UNTITLED = "Untitled"

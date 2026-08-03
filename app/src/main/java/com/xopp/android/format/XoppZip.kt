@@ -62,10 +62,13 @@ object XoppZip {
 
     /**
      * Read a ZIP-package `.xopp` from [input] (not closed). Parses `content.xml` into a [Document] and
-     * extracts an embedded [PDF_ENTRY], if present, into [cacheDir] so the background rasterises on
-     * reopen — the whole point of the single-file package. Throws if `content.xml` is missing.
+     * extracts an embedded [PDF_ENTRY], if present, into a file [pdfFile] allocates so the background
+     * rasterises on reopen — the whole point of the single-file package. The allocator is only called
+     * when there is a PDF to extract, and must return a file of this document's own (see
+     * `com.xopp.android.io.PdfStore`): writing every package's background to one shared name blanks
+     * the pages of any document still rendering from it. Throws if `content.xml` is missing.
      */
-    fun open(input: InputStream, cacheDir: File): Loaded {
+    fun open(input: InputStream, pdfFile: () -> File): Loaded {
         var xml: String? = null
         var pdf: File? = null
         ZipInputStream(input).let { zip ->
@@ -73,7 +76,7 @@ object XoppZip {
                 val entry = zip.nextEntry ?: break
                 when (entry.name) {
                     "content.xml" -> xml = zip.readBytes().toString(Charsets.UTF_8)
-                    PDF_ENTRY -> pdf = File(cacheDir, "background.pdf").also { out ->
+                    PDF_ENTRY -> pdf = pdfFile().also { out ->
                         out.outputStream().use { zip.copyTo(it) }
                     }
                 }

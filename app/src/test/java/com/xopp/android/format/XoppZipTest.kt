@@ -47,7 +47,7 @@ class XoppZipTest {
 
     @Test fun documentSurvivesZipRoundTrip() {
         val doc1 = Xopp.parseXml(sample)
-        val loaded = XoppZip.open(ByteArrayInputStream(writeZip()), tmp.newFolder())
+        val loaded = XoppZip.open(ByteArrayInputStream(writeZip()), pdfStore(tmp.newFolder())::newFile)
         assertEquals(doc1, loaded.doc)
         assertNull(loaded.pdf) // no PDF was embedded
     }
@@ -77,7 +77,26 @@ class XoppZipTest {
         val zip = writeZip(pdfIn)
         assertTrue(XoppZip.PDF_ENTRY in entries(zip))
 
-        val loaded = XoppZip.open(ByteArrayInputStream(zip), tmp.newFolder())
+        val loaded = XoppZip.open(ByteArrayInputStream(zip), pdfStore(tmp.newFolder())::newFile)
         assertArrayEquals(pdfBytes, loaded.pdf!!.readBytes())
     }
+
+    /**
+     * Two packages opened into the same store must land in two files. They used to share one fixed
+     * `background.pdf`, which blanked the pages of whichever document was still rendering from it.
+     */
+    @Test fun twoPackagesGetTheirOwnPdfFiles() {
+        val store = pdfStore(tmp.newFolder())
+        val first = tmp.newFile("first.pdf").apply { writeBytes("%PDF-first".toByteArray()) }
+        val second = tmp.newFile("second.pdf").apply { writeBytes("%PDF-second".toByteArray()) }
+
+        val a = XoppZip.open(ByteArrayInputStream(writeZip(first)), store::newFile).pdf!!
+        val b = XoppZip.open(ByteArrayInputStream(writeZip(second)), store::newFile).pdf!!
+
+        assertNotEquals(a.absolutePath, b.absolutePath)
+        assertEquals("%PDF-first", a.readText())
+        assertEquals("%PDF-second", b.readText())
+    }
+
+    private fun pdfStore(dir: java.io.File) = com.xopp.android.io.PdfStore(dir)
 }

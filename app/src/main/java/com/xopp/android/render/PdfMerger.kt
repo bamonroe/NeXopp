@@ -30,14 +30,4 @@ object PdfMerger {
         }
         return out
     }
-
-    /**
-     * A destination for the next [join] in [dir] that isn't the currently-open [current] PDF.
-     * Repeated appends ping-pong between two names, so each merge reads one file and writes the
-     * other instead of clobbering the source it is still reading.
-     */
-    fun nextJoinedFile(dir: File, current: File?): File {
-        val a = File(dir, "joined-a.pdf")
-        return if (current == a) File(dir, "joined-b.pdf") else a
-    }
 }
