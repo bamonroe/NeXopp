@@ -18,6 +18,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import androidx.core.content.ContextCompat
 import com.xopp.android.audio.AudioSession
 import com.xopp.android.audio.documentAudioFiles
+import com.xopp.android.format.FileKind
 import com.xopp.android.format.SaveFormat
 import com.xopp.android.format.Xopp
 import com.xopp.android.format.XoppZip
@@ -156,15 +157,29 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openDocument(uri: Uri) = runCatching {
+        // Sniff the container by its leading bytes, never by extension: the picker is unfiltered and
+        // SAF gives us content:// URIs with no reliable suffix. The verdict also fixes the sticky save
+        // format, so a reopened ZIP keeps saving ZIPPED and a gzip .xopp keeps saving gzip.
+        val kind = contentResolver.openInputStream(uri).use { raw ->
+            requireNotNull(raw) { "could not open $uri" }
+            FileKind.sniff(raw.buffered())
+        }
+        if (kind == FileKind.PDF) {
+            // A raw PDF isn't a document to parse — it becomes a fresh annotatable one over its pages.
+            saveFormat = SaveFormat.ORIGINAL
+            importPdf(uri)
+            return@runCatching
+        }
         contentResolver.openInputStream(uri).use { raw ->
             requireNotNull(raw) { "could not open $uri" }
             val input = raw.buffered()
-            // Sniff the container: ZIP-package (PK…) vs the legacy gzip .xopp. This also fixes the
-            // sticky save format so a reopened ZIP keeps saving ZIPPED (and gzip keeps saving gzip).
-            input.mark(2)
-            val zip = XoppZip.isZip(input.read(), input.read())
-            input.reset()
-            if (zip) openZip(input) else openGzip(input)
+            when (kind) {
+                FileKind.ZIP -> openZip(input)
+                FileKind.GZIP -> openGzip(input)
+                // Desktop Xournal++ can write plain XML; accept it and save it back compressed.
+                FileKind.XML -> openParsed(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()))
+                else -> error("unrecognised file type")
+            }
         }
         // The document may reference recordings made elsewhere; fetch them so its strokes replay.
         pullAudioSidecars()
@@ -181,8 +196,10 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Open a legacy gzip .xopp, resolving a PDF background from its linked path/URI (may be absent). */
-    private fun openGzip(input: java.io.InputStream) {
-        val doc = Xopp.open(input)
+    private fun openGzip(input: java.io.InputStream) = openParsed(Xopp.open(input))
+
+    /** Load an already-parsed document, resolving any linked PDF background. Saves back as gzip. */
+    private fun openParsed(doc: com.xopp.android.format.model.Document) {
         saveFormat = SaveFormat.ORIGINAL
         // Reload the PDF a `pdf` background references, so a saved project reopens with its
         // background intact. Only the first PDF-backed page carries the reference (import convention).

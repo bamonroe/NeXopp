@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "open-pdf-xopp-and-zipped-xopp-files"
+title = "Open PDF, .xopp, and zipped .xopp files"
+description = "The open/file-picker path should accept three input kinds: a raw PDF (opened as an annotatable document backed by the PDF pages), a plain .xopp file, and a zipped .xopp archive (unpack, then load the contained .xopp plus any bundled assets). Detect by content/magic bytes rather than extension alone, and keep round-trip safety with desktop Xournal++."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["files", "pdf"]
+
+[[task]]
 id = "move-eraser-mode-to-eraser-long-press-and-size-to-pen-tip-sizes"
 title = "Move eraser mode to eraser long-press and size to pen tip sizes"
 description = "Two changes to the eraser. First, the eraser size options should just follow the same tip sizes as the pen rather than having their own scheme. Second, the whole-stroke vs partial-stroke choice should be made by long-pressing the eraser tool in the toolbar, not in a separate menu. Those entries currently live under line styles and should be removed from there."

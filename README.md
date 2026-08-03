@@ -72,7 +72,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 ## Using the app
 
 - **Open** — the top-bar **menu** (the ☰ button, top right) has **Open**; it launches the system
-  file picker; choose a `.xopp` file. It's read in place via the Storage Access Framework. Every
+  file picker; choose a file. It's read in place via the Storage Access Framework. **Open accepts
+  four kinds of file and works out which is which from the file's contents, not its name**: a
+  gzip-compressed `.xopp` (the usual desktop format), a single-file zipped `.xopp` package (its
+  bundled PDF travels inside), an uncompressed Xournal++ XML file, and a **plain PDF** — picking a
+  PDF opens it as a fresh annotatable document exactly as **Import PDF** below does. A file that
+  is none of these is refused with an "Open failed" notice. Whichever `.xopp` container it came
+  from is remembered, so a later Save writes it back in the same one. Every
   page is shown, one above the next, each drawn with its own background ruling (plain, lined,
   ruled, graph, or dotted) and all of its layers — including strokes, text boxes, images, and
   LaTeX images (rendered as real math — fractions, super/subscripts, roots, and Greek/operator

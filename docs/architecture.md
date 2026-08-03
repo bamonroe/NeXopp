@@ -58,7 +58,22 @@ reference clone, and desktop Xournal++'s writer. Where the sample and the refere
 The same `<xournal>` XML is written in one of two containers, chosen in the "Save As" dialog and
 then made **sticky** — every later plain Save reuses the last-picked format (owned by
 `format/SaveFormat.kt`, wired in `MainActivity`; opening a document adopts the format it was
-stored in, sniffed from the first two bytes: `1f 8b` gzip vs `PK` zip).
+stored in, classified by `format/FileKind.kt` — see below).
+
+#### What the open path accepts (`format/FileKind.kt`)
+
+Open never trusts the file name: the picker is unfiltered (`*/*`, since `.xopp` has no registered
+MIME type) and SAF hands back `content://` URIs with no reliable suffix. `FileKind.sniff()` reads
+the first `MAGIC_BYTES` (8) off the buffered stream and rewinds it, so the same stream goes on to
+the loader its verdict picks:
+
+| Magic | `FileKind` | Loaded as | Sticky `SaveFormat` |
+|---|---|---|---|
+| `PK` | `ZIP` | ZIP-package `.xopp` (`XoppZip.open`) — the PDF travels inside | `ZIPPED` |
+| `1f 8b` | `GZIP` | gzip `.xopp` (`Xopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
+| `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
+| `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`Xopp.parseXml`); saved back compressed | `ORIGINAL` |
+| anything else | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
 - **`ORIGINAL`** — the legacy gzip `.xopp` (`format/Xopp.kt`, JDK `GZIPOutputStream`). A PDF
   background stays **linked by location** (`domain="absolute"`, its path/URI). The
@@ -257,7 +272,8 @@ native for stylus latency and platform fit).
 The core loop:
 
 ```
-open (SAF Uri) → sniff container (gzip / ZIP) → GZIP|ZIP InputStream → XmlPullParser → Document model
+open (SAF Uri) → FileKind.sniff (gzip / ZIP / PDF / XML) → GZIP|ZIP|plain InputStream → XmlPullParser → Document model
+                 (a raw PDF instead becomes a fresh document via PdfImport.documentFor)
    → render on SurfaceView (Material 3 chrome around it)
    → stylus edits mutate the model → XmlSerializer → GZIP|ZIP OutputStream (sticky SaveFormat) → save (SAF Uri)
 ```
@@ -316,6 +332,7 @@ app/
       Xopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
+      FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
