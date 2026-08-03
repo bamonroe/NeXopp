@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "live-two-way-mirroring-of-a-document-across-split-panes"
-title = "Live two-way mirroring of a document across split panes"
-description = "Today 'Mirror on other view' copies the document into the other pane as a snapshot; the two sides then edit independently. A true mirror would share one document between both canvases so strokes appear on both sides at once (and both scroll/zoom independently). Needs a shared document model rather than one document per pane."
-status = "active"
-category = "feature"
-urgency = "low"
-order = 30
-created = 2026-08-03
-tags = ["tabs", "split-view"]
-rebuild = true
-emulator_debug = false

@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "live-two-way-mirroring-of-a-document-across-split-panes"
+title = "Live two-way mirroring of a document across split panes"
+description = "Today 'Mirror on other view' copies the document into the other pane as a snapshot; the two sides then edit independently. A true mirror would share one document between both canvases so strokes appear on both sides at once (and both scroll/zoom independently). Needs a shared document model rather than one document per pane."
+status = "finished"
+category = "feature"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["tabs", "split-view"]
+
+[[task]]
 id = "drag-a-tab-to-reorder-it-within-its-pane"
 title = "Drag a tab to reorder it within its pane"
 description = "Holding a tab and dragging it sideways should move it within its own tab strip, reordering the open documents. Needs a move(from,to) on TabManager plus a drag-reorder gesture in TabStrip that coexists with the existing long-press menu (move/mirror to the other view). Secondary to that menu."
