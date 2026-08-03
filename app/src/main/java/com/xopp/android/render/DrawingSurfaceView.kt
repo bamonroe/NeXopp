@@ -7,8 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
-import android.graphics.DashPathEffect
-import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.Choreographer
 import android.view.HapticFeedbackConstants
@@ -16,6 +14,7 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewConfiguration
+import com.xopp.android.render.CanvasChrome.Companion.HANDLE_DRAW_PX
 import com.xopp.android.audio.AudioRef
 import com.xopp.android.audio.audioRef
 import com.xopp.android.audio.withAudio
@@ -31,7 +30,6 @@ import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
-import android.graphics.Path
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.max
@@ -418,97 +416,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Set while a coalesced redraw is queued — see [requestRender]. */
     private val renderPosted = java.util.concurrent.atomic.AtomicBoolean(false)
 
-    /** Backdrop behind the pages — replaced by the app's colour scheme via [applyChromeColors]. */
-    private var backdropColor = BACKDROP
+    /** Every non-document brush this canvas paints with — see [CanvasChrome]. */
+    private val chrome = CanvasChrome()
 
-    private val selectionStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        color = SELECTION_COLOR
-        pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f)
-    }
-    // The setsquare/compass overlay: a solid outline (it is a physical-feeling instrument, not a
-    // marquee, so no dashes) over a faint wash, plus filled grab handles.
-    private val guideStrokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        color = GUIDE_COLOR
-    }
-    // Page-overview reorder feedback: the lifted page is washed out, the drop slot outlined.
-    private val pageLiftPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = 0x66FFFFFF
-    }
-    private val pageDropPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 6f
-        color = GUIDE_COLOR
-    }
-    // Page-overview multi-select: a picked page is tinted and outlined so the selection reads at a glance.
-    private val pageSelectFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = (GUIDE_COLOR and 0x00FFFFFF) or (0x33 shl 24)
-    }
-    private val pageSelectPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 6f
-        color = GUIDE_COLOR
-    }
-    private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = (GUIDE_COLOR and 0x00FFFFFF) or (GUIDE_FILL_ALPHA shl 24)
-    }
-    private val guideHandlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = GUIDE_COLOR
-    }
-    private val guidePath = Path()
-    private val selectionFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = SELECTION_FILL
-    }
-    private val handlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = SELECTION_COLOR
-    }
-    private val handleArmPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-        color = SELECTION_COLOR
-    }
     /**
      * Repaints the canvas chrome from the app's Material 3 colour scheme. The `SurfaceView` sits
      * outside the Compose tree, so the colours are pushed in from the hosting composable; see
-     * `com.xopp.android.ui.theme.CanvasChromeColors`. The translucent fills keep their original
-     * alphas so the wash stays faint enough to draw over.
+     * `com.xopp.android.ui.theme.CanvasChromeColors`.
      */
     fun applyChromeColors(backdrop: Int, selection: Int, guide: Int) {
-        backdropColor = backdrop
-        selectionStrokePaint.color = selection
-        handlePaint.color = selection
-        handleArmPaint.color = selection
-        selectionFillPaint.color = selection.withAlpha(SELECTION_FILL_ALPHA)
-        bandFillPaint.color = selection.withAlpha(BAND_FILL_ALPHA)
-        guideStrokePaint.color = guide
-        guideHandlePaint.color = guide
-        guideFillPaint.color = guide.withAlpha(GUIDE_FILL_ALPHA)
+        chrome.applyColors(backdrop, selection, guide)
         requestRender()
-    }
-
-    private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
-
-    private val lassoPath = Path()
-    private val bandFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = BAND_FILL
-    }
-    private val hoverPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 2f
-    }
-    private val textSelectPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = TEXT_SELECT_FILL
     }
 
     init {
@@ -1561,21 +1479,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
         when (g) {
             is DrawingGuide.Setsquare -> {
                 val c = g.corners()
-                guidePath.reset()
-                guidePath.moveTo(vx(c[0].first), vy(c[0].second))
-                guidePath.lineTo(vx(c[1].first), vy(c[1].second))
-                guidePath.lineTo(vx(c[2].first), vy(c[2].second))
-                guidePath.close()
-                canvas.drawPath(guidePath, guideFillPaint)
-                canvas.drawPath(guidePath, guideStrokePaint)
+                chrome.guidePath.reset()
+                chrome.guidePath.moveTo(vx(c[0].first), vy(c[0].second))
+                chrome.guidePath.lineTo(vx(c[1].first), vy(c[1].second))
+                chrome.guidePath.lineTo(vx(c[2].first), vy(c[2].second))
+                chrome.guidePath.close()
+                canvas.drawPath(chrome.guidePath, chrome.guideFill)
+                canvas.drawPath(chrome.guidePath, chrome.guideStroke)
             }
             is DrawingGuide.Compass -> {
-                canvas.drawCircle(vx(g.x), vy(g.y), (g.radius * s).toFloat(), guideStrokePaint)
-                canvas.drawCircle(vx(g.x), vy(g.y), HANDLE_DRAW_PX, guideHandlePaint)
+                canvas.drawCircle(vx(g.x), vy(g.y), (g.radius * s).toFloat(), chrome.guideStroke)
+                canvas.drawCircle(vx(g.x), vy(g.y), HANDLE_DRAW_PX, chrome.guideHandle)
             }
         }
         val tip = guideTip(g)
-        canvas.drawCircle(vx(tip.first), vy(tip.second), HANDLE_DRAW_PX, guideHandlePaint)
+        canvas.drawCircle(vx(tip.first), vy(tip.second), HANDLE_DRAW_PX, chrome.guideHandle)
     }
 
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
@@ -1708,13 +1626,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
         layout.boxes.getOrNull(pageDragIndex)?.let { box ->
             canvas.drawRect(
                 box.leftPx - scrollX, box.topPx - scrollY,
-                box.rightPx - scrollX, box.bottomPx - scrollY, pageLiftPaint,
+                box.rightPx - scrollX, box.bottomPx - scrollY, chrome.pageLift,
             )
         }
         layout.boxes.getOrNull(pageDropIndex)?.let { box ->
             canvas.drawRect(
                 box.leftPx - scrollX, box.topPx - scrollY,
-                box.rightPx - scrollX, box.bottomPx - scrollY, pageDropPaint,
+                box.rightPx - scrollX, box.bottomPx - scrollY, chrome.pageDrop,
             )
         }
     }
@@ -1727,8 +1645,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             val t = box.topPx - scrollY
             val r = box.rightPx - scrollX
             val b = box.bottomPx - scrollY
-            canvas.drawRect(l, t, r, b, pageSelectFillPaint)
-            canvas.drawRect(l, t, r, b, pageSelectPaint)
+            canvas.drawRect(l, t, r, b, chrome.pageSelectFill)
+            canvas.drawRect(l, t, r, b, chrome.pageSelect)
         }
     }
 
@@ -2492,7 +2410,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!holder.surface.isValid) return
         val canvas = lockCanvasForFrame() ?: return
         try {
-            canvas.drawColor(backdropColor)
+            canvas.drawColor(chrome.backdropColor)
             val visible = layout.visible(scrollY, height.toFloat())
             for (box in visible) {
                 BackgroundRenderer.draw(
@@ -2634,7 +2552,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             val t = (w.top * box.scale + box.topPx - scrollY).toFloat()
             val r = (w.right * box.scale + box.leftPx - scrollX).toFloat()
             val b = (w.bottom * box.scale + box.topPx - scrollY).toFloat()
-            canvas.drawRect(l, t, r, b, textSelectPaint)
+            canvas.drawRect(l, t, r, b, chrome.textSelect)
         }
     }
 
@@ -2648,26 +2566,26 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val t = (b.top * box.scale + box.topPx - scrollY).toFloat() - SELECT_PAD_PX
         val r = (b.right * box.scale + box.leftPx - scrollX).toFloat() + SELECT_PAD_PX
         val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + SELECT_PAD_PX
-        canvas.drawRect(l, t, r, bot, selectionFillPaint)
-        canvas.drawRect(l, t, r, bot, selectionStrokePaint)
+        canvas.drawRect(l, t, r, bot, chrome.selectionFill)
+        canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
         // Corner resize handles.
         for (hx in floatArrayOf(l, r)) for (hy in floatArrayOf(t, bot)) {
-            canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, handlePaint)
+            canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, chrome.handle)
         }
         // Rotate knob poking out midway from the right edge (strokes only).
         if (isAllStrokes(sel)) {
             val midY = (t + bot) / 2f
             val knobX = r + ROTATE_ARM_PX
-            canvas.drawLine(r, midY, knobX, midY, handleArmPaint)
-            canvas.drawCircle(knobX, midY, HANDLE_DRAW_PX, handlePaint)
+            canvas.drawLine(r, midY, knobX, midY, chrome.handleArm)
+            canvas.drawCircle(knobX, midY, HANDLE_DRAW_PX, chrome.handle)
         }
     }
 
     /** Draw the hover preview: a ring in the pen colour at the stylus's current hover point. */
     private fun drawHover(canvas: Canvas) {
         val r = (baseWidthPt * 3f).coerceIn(6f, 28f)
-        hoverPaint.color = (colorArgb and 0x00FFFFFF) or HOVER_ALPHA
-        canvas.drawCircle(hoverX, hoverY, r, hoverPaint)
+        chrome.tintHover(colorArgb)
+        canvas.drawCircle(hoverX, hoverY, r, chrome.hover)
     }
 
     /** Draw the vertical-space grab line across the page being reflowed (view px). */
@@ -2675,27 +2593,27 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.boxes.getOrNull(vspacePage) ?: return
         val left = box.leftPx - scrollX
         val right = left + box.widthPx
-        canvas.drawRect(left, vspaceLineViewY - 1f, right, vspaceLineViewY + 1f, selectionStrokePaint)
+        canvas.drawRect(left, vspaceLineViewY - 1f, right, vspaceLineViewY + 1f, chrome.selectionStroke)
     }
 
     /** Draw the live marquee (view px): a rectangle, or the traced lasso path in lasso mode. */
     private fun drawBand(canvas: Canvas) {
         if (lassoMode && lassoPts.size >= 4) {
-            lassoPath.reset()
-            lassoPath.moveTo(lassoPts[0], lassoPts[1])
+            chrome.lassoPath.reset()
+            chrome.lassoPath.moveTo(lassoPts[0], lassoPts[1])
             var i = 2
-            while (i < lassoPts.size) { lassoPath.lineTo(lassoPts[i], lassoPts[i + 1]); i += 2 }
-            lassoPath.close()
-            canvas.drawPath(lassoPath, bandFillPaint)
-            canvas.drawPath(lassoPath, selectionStrokePaint)
+            while (i < lassoPts.size) { chrome.lassoPath.lineTo(lassoPts[i], lassoPts[i + 1]); i += 2 }
+            chrome.lassoPath.close()
+            canvas.drawPath(chrome.lassoPath, chrome.bandFill)
+            canvas.drawPath(chrome.lassoPath, chrome.selectionStroke)
             return
         }
         val l = min(bandX0, bandX1)
         val t = min(bandY0, bandY1)
         val r = max(bandX0, bandX1)
         val bot = max(bandY0, bandY1)
-        canvas.drawRect(l, t, r, bot, bandFillPaint)
-        canvas.drawRect(l, t, r, bot, selectionStrokePaint)
+        canvas.drawRect(l, t, r, bot, chrome.bandFill)
+        canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
     }
 
     internal companion object {
@@ -2707,7 +2625,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val ERASER_RADIUS_PX = 18f
         /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
         const val HIGHLIGHTER_WIDTH_FACTOR = 6f
-        const val BACKDROP = 0xFF3A3A3A.toInt()
         const val ZOOM_STEP = 1.25f
         const val MIN_ZOOM = 0.25f
         const val MAX_ZOOM = 10f
@@ -2717,33 +2634,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val SELECT_PAD_PX = 6f
         const val MOVE_GRAB_PAD = 8.0
         const val HANDLE_HIT_PX = 30f      // touch radius for grabbing a resize/rotate handle
-        const val HANDLE_DRAW_PX = 7f      // drawn radius of a handle dot
         const val ROTATE_ARM_PX = 40f      // gap from the right edge out to the rotate knob
         const val MIN_RESIZE = 0.05        // clamp on the live uniform-resize factor
         const val MAX_RESIZE = 20.0
         const val PASTE_OFFSET_PT = 12.0   // paste/duplicate nudge so copies don't hide the original
-        const val SELECTION_COLOR = 0xFF2060E0.toInt()
-
-        /** Outline colour of the setsquare/compass overlay — amber, so it reads as an instrument
-         * laid on the page rather than as a selection. */
-        const val GUIDE_COLOR = 0xFFE08A20.toInt()
-
-        /** Alpha of the wash filling the setsquare's body — enough to see, faint enough to draw over. */
-        const val GUIDE_FILL_ALPHA = 0x22
-        /** Alpha of the wash inside a selection outline. */
-        const val SELECTION_FILL_ALPHA = 0x14
-        /** Alpha of the wash inside the drag-select band. */
-        const val BAND_FILL_ALPHA = 0x22
 
         // Which part of the guide a finger is holding.
         const val GUIDE_DRAG_NONE = 0
         const val GUIDE_DRAG_BODY = 1
         const val GUIDE_DRAG_TIP = 2
-        const val SELECTION_FILL = 0x142060E0
-        const val BAND_FILL = 0x222060E0
-        /** Translucent blue wash over selected PDF-text word boxes (like a text highlight). */
-        const val TEXT_SELECT_FILL = 0x552196F3
-        const val HOVER_ALPHA = 0xB0000000.toInt()
         const val TEX_W_PT = 120.0
         const val TEX_H_PT = 40.0
         const val IMG_MAX_PT = 240.0
