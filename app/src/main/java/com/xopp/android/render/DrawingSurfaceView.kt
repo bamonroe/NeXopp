@@ -64,7 +64,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
 ) : SurfaceView(context, attrs), SurfaceHolder.Callback {
 
     /** The working document; edits append strokes to it and [toDocument] returns it verbatim. */
-    private var doc: Document = Document(pages = listOf(blankPage()))
+    private var docValue: Document = Document(pages = listOf(blankPage()))
+
+    /**
+     * The working document. Assigning it is how every edit lands, so the setter is also the one
+     * place a mirrored view can be told the document moved on — see [onDocumentEdited]. Loading a
+     * document ([load], [applyMirroredDocument]) writes [docValue] directly instead: that is a view
+     * catching up, not an edit, and echoing it back would loop.
+     */
+    private var doc: Document
+        get() = docValue
+        set(value) {
+            if (value === docValue) return
+            docValue = value
+            onDocumentEdited?.invoke(value)
+        }
     private var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
     private var scrollY = 0f
     private var scrollX = 0f
@@ -195,6 +209,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Notified with (canUndo, canRedo) whenever the history changes, so the chrome can enable buttons. */
     var onHistoryChanged: ((Boolean, Boolean) -> Unit)? = null
+    /**
+     * Notified with the new document after every edit made on this canvas, so another view of the
+     * same document (the split's other pane) can be handed it — see [applyMirroredDocument].
+     */
+    var onDocumentEdited: ((Document) -> Unit)? = null
     /** Notified with the current zoom factor whenever it changes, so the chrome can show the level. */
     var onZoomChanged: ((Float) -> Unit)? = null
     /** Notified with the page-overview column count whenever it changes. */
@@ -498,7 +517,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Replace the canvas contents with [doc] (all pages, layers, and unmodelled elements). */
     fun load(doc: Document) {
-        this.doc = if (doc.pages.isEmpty()) doc.copy(pages = listOf(blankPage())) else doc
+        this.docValue = if (doc.pages.isEmpty()) doc.copy(pages = listOf(blankPage())) else doc
         scrollY = 0f
         scrollX = 0f
         selection = null
@@ -509,6 +528,30 @@ class DrawingSurfaceView @JvmOverloads constructor(
         notifyHistory()
         onPageCountChanged?.invoke(this.doc.pages.size)
         lastReportedPage = -1
+        relayout()
+        render()
+        onLayersChanged?.invoke()
+    }
+
+    /**
+     * Adopt [incoming] as the document *without* disturbing this view: the scroll position, zoom and
+     * column count are left exactly as they are, so a mirrored pane can sit on a different page of
+     * the same document while it updates under you.
+     *
+     * The undo history is dropped, because it holds snapshots taken before the other view's edit and
+     * undoing to one would silently throw that edit away. Undo therefore lives in the pane doing the
+     * editing, and follows the user as they switch panes.
+     */
+    fun applyMirroredDocument(incoming: Document) {
+        if (incoming === docValue) return
+        docValue = if (incoming.pages.isEmpty()) incoming.copy(pages = listOf(blankPage())) else incoming
+        current = null
+        gestureStartDoc = null
+        selection = null
+        onSelectionChanged?.invoke(false)
+        history.clear()
+        notifyHistory()
+        onPageCountChanged?.invoke(docValue.pages.size)
         relayout()
         render()
         onLayersChanged?.invoke()

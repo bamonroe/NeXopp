@@ -13,8 +13,10 @@ import com.xopp.android.format.SaveFormat
  * Layout — the first line is the selection, then one tab per line, tab-separated:
  * ```
  * active<TAB>1
- * <id><TAB><title><TAB><uri><TAB><format><TAB><pdfPath><TAB><page>
+ * <id><TAB><title><TAB><uri><TAB><format><TAB><pdfPath><TAB><page><TAB><docKey>
  * ```
+ * The trailing `docKey` was added after the format shipped, so a record without it is still read —
+ * such a tab simply gets its own id as its key, which is exactly "a view of its own document".
  * Empty fields mean null. Field values are escaped ([escape]) so a title containing a tab or a
  * newline can never break the record structure.
  */
@@ -32,7 +34,8 @@ object TabIndex {
             append(escape(tab.uri.orEmpty())).append(SEP)
             append(tab.format.name).append(SEP)
             append(escape(tab.pdfPath.orEmpty())).append(SEP)
-            append(tab.page).append('\n')
+            append(tab.page).append(SEP)
+            append(escape(tab.docKey)).append('\n')
         }
     }
 
@@ -63,6 +66,7 @@ object TabIndex {
                 format = runCatching { SaveFormat.valueOf(f[3]) }.getOrDefault(SaveFormat.ORIGINAL),
                 pdfPath = unescape(f[4]).ifEmpty { null },
                 page = f[5].toIntOrNull() ?: 0,
+                docKey = f.getOrNull(6)?.let(::unescape)?.ifEmpty { null } ?: id,
             )
         }
         return TabSession(tabs, active.coerceIn(0, maxOf(0, tabs.size - 1)))

@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "split-pane-same-document-in-both-panes-with-color-coded-tab-dots"
-title = "Split pane: same document in both panes, with color-coded tab dots"
-description = "Allow the same document to be opened in both split panes as two independent views (different scroll/zoom positions) on one shared document model. Annotations or edits made in one pane must immediately reflect in the other pane — a single shared document/state object, not two loaded copies. Since documents now have names and many names can be identical, add a color-coded indicator (e.g. a small colored dot in the tab, or tinted tab) that marks which tabs are in fact the same underlying document open in more than one tab, so duplicates are visually distinguishable from same-named-but-different files."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 10
-created = 2026-08-03
-tags = ["split-view", "tabs", "ui"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "drag-a-tab-to-reorder-it-within-its-pane"
 title = "Drag a tab to reorder it within its pane"
 description = "Holding a tab and dragging it sideways should move it within its own tab strip, reordering the open documents. Needs a move(from,to) on TabManager plus a drag-reorder gesture in TabStrip that coexists with the existing long-press menu (move/mirror to the other view). Secondary to that menu."

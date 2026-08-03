@@ -117,11 +117,20 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   are kept, so turning split view on again brings the same documents back.
 - **Long-press a tab to send it to the other view** — holding a tab pops up a small menu with two
   entries. **Move to other view** takes that document out of this pane and opens it in the other
-  one; **Mirror on other view** leaves it where it is and opens a second copy of it in the other
-  pane, so the same content shows on both sides. Either one opens split view automatically if it
-  was closed. A mirror is a **copy taken at that moment, not a live link** — from then on the two
-  sides are independent documents that scroll, edit and save separately, so don't expect a stroke
-  drawn on the left to appear on the right.
+  one; **Mirror on other view** leaves it where it is and opens a **second view of the same
+  document** in the other pane. Either one opens split view automatically if it was closed.
+- **A mirrored document is live in both panes** — the two mirrored tabs are two windows onto one
+  document, not two copies: a stroke, an erase or a page change made on one side appears on the
+  other **immediately**, and both save back to the same file. The views stay independent in every
+  other respect — each keeps its own scroll position, zoom and current page, so you can work at the
+  top of a page on the left while watching the bottom of it on the right, or keep a diagram in view
+  while writing about it further down. Undo lives in the pane you are editing in: the other view
+  drops its undo history when it takes an edit, so an undo can't quietly discard the work the other
+  side just did.
+
+  Because tabs are named after files, and different files are often named alike, mirrored tabs are
+  marked with a small **coloured dot**. Tabs sharing a dot colour are views of the *same* document —
+  two "notes.xopp" tabs with no dots are two different files that merely share a name.
 - **Tabs are restored when you reopen the app** — the set of open tabs is cached on the device
   (including edits you hadn't saved yet), so closing the app and starting it again brings back
   exactly the tabs you had, with the same one showing. This is a convenience cache, **not a

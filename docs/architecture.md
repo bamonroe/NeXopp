@@ -351,6 +351,20 @@ The design decisions worth keeping:
   `restoreTabs` finds a non-empty session and re-loads the showing tab onto the *replacement*
   surface. (Undo history is per surface, so it does not survive that round trip — same rule as a tab
   switch.)
+- **A document can be open in both panes as two live views.** Tabs carry an `OpenTab.docKey`; the
+  mirror action copies a tab keeping that key, so "same key" means "same document". Every edit
+  reaches the other views through `panes/MirrorSync.kt`: `DrawingSurfaceView.doc` is a property whose
+  *setter* fires `onDocumentEdited`, so the one place every edit lands is also the one place the
+  mirror is notified — no per-operation hooks to keep in sync. `MirrorSync` writes the new document
+  into every tab record holding the key (background tabs included, so selecting one is already
+  current) and calls `applyMirroredDocument` on any pane showing one. That entry point deliberately
+  touches *nothing* but the document — scroll, zoom and columns are left alone, which is what makes
+  the two views independent — and clears the receiving surface's undo history, since its snapshots
+  predate the other view's edit and undoing to one would discard it. `load`/`applyMirroredDocument`
+  write the backing field directly rather than the property, which is what stops an echo loop.
+- **Which tabs are the same document is shown, not inferred.** `tabs/DocColors.kt` assigns a palette
+  colour to every `docKey` open more than once across *both* panes, and `TabStrip` draws it as a dot;
+  titles are file names, so they cannot distinguish "open twice" from "two files, one name".
 - The split position (`SplitLayout` in `ui/`) is a UI-only fraction: dragged, clamped to leave each
   half at least 15% of the width, and deliberately **not** persisted.
 

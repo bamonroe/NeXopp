@@ -35,6 +35,8 @@ import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
 import com.xopp.android.panes.EditorPane
+import com.xopp.android.panes.MirrorSync
+import com.xopp.android.tabs.DocColors
 import com.xopp.android.tabs.OpenTab
 import com.xopp.android.tabs.TabManager
 import com.xopp.android.tabs.TabStore
@@ -61,6 +63,9 @@ class MainActivity : ComponentActivity() {
     private val panes: List<EditorPane> by lazy {
         TABS_DIRS.map { EditorPane(TabStore(File(filesDir, it))) }
     }
+
+    /** Keeps two views of one mirrored document in step across the panes. */
+    private val mirrors: MirrorSync by lazy { MirrorSync(panes) }
 
     /** Which pane every menu/toolbar action applies to — the one last touched. */
     private var activePane = mutableStateOf(0)
@@ -213,6 +218,7 @@ class MainActivity : ComponentActivity() {
                     onSurfaceCreated = { index, view ->
                         val p = panes[index]
                         p.surface = view
+                        view.onDocumentEdited = { doc -> mirrors.propagate(p, doc) }
                         attachAudio(view)
                         restoreTabs(p)
                     },
@@ -529,8 +535,10 @@ class MainActivity : ComponentActivity() {
     /** A pane's tab strip view of its session, re-read whenever [tabsTick] changes. */
     private fun tabsUiState(p: EditorPane): TabsUiState {
         tabsTick.value // read so Compose re-invokes this when the session changes
+        val dots = DocColors.assign(panes.flatMap { pane -> pane.tabs.tabs.map(OpenTab::docKey) })
         return TabsUiState(
             titles = p.tabs.tabs.map { it.title },
+            dotColors = p.tabs.tabs.map { dots[it.docKey] },
             activeIndex = p.tabs.activeIndex,
             onSelect = { selectTab(it, p) },
             onClose = { closeTab(it, p) },
@@ -545,9 +553,11 @@ class MainActivity : ComponentActivity() {
      *
      * With [keepHere] false this is a *move*: the tab leaves this pane (which falls back to a blank
      * document if it was the last one) and opens in the other. With [keepHere] true it is a *mirror*:
-     * the document is copied into the other pane so the same content shows on both sides. The copy is
-     * a snapshot, not a live link — the two sides then edit independently, and each saves to its own
-     * tab's file. Split view is opened if it was closed, since otherwise there is nowhere to put it.
+     * a second **view** of the same document opens in the other pane. The two views share one
+     * document — the new tab keeps the original's [OpenTab.docKey], so [MirrorSync] pushes every edit
+     * from either side straight into the other — while keeping their own scroll, zoom and page, and
+     * both write back to the same file. Split view is opened if it was closed, since otherwise there
+     * is nowhere to put it.
      */
     private fun sendTabToOtherPane(index: Int, from: EditorPane, keepHere: Boolean) {
         val other = panes.firstOrNull { it !== from } ?: return

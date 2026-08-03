@@ -26,6 +26,13 @@ data class OpenTab(
     val pdfPath: String? = null,
     /** The page that was in view, so re-selecting the tab lands where you left it. */
     val page: Int = 0,
+    /**
+     * Which *document* this tab is a view of. Two tabs sharing a key are two views of one document
+     * (mirrored across the split), so an edit in either is pushed straight into the other; two tabs
+     * with the same [title] but different keys are merely two files that happen to be named alike.
+     * Fresh by default — only [copy]ing a tab to the other pane deliberately carries the key over.
+     */
+    val docKey: String = TabStore.newId(),
 )
 
 /** The whole set of open tabs plus which one is showing — what survives an app restart. */

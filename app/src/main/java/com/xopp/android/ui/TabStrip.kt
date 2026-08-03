@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -31,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -43,6 +45,12 @@ import androidx.compose.ui.unit.dp
 data class TabsUiState(
     /** Tab titles in strip order (the file name, or "Untitled"). */
     val titles: List<String> = emptyList(),
+    /**
+     * Per-tab dot colour (packed ARGB), or null for no dot — set only on tabs that are one of
+     * several views of the *same* document, so duplicates are told apart from same-named files.
+     * Same colour = same document. See `com.xopp.android.tabs.DocColors`.
+     */
+    val dotColors: List<Int?> = emptyList(),
     val activeIndex: Int = 0,
     val onSelect: (Int) -> Unit = {},
     val onClose: (Int) -> Unit = {},
@@ -74,6 +82,7 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
         state.titles.forEachIndexed { index, title ->
             TabChip(
                 title = title,
+                dotColor = state.dotColors.getOrNull(index),
                 selected = index == state.activeIndex,
                 onSelect = { state.onSelect(index) },
                 onClose = { state.onClose(index) },
@@ -91,12 +100,14 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
  * One tab: its (elided) title, and a close button that is only offered on the selected tab.
  *
  * A long press opens the pane menu — move this document to the other half of a split, or mirror a
- * copy of it there — so both live where the tab does rather than in the app bar.
+ * second view of it there — so both live where the tab does rather than in the app bar. A [dotColor]
+ * marks a tab that is one of several views of one document.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TabChip(
     title: String,
+    dotColor: Int?,
     selected: Boolean,
     onSelect: () -> Unit,
     onClose: () -> Unit,
@@ -125,6 +136,17 @@ private fun TabChip(
                 onClick = { menuOpen = false; onMirror() },
             )
         }
+        if (dotColor != null) {
+            // Marks this tab as one of two views of the same document; the matching view carries the
+            // same colour, which is what distinguishes it from a different file of the same name.
+            Box(
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .size(TAB_DOT_SIZE)
+                    .clip(CircleShape)
+                    .background(Color(dotColor)),
+            )
+        }
         Text(
             text = title,
             maxLines = 1,
@@ -149,6 +171,9 @@ private fun TabChip(
         }
     }
 }
+
+/** The mirrored-document dot: big enough to read as a colour, small enough not to crowd the title. */
+private val TAB_DOT_SIZE = 8.dp
 
 /** Material's minimum comfortable touch target; every tap area in the strip is at least this big. */
 private val TAB_TOUCH_TARGET = 48.dp

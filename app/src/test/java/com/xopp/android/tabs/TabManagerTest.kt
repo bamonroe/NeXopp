@@ -94,6 +94,14 @@ class TabManagerTest {
     }
 
     @Test
+    fun `updateMatching rewrites every view of one document, showing or not`() {
+        val m = TabManager()
+        listOf("a", "b", "c").forEach { m.open(tab(it)) }
+        m.updateMatching({ it.id != "b" }) { it.copy(title = it.title + "!") }
+        assertEquals(listOf("a!", "b", "c!"), m.tabs.map { it.title })
+    }
+
+    @Test
     fun `a restored manager clamps a stale active index`() {
         val m = TabManager(listOf(tab("a")), activeIndex = 7)
         assertEquals(0, m.activeIndex)

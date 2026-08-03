@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-pane-same-document-in-both-panes-with-color-coded-tab-dots"
+title = "Split pane: same document in both panes, with color-coded tab dots"
+description = "Allow the same document to be opened in both split panes as two independent views (different scroll/zoom positions) on one shared document model. Annotations or edits made in one pane must immediately reflect in the other pane — a single shared document/state object, not two loaded copies. Since documents now have names and many names can be identical, add a color-coded indicator (e.g. a small colored dot in the tab, or tinted tab) that marks which tabs are in fact the same underlying document open in more than one tab, so duplicates are visually distinguishable from same-named-but-different files."
+status = "finished"
+category = "feature"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["split-view", "tabs", "ui"]
+
+[[task]]
 id = "split-view-two-documents-side-by-side"
 title = "Split view: two documents side by side"
 description = "Add a split-view option to the hamburger menu: one document open on the left half of the screen, another on the right, with a draggable resize bar down the middle to rebalance the two panes. Each pane should have its own document/tab selection and its own scroll/zoom state."

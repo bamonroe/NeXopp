@@ -40,6 +40,14 @@ class TabManager(initial: List<OpenTab> = emptyList(), activeIndex: Int = 0) {
     }
 
     /**
+     * Rewrite every tab [predicate] accepts, wherever it sits in the strip — how an edit to a
+     * mirrored document reaches the *other* views of it, active or not.
+     */
+    fun updateMatching(predicate: (OpenTab) -> Boolean, edit: (OpenTab) -> OpenTab) {
+        for (i in items.indices) if (predicate(items[i])) items[i] = edit(items[i])
+    }
+
+    /**
      * Close the tab at [index]. Selection follows the neighbour on the left when the closed tab was
      * at or before the active one, so closing the tab you are looking at leaves you on its
      * predecessor rather than jumping to the end. Returns the removed tab, or null for a bad index.

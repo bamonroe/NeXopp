@@ -60,6 +60,22 @@ class TabIndexTest {
     }
 
     @Test
+    fun `a shared document key survives a round trip`() {
+        val session = TabSession(
+            listOf(OpenTab("t1", "a", doc(), docKey = "d1"), OpenTab("t2", "a", doc(), docKey = "d1")),
+            0,
+        )
+        val back = roundTrip(session)
+        assertEquals(listOf("d1", "d1"), back.tabs.map { it.docKey })
+    }
+
+    @Test
+    fun `a record written before document keys existed gets its own key`() {
+        val back = TabIndex.decode("active\t0\nt1\tone\t\tORIGINAL\t\t0\n") { doc() }
+        assertEquals("t1", back.tabs[0].docKey)
+    }
+
+    @Test
     fun `an empty index decodes to an empty session`() {
         val back = TabIndex.decode("") { doc() }
         assertEquals(emptyList<OpenTab>(), back.tabs)
