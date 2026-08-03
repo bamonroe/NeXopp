@@ -545,6 +545,7 @@ class MainActivity : ComponentActivity() {
             onNew = { newTab(p) },
             onMove = { sendTabToOtherPane(it, p, keepHere = false) },
             onMirror = { sendTabToOtherPane(it, p, keepHere = true) },
+            onReorder = { from, to -> reorderTab(from, to, p) },
         )
     }
 
@@ -619,6 +620,17 @@ class MainActivity : ComponentActivity() {
         snapshotActiveTab(p)
         if (!p.tabs.select(index)) return
         p.tabs.active?.let { showTab(it, p) }
+        tabsTick.value++
+        p.persist()
+    }
+
+    /**
+     * Reorder [p]'s strip: the tab at [from] moves to [to] — the drag gesture on a tab. No document
+     * is loaded or unloaded, so the canvas is left alone; only the strip order and the saved session
+     * change.
+     */
+    private fun reorderTab(from: Int, to: Int, p: EditorPane = pane) {
+        if (!p.tabs.move(from, to)) return
         tabsTick.value++
         p.persist()
     }

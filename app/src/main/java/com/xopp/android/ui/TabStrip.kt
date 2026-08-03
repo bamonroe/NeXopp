@@ -2,6 +2,7 @@ package com.xopp.android.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -26,13 +27,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -59,6 +65,8 @@ data class TabsUiState(
     val onMove: (Int) -> Unit = {},
     /** Long-press action: open a second copy of this tab in the other pane, keeping this one. */
     val onMirror: (Int) -> Unit = {},
+    /** Drag action: the tab at the first index now sits at the second one. */
+    val onReorder: (Int, Int) -> Unit = { _, _ -> },
 )
 
 /**
@@ -72,6 +80,11 @@ data class TabsUiState(
 @Composable
 fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
     if (state.titles.isEmpty()) return
+    // Drag-reorder state lives here, not in the chip: a drag walks the tab past its neighbours, so the
+    // slot the gesture started in stops being the dragged tab after the first swap. [dragIndex] is
+    // where the dragged tab sits *now*, and [dragOffset] is how far past its slot the finger is.
+    var dragIndex by remember { mutableStateOf(-1) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
     Row(
         modifier = modifier
             .height(TAB_STRIP_HEIGHT)
@@ -88,6 +101,27 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
                 onClose = { state.onClose(index) },
                 onMove = { state.onMove(index) },
                 onMirror = { state.onMirror(index) },
+                dragOffset = if (index == dragIndex) dragOffset else 0f,
+                onDragStart = { dragIndex = index; dragOffset = 0f },
+                onDrag = { dx, width ->
+                    if (dragIndex >= 0) {
+                        dragOffset += dx
+                        // One whole chip of travel = one slot; swap and keep the rest of the offset so a
+                        // long drag walks the tab across several neighbours in one gesture.
+                        while (dragOffset > width && dragIndex < state.titles.lastIndex) {
+                            state.onReorder(dragIndex, dragIndex + 1)
+                            dragIndex++
+                            dragOffset -= width
+                        }
+                        while (dragOffset < -width && dragIndex > 0) {
+                            state.onReorder(dragIndex, dragIndex - 1)
+                            dragIndex--
+                            dragOffset += width
+                        }
+                        dragOffset = dragOffset.coerceIn(-width, width)
+                    }
+                },
+                onDragEnd = { dragIndex = -1; dragOffset = 0f },
             )
         }
         IconButton(onClick = state.onNew, modifier = Modifier.size(TAB_TOUCH_TARGET)) {
@@ -100,7 +134,8 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
  * One tab: its (elided) title, and a close button that is only offered on the selected tab.
  *
  * A long press opens the pane menu — move this document to the other half of a split, or mirror a
- * second view of it there — so both live where the tab does rather than in the app bar. A [dotColor]
+ * second view of it there — so both live where the tab does rather than in the app bar. Dragging it
+ * sideways instead reorders it within this strip. A [dotColor]
  * marks a tab that is one of several views of one document.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -113,16 +148,38 @@ private fun TabChip(
     onClose: () -> Unit,
     onMove: () -> Unit,
     onMirror: () -> Unit,
+    dragOffset: Float,
+    onDragStart: () -> Unit,
+    onDrag: (dx: Float, chipWidth: Float) -> Unit,
+    onDragEnd: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     var menuOpen by remember { mutableStateOf(false) }
+    // The gesture outlives recomposition, so read the callbacks through a live handle rather than
+    // capturing the ones that existed when the pointer session started.
+    val drag = rememberUpdatedState(Triple(onDragStart, onDrag, onDragEnd))
+    var chipWidth by remember { mutableFloatStateOf(1f) }
     Row(
         modifier = Modifier
             .padding(horizontal = 4.dp, vertical = 4.dp)
             .heightIn(min = TAB_TOUCH_TARGET)
+            .graphicsLayer { translationX = dragOffset }
+            .onSizeChanged { chipWidth = it.width.toFloat().coerceAtLeast(1f) }
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) colors.secondaryContainer else colors.surfaceVariant)
             .combinedClickable(onClick = onSelect, onLongClick = { menuOpen = true })
+            // Sideways drag reorders; it only takes over once the finger passes touch slop, so a tap
+            // still selects and a stationary hold still opens the long-press menu.
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragStart = { drag.value.first() },
+                    onDragEnd = { drag.value.third() },
+                    onDragCancel = { drag.value.third() },
+                ) { change, dx ->
+                    change.consume()
+                    drag.value.second(dx, chipWidth)
+                }
+            }
             .padding(start = 16.dp, end = if (selected) 0.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -102,6 +102,36 @@ class TabManagerTest {
     }
 
     @Test
+    fun `move slides a tab to a later slot and the selection follows it`() {
+        val m = TabManager()
+        listOf("a", "b", "c").forEach { m.open(tab(it)) }
+        m.select(0)
+        assertEquals(true, m.move(0, 2))
+        assertEquals(listOf("b", "c", "a"), m.tabs.map { it.title })
+        assertEquals(2, m.activeIndex)
+    }
+
+    @Test
+    fun `move to an earlier slot shifts the tabs it passes`() {
+        val m = TabManager()
+        listOf("a", "b", "c").forEach { m.open(tab(it)) }
+        m.select(1)
+        assertEquals(true, m.move(2, 0))
+        assertEquals(listOf("c", "a", "b"), m.tabs.map { it.title })
+        assertEquals(2, m.activeIndex) // still showing "b"
+    }
+
+    @Test
+    fun `move ignores a no-op or out-of-range index`() {
+        val m = TabManager()
+        listOf("a", "b").forEach { m.open(tab(it)) }
+        assertEquals(false, m.move(0, 0))
+        assertEquals(false, m.move(0, 5))
+        assertEquals(false, m.move(-1, 1))
+        assertEquals(listOf("a", "b"), m.tabs.map { it.title })
+    }
+
+    @Test
     fun `a restored manager clamps a stale active index`() {
         val m = TabManager(listOf(tab("a")), activeIndex = 7)
         assertEquals(0, m.activeIndex)

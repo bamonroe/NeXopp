@@ -64,6 +64,24 @@ class TabManager(initial: List<OpenTab> = emptyList(), activeIndex: Int = 0) {
         return removed
     }
 
+    /**
+     * Move the tab at [from] to sit at [to], sliding the tabs in between over — a drag-reorder in the
+     * strip. Selection follows the *document*, not the slot, so dragging the tab you are looking at
+     * leaves it showing. Returns true when the order actually changed.
+     */
+    fun move(from: Int, to: Int): Boolean {
+        if (from !in items.indices || to !in items.indices || from == to) return false
+        val moved = items.removeAt(from)
+        items.add(to, moved)
+        activeIndex = when {
+            activeIndex == from -> to
+            activeIndex in (from + 1)..to -> activeIndex - 1
+            activeIndex in to..(from - 1) -> activeIndex + 1
+            else -> activeIndex
+        }
+        return true
+    }
+
     /** Show the tab at [index]; ignores an out-of-range index. Returns true when the showing tab changed. */
     fun select(index: Int): Boolean {
         if (index !in items.indices || index == activeIndex) return false
