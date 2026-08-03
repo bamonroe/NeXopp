@@ -164,31 +164,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // Page-overview drag-to-reorder: in the multi-column grid a finger long-press lifts a page and the
     // drag drops it at another slot. Armed on touch-down, fired by [pageDragArm] after the long-press
-    // timeout; see [startPageDrag].
+    // timeout; see [startPageDrag]. The state it moves through lives in [overview].
     private val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
     private val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
-    /** The page being dragged in the overview, or -1 when no reorder drag is in flight. */
-    private var pageDragIndex = -1
-    /** Where the lifted page would land on release, or -1. */
-    private var pageDropIndex = -1
-    /** True between touch-down and the long-press firing (or the touch disqualifying itself). */
-    private var pageDragArmed = false
-    private var pageDragDownX = 0f
-    private var pageDragDownY = 0f
     private val pageDragArm = Runnable { startPageDrag() }
 
-    /**
-     * Is the overview grid in edit mode? In view mode (the default) the grid is purely a way to look
-     * at and navigate the document — a tap jumps to a page, and there is no selection or reordering.
-     * Edit mode turns on tap-to-select, drag-to-reorder and the copy/delete tooling. View-only state.
-     */
-    private var pagesEditMode = false
-
-    /** Pages picked in the overview grid (by index), the set a delete acts on. View-only state. */
-    private val selectedPages = mutableSetOf<Int>()
-
-    /** Pages copied out of the overview, awaiting a paste. View-only state; pages are immutable. */
-    private var pageClipboard: List<Page> = emptyList()
+    /** The page-overview grid's view state: edit mode, selection, clipboard, lift (see [PageOverview]). */
+    private val overview = PageOverview(
+        onSelectionChanged = { onPageSelectionChanged?.invoke(it) },
+        onClipboardChanged = { onPageClipboardChanged?.invoke(it) },
+        invalidate = { render() },
+    )
 
     /** Places and edits text boxes, images and LaTeX images (see [TextEditController]). */
     private val textEdits = TextEditController(
@@ -641,32 +627,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * selection, so coming back to the grid to read never has stale selection chrome on it.
      */
     fun setPagesEditMode(on: Boolean) {
-        if (on == pagesEditMode) return
-        pagesEditMode = on
-        if (!on) { cancelPageDrag(); clearPageSelection() }
-        render()
+        if (overview.setEditMode(on)) cancelPageDrag()
     }
 
-    fun pagesEditMode(): Boolean = pagesEditMode
+    fun pagesEditMode(): Boolean = overview.editMode
 
     /** How many overview pages are currently selected. */
-    fun selectedPageCount(): Int = selectedPages.size
+    fun selectedPageCount(): Int = overview.selected.size
 
     /** Drop the overview selection (e.g. on leaving the grid, or after a delete). */
-    fun clearPageSelection() {
-        if (selectedPages.isEmpty()) return
-        selectedPages.clear()
-        onPageSelectionChanged?.invoke(0)
-        render()
-    }
-
-    /** Add or remove page [index] from the overview selection. */
-    private fun togglePageSelection(index: Int) {
-        if (index !in doc.pages.indices) return
-        if (!selectedPages.remove(index)) selectedPages.add(index)
-        onPageSelectionChanged?.invoke(selectedPages.size)
-        render()
-    }
+    fun clearPageSelection() = overview.clearSelection()
 
     /**
      * Delete every selected page as one undoable edit and clear the selection. A selection covering
@@ -674,26 +644,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * nothing is deleted in that case.
      */
     fun deleteSelectedPages() {
-        val pages = PageOps.removeAll(doc.pages, selectedPages)
-        clearPageSelection()
+        val pages = PageOps.removeAll(doc.pages, overview.selected)
+        overview.clearSelection()
         editPages(pages)
     }
 
     /**
      * Put the selected pages on the page clipboard, in document order. Nothing is edited yet — the
      * clipboard is view state that survives until the next copy (or the editor closing), so a copy can
-     * be pasted repeatedly. The selection is left alone so "copy, then paste after these" reads
-     * naturally.
+     * be pasted repeatedly.
      */
-    fun copySelectedPages() {
-        val copied = PageOps.copyOf(doc.pages, selectedPages)
-        if (copied.isEmpty()) return
-        pageClipboard = copied
-        onPageClipboardChanged?.invoke(copied.size)
-    }
+    fun copySelectedPages() = overview.copyToClipboard(PageOps.copyOf(doc.pages, overview.selected))
 
     /** How many pages are on the page clipboard (0 when nothing has been copied). */
-    fun copiedPageCount(): Int = pageClipboard.size
+    fun copiedPageCount(): Int = overview.clipboard.size
 
     /**
      * Paste the clipboard pages as one undoable edit, directly after the last selected page — or after
@@ -701,10 +665,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * strokes, layers, size and background verbatim (see [PageOps.copyOf]), so they round-trip.
      */
     fun pasteCopiedPages() {
-        if (pageClipboard.isEmpty()) return
-        val after = selectedPages.maxOrNull() ?: currentPageIndex()
+        val copied = overview.clipboard
+        if (copied.isEmpty()) return
+        val after = overview.selected.maxOrNull() ?: currentPageIndex()
         val at = after.coerceIn(0, doc.pages.lastIndex.coerceAtLeast(0))
-        editPages(PageOps.insertAfter(doc.pages, at, pageClipboard))
+        editPages(PageOps.insertAfter(doc.pages, at, copied))
         goToPage(at + 1)
     }
 
@@ -1440,7 +1405,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 if (handTapCandidate) trackHandTapMove(event)
                 trackPageDragArm(event)
                 // A lifted page owns the gesture outright — no panning, drawing or erasing underneath it.
-                if (pageDragIndex >= 0) { pageDragMove(event); return true }
+                if (overview.dragging) { pageDragMove(event); return true }
                 // The guide is dragged by its own finger and runs *alongside* the other gestures —
                 // holding it steady while the pen rules along it is the whole point.
                 if (guideDrag != GUIDE_DRAG_NONE) guideMove(event)
@@ -1462,7 +1427,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
             // A spline node is still mid-curve on release — it must not run the commit-and-finish path.
             MotionEvent.ACTION_UP -> when {
-                pageDragIndex >= 0 -> { pageDragArmed = false; removeCallbacks(pageDragArm); finishPageDrag() }
+                overview.dragging -> { overview.disarm(); removeCallbacks(pageDragArm); finishPageDrag() }
                 splineDragging -> splineUp(event)
                 else -> { cancelPageDrag(); captureReleaseVelocity(event); handleHandTapUp(event); endGesture() }
             }
@@ -1497,29 +1462,26 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Arm the long-press that lifts a page, for a single finger down on the overview grid. */
     private fun armPageDrag(event: MotionEvent) {
         cancelPageDrag()
-        if (columns <= 1 || !pagesEditMode || event.pointerCount != 1) return
+        if (columns <= 1 || !overview.editMode || event.pointerCount != 1) return
         if (pointerKindOf(event, 0) != PointerKind.FINGER) return
-        pageDragArmed = true
-        pageDragDownX = event.x
-        pageDragDownY = event.y
+        overview.arm(event.x, event.y)
         postDelayed(pageDragArm, longPressMs)
     }
 
     /** A touch that travels past slop before the timeout is a pan, not a page lift. */
     private fun trackPageDragArm(event: MotionEvent) {
-        if (!pageDragArmed) return
-        if (hypot(event.x - pageDragDownX, event.y - pageDragDownY) > touchSlopPx) cancelPageDrag()
+        if (!overview.armed) return
+        if (hypot(event.x - overview.armDownX, event.y - overview.armDownY) > touchSlopPx) cancelPageDrag()
     }
 
     /** The long-press fired: lift the page under the finger and take the gesture away from panning. */
     private fun startPageDrag() {
-        pageDragArmed = false
+        overview.disarm()
         if (columns <= 1 || doc.pages.size < 2) return
-        val box = layout.pageAt(scrollX + pageDragDownX, scrollY + pageDragDownY) ?: return
+        val box = layout.pageAt(scrollX + overview.armDownX, scrollY + overview.armDownY) ?: return
         stopFling()
         scrolling = false
-        pageDragIndex = box.index
-        pageDropIndex = box.index
+        overview.lift(box.index)
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         render()
     }
@@ -1527,41 +1489,36 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Track the finger to the page it is hovering over — that slot is where the drop lands. */
     private fun pageDragMove(event: MotionEvent) {
         val target = layout.nearestPage(scrollX + event.x, scrollY + event.y) ?: return
-        if (target.index == pageDropIndex) return
-        pageDropIndex = target.index
-        render()
+        if (overview.moveDropTo(target.index)) render()
     }
 
     /** Commit the drop as one undoable reorder and follow the page to its new home. */
     private fun finishPageDrag() {
-        val from = pageDragIndex
-        val to = pageDropIndex
-        pageDragIndex = -1
-        pageDropIndex = -1
-        if (from < 0 || to < 0 || to == from) { render(); return }
+        val move = overview.endDrag()
+        if (move == null) { render(); return }
+        val (from, to) = move
         editPages(PageOps.move(doc.pages, from, to))
         goToPage(to)
     }
 
     /** Disarm the pending long-press and drop any in-flight lift without reordering. */
     private fun cancelPageDrag() {
-        if (pageDragArmed) removeCallbacks(pageDragArm)
-        pageDragArmed = false
-        val wasDragging = pageDragIndex >= 0
-        pageDragIndex = -1
-        pageDropIndex = -1
+        if (overview.armed) removeCallbacks(pageDragArm)
+        overview.disarm()
+        val wasDragging = overview.dragging
+        overview.endDrag()
         if (wasDragging) render()
     }
 
     /** Grey out the lifted page and outline the slot it would drop into. */
     private fun drawPageDrag(canvas: Canvas) {
-        layout.boxes.getOrNull(pageDragIndex)?.let { box ->
+        layout.boxes.getOrNull(overview.dragIndex)?.let { box ->
             canvas.drawRect(
                 box.leftPx - scrollX, box.topPx - scrollY,
                 box.rightPx - scrollX, box.bottomPx - scrollY, chrome.pageLift,
             )
         }
-        layout.boxes.getOrNull(pageDropIndex)?.let { box ->
+        layout.boxes.getOrNull(overview.dropIndex)?.let { box ->
             canvas.drawRect(
                 box.leftPx - scrollX, box.topPx - scrollY,
                 box.rightPx - scrollX, box.bottomPx - scrollY, chrome.pageDrop,
@@ -1571,7 +1528,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Tint and outline every selected page, so the pending bulk delete's targets are obvious. */
     private fun drawPageSelection(canvas: Canvas) {
-        for (index in selectedPages) {
+        for (index in overview.selected) {
             val box = layout.boxes.getOrNull(index) ?: continue
             val l = box.leftPx - scrollX
             val t = box.topPx - scrollY
@@ -1609,7 +1566,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (columns > 1) {
             handFirstTapTime = 0L
             val box = layout.pageAt(scrollX + handTapDownX, scrollY + handTapDownY) ?: return
-            if (pagesEditMode) togglePageSelection(box.index) else goToPage(box.index)
+            if (overview.editMode) overview.toggleSelection(box.index, doc.pages.size) else goToPage(box.index)
             return
         }
         val pairsWithPrevious = handFirstTapTime != 0L &&
@@ -2357,8 +2314,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             drawCurrent(canvas)
             drawTextSelection(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
-            if (selectedPages.isNotEmpty()) drawPageSelection(canvas)
-            if (pageDragIndex >= 0) drawPageDrag(canvas)
+            if (overview.selected.isNotEmpty()) drawPageSelection(canvas)
+            if (overview.dragging) drawPageDrag(canvas)
             if (banding) drawBand(canvas)
             if (vspacing) drawVerticalSpaceGuide(canvas)
             drawGuide(canvas)
