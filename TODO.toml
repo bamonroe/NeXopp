@@ -36,7 +36,7 @@ emulator_debug = false
 [[task]]
 id = "split-drawingsurfaceview-into-focused-collaborators"
 title = "Split DrawingSurfaceView into focused collaborators"
-description = "DrawingSurfaceView.kt is 2756 lines with ~130 fields — by far the largest file in the repo and a direct violation of the CLAUDE.md 'no mono-file, no mono-module' rule. It currently owns document state, undo wiring, zoom/scroll, page add/remove/copy/paste, layer management, text/image/TeX insertion, selection move/resize/rotate, vertical-space, and raw MotionEvent dispatch. Extract cohesive pieces (a ViewportState for zoom/scroll/fling, a PageCommands facade over PageOps/LayerOps, a SelectionGestureController for the move/resize/rotate/band handlers, a TextEditController for insert/pick/replace) leaving the view as event routing plus draw. Do it as several small commits, each keeping unit tests green."
+description = "DrawingSurfaceView is down from 2756 to ~2495 lines; four collaborators are out (CanvasChrome for the chrome brushes, TextEditController + ElementEdits for element placement, PageOverview for the grid's view state, MomentumDriver for the fling loop). Still to extract, each as its own small commit keeping unit tests green: a ViewportState for zoom/scroll/clamps, a PageCommands facade over PageOps/LayerOps, a SelectionGestureController for the move/resize/rotate/band handlers, and the vertical-space and guide drags. The goal remains the view as event routing plus draw."
 status = "active"
 category = "refactor"
 urgency = "high"
