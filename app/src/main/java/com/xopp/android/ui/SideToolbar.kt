@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Description
@@ -235,6 +236,9 @@ fun SideToolbar(
     onPageSize: (Double, Double) -> Unit,
     pageColumns: Int,
     onPageColumns: (Int) -> Unit,
+    selectedPages: Int = 0,
+    onDeleteSelectedPages: () -> Unit = {},
+    onClearPageSelection: () -> Unit = {},
     audio: AudioUiState = AudioUiState(),
     railOrder: List<String> = emptyList(),
     railHidden: Set<String> = emptySet(),
@@ -268,7 +272,7 @@ fun SideToolbar(
                 "background" -> BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
                 "pages" -> PagesPopupButton(
                     pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
-                    pageColumns, onPageColumns,
+                    pageColumns, onPageColumns, selectedPages, onDeleteSelectedPages, onClearPageSelection,
                 )
                 "audio" -> AudioPopupButton(audio)
             }
@@ -636,6 +640,9 @@ private fun PagesPopupButton(
     onPageSize: (Double, Double) -> Unit,
     pageColumns: Int,
     onPageColumns: (Int) -> Unit,
+    selectedPages: Int,
+    onDeleteSelectedPages: () -> Unit,
+    onClearPageSelection: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     var sizing by remember { mutableStateOf(false) }
@@ -672,6 +679,20 @@ private fun PagesPopupButton(
                 enabled = pageCount > 1,
                 onClick = { onRemovePage() },
             )
+            // Only meaningful once pages have been tapped in the overview grid.
+            if (selectedPages > 0) {
+                DropdownMenuItem(
+                    text = { Text("Delete $selectedPages selected") },
+                    leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
+                    enabled = selectedPages < pageCount,
+                    onClick = { onDeleteSelectedPages(); open = false },
+                )
+                DropdownMenuItem(
+                    text = { Text("Clear selection") },
+                    leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null) },
+                    onClick = { onClearPageSelection(); open = false },
+                )
+            }
             HorizontalDivider()
             PagesPerRowRow(pageColumns, onPageColumns)
             HorizontalDivider()

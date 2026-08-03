@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "delete-pages-from-the-page-overview"
+title = "Delete pages from the page overview"
+description = "Select one or more pages in the grid/overview and delete them, with the document and .xopp output updating accordingly. Should be undoable."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["pages"]
+
+[[task]]
 id = "move-reorder-pages-from-the-page-overview"
 title = "Move/reorder pages from the page overview"
 description = "Drag a page thumbnail in the grid/overview to a new position and have the document's page order update, persisting correctly on save to .xopp."

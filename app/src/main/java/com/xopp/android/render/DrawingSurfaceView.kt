@@ -168,6 +168,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var pageDragDownY = 0f
     private val pageDragArm = Runnable { startPageDrag() }
 
+    /** Pages picked in the overview grid (by index), the set a delete acts on. View-only state. */
+    private val selectedPages = mutableSetOf<Int>()
+
     /** The text box a placement tap hit, awaiting an edit-or-delete from the editor. */
     private var editingTarget: TextElement? = null
     /** Which page index was last reported to [onCurrentPageChanged], to suppress duplicate calls. */
@@ -190,6 +193,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onPageCountChanged: ((Int) -> Unit)? = null
     /** Notified with the index of the page nearest the viewport centre whenever it changes. */
     var onCurrentPageChanged: ((Int) -> Unit)? = null
+    /** Notified with how many overview pages are selected whenever the selection changes. */
+    var onPageSelectionChanged: ((Int) -> Unit)? = null
     /** Notified with (scrollY, totalHeightPx, viewportPx) whenever the vertical scroll or content extent changes — drives the right-edge scroll thumb. */
     var onScrollChanged: ((Float, Float, Float) -> Unit)? = null
     /** Notified when a placement tap lands, so the editor can prompt for content / pick an image. */
@@ -410,6 +415,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
         strokeWidth = 6f
         color = GUIDE_COLOR
     }
+    // Page-overview multi-select: a picked page is tinted and outlined so the selection reads at a glance.
+    private val pageSelectFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = (GUIDE_COLOR and 0x00FFFFFF) or (0x33 shl 24)
+    }
+    private val pageSelectPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 6f
+        color = GUIDE_COLOR
+    }
     private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = (GUIDE_COLOR and 0x00FFFFFF) or (GUIDE_FILL_ALPHA shl 24)
@@ -557,6 +572,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (next == columns) return
         val at = currentPageIndex()
         cancelPageDrag() // leaving (or reshaping) the grid abandons any lift in flight
+        if (next == 1) clearPageSelection() // no grid, no way to see or extend a selection
         columns = next
         relayout()
         goToPage(at)
@@ -629,6 +645,41 @@ class DrawingSurfaceView @JvmOverloads constructor(
         editPages(PageOps.removeAt(doc.pages, at))
     }
 
+    // --- page-overview selection -----------------------------------------------------------------
+    // In the multi-column grid a Hand-tool finger tap picks pages out; the picked set is what
+    // [deleteSelectedPages] removes in one undoable edit. Purely view state — nothing is written to
+    // the `.xopp` until a delete commits.
+
+    /** How many overview pages are currently selected. */
+    fun selectedPageCount(): Int = selectedPages.size
+
+    /** Drop the overview selection (e.g. on leaving the grid, or after a delete). */
+    fun clearPageSelection() {
+        if (selectedPages.isEmpty()) return
+        selectedPages.clear()
+        onPageSelectionChanged?.invoke(0)
+        render()
+    }
+
+    /** Add or remove page [index] from the overview selection. */
+    private fun togglePageSelection(index: Int) {
+        if (index !in doc.pages.indices) return
+        if (!selectedPages.remove(index)) selectedPages.add(index)
+        onPageSelectionChanged?.invoke(selectedPages.size)
+        render()
+    }
+
+    /**
+     * Delete every selected page as one undoable edit and clear the selection. A selection covering
+     * the whole document is refused by [PageOps.removeAll] (a document always keeps a page), so
+     * nothing is deleted in that case.
+     */
+    fun deleteSelectedPages() {
+        val pages = PageOps.removeAll(doc.pages, selectedPages)
+        clearPageSelection()
+        editPages(pages)
+    }
+
     /**
      * The visible page's background style (plain/lined/ruled/graph/dotted), or null when the page
      * isn't a solid sheet (PDF/pixmap) and so has no selectable paper style.
@@ -668,7 +719,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         history.record(before)
         notifyHistory()
         onPageCountChanged?.invoke(pages.size)
-        // Page indices shifted: layer view-state keyed by page index is no longer valid.
+        // Page indices shifted: view state keyed by page index is no longer valid.
+        clearPageSelection()
         hiddenLayers.clear()
         activeLayerIndex = -1
         // keep the viewport valid, then keep zoom's centre-fraction sane
@@ -1555,6 +1607,19 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
+    /** Tint and outline every selected page, so the pending bulk delete's targets are obvious. */
+    private fun drawPageSelection(canvas: Canvas) {
+        for (index in selectedPages) {
+            val box = layout.boxes.getOrNull(index) ?: continue
+            val l = box.leftPx - scrollX
+            val t = box.topPx - scrollY
+            val r = box.rightPx - scrollX
+            val b = box.bottomPx - scrollY
+            canvas.drawRect(l, t, r, b, pageSelectFillPaint)
+            canvas.drawRect(l, t, r, b, pageSelectPaint)
+        }
+    }
+
     /** Arm double-tap tracking for a fresh single-finger touch, but only while the Hand tool is active. */
     private fun beginHandTap(event: MotionEvent) {
         handTapCandidate = handMode
@@ -1574,6 +1639,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!handTapCandidate) return
         handTapCandidate = false
         if (handTapMoved) { handFirstTapTime = 0L; return }
+        // In the overview grid a tap picks pages for a bulk delete rather than paging/zooming around.
+        if (columns > 1) {
+            handFirstTapTime = 0L
+            layout.pageAt(scrollX + handTapDownX, scrollY + handTapDownY)?.let { togglePageSelection(it.index) }
+            return
+        }
         val pairsWithPrevious = handFirstTapTime != 0L &&
             handTapDownTime - handFirstTapTime <= doubleTapTimeoutMs &&
             hypot(handTapDownX - handFirstTapX, handTapDownY - handFirstTapY) <= doubleTapSlopPx
@@ -2317,6 +2388,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             drawCurrent(canvas)
             drawTextSelection(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
+            if (selectedPages.isNotEmpty()) drawPageSelection(canvas)
             if (pageDragIndex >= 0) drawPageDrag(canvas)
             if (banding) drawBand(canvas)
             if (vspacing) drawVerticalSpaceGuide(canvas)

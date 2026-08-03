@@ -69,4 +69,17 @@ object PageOps {
         val i = index.coerceIn(0, pages.lastIndex)
         return pages.toMutableList().apply { removeAt(i) }
     }
+
+    /**
+     * A copy of [pages] with every page in [indices] removed — the page-overview multi-select delete.
+     * Out-of-range indices are ignored. A document is never emptied: a selection covering *every* page
+     * is refused outright (the list is returned unchanged) rather than silently sparing an arbitrary
+     * page, and an empty or fully out-of-range selection is likewise a no-op returning the same
+     * instance, so callers can hand the result straight to an "only if it differs" edit.
+     */
+    fun removeAll(pages: List<Page>, indices: Set<Int>): List<Page> {
+        val drop = indices.filter { it in pages.indices }.toSet()
+        if (drop.isEmpty() || drop.size >= pages.size) return pages
+        return pages.filterIndexed { i, _ -> i !in drop }
+    }
 }

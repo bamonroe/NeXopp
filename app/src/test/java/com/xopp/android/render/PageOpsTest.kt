@@ -88,6 +88,28 @@ class PageOpsTest {
         assertSame("last page is kept", only, PageOps.removeAt(only, 0))
     }
 
+    @Test fun removeAllDropsEverySelectedPage() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"), page(400.0, "d"))
+        val out = PageOps.removeAll(pages, setOf(0, 2))
+        assertEquals(listOf(pages[1], pages[3]), out)
+    }
+
+    @Test fun removeAllIgnoresOutOfRangeIndices() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"))
+        assertEquals(listOf(pages[1]), PageOps.removeAll(pages, setOf(0, 5, -3)))
+        assertSame("nothing in range changes nothing", pages, PageOps.removeAll(pages, setOf(9)))
+    }
+
+    @Test fun removeAllOnAnEmptySelectionIsANoOp() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"))
+        assertSame(pages, PageOps.removeAll(pages, emptySet()))
+    }
+
+    @Test fun removeAllRefusesToEmptyTheDocument() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"))
+        assertSame("selecting every page deletes nothing", pages, PageOps.removeAll(pages, setOf(0, 1)))
+    }
+
     @Test fun appendPagesAddsImportedPagesAfterExistingOnes() {
         val existing = listOf(page(100.0, "graph", withStroke = true), page(100.0, "lined"))
         val added = listOf(Page(400.0, 600.0, Background.Pdf("doc.pdf", 0, "absolute"), listOf(Layer(emptyList()))))

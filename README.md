@@ -297,6 +297,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     order is what gets written to the `.xopp`, so it round-trips to desktop Xournal++. The pen is
     never a candidate for the lift, so drawing on a grid page is unaffected; sliding your finger
     before the press registers pans as usual.
+  - **Delete pages from the overview** — while the grid is showing, pick the **Hand** tool and **tap
+    pages** to select them: each picked page is tinted and outlined, and tapping it again unpicks it.
+    The Pages pop-up then grows two entries — **Delete N selected**, which removes every picked page
+    in **one undoable edit**, and **Clear selection**. A document always keeps at least one page, so
+    selecting *every* page deletes nothing (that entry is disabled). The remaining pages keep their
+    order and are what gets written to the `.xopp`. The selection is view-only state: it clears when
+    you return to **1** page per row, and after any page add/remove/reorder (the indices have moved).
   - **Page size…** — the last row shows the page-in-view's size (a preset name like **A4**, or its
     dimensions) and opens a **Page size** dialog: pick a preset (**A4 / A5 / Letter / Legal**), or type
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**

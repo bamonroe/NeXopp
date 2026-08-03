@@ -436,7 +436,13 @@ pages, hit-testing takes both axes — `StackedLayout.pageAt(x, y)` picks the pa
 also drive **drag-to-reorder** in the overview: a finger long-press (`ViewConfiguration`'s timeout,
 disarmed by touch-slop travel or a second pointer, and never armed for a stylus or at one column)
 lifts the page under it, the drag tracks a drop slot with `nearestPage`, and the release commits one
-undoable `PageOps.move(pages, from, to)` through `editPages`. Page order *is* list order in
+undoable `PageOps.move(pages, from, to)` through `editPages`. The same `pageAt(x, y)` hit-test drives
+**multi-select delete**: at more than one column a confirmed Hand-tool tap (the double-tap tracker's
+tap, rather than a second gesture) toggles the page under it in `DrawingSurfaceView.selectedPages`,
+and `deleteSelectedPages()` commits one `PageOps.removeAll(pages, indices)` through `editPages`.
+`removeAll` refuses a selection covering every page, so the document is never emptied. The selection
+is view-only (never written) and is cleared by `editPages` and by dropping back to one column, since
+both invalidate page indices. Page order *is* list order in
 `Document.pages` — `XoppWriter` writes no index — so the reorder round-trips by construction. Zoom keeps the viewport-centre point roughly
 fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
