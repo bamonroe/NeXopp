@@ -11,6 +11,7 @@ import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.Choreographer
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -151,6 +152,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var handFirstTapTime = 0L
     private var handFirstTapX = 0f
     private var handFirstTapY = 0f
+
+    // Page-overview drag-to-reorder: in the multi-column grid a finger long-press lifts a page and the
+    // drag drops it at another slot. Armed on touch-down, fired by [pageDragArm] after the long-press
+    // timeout; see [startPageDrag].
+    private val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+    private val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    /** The page being dragged in the overview, or -1 when no reorder drag is in flight. */
+    private var pageDragIndex = -1
+    /** Where the lifted page would land on release, or -1. */
+    private var pageDropIndex = -1
+    /** True between touch-down and the long-press firing (or the touch disqualifying itself). */
+    private var pageDragArmed = false
+    private var pageDragDownX = 0f
+    private var pageDragDownY = 0f
+    private val pageDragArm = Runnable { startPageDrag() }
 
     /** The text box a placement tap hit, awaiting an edit-or-delete from the editor. */
     private var editingTarget: TextElement? = null
@@ -384,6 +400,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
         strokeWidth = 2f
         color = GUIDE_COLOR
     }
+    // Page-overview reorder feedback: the lifted page is washed out, the drop slot outlined.
+    private val pageLiftPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0x66FFFFFF
+    }
+    private val pageDropPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 6f
+        color = GUIDE_COLOR
+    }
     private val guideFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = (GUIDE_COLOR and 0x00FFFFFF) or (GUIDE_FILL_ALPHA shl 24)
@@ -530,6 +556,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val next = n.coerceIn(1, PageStacker.COLUMN_CHOICES.last())
         if (next == columns) return
         val at = currentPageIndex()
+        cancelPageDrag() // leaving (or reshaping) the grid abandons any lift in flight
         columns = next
         relayout()
         goToPage(at)
@@ -1391,10 +1418,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { stopFling(); beginPointer(event, 0); beginHandTap(event) }
-            MotionEvent.ACTION_POINTER_DOWN -> { handTapCandidate = false; onPointerDown(event) }
+            MotionEvent.ACTION_DOWN -> {
+                stopFling(); beginPointer(event, 0); beginHandTap(event); armPageDrag(event)
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> { handTapCandidate = false; cancelPageDrag(); onPointerDown(event) }
             MotionEvent.ACTION_MOVE -> {
                 if (handTapCandidate) trackHandTapMove(event)
+                trackPageDragArm(event)
+                // A lifted page owns the gesture outright — no panning, drawing or erasing underneath it.
+                if (pageDragIndex >= 0) { pageDragMove(event); return true }
                 // The guide is dragged by its own finger and runs *alongside* the other gestures —
                 // holding it steady while the pen rules along it is the whole point.
                 if (guideDrag != GUIDE_DRAG_NONE) guideMove(event)
@@ -1415,10 +1447,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
             }
             MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
             // A spline node is still mid-curve on release — it must not run the commit-and-finish path.
-            MotionEvent.ACTION_UP -> if (splineDragging) splineUp(event) else {
-                captureReleaseVelocity(event); handleHandTapUp(event); endGesture()
+            MotionEvent.ACTION_UP -> when {
+                pageDragIndex >= 0 -> { pageDragArmed = false; removeCallbacks(pageDragArm); finishPageDrag() }
+                splineDragging -> splineUp(event)
+                else -> { cancelPageDrag(); captureReleaseVelocity(event); handleHandTapUp(event); endGesture() }
             }
-            MotionEvent.ACTION_CANCEL -> { handTapCandidate = false; cancelGesture() }
+            MotionEvent.ACTION_CANCEL -> { handTapCandidate = false; cancelPageDrag(); cancelGesture() }
             else -> return super.onTouchEvent(event)
         }
         return true
@@ -1439,6 +1473,86 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun setReleaseVelocity(v: Velocity) {
         releaseVx = (-v.vx).coerceIn(-maxFlingVelocity, maxFlingVelocity)
         releaseVy = (-v.vy).coerceIn(-maxFlingVelocity, maxFlingVelocity)
+    }
+
+    // --- page-overview drag-to-reorder -----------------------------------------------------------
+    // Only in the multi-column grid, and only for a finger: a long-press lifts the page under it, the
+    // drag tracks a drop slot, and the release commits one undoable [PageOps.move]. The pen is never a
+    // candidate, so drawing on a grid page is untouched.
+
+    /** Arm the long-press that lifts a page, for a single finger down on the overview grid. */
+    private fun armPageDrag(event: MotionEvent) {
+        cancelPageDrag()
+        if (columns <= 1 || event.pointerCount != 1) return
+        if (pointerKindOf(event, 0) != PointerKind.FINGER) return
+        pageDragArmed = true
+        pageDragDownX = event.x
+        pageDragDownY = event.y
+        postDelayed(pageDragArm, longPressMs)
+    }
+
+    /** A touch that travels past slop before the timeout is a pan, not a page lift. */
+    private fun trackPageDragArm(event: MotionEvent) {
+        if (!pageDragArmed) return
+        if (hypot(event.x - pageDragDownX, event.y - pageDragDownY) > touchSlopPx) cancelPageDrag()
+    }
+
+    /** The long-press fired: lift the page under the finger and take the gesture away from panning. */
+    private fun startPageDrag() {
+        pageDragArmed = false
+        if (columns <= 1 || doc.pages.size < 2) return
+        val box = layout.pageAt(scrollX + pageDragDownX, scrollY + pageDragDownY) ?: return
+        stopFling()
+        scrolling = false
+        pageDragIndex = box.index
+        pageDropIndex = box.index
+        performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        render()
+    }
+
+    /** Track the finger to the page it is hovering over — that slot is where the drop lands. */
+    private fun pageDragMove(event: MotionEvent) {
+        val target = layout.nearestPage(scrollX + event.x, scrollY + event.y) ?: return
+        if (target.index == pageDropIndex) return
+        pageDropIndex = target.index
+        render()
+    }
+
+    /** Commit the drop as one undoable reorder and follow the page to its new home. */
+    private fun finishPageDrag() {
+        val from = pageDragIndex
+        val to = pageDropIndex
+        pageDragIndex = -1
+        pageDropIndex = -1
+        if (from < 0 || to < 0 || to == from) { render(); return }
+        editPages(PageOps.move(doc.pages, from, to))
+        goToPage(to)
+    }
+
+    /** Disarm the pending long-press and drop any in-flight lift without reordering. */
+    private fun cancelPageDrag() {
+        if (pageDragArmed) removeCallbacks(pageDragArm)
+        pageDragArmed = false
+        val wasDragging = pageDragIndex >= 0
+        pageDragIndex = -1
+        pageDropIndex = -1
+        if (wasDragging) render()
+    }
+
+    /** Grey out the lifted page and outline the slot it would drop into. */
+    private fun drawPageDrag(canvas: Canvas) {
+        layout.boxes.getOrNull(pageDragIndex)?.let { box ->
+            canvas.drawRect(
+                box.leftPx - scrollX, box.topPx - scrollY,
+                box.rightPx - scrollX, box.bottomPx - scrollY, pageLiftPaint,
+            )
+        }
+        layout.boxes.getOrNull(pageDropIndex)?.let { box ->
+            canvas.drawRect(
+                box.leftPx - scrollX, box.topPx - scrollY,
+                box.rightPx - scrollX, box.bottomPx - scrollY, pageDropPaint,
+            )
+        }
     }
 
     /** Arm double-tap tracking for a fresh single-finger touch, but only while the Hand tool is active. */
@@ -2203,6 +2317,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             drawCurrent(canvas)
             drawTextSelection(canvas)
             selection?.let { drawSelectionBox(canvas, it) }
+            if (pageDragIndex >= 0) drawPageDrag(canvas)
             if (banding) drawBand(canvas)
             if (vspacing) drawVerticalSpaceGuide(canvas)
             drawGuide(canvas)

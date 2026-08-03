@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "move-reorder-pages-from-the-page-overview"
+title = "Move/reorder pages from the page overview"
+description = "Drag a page thumbnail in the grid/overview to a new position and have the document's page order update, persisting correctly on save to .xopp."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["pages"]
+
+[[task]]
 id = "page-overview-grid-view-for-page-management"
 title = "Page overview / grid view for page management"
 description = "A page-level view that zooms out from the single-page editor: split the view to show two or three pages side by side, or zoom further out to a grid of many page thumbnails. This is the umbrella feature that page reordering, deletion, and copy/paste hang off of."

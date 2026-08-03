@@ -432,7 +432,12 @@ driven by `DrawingSurfaceView.setColumns` and persisted as `AppSettings.pageColu
 into the **page overview**: pages are chunked into rows of N, each fit to `viewWidth/N` and the row
 centred, so 1 is the plain stack and 2-4 a grid of page thumbnails. Because a row now holds several
 pages, hit-testing takes both axes — `StackedLayout.pageAt(x, y)` picks the page under a touch and
-`nearestPage(x, y)` resolves a probe that lands in a gap (e.g. the viewport centre). Zoom keeps the viewport-centre point roughly
+`nearestPage(x, y)` resolves a probe that lands in a gap (e.g. the viewport centre). Those two hit-tests
+also drive **drag-to-reorder** in the overview: a finger long-press (`ViewConfiguration`'s timeout,
+disarmed by touch-slop travel or a second pointer, and never armed for a stylus or at one column)
+lifts the page under it, the drag tracks a drop slot with `nearestPage`, and the release commits one
+undoable `PageOps.move(pages, from, to)` through `editPages`. Page order *is* list order in
+`Document.pages` — `XoppWriter` writes no index — so the reorder round-trips by construction. Zoom keeps the viewport-centre point roughly
 fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
 backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and

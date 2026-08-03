@@ -290,6 +290,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     the grid — you can draw, erase and select on whichever page you touch — so it doubles as a
     two-page spread for reading and a thumbnail overview for finding a page. The choice is
     remembered across launches; **1** returns to the single-page stack.
+  - **Reorder pages in the overview** — while the grid is showing (2, 3 or 4 per row), **press and
+    hold a page with your finger** until it dims: that lifts it. Drag to another page — the slot it
+    would land in is outlined — and lift your finger to drop it there; the page moves to that
+    position and the pages after it shift along. The move is a single undoable edit, and the new
+    order is what gets written to the `.xopp`, so it round-trips to desktop Xournal++. The pen is
+    never a candidate for the lift, so drawing on a grid page is unaffected; sliding your finger
+    before the press registers pans as usual.
   - **Page size…** — the last row shows the page-in-view's size (a preset name like **A4**, or its
     dimensions) and opens a **Page size** dialog: pick a preset (**A4 / A5 / Letter / Legal**), or type
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**

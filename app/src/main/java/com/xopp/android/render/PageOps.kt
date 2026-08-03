@@ -50,6 +50,19 @@ object PageOps {
     private fun isPristineBlank(page: Page): Boolean =
         page.background is Background.Solid && page.layers.all { it.elements.isEmpty() }
 
+    /**
+     * A copy of [pages] with the page at [from] lifted out and re-inserted at [to] — the page-overview
+     * drag-to-reorder edit. Indices are positions in the *result*, so moving page 0 to 2 in a 4-page
+     * document yields `1,2,0,3`. An out-of-range [from] or a no-op move returns the list unchanged, so
+     * callers can hand the result straight to an "only if it differs" edit.
+     */
+    fun move(pages: List<Page>, from: Int, to: Int): List<Page> {
+        if (from !in pages.indices) return pages
+        val target = to.coerceIn(0, pages.lastIndex)
+        if (target == from) return pages
+        return pages.toMutableList().apply { add(target, removeAt(from)) }
+    }
+
     /** A copy of [pages] with page [index] removed. The last remaining page is never removed. */
     fun removeAt(pages: List<Page>, index: Int): List<Page> {
         if (pages.size <= 1) return pages

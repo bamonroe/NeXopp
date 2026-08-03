@@ -51,6 +51,30 @@ class PageOpsTest {
         assertSame(empty, PageOps.addAfter(empty, 0))
     }
 
+    @Test fun moveShiftsAPageForward() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"), page(400.0, "d"))
+        val out = PageOps.move(pages, 0, 2)
+        assertEquals(4, out.size)
+        assertEquals(listOf(pages[1], pages[2], pages[0], pages[3]), out)
+    }
+
+    @Test fun moveShiftsAPageBackward() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"))
+        assertEquals(listOf(pages[2], pages[0], pages[1]), PageOps.move(pages, 2, 0))
+    }
+
+    @Test fun moveToSamePositionIsANoOp() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"))
+        assertSame(pages, PageOps.move(pages, 1, 1))
+    }
+
+    @Test fun moveClampsTargetAndRejectsBadSource() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"))
+        assertEquals("target clamps to the last slot", listOf(pages[1], pages[2], pages[0]), PageOps.move(pages, 0, 9))
+        assertSame("out-of-range source changes nothing", pages, PageOps.move(pages, 7, 0))
+        assertSame(pages, PageOps.move(pages, -1, 0))
+    }
+
     @Test fun removeAtDropsThePage() {
         val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"))
         val out = PageOps.removeAt(pages, 1)
