@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "make-the-open-document-tab-indicators-bigger-and-easier-to-tap"
+title = "Make the open-document tab indicators bigger and easier to tap"
+description = "The tab strip shown when more than one document is open has small hit targets. Enlarge the tabs so they are comfortably finger-tappable (at least the 48dp Material minimum touch target), with enough spacing/padding that switching or closing a tab does not require precision."
+status = "finished"
+category = "feature"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["ui", "tabs"]
+
+[[task]]
 id = "open-remote-files-sshfs-ftp-from-the-file-picker"
 title = "Open remote files (SSHFS/FTP) from the file picker"
 description = "The system file picker already lists files on mounted remote shares (SSHFS, FTP, and similar network providers), but selecting one fails because the app can only open local files. Support opening (and saving back to) documents served by remote DocumentsProvider URIs: read through the content resolver stream rather than assuming a local file path, handle slow/flaky IO with progress and error reporting, and make sure the .xopp round-trip still writes back to the same remote URI."

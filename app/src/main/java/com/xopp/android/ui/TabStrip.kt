@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -65,8 +66,8 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
                 onClose = { state.onClose(index) },
             )
         }
-        IconButton(onClick = state.onNew, modifier = Modifier.size(TAB_STRIP_HEIGHT)) {
-            Icon(Icons.Filled.Add, contentDescription = "New document", modifier = Modifier.size(16.dp))
+        IconButton(onClick = state.onNew, modifier = Modifier.size(TAB_TOUCH_TARGET)) {
+            Icon(Icons.Filled.Add, contentDescription = "New document", modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -77,30 +78,32 @@ private fun TabChip(title: String, selected: Boolean, onSelect: () -> Unit, onCl
     val colors = MaterialTheme.colorScheme
     Row(
         modifier = Modifier
-            .padding(horizontal = 2.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .heightIn(min = TAB_TOUCH_TARGET)
+            .clip(RoundedCornerShape(10.dp))
             .background(if (selected) colors.secondaryContainer else colors.surfaceVariant)
             .clickable(onClick = onSelect)
-            .padding(start = 10.dp, end = if (selected) 0.dp else 10.dp),
+            .padding(start = 16.dp, end = if (selected) 0.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.bodyLarge,
             color = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
-            modifier = Modifier.widthIn(max = 140.dp),
+            modifier = Modifier.widthIn(min = 64.dp, max = 180.dp),
         )
         if (selected) {
+            // A full 48dp target of its own, so closing the tab never lands on "select" by mistake.
             Box(
-                modifier = Modifier.size(28.dp).clickable(onClick = onClose),
+                modifier = Modifier.size(TAB_TOUCH_TARGET).clickable(onClick = onClose),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     Icons.Filled.Close,
                     contentDescription = "Close $title",
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(20.dp),
                     tint = colors.onSecondaryContainer,
                 )
             }
@@ -108,4 +111,8 @@ private fun TabChip(title: String, selected: Boolean, onSelect: () -> Unit, onCl
     }
 }
 
-private val TAB_STRIP_HEIGHT = 32.dp
+/** Material's minimum comfortable touch target; every tap area in the strip is at least this big. */
+private val TAB_TOUCH_TARGET = 48.dp
+
+/** Strip height: one touch target plus the 4dp breathing room above and below each chip. */
+private val TAB_STRIP_HEIGHT = TAB_TOUCH_TARGET + 8.dp
