@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "always-show-the-document-tab-bar"
+title = "Always show the document tab bar"
+description = "The tab strip currently only appears when more than one document is open. Make it always present, including when a single document is open, so tab affordances (new tab, close, switch) are consistently reachable."
+status = "finished"
+category = "feature"
+created = 2026-08-03
+completed = 2026-08-03
+tags = []
+
+[[task]]
 id = "make-the-open-document-tab-indicators-bigger-and-easier-to-tap"
 title = "Make the open-document tab indicators bigger and easier to tap"
 description = "The tab strip shown when more than one document is open has small hit targets. Enlarge the tabs so they are comfortably finger-tappable (at least the 48dp Material minimum touch target), with enough spacing/padding that switching or closing a tab does not require precision."

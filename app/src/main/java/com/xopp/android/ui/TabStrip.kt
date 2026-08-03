@@ -45,12 +45,13 @@ data class TabsUiState(
  * The row of open documents above the editor. Selecting a tab swaps the whole document on the
  * canvas; the trailing "+" opens a fresh blank one.
  *
- * Hidden when only one document is open, so the single-document case keeps every pixel of drawing
- * area it has today — the strip appears the moment a second tab exists.
+ * Always shown once a document is open — including the single-document case — so "new tab", "close"
+ * and "switch" sit in the same place no matter how many documents are loaded. Only an empty session
+ * (no tabs at all) draws nothing.
  */
 @Composable
 fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
-    if (state.titles.size < 2) return
+    if (state.titles.isEmpty()) return
     Row(
         modifier = modifier
             .height(TAB_STRIP_HEIGHT)

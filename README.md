@@ -92,8 +92,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   project reopens intact. If the referenced PDF can't be found (e.g. a desktop path that doesn't
   exist on the device), those pages open blank and a notice is shown.
 - **Tabs — several documents open at once** — every document you open lives in its own **tab**, and
-  a **tab strip** appears under the top bar as soon as a second one is open (with one document it
-  stays hidden, so nothing is taken from the drawing area). Tap a tab to switch to that document;
+  the **tab strip** under the top bar is always shown — even with a single document open — so the
+  same tab controls are always in the same place. Tap a tab to switch to that document;
   tap the **✕** on the tab you're looking at to close it; tap **+** at the end of the strip — or
   **New document** in the ☰ menu — to start a fresh blank document in a new tab. The tabs, the
   **✕** and the **+** are all full finger-sized targets (Material's 48dp minimum), so switching or
