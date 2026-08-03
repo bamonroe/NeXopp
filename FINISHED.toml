@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "page-overview-grid-view-for-page-management"
+title = "Page overview / grid view for page management"
+description = "A page-level view that zooms out from the single-page editor: split the view to show two or three pages side by side, or zoom further out to a grid of many page thumbnails. This is the umbrella feature that page reordering, deletion, and copy/paste hang off of."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["ui", "pages"]
+
+[[task]]
 id = "pdf-import-with-replace-or-append-choice"
 title = "PDF import with Replace or Append choice"
 description = "When importing a PDF into an already-open document, prompt for one of two modes: Replace (the imported PDF becomes the document's page backgrounds, discarding/overwriting the current ones) or Append (the PDF's pages are appended as new pages after the existing pages of the current document). Both must save back to .xopp so the PDF background reference round-trips to desktop Xournal++."

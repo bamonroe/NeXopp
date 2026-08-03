@@ -61,6 +61,36 @@ class PageStackerTest {
         assertEquals(0f, box.leftPx, 1e-4f) // widest page anchors the content band
     }
 
+    @Test fun twoColumnsLayPagesSideBySide() {
+        // Two 100x200pt pages in a 210px view with a 10px gap: each column is 100px, so scale 1.
+        val grid = PageStacker.stack(listOf(page(100.0, 200.0), page(100.0, 200.0)), 210, 10f, columns = 2)
+        assertEquals(2, grid.columns)
+        assertEquals(1f, grid.boxes[0].scale, 1e-4f)
+        assertEquals(10f, grid.boxes[0].topPx, 1e-4f)
+        assertEquals(10f, grid.boxes[1].topPx, 1e-4f) // same row
+        assertEquals(0f, grid.boxes[0].leftPx, 1e-4f)
+        assertEquals(110f, grid.boxes[1].leftPx, 1e-4f) // page + gap
+        assertEquals(220f, grid.totalHeightPx, 1e-4f) // one row: gap + page + gap
+    }
+
+    @Test fun twoColumnsWrapToASecondRow() {
+        val pages = List(3) { page(100.0, 200.0) }
+        val grid = PageStacker.stack(pages, 210, 10f, columns = 2)
+        assertEquals(220f, grid.boxes[2].topPx, 1e-4f)
+        assertEquals(430f, grid.totalHeightPx, 1e-4f)
+        // The lone page on the last row is centred in the content band.
+        assertEquals(55f, grid.boxes[2].leftPx, 1e-4f)
+    }
+
+    @Test fun pageAtDistinguishesColumns() {
+        val grid = PageStacker.stack(listOf(page(100.0, 200.0), page(100.0, 200.0)), 210, 10f, columns = 2)
+        assertEquals(0, grid.pageAt(50f, 100f)!!.index)
+        assertEquals(1, grid.pageAt(150f, 100f)!!.index)
+        assertNull("the gap between columns has no page", grid.pageAt(105f, 100f))
+        // nearestPage resolves that gap to a neighbour so a viewport-centre probe still works.
+        assertEquals(1, grid.nearestPage(106f, 100f)!!.index)
+    }
+
     @Test fun zoomedOutPageIsCentredInTheViewWidth() {
         val out = PageStacker.stack(listOf(page(100.0, 200.0)), 100, 10f, zoom = 0.5f)
         val box = out.boxes[0]

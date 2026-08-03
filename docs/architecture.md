@@ -335,7 +335,7 @@ app/
       FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
-      PageStacker.kt         # lays pages out top-to-bottom, fit to width (pure geometry)
+      PageStacker.kt         # lays pages out in rows of N columns, fit to column (pure geometry)
       BackgroundGrid.kt      # ruling line/dot offsets + the pt spacings themselves (pure geometry)
       Snapping.kt            # shape endpoints -> the ruling; rotation -> 15-degree steps (pure)
       DrawingGuide.kt        # setsquare/compass overlay geometry: project a drawn point onto an edge (pure)
@@ -427,7 +427,12 @@ Eraser tool is active, deleting every stroke the eraser disc touches (hit geomet
 tested `StrokeHitTester`), or **pans** when the Hand tool is active; **two fingers pan** in any
 tool. A **zoom** factor multiplies the fit-to-width scale (`PageStacker` takes it as a parameter);
 when a page is wider than the view the same pan gesture scrolls horizontally, and narrower pages
-are centred in the content band (`PageBox.leftPx`). Zoom keeps the viewport-centre point roughly
+are centred in the content band (`PageBox.leftPx`). A **column count** (`PageStacker.stack(columns=)`,
+driven by `DrawingSurfaceView.setColumns` and persisted as `AppSettings.pageColumns`) turns that stack
+into the **page overview**: pages are chunked into rows of N, each fit to `viewWidth/N` and the row
+centred, so 1 is the plain stack and 2-4 a grid of page thumbnails. Because a row now holds several
+pages, hit-testing takes both axes — `StackedLayout.pageAt(x, y)` picks the page under a touch and
+`nearestPage(x, y)` resolves a probe that lands in a gap (e.g. the viewport centre). Zoom keeps the viewport-centre point roughly
 fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
 backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and

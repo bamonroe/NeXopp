@@ -68,6 +68,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var scrollY = 0f
     private var scrollX = 0f
     private var zoom = 1f
+    /** Pages shown side by side: 1 is the single-page stack, 2+ the page-overview grid. */
+    private var columns = 1
 
     /** Rasteriser for the PDF that backs this document's `pdf` pages (set on import), or null. */
     private var pdfSource: PdfPageCache? = null
@@ -166,6 +168,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onHistoryChanged: ((Boolean, Boolean) -> Unit)? = null
     /** Notified with the current zoom factor whenever it changes, so the chrome can show the level. */
     var onZoomChanged: ((Float) -> Unit)? = null
+    /** Notified with the page-overview column count whenever it changes. */
+    var onColumnsChanged: ((Int) -> Unit)? = null
     /** Notified with the page count whenever it changes (load, add, remove). */
     var onPageCountChanged: ((Int) -> Unit)? = null
     /** Notified with the index of the page nearest the viewport centre whenever it changes. */
@@ -516,6 +520,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
         onHistoryChanged?.invoke(history.canUndo, history.canRedo)
     }
 
+    // --- page overview -------------------------------------------------------------------------
+
+    /**
+     * Show [n] pages side by side (1 = the plain single-page stack, 2+ = the page overview grid).
+     * The current page is kept in view, so zooming out to the grid and back doesn't lose your place.
+     */
+    fun setColumns(n: Int) {
+        val next = n.coerceIn(1, PageStacker.COLUMN_CHOICES.last())
+        if (next == columns) return
+        val at = currentPageIndex()
+        columns = next
+        relayout()
+        goToPage(at)
+        onColumnsChanged?.invoke(columns)
+        render()
+    }
+
+    fun columns(): Int = columns
+
     // --- zoom ----------------------------------------------------------------------------------
 
     fun zoomIn() = setZoom(zoom * ZOOM_STEP)
@@ -630,7 +653,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Index of the page nearest the viewport centre — the one add/remove act on. */
     private fun currentPageIndex(): Int =
-        layout.pageAt(scrollY + height / 2f)?.index ?: doc.pages.lastIndex.coerceAtLeast(0)
+        layout.nearestPage(scrollX + width / 2f, scrollY + height / 2f)?.index ?: doc.pages.lastIndex.coerceAtLeast(0)
 
     // --- layers --------------------------------------------------------------------------------
     // The panel acts on the page nearest the viewport centre ([visiblePageIndex]); layer indices are
@@ -965,8 +988,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val srcBox = layout.boxes.getOrNull(sel.pageIndex) ?: return
         val page = doc.pages.getOrNull(sel.pageIndex) ?: return
         val b = SelectionTester.boundsOf(page, sel.refs) ?: return
+        val centreXContent = ((b.left + b.right) / 2 * srcBox.scale + srcBox.leftPx).toFloat()
         val centreYContent = ((b.top + b.bottom) / 2 * srcBox.scale + srcBox.topPx).toFloat()
-        val target = layout.pageAt(centreYContent) ?: return
+        val target = layout.nearestPage(centreXContent, centreYContent) ?: return
         if (target.index == sel.pageIndex) return
         val s = srcBox.scale.toDouble() / target.scale.toDouble()
         val dx = (srcBox.leftPx - target.leftPx) / target.scale.toDouble()
@@ -994,7 +1018,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      */
     private fun beginVerticalSpace(event: MotionEvent) {
         scrolling = false; erasing = false; placing = false; current = null
-        val box = layout.pageAt(event.y + scrollY) ?: return
+        val box = layout.pageAt(event.x + scrollX, event.y + scrollY) ?: return
         vspacing = true
         vspacePage = box.index
         currentPage = box.index
@@ -1022,7 +1046,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             onSelectionChanged?.invoke(false)
         }
         banding = true
-        bandPage = layout.pageAt(event.y + scrollY)?.index ?: 0
+        bandPage = layout.pageAt(event.x + scrollX, event.y + scrollY)?.index ?: 0
         bandX0 = event.x; bandY0 = event.y
         bandX1 = event.x; bandY1 = event.y
         lassoPts.clear()
@@ -1072,7 +1096,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun beginTextSelect(event: MotionEvent) {
         scrolling = false; erasing = false; placing = false; current = null
         val index = pdfTextIndex ?: return
-        val pageIndex = layout.pageAt(event.y + scrollY)?.index ?: return
+        val pageIndex = layout.pageAt(event.x + scrollX, event.y + scrollY)?.index ?: return
         val box = layout.boxes.getOrNull(pageIndex) ?: return
         val anchor = index.anchorWord(pageIndex, ptX(box, event.x), ptY(box, event.y)) ?: return
         textSelecting = true
@@ -1200,7 +1224,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** The page nearest the viewport centre — the target for a paste. */
-    private fun visiblePageIndex(): Int = layout.pageAt(scrollY + height / 2f)?.index ?: currentPage
+    private fun visiblePageIndex(): Int =
+        layout.nearestPage(scrollX + width / 2f, scrollY + height / 2f)?.index ?: currentPage
 
     /** View px -> page-local pt for [box]. */
     private fun ptX(box: PageBox, vx: Float): Double = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
@@ -1587,7 +1612,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         shaping = shapeKind != null
         gestureStartDoc = doc
         gesturePointerId = event.getPointerId(pointerIndex)
-        val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: run { current = null; return }
+        val box = layout.pageAt(event.getX(pointerIndex) + scrollX, event.getY(pointerIndex) + scrollY)
+            ?: run { current = null; return }
         currentPage = box.index
         if (shaping) {
             // Grid snap first, then the guide — a placed guide is the stronger constraint and must
@@ -1640,7 +1666,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
         scrolling = false
         // The first node fixes the page for the whole curve, so later taps stay in one stroke.
-        val box = if (splineNodes.isEmpty()) layout.pageAt(y + scrollY) else layout.boxes.getOrNull(currentPage)
+        val box = if (splineNodes.isEmpty()) layout.pageAt(x + scrollX, y + scrollY) else layout.boxes.getOrNull(currentPage)
         if (box == null) return
         if (splineNodes.isEmpty()) {
             currentPage = box.index
@@ -1735,7 +1761,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         erasing = true
         gestureStartDoc = doc
         gesturePointerId = event.getPointerId(pointerIndex)
-        val box = layout.pageAt(event.getY(pointerIndex) + scrollY) ?: return
+        val box = layout.pageAt(event.getX(pointerIndex) + scrollX, event.getY(pointerIndex) + scrollY) ?: return
         currentPage = box.index
         eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
     }
@@ -1771,7 +1797,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Fire [onPlace] for the page/point the tap landed on, hitting an existing text box if any. */
     private fun commitPlace() {
         val kind = placeKind ?: return
-        val box = layout.pageAt(placeDownY + scrollY) ?: return
+        val box = layout.pageAt(placeDownX + scrollX, placeDownY + scrollY) ?: return
         val xPt = ((placeDownX + scrollX - box.leftPx) / box.scale).toDouble()
         val yPt = ((placeDownY + scrollY - box.topPx) / box.scale).toDouble()
         val existing = if (kind == PlaceKind.TEXT) pickText(box.index, xPt, yPt)?.also { editingTarget = it } else null
@@ -2027,7 +2053,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun audioTap(event: MotionEvent, pointerIndex: Int) {
         val x = event.getX(pointerIndex)
         val y = event.getY(pointerIndex)
-        val box = layout.pageAt(y + scrollY) ?: return
+        val box = layout.pageAt(x + scrollX, y + scrollY) ?: return
         val xPt = ((x + scrollX - box.leftPx) / box.scale).toDouble()
         val yPt = ((y + scrollY - box.topPx) / box.scale).toDouble()
         val page = doc.pages.getOrNull(box.index) ?: return
@@ -2095,7 +2121,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun relayout() {
-        layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom)
+        layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom, columns)
         scrollY = scrollY.coerceIn(0f, maxScrollY())
         scrollX = scrollX.coerceIn(0f, maxScrollX())
     }

@@ -135,6 +135,7 @@ private fun DrawingSurfaceView.applySettings(s: AppSettings) {
     pressureGamma = s.sensitivity.gamma
     strokePrecision = s.strokePrecision
     recognizeShapes = s.recognizeShapes
+    setColumns(s.pageColumns)
     snapToGrid = s.snapToGrid
     snapRotation = s.snapRotation
     // Only place a guide the surface isn't already showing — re-placing on every settings change
@@ -316,6 +317,11 @@ fun EditorScreen(
                 onBackgroundStyle = { surface?.setPageBackgroundStyle(it) },
                 pageSize = pageSize,
                 onPageSize = { w, h -> surface?.setPageSize(w, h) },
+                pageColumns = settings.pageColumns,
+                onPageColumns = {
+                    surface?.setColumns(it)
+                    onSettingsChange(settings.copy(pageColumns = it))
+                },
             )
             }
         }

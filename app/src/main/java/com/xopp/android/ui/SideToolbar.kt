@@ -63,7 +63,9 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -95,6 +97,7 @@ import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.GuideKind
 import com.xopp.android.render.LayerInfo
+import com.xopp.android.render.PageStacker
 import kotlin.math.roundToInt
 
 /** Fixed labels for the three configurable pen-width slots (the widths themselves live in [AppSettings]). */
@@ -230,6 +233,8 @@ fun SideToolbar(
     onBackgroundStyle: (String) -> Unit,
     pageSize: Pair<Double, Double>?,
     onPageSize: (Double, Double) -> Unit,
+    pageColumns: Int,
+    onPageColumns: (Int) -> Unit,
     audio: AudioUiState = AudioUiState(),
     railOrder: List<String> = emptyList(),
     railHidden: Set<String> = emptySet(),
@@ -263,6 +268,7 @@ fun SideToolbar(
                 "background" -> BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
                 "pages" -> PagesPopupButton(
                     pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
+                    pageColumns, onPageColumns,
                 )
                 "audio" -> AudioPopupButton(audio)
             }
@@ -628,6 +634,8 @@ private fun PagesPopupButton(
     onGoToPage: (Int) -> Unit,
     pageSize: Pair<Double, Double>?,
     onPageSize: (Double, Double) -> Unit,
+    pageColumns: Int,
+    onPageColumns: (Int) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     var sizing by remember { mutableStateOf(false) }
@@ -664,6 +672,8 @@ private fun PagesPopupButton(
                 enabled = pageCount > 1,
                 onClick = { onRemovePage() },
             )
+            HorizontalDivider()
+            PagesPerRowRow(pageColumns, onPageColumns)
             HorizontalDivider()
             DropdownMenuItem(
                 text = { Text("Page size…") },
@@ -1189,6 +1199,28 @@ private fun Swatch(
                 tint = if (Color(color).luminance() < 0.5f) Color.White else Color.Black,
                 modifier = Modifier.size(16.dp),
             )
+        }
+    }
+}
+
+/**
+ * The page-overview control: how many pages sit side by side. One is the plain single-page stack;
+ * two or more zooms out to a grid of page thumbnails.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PagesPerRowRow(pageColumns: Int, onPageColumns: (Int) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+        Text("Pages per row", style = MaterialTheme.typography.labelMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PageStacker.COLUMN_CHOICES.forEach { n ->
+                FilterChip(
+                    selected = n == pageColumns,
+                    onClick = { onPageColumns(n) },
+                    label = { Text("$n") },
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
         }
     }
 }

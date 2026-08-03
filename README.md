@@ -13,7 +13,7 @@ Android reopens correctly on the desktop, and vice versa.
 
 > Status: the `.xopp` read/write core and its tests are in place, and the Android editor is
 > functional — pen/highlighter/eraser drawing with pressure, colour and width pickers, undo/redo,
-> zoom, pan, a page navigator (add/remove/jump), on-device authoring of text/image/LaTeX elements,
+> zoom, pan, a page navigator (add/remove/jump, 1-4 pages per row), on-device authoring of text/image/LaTeX elements,
 > LaTeX math rendering, multi-page documents with layers and backgrounds, and PDF import and
 > export. The controls live in a vertical rail down the left edge. Run `scripts/todo.sh list` for what's next.
 
@@ -284,6 +284,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   view — it keeps the current page's size and paper ruling, but a **PDF/image background is dropped to
   a plain white sheet** so the new page is genuinely blank, not a copy of the page underneath) and
   **Remove page** (the one in view; the last page is never removed). Add and remove are undoable.
+  - **Pages per row** — the **1 / 2 / 3 / 4** chips zoom the canvas out to a **page overview**: pick
+    2, 3 or 4 and the pages lay out side by side in a grid of that many columns (each fit to its
+    column, rows top to bottom), instead of the usual single-page stack. Everything still works in
+    the grid — you can draw, erase and select on whichever page you touch — so it doubles as a
+    two-page spread for reading and a thumbnail overview for finding a page. The choice is
+    remembered across launches; **1** returns to the single-page stack.
   - **Page size…** — the last row shows the page-in-view's size (a preset name like **A4**, or its
     dimensions) and opens a **Page size** dialog: pick a preset (**A4 / A5 / Letter / Legal**), or type
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**

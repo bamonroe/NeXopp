@@ -46,6 +46,8 @@ data class AppSettings(
     val strokePrecision: StrokePrecision = StrokePrecision.DEFAULT,
     /** Snap a finished freehand stroke to the primitive it resembles (line, circle, rectangle…). */
     val recognizeShapes: Boolean = false,
+    /** Pages shown side by side in the page overview: 1 is the plain single-page stack. */
+    val pageColumns: Int = 1,
     /** Pull shape-tool endpoints onto the page background's ruling (grid/lined sheets only). */
     val snapToGrid: Boolean = false,
     /** Pull a selection's rotate handle onto 15-degree increments. */
@@ -135,6 +137,7 @@ class SettingsStore(context: Context) {
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
             recognizeShapes = prefs.getBoolean(KEY_RECOGNIZE_SHAPES, d.recognizeShapes),
+            pageColumns = prefs.getInt(KEY_PAGE_COLUMNS, d.pageColumns),
             snapToGrid = prefs.getBoolean(KEY_SNAP_GRID, d.snapToGrid),
             snapRotation = prefs.getBoolean(KEY_SNAP_ROTATION, d.snapRotation),
             guideKind = enumOr(prefs.getString(KEY_GUIDE_KIND, null), d.guideKind),
@@ -166,6 +169,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
             .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
             .putBoolean(KEY_RECOGNIZE_SHAPES, s.recognizeShapes)
+            .putInt(KEY_PAGE_COLUMNS, s.pageColumns)
             .putBoolean(KEY_SNAP_GRID, s.snapToGrid)
             .putBoolean(KEY_SNAP_ROTATION, s.snapRotation)
             .putString(KEY_GUIDE_KIND, s.guideKind.name)
@@ -196,6 +200,7 @@ class SettingsStore(context: Context) {
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_STROKE_PRECISION = "stroke_precision"
         const val KEY_RECOGNIZE_SHAPES = "recognize_shapes"
+        const val KEY_PAGE_COLUMNS = "page_columns"
         const val KEY_SNAP_GRID = "snap_to_grid"
         const val KEY_SNAP_ROTATION = "snap_rotation"
         const val KEY_GUIDE_KIND = "guide_kind"
