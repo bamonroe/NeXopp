@@ -1,6 +1,7 @@
 package com.xopp.android
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -24,6 +25,7 @@ import com.xopp.android.format.SaveFormat
 import com.xopp.android.format.Xopp
 import com.xopp.android.format.XoppZip
 import com.xopp.android.format.model.Background
+import com.xopp.android.io.UriStaging
 import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImportPdfMode
@@ -93,13 +95,32 @@ class MainActivity : ComponentActivity() {
     /** The cache that carries the open tabs (unsaved edits included) across app restarts. */
     private val tabStore: TabStore by lazy { TabStore(File(filesDir, TABS_DIR)) }
 
+    /** Staging for document bytes, so slow remote (SSHFS/FTP/cloud) URIs never block the canvas. */
+    private val staging: UriStaging by lazy { UriStaging(contentResolver, File(cacheDir, STAGING_DIR)) }
+
+    /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */
+    private var busy = mutableStateOf<String?>(null)
+
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let(::insertPickedImage)
         }
 
+    /**
+     * The document picker, asking for a **persistable read+write** grant rather than the default
+     * one-shot read. That grant is what lets a later plain Save write straight back to the file the
+     * document came from — including one on a mounted network share — and lets a restored tab still
+     * reach it after a restart.
+     */
+    private class OpenDocumentForEditing : ActivityResultContracts.OpenDocument() {
+        override fun createIntent(context: Context, input: Array<String>): Intent =
+            super.createIntent(context, input).addFlags(
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+            )
+    }
+
     private val openLauncher =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        registerForActivityResult(OpenDocumentForEditing()) { uri ->
             uri?.let(::openDocument)
         }
 
@@ -157,7 +178,8 @@ class MainActivity : ComponentActivity() {
             XoppTheme(darkTheme = settings.themeMode.isDark()) {
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
-                    onSave = { saveLauncher.launch(pendingSaveName) },
+                    onSave = ::saveActiveTab,
+                    busy = busy.value,
                     onSaveAs = ::beginSaveAs,
                     currentSaveFormat = { saveFormat },
                     onImportPdf = { mode ->
@@ -190,34 +212,53 @@ class MainActivity : ComponentActivity() {
             OpenTab(TabStore.newId(), displayName(uri), DrawingSurfaceView.blankDocument(), uri.toString()),
         )
         pendingSaveName = displayName(uri)
-        runCatching { loadDocument(uri) }
-            .onSuccess { snapshotActiveTab() }
-            .onFailure {
-                toast("Open failed: ${it.message}")
-                tabs.close(created)
-                tabs.active?.let(::showTab)
-            }
         tabsTick.value++
-        persistTabs()
+        // Keep the grant so plain Save can write back here later, even after a restart.
+        staging.persist(uri)
+        // The bytes may be coming off a network share, so fetch them on a worker and only touch the
+        // canvas once they have landed. A failure takes the half-built tab back down with it.
+        inBackground("Opening ${displayName(uri)}…", { staging.stageIn(uri, "open") }) { result ->
+            result.mapCatching { staged -> loadDocument(staged, uri) }
+                .onSuccess { snapshotActiveTab() }
+                .onFailure {
+                    toast("Open failed: ${it.message}")
+                    tabs.close(created)
+                    tabs.active?.let(::showTab)
+                }
+            tabsTick.value++
+            persistTabs()
+        }
     }
 
-    /** Read [uri] into the canvas, sniffing its container. Throws on an unreadable/unknown file. */
-    private fun loadDocument(uri: Uri) {
+    /**
+     * Run [work] off the UI thread behind a blocking progress note, then hand its result to [done]
+     * back on the UI thread. Every document transfer goes through here: a remote share can stall for
+     * seconds, and doing that inline would freeze (and eventually kill) the app.
+     */
+    private fun <T> inBackground(label: String, work: () -> T, done: (Result<T>) -> Unit) {
+        busy.value = label
+        Thread {
+            val result = runCatching(work)
+            runOnUiThread {
+                busy.value = null
+                done(result)
+            }
+        }.start()
+    }
+
+    /** Read a staged local copy of the document into the canvas, sniffing its container. */
+    private fun loadDocument(staged: File, source: Uri) {
         // Sniff the container by its leading bytes, never by extension: the picker is unfiltered and
         // SAF gives us content:// URIs with no reliable suffix. The verdict also fixes the sticky save
         // format, so a reopened ZIP keeps saving ZIPPED and a gzip .xopp keeps saving gzip.
-        val kind = contentResolver.openInputStream(uri).use { raw ->
-            requireNotNull(raw) { "could not open $uri" }
-            FileKind.sniff(raw.buffered())
-        }
+        val kind = staged.inputStream().use { FileKind.sniff(it.buffered()) }
         if (kind == FileKind.PDF) {
             // A raw PDF isn't a document to parse — it becomes a fresh annotatable one over its pages.
             saveFormat = SaveFormat.ORIGINAL
-            importPdf(uri)
+            adoptPdf(staged, ImportPdfMode.REPLACE, reference = source.toString())
             return
         }
-        contentResolver.openInputStream(uri).use { raw ->
-            requireNotNull(raw) { "could not open $uri" }
+        staged.inputStream().use { raw ->
             val input = raw.buffered()
             when (kind) {
                 FileKind.ZIP -> openZip(input)
@@ -285,24 +326,29 @@ class MainActivity : ComponentActivity() {
      * has one goes through [appendMergedPdf]: the two PDFs are merged into a single joined PDF that
      * becomes the document's one background source.
      */
-    private fun importPdf(uri: Uri, mode: ImportPdfMode = ImportPdfMode.REPLACE) = runCatching {
+    private fun importPdf(uri: Uri, mode: ImportPdfMode = ImportPdfMode.REPLACE) {
         // Persist read access so the same content URI still resolves when the saved .xopp is reopened
         // later (this is the reference plain Save records for domain="absolute"). Best-effort: import
         // still works if the grant isn't persistable.
         runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-        val file = File(cacheDir, "imported.pdf")
-        contentResolver.openInputStream(uri).use { input ->
-            requireNotNull(input) { "could not open $uri" }
-            file.outputStream().use { input.copyTo(it) }
+        // The PDF may live on a network share: fetch it on a worker, then build pages from the copy.
+        inBackground("Importing ${displayName(uri)}…", { staging.stageIn(uri, "import") }) { result ->
+            result.mapCatching { adoptPdf(it, mode, uri.toString()) }
+                .onFailure { toast("PDF import failed: ${it.message}") }
         }
+    }
+
+    /** Turn an already-local [source] PDF into annotatable pages, per [mode]. */
+    private fun adoptPdf(source: File, mode: ImportPdfMode, reference: String) {
+        val file = File(cacheDir, "imported.pdf")
+        source.inputStream().use { input -> file.outputStream().use { input.copyTo(it) } }
         val view = surface
         val existing = view?.pdfSourceFile()
         if (mode == ImportPdfMode.APPEND && existing != null && view.hasPdfBackground()) {
             appendMergedPdf(view, existing, file)
-            return@runCatching
+            return
         }
         val cache = PdfPageCache(file)
-        val reference = uri.toString()
         view?.setPdfSource(cache)
         view?.setPdfTextIndex(null) // cleared until extraction below finishes
         when (mode) {
@@ -310,7 +356,7 @@ class MainActivity : ComponentActivity() {
             ImportPdfMode.APPEND -> view?.appendPages(PdfImport.pagesFor(cache, reference))
         }
         extractPdfTextInBackground(file)
-    }.onFailure { toast("PDF import failed: ${it.message}") }
+    }
 
     /**
      * Append [incoming]'s pages to a document that already has a background PDF, by **merging** the
@@ -366,20 +412,36 @@ class MainActivity : ComponentActivity() {
      * - [SaveFormat.ORIGINAL] — gzip XML, PDF background left linked by path/URI (interchange-safe).
      * - [SaveFormat.ZIPPED] — a ZIP package with the PDF embedded (`domain="attach"`, `bg.pdf`).
      */
-    private fun saveDocument(uri: Uri) = runCatching {
-        val view = surface ?: return@runCatching
-        contentResolver.openOutputStream(uri, "w").use { output ->
-            requireNotNull(output) { "could not write $uri" }
-            when (saveFormat) {
-                SaveFormat.ORIGINAL -> Xopp.save(view.toDocument(), output)
-                SaveFormat.ZIPPED -> {
-                    val pdf = view.pdfSourceFile()
-                    val doc = if (pdf != null) documentWithPdfDomain(view.toDocument(), ATTACH_DOMAIN)
-                    else view.toDocument()
-                    XoppZip.save(doc, pdf, output)
+    private fun saveDocument(uri: Uri) {
+        val view = surface ?: return
+        // Encode locally first, then push the finished bytes across in one pass: on a slow or flaky
+        // remote share, serialising straight down the wire risks leaving a half-written .xopp behind.
+        val staged = runCatching {
+            val out = staging.newFile("save")
+            out.outputStream().use { output ->
+                when (saveFormat) {
+                    SaveFormat.ORIGINAL -> Xopp.save(view.toDocument(), output)
+                    SaveFormat.ZIPPED -> {
+                        val pdf = view.pdfSourceFile()
+                        val doc = if (pdf != null) documentWithPdfDomain(view.toDocument(), ATTACH_DOMAIN)
+                        else view.toDocument()
+                        XoppZip.save(doc, pdf, output)
+                    }
                 }
             }
+            out
+        }.getOrElse { toast("Save failed: ${it.message}"); return }
+
+        inBackground("Saving ${displayName(uri)}…", { staging.stageOut(staged, uri) }) { result ->
+            result.onFailure { toast("Save failed: ${it.message}") }
+                .onSuccess { afterSaved(view, uri) }
         }
+    }
+
+    /** Book-keeping for a document that has just landed on disk at [uri]. */
+    private fun afterSaved(view: DrawingSurfaceView, uri: Uri) {
+        // Hold the grant so the next plain Save can write back here without asking again.
+        staging.persist(uri)
         // The tab now belongs to the file it was just written to: relabel it and remember where it
         // lives, so the strip shows the real name and a restored session points at the same document.
         tabs.updateActive { it.copy(title = displayName(uri), uri = uri.toString()) }
@@ -394,7 +456,17 @@ class MainActivity : ComponentActivity() {
         ) {
             toast("Choose an audio folder so recordings are saved beside this file")
         }
-    }.onFailure { toast("Save failed: ${it.message}") }
+    }
+
+    /**
+     * Plain Save: write straight back to the file this tab came from when we still hold a write
+     * grant on it (the normal case for a document opened from local storage *or* a mounted remote
+     * share), and only fall back to asking for a location when we don't.
+     */
+    private fun saveActiveTab() {
+        val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(staging::isWritable)
+        if (target != null) saveDocument(target) else saveLauncher.launch(pendingSaveName)
+    }
 
     /** True when the open document references any recording at all. */
     private fun documentHasAudio(view: DrawingSurfaceView): Boolean =
@@ -622,6 +694,9 @@ class MainActivity : ComponentActivity() {
 
         /** Folder under `filesDir` holding the cached tab session (see [TabStore]). */
         const val TABS_DIR = "tabs"
+
+        /** Cache subfolder holding the local staging copies of documents in transit (see `UriStaging`). */
+        const val STAGING_DIR = "staging"
 
         /** Tab label for a document that has never been opened from, or saved to, a file. */
         const val UNTITLED = "Untitled"

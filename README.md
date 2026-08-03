@@ -78,7 +78,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   bundled PDF travels inside), an uncompressed Xournal++ XML file, and a **plain PDF** — picking a
   PDF opens it as a fresh annotatable document exactly as **Import PDF** below does. A file that
   is none of these is refused with an "Open failed" notice. Whichever `.xopp` container it came
-  from is remembered, so a later Save writes it back in the same one. Every
+  from is remembered, so a later Save writes it back in the same one.
+  **Files on remote shares work too** — anything the system picker lists, including SSHFS, FTP,
+  WebDAV and cloud providers mounted as storage. Those reads can be slow, so the document is
+  fetched in the background behind an "Opening…" note and only appears once it has fully landed;
+  a link that drops mid-transfer leaves the app as it was and reports the failure. Every
   page is shown, one above the next, each drawn with its own background ruling (plain, lined,
   ruled, graph, or dotted) and all of its layers — including strokes, text boxes, images, and
   LaTeX images (rendered as real math — fractions, super/subscripts, roots, and Greek/operator
@@ -430,6 +434,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   authored on-device. Save writes in whichever **format you last chose in Save As…** (see below):
   it starts as **Original**, and once you Save As **Zipped**, every later Save stays Zipped until
   you switch back. Opening a file adopts the format it was stored in.
+  **Save writes straight back to the file the tab came from** — no picker — whether that file is
+  on local storage or a mounted remote share; you're only asked for a location when the tab has no
+  file yet (or the grant on it has lapsed). The document is encoded locally and then pushed across
+  in one pass behind a "Saving…" note, so a slow or broken link can never leave a half-written
+  `.xopp` on the far end.
 
 - **Save As…** — the menu's **Save As…** opens a dialog to name the file and pick its format:
   - **Original (gzip)** — the standard Xournal++ `.xopp` (gzip-compressed XML). For a PDF-backed

@@ -12,6 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -173,6 +176,8 @@ fun EditorScreen(
     onSettingsChange: (AppSettings) -> Unit,
     audio: AudioUiState = AudioUiState(),
     tabs: TabsUiState = TabsUiState(),
+    /** A document transfer in flight (label shown), or null. Remote files can take a while. */
+    busy: String? = null,
 ) {
     var tool by remember {
         mutableStateOf(startingTool(settings.defaultTool, settings.toolGroupSelections))
@@ -434,6 +439,10 @@ fun EditorScreen(
                 onBack = { showSettings = false },
             )
         }
+
+        // A document is moving to or from storage — possibly a slow network share, so say so and
+        // swallow taps until it lands rather than letting the canvas be edited mid-transfer.
+        if (busy != null) TransferOverlay(busy)
 
         // Contextual actions for the Select tools: the full action bar while something is selected,
         // otherwise (in a marquee mode) a small bar offering the clipboard.
@@ -862,6 +871,33 @@ private fun TextBoxDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/**
+ * A modal "please wait" note for a document transfer. Reading or writing a file on a mounted remote
+ * share (SSHFS, FTP, cloud) can take seconds, so the wait is shown rather than looking like a hang.
+ */
+@Composable
+private fun TransferOverlay(label: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            // Consume every gesture: the canvas must not be edited while its bytes are in flight.
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(shape = RoundedCornerShape(12.dp), tonalElevation = 4.dp) {
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                Text(label)
+            }
+        }
+    }
 }
 
 /** Dropdown to pick a text font family from [TEXT_FAMILIES]. */

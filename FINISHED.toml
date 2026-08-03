@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "open-remote-files-sshfs-ftp-from-the-file-picker"
+title = "Open remote files (SSHFS/FTP) from the file picker"
+description = "The system file picker already lists files on mounted remote shares (SSHFS, FTP, and similar network providers), but selecting one fails because the app can only open local files. Support opening (and saving back to) documents served by remote DocumentsProvider URIs: read through the content resolver stream rather than assuming a local file path, handle slow/flaky IO with progress and error reporting, and make sure the .xopp round-trip still writes back to the same remote URI."
+status = "finished"
+category = "feature"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["io", "files"]
+
+[[task]]
 id = "tabs-multiple-open-documents-restored-across-restarts"
 title = "Tabs: multiple open documents, restored across restarts"
 description = "Open each document in its own tab with a tab strip under the top bar (select / close / new); cache the open tabs (index + per-tab .xopp snapshots under filesDir/tabs) so the app reopens on the same set of tabs with unsaved edits intact."

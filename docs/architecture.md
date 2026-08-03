@@ -272,11 +272,30 @@ native for stylus latency and platform fit).
 The core loop:
 
 ```
-open (SAF Uri) → FileKind.sniff (gzip / ZIP / PDF / XML) → GZIP|ZIP|plain InputStream → XmlPullParser → Document model
-                 (a raw PDF instead becomes a fresh document via PdfImport.documentFor)
+open (SAF Uri) → UriStaging.stageIn (worker thread) → local staging file
+   → FileKind.sniff (gzip / ZIP / PDF / XML) → GZIP|ZIP|plain InputStream → XmlPullParser → Document model
+     (a raw PDF instead becomes a fresh document via PdfImport.adoptPdf/documentFor)
    → render on SurfaceView (Material 3 chrome around it)
-   → stylus edits mutate the model → XmlSerializer → GZIP|ZIP OutputStream (sticky SaveFormat) → save (SAF Uri)
+   → stylus edits mutate the model → XmlSerializer → GZIP|ZIP OutputStream (sticky SaveFormat)
+   → local staging file → UriStaging.stageOut (worker thread) → save (SAF Uri)
 ```
+
+### Staging: remote (SSHFS/FTP/cloud) documents
+
+The picker lists files on mounted network shares, and they arrive as ordinary `content://` URIs
+from a remote `DocumentsProvider` — the only difference is **latency**. So every document transfer
+is staged through a local file by `io/UriStaging.kt` and run off the UI thread by
+`MainActivity.inBackground`, which shows the editor's blocking "Opening…/Saving…" overlay:
+
+- **Read** — the bytes come down once into a staging file; sniff/parse/rasterise then work against
+  a local file that can be re-read at will. A failed fetch closes the half-built tab and reports it.
+- **Write** — the document is serialised locally *first* and only then pushed out in one pass, so a
+  link that drops mid-encode can't leave a truncated `.xopp` on the far end.
+
+The open picker asks for a **persistable read+write** grant (`OpenDocumentForEditing`), so plain
+Save writes back to the tab's own `OpenTab.uri` (`MainActivity.saveActiveTab`) instead of asking for
+a location, and a restored tab can still reach its file after a restart. The `CreateDocument` path
+takes the same grant after a successful Save As.
 
 Reading and writing are **streaming and symmetric**: the parser builds the model element by
 element; the serializer walks the model in document order and re-emits it, carrying through any
@@ -358,6 +377,8 @@ app/
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
       FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
+    io/                      # storage access that isn't format work
+      UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
     tabs/                    # several documents open at once, cached across app restarts
       OpenTab.kt             # one open document: id, title, source URI, save format, PDF, page
       TabManager.kt          # the tab list + selection rules (pure; no Android, no canvas)
