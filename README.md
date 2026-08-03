@@ -87,6 +87,21 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   stores is resolved and the PDF pages render underneath your annotations again, so a saved
   project reopens intact. If the referenced PDF can't be found (e.g. a desktop path that doesn't
   exist on the device), those pages open blank and a notice is shown.
+- **Tabs — several documents open at once** — every document you open lives in its own **tab**, and
+  a **tab strip** appears under the top bar as soon as a second one is open (with one document it
+  stays hidden, so nothing is taken from the drawing area). Tap a tab to switch to that document;
+  tap the **✕** on the tab you're looking at to close it; tap **+** at the end of the strip — or
+  **New document** in the ☰ menu — to start a fresh blank document in a new tab. **Open** always
+  opens into a new tab rather than replacing what you're working on. Each tab carries its own save
+  format, its own background PDF and the page you were on, so switching back lands you where you
+  left off. Closing the last tab leaves you on a fresh blank document. One thing to note: **undo
+  history doesn't follow a tab switch** — the incoming document starts with a clean undo history,
+  though all of its content and unsaved edits are intact.
+- **Tabs are restored when you reopen the app** — the set of open tabs is cached on the device
+  (including edits you hadn't saved yet), so closing the app and starting it again brings back
+  exactly the tabs you had, with the same one showing. This is a convenience cache, **not a
+  substitute for saving**: your `.xopp` file on disk is still only written when you **Save**, and
+  that file is the only thing desktop Xournal++ ever sees.
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
   **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —
@@ -440,6 +455,7 @@ The authoritative layout lives in [`docs/architecture.md`](docs/architecture.md)
 app/src/main/java/com/xopp/android/
   format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
   render/      # stylus canvas, page layout/rendering, PDF import & export
+  tabs/        # multiple open documents + the session cache that restores them on launch
   ui/          # Compose Material 3 editor screen, dockable toolbar rail pop-ups, settings, theme
   MainActivity.kt
 app/src/test/  # JVM unit tests for the format and render layers

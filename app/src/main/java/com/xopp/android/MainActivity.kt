@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -31,10 +32,14 @@ import com.xopp.android.render.PdfMerger
 import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
+import com.xopp.android.tabs.OpenTab
+import com.xopp.android.tabs.TabManager
+import com.xopp.android.tabs.TabStore
 import com.xopp.android.render.Placement
 import com.xopp.android.ui.AudioUiState
 import com.xopp.android.ui.EditorScreen
 import com.xopp.android.ui.SettingsStore
+import com.xopp.android.ui.TabsUiState
 import com.xopp.android.ui.theme.XoppTheme
 import com.xopp.android.ui.theme.isDark
 import java.io.File
@@ -78,6 +83,15 @@ class MainActivity : ComponentActivity() {
 
     /** Bumped whenever recording/playback state changes, so the Compose chrome re-reads it. */
     private var audioTick = mutableStateOf(0)
+
+    /** The open documents and which one is showing (see `com.xopp.android.tabs`). */
+    private val tabs = TabManager()
+
+    /** Bumped whenever the tab list or selection changes, so the tab strip re-reads it. */
+    private var tabsTick = mutableStateOf(0)
+
+    /** The cache that carries the open tabs (unsaved edits included) across app restarts. */
+    private val tabStore: TabStore by lazy { TabStore(File(filesDir, TABS_DIR)) }
 
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -155,16 +169,40 @@ class MainActivity : ComponentActivity() {
                         pendingImagePlacement = placement
                         pickImageLauncher.launch(arrayOf("image/*"))
                     },
-                    onSurfaceCreated = { surface = it; attachAudio(it) },
+                    onSurfaceCreated = { surface = it; attachAudio(it); restoreTabs() },
                     settings = settings,
                     onSettingsChange = { settings = it; store.save(it) },
                     audio = audioUiState(),
+                    tabs = tabsUiState(),
                 )
             }
         }
     }
 
-    private fun openDocument(uri: Uri) = runCatching {
+    /**
+     * Open [uri] **in a new tab**: push the tab first so the load lands in it, then snapshot the
+     * loaded document back into it. A failed open takes its half-built tab down with it rather than
+     * leaving an empty stub in the strip.
+     */
+    private fun openDocument(uri: Uri) {
+        snapshotActiveTab()
+        val created = tabs.open(
+            OpenTab(TabStore.newId(), displayName(uri), DrawingSurfaceView.blankDocument(), uri.toString()),
+        )
+        pendingSaveName = displayName(uri)
+        runCatching { loadDocument(uri) }
+            .onSuccess { snapshotActiveTab() }
+            .onFailure {
+                toast("Open failed: ${it.message}")
+                tabs.close(created)
+                tabs.active?.let(::showTab)
+            }
+        tabsTick.value++
+        persistTabs()
+    }
+
+    /** Read [uri] into the canvas, sniffing its container. Throws on an unreadable/unknown file. */
+    private fun loadDocument(uri: Uri) {
         // Sniff the container by its leading bytes, never by extension: the picker is unfiltered and
         // SAF gives us content:// URIs with no reliable suffix. The verdict also fixes the sticky save
         // format, so a reopened ZIP keeps saving ZIPPED and a gzip .xopp keeps saving gzip.
@@ -176,7 +214,7 @@ class MainActivity : ComponentActivity() {
             // A raw PDF isn't a document to parse — it becomes a fresh annotatable one over its pages.
             saveFormat = SaveFormat.ORIGINAL
             importPdf(uri)
-            return@runCatching
+            return
         }
         contentResolver.openInputStream(uri).use { raw ->
             requireNotNull(raw) { "could not open $uri" }
@@ -191,7 +229,7 @@ class MainActivity : ComponentActivity() {
         }
         // The document may reference recordings made elsewhere; fetch them so its strokes replay.
         pullAudioSidecars()
-    }.onFailure { toast("Open failed: ${it.message}") }
+    }
 
     /** Open a ZIP-package .xopp: the PDF travels inside, so the background rasterises without a sibling. */
     private fun openZip(input: java.io.InputStream) {
@@ -342,6 +380,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        // The tab now belongs to the file it was just written to: relabel it and remember where it
+        // lives, so the strip shows the real name and a restored session points at the same document.
+        tabs.updateActive { it.copy(title = displayName(uri), uri = uri.toString()) }
+        pendingSaveName = displayName(uri)
+        snapshotActiveTab()
+        tabsTick.value++
+        persistTabs()
         // A .xopp never carries its audio — the sidecars have to land beside it or playback breaks.
         pushAudioSidecars()
         if (audioFolder == null && audio.missingFor(view.toDocument()).isEmpty() &&
@@ -364,6 +409,118 @@ class MainActivity : ComponentActivity() {
         pendingSaveName = filename
         saveLauncher.launch(filename)
     }
+
+    // --- tabs: several documents open at once, restored on the next launch ----------------------
+    //
+    // There is exactly one canvas, so a tab switch is a swap: snapshot the outgoing document out of
+    // the surface ([snapshotActiveTab]), then load the incoming one into it ([showTab]). Everything a
+    // tab needs to come back — its document, source URI, save format, background PDF and page — lives
+    // in its [OpenTab] record, which is also what [TabStore] writes to disk.
+    //
+    // Undo history belongs to the surface, not the document, so it does not follow a tab switch: the
+    // incoming tab starts with a clean history. Its content, including unsaved edits, is intact.
+
+    /** The tab strip's view of the session, re-read whenever [tabsTick] changes. */
+    private fun tabsUiState(): TabsUiState {
+        tabsTick.value // read so Compose re-invokes this when the session changes
+        return TabsUiState(
+            titles = tabs.tabs.map { it.title },
+            activeIndex = tabs.activeIndex,
+            onSelect = ::selectTab,
+            onClose = ::closeTab,
+            onNew = ::newTab,
+        )
+    }
+
+    /** Copy the live canvas back into the showing tab's record, so switching away doesn't lose it. */
+    private fun snapshotActiveTab() {
+        val view = surface ?: return
+        tabs.updateActive {
+            it.copy(
+                document = view.toDocument(),
+                format = saveFormat,
+                pdfPath = view.pdfSourceFile()?.absolutePath,
+                page = view.visiblePageIndex(),
+            )
+        }
+    }
+
+    /** Load [tab] onto the canvas: its document, its background PDF, its save format and its page. */
+    private fun showTab(tab: OpenTab) {
+        val view = surface ?: return
+        saveFormat = tab.format
+        pendingSaveName = tab.title
+        val pdf = tab.pdfPath?.let(::File)?.takeIf(File::exists)
+        view.setPdfSource(pdf?.let(::PdfPageCache))
+        view.setPdfTextIndex(null) // cleared until extraction below finishes
+        view.load(tab.document)
+        if (tab.page > 0) view.goToPage(tab.page)
+        if (pdf != null) extractPdfTextInBackground(pdf)
+    }
+
+    /** Switch to the tab at [index], snapshotting the one being left. */
+    private fun selectTab(index: Int) {
+        snapshotActiveTab()
+        if (!tabs.select(index)) return
+        tabs.active?.let(::showTab)
+        tabsTick.value++
+        persistTabs()
+    }
+
+    /**
+     * Close the tab at [index]. Closing the last one leaves a fresh blank document rather than an
+     * empty editor, and the canvas is only reloaded when the *showing* tab actually changed.
+     */
+    private fun closeTab(index: Int) {
+        snapshotActiveTab()
+        val showing = tabs.active?.id
+        tabs.close(index) ?: return
+        if (tabs.isEmpty) tabs.open(blankTab())
+        tabs.active?.takeIf { it.id != showing }?.let(::showTab)
+        tabsTick.value++
+        persistTabs()
+    }
+
+    /** Open a fresh blank document in a new tab and switch to it. */
+    private fun newTab() {
+        snapshotActiveTab()
+        tabs.open(blankTab())
+        tabs.active?.let(::showTab)
+        tabsTick.value++
+        persistTabs()
+    }
+
+    private fun blankTab() =
+        OpenTab(TabStore.newId(), UNTITLED, DrawingSurfaceView.blankDocument())
+
+    /**
+     * Bring back the tabs the app was last closed with, or start on a single blank one. Called once
+     * the canvas exists; guarded so a surface rebuilt within this activity doesn't restore twice.
+     */
+    private fun restoreTabs() {
+        if (!tabs.isEmpty) return
+        val session = tabStore.load()
+        if (session == null) {
+            tabs.open(blankTab())
+        } else {
+            session.tabs.forEach(tabs::open)
+            tabs.select(session.activeIndex)
+            tabs.active?.let(::showTab)
+        }
+        tabsTick.value++
+    }
+
+    /** Write the session out. Cheap enough to call on every tab change and on the way to the background. */
+    private fun persistTabs() {
+        tabStore.save(tabs.session())
+    }
+
+    /** The file name behind a `content://` URI, for the tab's label. Falls back to [UNTITLED]. */
+    private fun displayName(uri: Uri): String = runCatching {
+        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0)?.takeIf(String::isNotBlank) else null
+        }
+    }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf(String::isNotBlank) ?: UNTITLED
 
     // --- audio: record onto strokes, replay from them, keep sidecars beside the .xopp -----------
 
@@ -440,6 +597,13 @@ class MainActivity : ComponentActivity() {
         audio.exportSidecars(folder, doc)
     }
 
+    /** Cache the open tabs on the way to the background — the app may not come back. */
+    override fun onPause() {
+        super.onPause()
+        snapshotActiveTab()
+        persistTabs()
+    }
+
     override fun onDestroy() {
         audio.release()
         super.onDestroy()
@@ -455,5 +619,11 @@ class MainActivity : ComponentActivity() {
         // is at stake.
         const val XOPP_MIME = "application/octet-stream"
         const val PDF_MIME = "application/pdf"
+
+        /** Folder under `filesDir` holding the cached tab session (see [TabStore]). */
+        const val TABS_DIR = "tabs"
+
+        /** Tab label for a document that has never been opened from, or saved to, a file. */
+        const val UNTITLED = "Untitled"
     }
 }

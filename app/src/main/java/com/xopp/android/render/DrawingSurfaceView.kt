@@ -1368,8 +1368,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
-    /** The page nearest the viewport centre — the target for a paste. */
-    private fun visiblePageIndex(): Int =
+    /**
+     * The page nearest the viewport centre — the target for a paste, and what a tab records so
+     * re-selecting it lands back where you left off (see `com.xopp.android.tabs`).
+     */
+    fun visiblePageIndex(): Int =
         layout.nearestPage(scrollX + width / 2f, scrollY + height / 2f)?.index ?: currentPage
 
     /** View px -> page-local pt for [box]. */
@@ -2652,7 +2655,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         canvas.drawRect(l, t, r, bot, selectionStrokePaint)
     }
 
-    private companion object {
+    internal companion object {
         const val A4_WIDTH_PT = 595.276
         const val A4_HEIGHT_PT = 841.89
         const val PAGE_SIZE_MIN_PT = 72.0     // 1 in — floor on a page dimension
@@ -2701,6 +2704,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val TEX_W_PT = 120.0
         const val TEX_H_PT = 40.0
         const val IMG_MAX_PT = 240.0
+
+        /** A fresh one-page document — what a new tab starts on (see `com.xopp.android.tabs`). */
+        fun blankDocument() = Document(pages = listOf(blankPage()))
 
         fun blankPage() = Page(A4_WIDTH_PT, A4_HEIGHT_PT, Background.Solid(AndroidColor.WHITE, "graph"), listOf(Layer(emptyList())))
     }

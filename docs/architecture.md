@@ -282,6 +282,31 @@ Reading and writing are **streaming and symmetric**: the parser builds the model
 element; the serializer walks the model in document order and re-emits it, carrying through any
 preserved-but-unrendered attributes so the file round-trips.
 
+### Tabs and the session cache
+
+Several documents can be open at once, but there is only **one** `DrawingSurfaceView`. A tab switch
+is therefore a swap, driven by `MainActivity`:
+
+```
+snapshot the surface into the outgoing OpenTab (document, save format, PDF path, page)
+  → TabManager.select(index)
+  → load the incoming OpenTab into the surface (setPdfSource → load → goToPage)
+```
+
+Consequences worth knowing:
+
+- **Undo history is per surface, not per document.** It is cleared by `load`, so a tab switch starts
+  the incoming document with a clean history. Content, including unsaved edits, is untouched.
+- **Only the active tab's document is live**; every other tab holds the snapshot taken when it was
+  last showing. That is also what gets written to disk.
+- **The session is cached, not saved.** `TabStore` writes `filesDir/tabs/`: a `session.index` line
+  file (`TabIndex`) plus one `<id>.xopp` gzip snapshot per tab, rewritten on every tab change and in
+  `onPause`. On launch it is read back, so the app reopens on the same tabs with the same unsaved
+  edits. It is a restart cache keyed by tab id — the user's own file (the tab's `uri`) is still the
+  only thing the desktop ever sees, and a snapshot never stands in for saving.
+- Tabs that were opened from a file keep that `content://` URI, so **Save** after a restart still
+  writes back to the same document.
+
 ### In-memory document model
 
 The native-Android analogue of the reference's `Xpp*` types — one small Kotlin data
@@ -333,6 +358,11 @@ app/
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
       FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
+    tabs/                    # several documents open at once, cached across app restarts
+      OpenTab.kt             # one open document: id, title, source URI, save format, PDF, page
+      TabManager.kt          # the tab list + selection rules (pure; no Android, no canvas)
+      TabIndex.kt            # the session index text format (pure encode/decode)
+      TabStore.kt            # filesDir/tabs: index + one .xopp snapshot per tab
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       PageStacker.kt         # lays pages out in rows of N columns, fit to column (pure geometry)

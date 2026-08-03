@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.ContentCopy
@@ -171,6 +172,7 @@ fun EditorScreen(
     settings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit,
     audio: AudioUiState = AudioUiState(),
+    tabs: TabsUiState = TabsUiState(),
 ) {
     var tool by remember {
         mutableStateOf(startingTool(settings.defaultTool, settings.toolGroupSelections))
@@ -218,6 +220,7 @@ fun EditorScreen(
     Scaffold(
         topBar = {
             if (!fullPage) {
+              Column {
                 TopAppBar(
                     // No title and a compact height: the bar is just the action row, so it eats as
                     // little of the drawing area as possible.
@@ -232,6 +235,7 @@ fun EditorScreen(
                         }
                         OverflowMenu(
                             onOpen = onOpen,
+                            onNewTab = tabs.onNew,
                             onSave = onSave,
                             onSaveAs = { showSaveAs = true },
                             onImportPdf = { showImportPdf = true },
@@ -240,6 +244,9 @@ fun EditorScreen(
                         )
                     },
                 )
+                // Only drawn once a second document is open (see [TabStrip]).
+                TabStrip(tabs, modifier = Modifier.fillMaxWidth())
+              }
             }
         },
     ) { padding ->
@@ -889,6 +896,7 @@ private fun TextSwatch(color: Int, selected: Boolean, onClick: () -> Unit) {
 @Composable
 private fun OverflowMenu(
     onOpen: () -> Unit,
+    onNewTab: () -> Unit,
     onSave: () -> Unit,
     onSaveAs: () -> Unit,
     onImportPdf: () -> Unit,
@@ -904,6 +912,11 @@ private fun OverflowMenu(
             text = { Text("Open") },
             leadingIcon = { Icon(Icons.Filled.FileOpen, contentDescription = null) },
             onClick = { open = false; onOpen() },
+        )
+        DropdownMenuItem(
+            text = { Text("New document") },
+            leadingIcon = { Icon(Icons.AutoMirrored.Filled.NoteAdd, contentDescription = null) },
+            onClick = { open = false; onNewTab() },
         )
         DropdownMenuItem(
             text = { Text("Import PDF") },
