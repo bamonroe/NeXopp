@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.util.AttributeSet
@@ -21,13 +20,11 @@ import com.xopp.android.audio.withAudio
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Element
-import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
-import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
 import kotlin.math.atan2
@@ -193,8 +190,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Pages copied out of the overview, awaiting a paste. View-only state; pages are immutable. */
     private var pageClipboard: List<Page> = emptyList()
 
-    /** The text box a placement tap hit, awaiting an edit-or-delete from the editor. */
-    private var editingTarget: TextElement? = null
+    /** Places and edits text boxes, images and LaTeX images (see [TextEditController]). */
+    private val textEdits = TextEditController(
+        document = { doc },
+        activeLayerOf = { resolvedActiveLayer(it) },
+        commit = { commitElementEdit(it) },
+    )
     /** Which page index was last reported to [onCurrentPageChanged], to suppress duplicate calls. */
     private var lastReportedPage = -1
     /** Last (scrollY, totalHeightPx, viewportPx) reported to [onScrollChanged], to suppress duplicate calls. */
@@ -874,99 +875,30 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     // --- authoring: place text boxes, images, and LaTeX images by tapping ------------------------
+    // The round trip lives in [TextEditController]; the view only forwards the editor's answers and
+    // commits the document it hands back.
 
     /** Create a text box (or edit the one a tap hit) at the placement; blank content deletes it. */
-    fun insertText(p: Placement, content: String, font: String, sizePt: Double, colorArgb: Int) {
-        val target = editingTarget
-        editingTarget = null
-        if (content.isBlank()) {
-            if (target != null) replaceElement(target, null)
-            return
-        }
-        val text = TextElement(font, sizePt, p.xPt, p.yPt, colorArgb, content)
-        if (target != null) replaceElement(target, text) else addElement(p.pageIndex, text)
-    }
+    fun insertText(p: Placement, content: String, font: String, sizePt: Double, colorArgb: Int) =
+        textEdits.insertText(p, content, font, sizePt, colorArgb)
 
     /** Place a LaTeX image at the placement, sized to a default box (resizable later). */
-    fun insertTex(p: Placement, latex: String, colorArgb: Int) {
-        if (latex.isBlank()) return
-        addElement(p.pageIndex, TexImageElement(p.xPt, p.yPt, p.xPt + TEX_W_PT, p.yPt + TEX_H_PT, latex, colorArgb))
-    }
+    fun insertTex(p: Placement, latex: String, colorArgb: Int) = textEdits.insertTex(p, latex, colorArgb)
 
     /** Place an encoded image (PNG/JPEG bytes) at the placement, scaled to fit a default extent. */
-    fun insertImage(p: Placement, data: ByteArray) {
-        val (wPt, hPt) = imageBoxPt(data)
-        addElement(p.pageIndex, ImageElement(p.xPt, p.yPt, p.xPt + wPt, p.yPt + hPt, data))
-    }
+    fun insertImage(p: Placement, data: ByteArray) = textEdits.insertImage(p, data)
 
     /** Discard a pending text-edit target (the editor's dialog was dismissed without saving). */
-    fun cancelTextEdit() { editingTarget = null }
+    fun cancelTextEdit() = textEdits.cancel()
 
-    /** The natural pt size for an image, scaled so its longest side is [IMG_MAX_PT]. */
-    private fun imageBoxPt(data: ByteArray): Pair<Double, Double> {
-        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(data, 0, data.size, opts)
-        val w = opts.outWidth.coerceAtLeast(1)
-        val h = opts.outHeight.coerceAtLeast(1)
-        val s = IMG_MAX_PT / maxOf(w, h)
-        return w * s to h * s
-    }
-
-    /** Append [element] to the top layer of page [pageIndex] as one undoable edit. */
-    private fun addElement(pageIndex: Int, element: Element) {
+    /** Adopt [next] as one undoable edit — how [textEdits] commits an element it placed or changed. */
+    private fun commitElementEdit(next: Document) {
         val before = doc
-        val pages = doc.pages.toMutableList()
-        val page = pages.getOrNull(pageIndex) ?: return
-        val layers = page.layers.ifEmpty { listOf(Layer(emptyList())) }.toMutableList()
-        val target = resolvedActiveLayer(page).coerceIn(0, layers.lastIndex)
-        layers[target] = Layer(layers[target].elements + element, layers[target].name)
-        pages[pageIndex] = page.copy(layers = layers)
-        doc = doc.copy(pages = pages)
+        doc = next
         history.record(before)
         notifyHistory()
         relayout()
         render()
-    }
-
-    /** Replace [old] (matched by identity) with [new], or remove it when [new] is null; undoable. */
-    private fun replaceElement(old: Element, new: Element?) {
-        val before = doc
-        var changed = false
-        val pages = doc.pages.map { page ->
-            page.copy(layers = page.layers.map { layer ->
-                val idx = layer.elements.indexOfFirst { it === old }
-                if (idx < 0) return@map layer
-                changed = true
-                val els = layer.elements.toMutableList()
-                if (new == null) els.removeAt(idx) else els[idx] = new
-                Layer(els, layer.name)
-            })
-        }
-        if (!changed) return
-        doc = doc.copy(pages = pages)
-        history.record(before)
-        notifyHistory()
-        relayout()
-        render()
-    }
-
-    /** The top-most text box whose (approximate) bounds contain the point, or null. */
-    private fun pickText(pageIndex: Int, xPt: Double, yPt: Double): TextElement? {
-        val page = doc.pages.getOrNull(pageIndex) ?: return null
-        for (layer in page.layers.asReversed()) {
-            for (el in layer.elements.asReversed()) {
-                if (el is TextElement && hitsText(el, xPt, yPt)) return el
-            }
-        }
-        return null
-    }
-
-    /** Rough hit test for a text box from its content extent (glyph widths aren't measured here). */
-    private fun hitsText(t: TextElement, xPt: Double, yPt: Double): Boolean {
-        val lines = t.content.split("\n")
-        val h = lines.size * t.size * 1.3
-        val w = (lines.maxOfOrNull { it.length } ?: 1) * t.size * 0.62
-        return xPt >= t.x - 4 && xPt <= t.x + w + 4 && yPt >= t.y - 4 && yPt <= t.y + h + 4
     }
 
     // --- selection: rubber-band / tap to select, drag to move, delete --------------------------
@@ -2022,7 +1954,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.pageAt(placeDownX + scrollX, placeDownY + scrollY) ?: return
         val xPt = ((placeDownX + scrollX - box.leftPx) / box.scale).toDouble()
         val yPt = ((placeDownY + scrollY - box.topPx) / box.scale).toDouble()
-        val existing = if (kind == PlaceKind.TEXT) pickText(box.index, xPt, yPt)?.also { editingTarget = it } else null
+        val existing = if (kind == PlaceKind.TEXT) textEdits.pickForEditing(box.index, xPt, yPt) else null
         onPlace?.invoke(kind, Placement(box.index, xPt, yPt, existing))
     }
 
@@ -2643,9 +2575,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val GUIDE_DRAG_NONE = 0
         const val GUIDE_DRAG_BODY = 1
         const val GUIDE_DRAG_TIP = 2
-        const val TEX_W_PT = 120.0
-        const val TEX_H_PT = 40.0
-        const val IMG_MAX_PT = 240.0
 
         /** A fresh one-page document — what a new tab starts on (see `com.xopp.android.tabs`). */
         fun blankDocument() = Document(pages = listOf(blankPage()))
