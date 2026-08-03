@@ -22,13 +22,18 @@ import kotlin.math.hypot
  *     points carry no shape information but cost a vertex in the file and a segment per redraw.
  *
  * State is per stroke: construct one in `startStroke` (or call [reset]) and feed every sample.
- * Working in **view pixels** keeps the thresholds zoom-independent — the same physical wobble is
- * filtered the same way whether the page is at 50% or 800%.
+ *
+ * Samples arrive in view pixels, but the decimation radius must not be a *fixed* pixel distance:
+ * a view pixel is a different amount of document at every magnification, so a fixed 1.6px radius
+ * throws away 1.6/scale page points of real detail — over 3pt in a 4-column overview, where it
+ * turns handwriting into visible corners and jumps. [StrokePrecision.stepPxFor] therefore takes
+ * the *tighter* of a screen-space noise floor and a fixed document-space budget, so zooming out
+ * can never cost stored precision. Call [reset] with that radius at the start of every stroke.
  */
 class StrokeSmoother(
     private val positionAlpha: Float = POSITION_ALPHA,
     private val pressureAlpha: Float = PRESSURE_ALPHA,
-    /** Decimation radius in view px. Settable so the stylus-precision setting can tighten it. */
+    /** Decimation radius in view px; see [StrokePrecision.stepPxFor]. */
     var minStepPx: Float = MIN_STEP_PX,
 ) {
     /** One filtered sample, still in view pixels. */
@@ -37,11 +42,20 @@ class StrokeSmoother(
     private var sx = 0f
     private var sy = 0f
     private var sp = 0f
+    /** The last sample actually emitted — decimation measures against this, not the filter state. */
+    private var ex = 0f
+    private var ey = 0f
+    private var ep = 0f
     private var started = false
 
-    /** Forget the previous stroke's state. Call once before the first sample of a new stroke. */
-    fun reset() {
+    /**
+     * Forget the previous stroke's state. Call once before the first sample of a new stroke,
+     * passing the decimation radius for the magnification this stroke is being drawn at
+     * ([StrokePrecision.stepPxFor]).
+     */
+    fun reset(stepPx: Float = minStepPx) {
         started = false
+        minStepPx = stepPx
     }
 
     /**
@@ -53,18 +67,21 @@ class StrokeSmoother(
         if (!started) {
             started = true
             sx = x; sy = y; sp = pressure
+            ex = sx; ey = sy; ep = sp
             return Sample(sx, sy, sp)
         }
         val nx = sx + positionAlpha * (x - sx)
         val ny = sy + positionAlpha * (y - sy)
         val np = sp + pressureAlpha * (pressure - sp)
-        if (!force && hypot(nx - sx, ny - sy) < minStepPx && abs(np - sp) < MIN_PRESSURE_STEP) {
-            // Below the noise floor in both channels: still advance the filter so the smoothed
-            // path keeps tracking the pen, but don't emit a vertex for it.
-            sx = nx; sy = ny; sp = np
+        sx = nx; sy = ny; sp = np
+        // Measure against the last *emitted* point: a slow drift of many sub-threshold steps still
+        // adds up to a real move, and comparing against the running filter state would swallow it.
+        if (!force && hypot(nx - ex, ny - ey) < minStepPx && abs(np - ep) < MIN_PRESSURE_STEP) {
+            // Below the noise floor in both channels: the filter has already advanced so the
+            // smoothed path keeps tracking the pen, but don't emit a vertex for it.
             return null
         }
-        sx = nx; sy = ny; sp = np
+        ex = nx; ey = ny; ep = np
         return Sample(sx, sy, sp)
     }
 
@@ -73,8 +90,15 @@ class StrokeSmoother(
         const val POSITION_ALPHA = 0.55f
         /** Pressure is noisier than position, so it is filtered harder. */
         const val PRESSURE_ALPHA = 0.3f
-        /** Samples closer together than this (view px) carry no shape information. */
+        /** Screen-space noise floor: samples closer than this (view px) are digitiser wobble. */
         const val MIN_STEP_PX = 1.6f
+
+        /**
+         * Document-space ceiling on what decimation may discard, in page points. Whatever the
+         * magnification, a dropped sample never moved the pen more than this much *on the page*,
+         * so a stroke drawn in a 4-column overview stores the same detail as one drawn at 800%.
+         */
+        const val MIN_STEP_PT = 0.8f
         /** …unless the pressure moved by at least this much, which is a visible width change. */
         const val MIN_PRESSURE_STEP = 0.02f
     }
@@ -103,8 +127,18 @@ enum class StrokePrecision(val factor: Float, val label: String) {
     /** Near-raw input. Every sample the digitiser reports that moved at all is kept. */
     MAXIMUM(0.25f, "Maximum");
 
-    /** The live decimation radius (view px) this precision implies. */
-    val minStepPx: Float get() = StrokeSmoother.MIN_STEP_PX * factor
+    /**
+     * The live decimation radius, in view px, for a page drawn at [pxPerPt] view pixels per page
+     * point ([PageBox.scale]: fit-to-width × user zoom — *not* the user zoom alone).
+     *
+     * The tighter of two budgets: a screen-space noise floor, which keeps a zoomed-in stroke from
+     * recording every jitter sample, and a document-space ceiling, which keeps a zoomed-out stroke
+     * from silently discarding page detail. Zooming out can only ever *increase* the sample rate.
+     */
+    fun stepPxFor(pxPerPt: Float): Float {
+        if (pxPerPt <= 0f) return StrokeSmoother.MIN_STEP_PX * factor
+        return minOf(StrokeSmoother.MIN_STEP_PX, StrokeSmoother.MIN_STEP_PT * pxPerPt) * factor
+    }
 
     companion object {
         val DEFAULT = BALANCED
@@ -132,8 +166,12 @@ object StrokeSimplifier {
      */
     const val TOLERANCE_PX = 0.35
 
-    /** Widest tolerance we'll ever use, however far the canvas is zoomed out. */
-    private const val MAX_TOLERANCE_PT = 0.7
+    /**
+     * Widest tolerance we'll ever use, however far the canvas is zoomed out. This is the
+     * document-space half of the budget: below 1 px/pt the on-screen budget would let the pass
+     * discard unbounded page detail, so the page-point figure takes over instead.
+     */
+    private const val MAX_TOLERANCE_PT = TOLERANCE_PT
 
     /**
      * The deviation budget to use for a stroke drawn at [pxPerPt] view pixels per page point,
@@ -142,7 +180,9 @@ object StrokeSimplifier {
      * A fixed page-point tolerance is a *growing* on-screen error as you zoom in: at 8 px/pt a
      * 0.35pt budget is nearly 3 view pixels, enough to turn a curve into visible straight facets.
      * Expressing the budget in view pixels and dividing by the real px/pt keeps the discarded
-     * detail sub-pixel at every magnification.
+     * detail sub-pixel at every magnification. Below 1 px/pt that division runs the other way and
+     * would discard whole *points* of page detail, so [MAX_TOLERANCE_PT] caps it: zooming out
+     * tightens the budget, it never loosens it.
      *
      * [pxPerPt] must be the **full** page→view factor ([PageBox.scale]: fit-to-width × user zoom),
      * not the user zoom alone. On a large tablet the fit-to-width factor is 2–4 px/pt on its own,

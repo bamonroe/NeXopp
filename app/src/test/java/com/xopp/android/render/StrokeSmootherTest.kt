@@ -127,10 +127,18 @@ class StrokeSimplifierTest {
         assertTrue(StrokeSimplifier.toleranceFor(3f) < StrokeSimplifier.toleranceFor(1f))
     }
 
-    @Test fun `zooming out never widens the tolerance past twice the default`() {
-        val widest = StrokeSimplifier.TOLERANCE_PT * 2
+    @Test fun `zooming out never widens the tolerance past the page-point budget`() {
+        val widest = StrokeSimplifier.TOLERANCE_PT
         assertEquals(widest, StrokeSimplifier.toleranceFor(0.5f), 1e-9)
         assertEquals(widest, StrokeSimplifier.toleranceFor(0.1f), 1e-9)
+        // Monotone: a smaller scale never buys a looser document-space budget.
+        var prev = 0.0
+        for (scale in listOf(8f, 4f, 2f, 1f, 0.5f, 0.25f, 0.05f)) {
+            val t = StrokeSimplifier.toleranceFor(scale)
+            assertTrue("at $scale", t >= prev)
+            assertTrue("at $scale", t <= widest + 1e-9)
+            prev = t
+        }
     }
 
     @Test fun `higher precision keeps a tighter budget at every scale`() {
@@ -143,9 +151,46 @@ class StrokeSimplifierTest {
     }
 
     @Test fun `precision scales the live decimation radius the same way`() {
-        assertEquals(StrokeSmoother.MIN_STEP_PX, StrokePrecision.BALANCED.minStepPx, 1e-6f)
-        assertTrue(StrokePrecision.MAXIMUM.minStepPx < StrokePrecision.BALANCED.minStepPx)
-        assertTrue(StrokePrecision.ECONOMY.minStepPx > StrokePrecision.BALANCED.minStepPx)
+        val scale = 4f // well above the px-floor crossover, so the noise floor is what applies
+        assertEquals(StrokeSmoother.MIN_STEP_PX, StrokePrecision.BALANCED.stepPxFor(scale), 1e-6f)
+        assertTrue(StrokePrecision.MAXIMUM.stepPxFor(scale) < StrokePrecision.BALANCED.stepPxFor(scale))
+        assertTrue(StrokePrecision.ECONOMY.stepPxFor(scale) > StrokePrecision.BALANCED.stepPxFor(scale))
+    }
+
+    @Test fun `the decimation radius is bounded in document space at low zoom`() {
+        for (precision in StrokePrecision.values()) {
+            for (scale in listOf(0.2f, 0.5f, 1f, 2f, 4f, 8f)) {
+                val stepPt = precision.stepPxFor(scale) / scale
+                assertTrue(
+                    "$precision at $scale px/pt discarded ${stepPt}pt",
+                    stepPt <= StrokeSmoother.MIN_STEP_PT * precision.factor + 1e-6f,
+                )
+            }
+        }
+    }
+
+    @Test fun `zooming out tightens the decimation radius, never loosens it`() {
+        var prev = Float.MAX_VALUE
+        for (scale in listOf(8f, 4f, 2f, 1f, 0.5f, 0.25f)) {
+            val step = StrokePrecision.BALANCED.stepPxFor(scale)
+            assertTrue("at $scale", step <= prev + 1e-6f)
+            prev = step
+        }
+        // A 4-column overview (~0.5 px/pt) keeps far more of the page than the old fixed-px rule.
+        assertTrue(StrokePrecision.BALANCED.stepPxFor(0.5f) < StrokeSmoother.MIN_STEP_PX)
+    }
+
+    @Test fun `a slow drift of sub-threshold steps still emits a point`() {
+        // Each raw step is well under the radius, but they all go the same way: the pen really has
+        // moved, so decimation must not swallow the whole run by chasing its own filter state.
+        val smoother = StrokeSmoother()
+        smoother.reset(StrokeSmoother.MIN_STEP_PX)
+        assertNotNull(smoother.accept(0f, 0f, 0.5f))
+        var emitted = 0
+        for (i in 1..40) {
+            if (smoother.accept(i * 0.5f, 0f, 0.5f) != null) emitted++
+        }
+        assertTrue("drifted 20px and emitted $emitted points", emitted >= 5)
     }
 
     @Test fun `fine detail survives when drawn at a high on-screen scale`() {

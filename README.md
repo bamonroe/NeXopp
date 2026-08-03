@@ -332,6 +332,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     drawn; raising the precision shrinks that budget, which draws visibly rounder curves on a large,
     high-density tablet at 100% zoom and below, at the cost of a bigger `.xopp`. Lowering it keeps
     files small. Existing strokes are unaffected — the setting applies to what you draw next.
+    The budget is also capped in page units, so a stroke drawn zoomed out or in the multi-page
+    overview stores the same detail as one drawn at 100% — zooming out never costs you precision.
   - **Shape recognition** — off by default; when on, a finished freehand pen stroke snaps to the
     primitive it resembles (see **Shape recognition** above).
 

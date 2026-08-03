@@ -96,7 +96,99 @@ class StylusInputTest {
         assertTrue("no palm samples leaked into the stroke (maxY=$maxY)", maxY < 200.0)
     }
 
+    /**
+     * The same page-space gesture keeps the same detail whether it's drawn at 100% or zoomed out.
+     *
+     * Decimation and simplification were both budgeted purely in *view pixels*, so zooming out
+     * multiplied how much page detail they threw away — at overview magnification a stored vertex
+     * stood for several times as much real pen movement, which is the "corners and jumps" this
+     * test guards against.
+     */
+    @Test
+    fun sameGestureKeepsItsDetailAtEveryZoom() = onView { view ->
+        view.tool = Tool.PEN
+
+        val wide = drawRipple(view, zoom = 1f)
+        // Six zoom-out steps ≈ 26% — the magnification of a multi-page overview.
+        var zoomed = 1f
+        repeat(6) { view.zoomOut(); zoomed /= ZOOM_STEP }
+        val narrow = drawRipple(view, zoom = zoomed)
+
+        assertTrue("100% gesture produced points", wide.size >= 8)
+        assertTrue("zoomed-out gesture produced points", narrow.size >= 8)
+
+        // Both strokes traced the same ripple on the page, so they should store a comparable
+        // number of vertices and cover a comparable page-space distance. With the budgets pinned to
+        // view pixels the zoomed-out stroke kept barely a third of the vertices; with them bounded
+        // in page points it keeps over half (the rest is the simplifier's own page-point cap).
+        assertTrue(
+            "zoomed-out kept ${narrow.size} vertices vs ${wide.size} at 100%",
+            narrow.size >= wide.size / 2,
+        )
+        val wideLen = lengthPt(wide)
+        val narrowLen = lengthPt(narrow)
+        assertTrue(
+            "zoomed-out path length ${narrowLen}pt vs 100% ${wideLen}pt",
+            narrowLen >= wideLen * 0.95,
+        )
+    }
+
     // --- harness -------------------------------------------------------------------------------
+
+    /**
+     * Trace a fine ripple defined in **page points**, so the gesture is the same real movement at
+     * every [zoom], and feed it as dense batches (only a batch's newest sample is force-kept, so
+     * this exercises the decimation path the way a real digitiser does).
+     */
+    private fun drawRipple(view: DrawingSurfaceView, zoom: Float): List<StrokePoint> {
+        val before = strokesOf(view).size
+        // Page → view, mirroring PageStacker.stack: a single column fits the page to the view
+        // width, rows are centred horizontally, and the first row starts one gap down.
+        val scale = (VIEW_W / A4_WIDTH_PT).toFloat() * zoom
+        val left = (maxOf(VIEW_W.toFloat(), A4_WIDTH_PT.toFloat() * scale) - A4_WIDTH_PT.toFloat() * scale) / 2f
+        val top = GAP_PX
+        // 0.4pt per sample along 200pt, rippling ±2.5pt every 10pt — detail a fixed 1.6 view-px
+        // decimation radius keeps at 100% (0.9pt) but erases when zoomed out (3.4pt).
+        fun pageX(i: Int) = 100.0 + i * 0.4
+        fun pageY(i: Int) = 300.0 + kotlin.math.sin(pageX(i) * 2 * Math.PI / 10.0) * 2.5
+        fun px(i: Int) = left + (pageX(i) * scale).toFloat()
+        fun py(i: Int) = top + (pageY(i) * scale).toFloat()
+
+        val downTime = SystemClock.uptimeMillis()
+        send(view, downTime, downTime, MotionEvent.ACTION_DOWN, floatArrayOf(px(0)), floatArrayOf(py(0)), intArrayOf(MotionEvent.TOOL_TYPE_STYLUS))
+        var i = 1
+        while (i < 500) {
+            sendBatch(view, downTime, MotionEvent.ACTION_MOVE, (i until i + 10).map { px(it) to py(it) })
+            i += 10
+        }
+        send(view, downTime, now(), MotionEvent.ACTION_UP, floatArrayOf(px(i)), floatArrayOf(py(i)), intArrayOf(MotionEvent.TOOL_TYPE_STYLUS))
+
+        val strokes = strokesOf(view)
+        assertEquals("the ripple committed one stroke", before + 1, strokes.size)
+        return strokes.last().points
+    }
+
+    /** One [MotionEvent] carrying [samples] as historical samples plus a current one. */
+    private fun sendBatch(view: View, downTime: Long, action: Int, samples: List<Pair<Float, Float>>) {
+        val props = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_STYLUS })
+        fun coordsAt(s: Pair<Float, Float>) = arrayOf(
+            MotionEvent.PointerCoords().apply { x = s.first; y = s.second; pressure = 1f; size = 1f },
+        )
+        val event = MotionEvent.obtain(
+            downTime, now(), action, 1, props, coordsAt(samples.first()),
+            0, 0, 1f, 1f, 0, 0, 0x00004002 /* SOURCE_STYLUS */, 0,
+        )
+        try {
+            for (s in samples.drop(1)) event.addBatch(now(), coordsAt(s), 0)
+            view.onTouchEvent(event)
+        } finally {
+            event.recycle()
+        }
+    }
+
+    /** Total page-space length of the stored polyline — how much of the real path survived. */
+    private fun lengthPt(points: List<StrokePoint>): Double =
+        points.zipWithNext().sumOf { (a, b) -> kotlin.math.hypot(b.x - a.x, b.y - a.y) }
 
     private fun onView(body: (DrawingSurfaceView) -> Unit) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -172,6 +264,10 @@ class StylusInputTest {
     private companion object {
         const val A4_WIDTH_PT = 595.276
         const val A4_HEIGHT_PT = 841.89
+        /** Mirrors `DrawingSurfaceView.ZOOM_STEP`, which is private to the view. */
+        const val ZOOM_STEP = 1.25f
+        /** Mirrors `DrawingSurfaceView.GAP_PX`. */
+        const val GAP_PX = 24f
         const val VIEW_W = 1080
         const val VIEW_H = 1920
     }

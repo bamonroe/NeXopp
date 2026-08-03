@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "investigate-stylus-precision-loss-at-low-zoom-multi-column-view"
+title = "Investigate stylus precision loss at low zoom / multi-column view"
+description = """
+Suspected: stroke fidelity degrades when the viewport is zoomed out or showing multiple columns — strokes come out with visible corners and jumps instead of smooth curves. Hypothesis: input sampling, point-simplification, or the motion-event coalescing threshold is applied in SCREEN space rather than DOCUMENT space, so at low zoom a fixed pixel-distance filter discards far more real document-space detail. Same for any minimum-distance test before appending a point.
+
+Investigate:
+- Find every distance/threshold test on the stylus input path and check whether it is measured in screen px or document units.
+- Check that historical (coalesced/batched) MotionEvent points are consumed, not just the latest.
+- Verify the stored stroke coordinates are document-space and identical regardless of the zoom level they were drawn at — draw the same gesture at 1 column and at 4 columns and diff the resulting point lists.
+
+Fix: thresholds and simplification should operate in document space so captured precision is zoom-independent; rendering may smooth for display but must not lose stored points."""
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
 id = "copy-and-paste-pages-in-the-page-overview"
 title = "Copy and paste pages in the page overview"
 description = "Copy one or more selected pages in the grid/overview and paste them elsewhere in the document (duplicating strokes, layers, background, and any page assets). Must round-trip through .xopp."

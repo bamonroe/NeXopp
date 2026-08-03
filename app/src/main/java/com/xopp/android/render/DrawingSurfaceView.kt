@@ -217,11 +217,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Jitter filter for the in-progress freehand stroke; reset at the start of each stroke. */
     private val smoother = StrokeSmoother()
     /** How much digitiser detail freehand strokes keep (see [StrokePrecision]); from Settings. */
+    // The decimation radius depends on the page's px/pt as well as this setting, so it is computed
+    // per stroke in [startStroke] rather than pinned here.
     var strokePrecision: StrokePrecision = StrokePrecision.DEFAULT
-        set(value) {
-            field = value
-            smoother.minStepPx = value.minStepPx
-        }
     /** When true, a hovering stylus shows a preview dot (from `ACTION_HOVER_MOVE`). */
     var showHover: Boolean = true
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
@@ -1846,7 +1844,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
             shapeStartY = sy
             current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, baseWidthPt.toDouble())))
         } else {
-            smoother.reset()
+            // Decimate against this page's real px/pt, so a stroke drawn zoomed out or in a
+            // multi-column view keeps the same document-space detail as one drawn at 100%.
+            smoother.reset(strokePrecision.stepPxFor(box.scale))
             current = ArrayList<StrokePoint>().also { addSamples(event, pointerIndex, box, it) }
         }
     }
