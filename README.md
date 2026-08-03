@@ -299,11 +299,19 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     before the press registers pans as usual.
   - **Delete pages from the overview** — while the grid is showing, pick the **Hand** tool and **tap
     pages** to select them: each picked page is tinted and outlined, and tapping it again unpicks it.
-    The Pages pop-up then grows two entries — **Delete N selected**, which removes every picked page
-    in **one undoable edit**, and **Clear selection**. A document always keeps at least one page, so
+    The Pages pop-up then grows three entries — **Copy N selected**, **Delete N selected**, which
+    removes every picked page in **one undoable edit**, and **Clear selection**. A document always keeps at least one page, so
     selecting *every* page deletes nothing (that entry is disabled). The remaining pages keep their
     order and are what gets written to the `.xopp`. The selection is view-only state: it clears when
     you return to **1** page per row, and after any page add/remove/reorder (the indices have moved).
+  - **Copy and paste pages** — **Copy N selected** puts the picked pages on a page clipboard (in
+    document order) without changing anything yet. The Pages pop-up then offers **Paste N pages**,
+    which inserts them in **one undoable edit** directly **after the last selected page** — or after
+    the page in view when nothing is selected — and scrolls to the first pasted page. The copies carry
+    everything the page holds: strokes with pressure, every layer and its name, page size, and the
+    background (a ruled sheet, an imported image, or the same PDF page), so a pasted page is a true
+    duplicate that round-trips to desktop Xournal++. The clipboard survives until the next copy, so
+    one copy can be pasted repeatedly.
   - **Page size…** — the last row shows the page-in-view's size (a preset name like **A4**, or its
     dimensions) and opens a **Page size** dialog: pick a preset (**A4 / A5 / Letter / Legal**), or type
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**

@@ -63,6 +63,27 @@ object PageOps {
         return pages.toMutableList().apply { add(target, removeAt(from)) }
     }
 
+    /**
+     * The pages at [indices], in ascending document order — the page-overview copy. Out-of-range
+     * indices are ignored, so an empty or fully out-of-range selection yields an empty list. Pages are
+     * immutable, so the "copy" shares structure with the originals and is safe to re-insert as-is:
+     * strokes, layers, page size, background and any PDF/image reference all come along verbatim and
+     * are written out again by the `.xopp` writer, so the duplicate round-trips.
+     */
+    fun copyOf(pages: List<Page>, indices: Set<Int>): List<Page> =
+        indices.filter { it in pages.indices }.sorted().map { pages[it] }
+
+    /**
+     * A copy of [pages] with [added] inserted directly *after* index [after]; a negative [after] puts
+     * them in front of the document. [after] is clamped into range, and an empty [added] returns the
+     * same instance so callers can hand the result straight to an "only if it differs" edit.
+     */
+    fun insertAfter(pages: List<Page>, after: Int, added: List<Page>): List<Page> {
+        if (added.isEmpty()) return pages
+        val at = (after + 1).coerceIn(0, pages.size)
+        return pages.toMutableList().apply { addAll(at, added) }
+    }
+
     /** A copy of [pages] with page [index] removed. The last remaining page is never removed. */
     fun removeAt(pages: List<Page>, index: Int): List<Page> {
         if (pages.size <= 1) return pages

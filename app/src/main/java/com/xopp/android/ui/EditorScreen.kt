@@ -181,6 +181,7 @@ fun EditorScreen(
     var pageCount by remember { mutableStateOf(1) }
     /** How many pages are picked in the overview grid — drives the bulk-delete entries in the Pages menu. */
     var selectedPages by remember { mutableStateOf(0) }
+    var copiedPages by remember { mutableStateOf(0) }
     var currentPage by remember { mutableStateOf(0) }
     // Vertical scroll geometry (content px) fed from the surface, driving the right-edge scroll thumb.
     var scrollY by remember { mutableStateOf(0f) }
@@ -327,6 +328,9 @@ fun EditorScreen(
                 selectedPages = selectedPages,
                 onDeleteSelectedPages = { surface?.deleteSelectedPages() },
                 onClearPageSelection = { surface?.clearPageSelection() },
+                copiedPages = copiedPages,
+                onCopySelectedPages = { surface?.copySelectedPages() },
+                onPastePages = { surface?.pasteCopiedPages() },
             )
             }
         }
@@ -355,6 +359,7 @@ fun EditorScreen(
                         it.onZoomChanged = { z -> zoom = z }
                         it.onPageCountChanged = { n -> pageCount = n }
                         it.onPageSelectionChanged = { n -> selectedPages = n }
+                        it.onPageClipboardChanged = { n -> copiedPages = n }
                         it.onCurrentPageChanged = { p -> currentPage = p; backgroundStyle = it.visiblePageBackgroundStyle(); pageSize = it.visiblePageSize() }
                         it.onScrollChanged = { y, total, vp -> scrollY = y; contentHeight = total; viewportHeight = vp }
                         it.onSelectionChanged = { s -> hasSelection = s }

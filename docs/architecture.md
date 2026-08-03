@@ -372,7 +372,7 @@ app/
       Fling.kt               # decelerating two-axis momentum-scroll kinematics (pure)
       VelocityEstimator.kt   # pan release-velocity from a trailing sample window (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
-      PageOps.kt             # insert / delete pages in a page list (pure)
+      PageOps.kt             # insert / copy / move / delete pages in a page list (pure)
     audio/                   # audio-annotated strokes: record, replay, sidecar transfer
       AudioAnnotation.kt     # AudioRef <-> a stroke's fn/ts attrs; document sidecar set (pure)
       WavWriter.kt           # streaming 16-bit PCM RIFF/WAVE writer, header patched on close (pure)
@@ -440,9 +440,16 @@ undoable `PageOps.move(pages, from, to)` through `editPages`. The same `pageAt(x
 **multi-select delete**: at more than one column a confirmed Hand-tool tap (the double-tap tracker's
 tap, rather than a second gesture) toggles the page under it in `DrawingSurfaceView.selectedPages`,
 and `deleteSelectedPages()` commits one `PageOps.removeAll(pages, indices)` through `editPages`.
-`removeAll` refuses a selection covering every page, so the document is never emptied. The selection
+`removeAll` refuses a selection covering every page, so the document is never emptied. The same
+selection feeds **copy/paste**: `copySelectedPages()` stashes `PageOps.copyOf(pages, indices)` (the
+picked pages in ascending order) in the view-only `pageClipboard`, and `pasteCopiedPages()` commits
+one `PageOps.insertAfter(pages, after, clipboard)` through `editPages`, inserting after the
+highest-numbered selected page (or `currentPageIndex()` when nothing is picked). Pages are immutable,
+so a "copy" is a shared reference — the duplicate carries the same strokes, layers, size and
+background object, and `XoppWriter` serialises each page position independently, so the paste
+round-trips with no deep copy needed. The selection
 is view-only (never written) and is cleared by `editPages` and by dropping back to one column, since
-both invalidate page indices. Page order *is* list order in
+both invalidate page indices; the clipboard is not cleared, so one copy can be pasted repeatedly. Page order *is* list order in
 `Document.pages` — `XoppWriter` writes no index — so the reorder round-trips by construction. Zoom keeps the viewport-centre point roughly
 fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF

@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "copy-and-paste-pages-in-the-page-overview"
-title = "Copy and paste pages in the page overview"
-description = "Copy one or more selected pages in the grid/overview and paste them elsewhere in the document (duplicating strokes, layers, background, and any page assets). Must round-trip through .xopp."
-status = "active"
-category = "feature"
-urgency = "normal"
-order = 60
-created = 2026-08-02
-tags = ["pages"]
-rebuild = true
-emulator_debug = false

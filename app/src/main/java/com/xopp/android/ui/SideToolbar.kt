@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -239,6 +241,9 @@ fun SideToolbar(
     selectedPages: Int = 0,
     onDeleteSelectedPages: () -> Unit = {},
     onClearPageSelection: () -> Unit = {},
+    copiedPages: Int = 0,
+    onCopySelectedPages: () -> Unit = {},
+    onPastePages: () -> Unit = {},
     audio: AudioUiState = AudioUiState(),
     railOrder: List<String> = emptyList(),
     railHidden: Set<String> = emptySet(),
@@ -273,6 +278,7 @@ fun SideToolbar(
                 "pages" -> PagesPopupButton(
                     pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
                     pageColumns, onPageColumns, selectedPages, onDeleteSelectedPages, onClearPageSelection,
+                    copiedPages, onCopySelectedPages, onPastePages,
                 )
                 "audio" -> AudioPopupButton(audio)
             }
@@ -643,6 +649,9 @@ private fun PagesPopupButton(
     selectedPages: Int,
     onDeleteSelectedPages: () -> Unit,
     onClearPageSelection: () -> Unit,
+    copiedPages: Int,
+    onCopySelectedPages: () -> Unit,
+    onPastePages: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     var sizing by remember { mutableStateOf(false) }
@@ -682,6 +691,11 @@ private fun PagesPopupButton(
             // Only meaningful once pages have been tapped in the overview grid.
             if (selectedPages > 0) {
                 DropdownMenuItem(
+                    text = { Text("Copy $selectedPages selected") },
+                    leadingIcon = { Icon(Icons.Filled.ContentCopy, contentDescription = null) },
+                    onClick = { onCopySelectedPages(); open = false },
+                )
+                DropdownMenuItem(
                     text = { Text("Delete $selectedPages selected") },
                     leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null) },
                     enabled = selectedPages < pageCount,
@@ -691,6 +705,14 @@ private fun PagesPopupButton(
                     text = { Text("Clear selection") },
                     leadingIcon = { Icon(Icons.Filled.Close, contentDescription = null) },
                     onClick = { onClearPageSelection(); open = false },
+                )
+            }
+            // Pastes after the last selected page, or after the page in view when nothing is selected.
+            if (copiedPages > 0) {
+                DropdownMenuItem(
+                    text = { Text(if (copiedPages == 1) "Paste page" else "Paste $copiedPages pages") },
+                    leadingIcon = { Icon(Icons.Filled.ContentPaste, contentDescription = null) },
+                    onClick = { onPastePages(); open = false },
                 )
             }
             HorizontalDivider()

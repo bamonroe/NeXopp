@@ -135,4 +135,38 @@ class PageOpsTest {
         val existing = listOf(page(100.0, "plain"))
         assertSame(existing, PageOps.appendPages(existing, emptyList()))
     }
+
+    @Test fun copyOfTakesTheSelectedPagesInDocumentOrder() {
+        val pages = listOf(page(100.0, "a", withStroke = true), page(200.0, "b"), page(300.0, "c"))
+        val copied = PageOps.copyOf(pages, setOf(2, 0))
+        assertEquals(2, copied.size)
+        assertSame("content comes along by reference — strokes, layers, background", pages[0], copied[0])
+        assertSame(pages[2], copied[1])
+    }
+
+    @Test fun copyOfIgnoresOutOfRangeIndices() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"))
+        assertEquals(listOf(pages[1]), PageOps.copyOf(pages, setOf(1, 7, -2)))
+        assertEquals(emptyList<Page>(), PageOps.copyOf(pages, emptySet()))
+    }
+
+    @Test fun insertAfterPutsTheCopiesRightBehindTheTargetPage() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"))
+        val copied = PageOps.copyOf(pages, setOf(0, 1))
+        val out = PageOps.insertAfter(pages, 1, copied)
+        assertEquals(5, out.size)
+        assertEquals(listOf(pages[0], pages[1], pages[0], pages[1], pages[2]), out)
+    }
+
+    @Test fun insertAfterClampsAndCanPrepend() {
+        val pages = listOf(page(100.0, "a"), page(200.0, "b"))
+        val added = listOf(page(300.0, "c"))
+        assertSame("before the first page", added[0], PageOps.insertAfter(pages, -1, added)[0])
+        assertSame("past the end lands last", added[0], PageOps.insertAfter(pages, 9, added).last())
+    }
+
+    @Test fun insertAfterWithNothingToInsertIsANoOp() {
+        val pages = listOf(page(100.0, "a"))
+        assertSame(pages, PageOps.insertAfter(pages, 0, emptyList()))
+    }
 }

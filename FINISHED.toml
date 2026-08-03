@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "copy-and-paste-pages-in-the-page-overview"
+title = "Copy and paste pages in the page overview"
+description = "Copy one or more selected pages in the grid/overview and paste them elsewhere in the document (duplicating strokes, layers, background, and any page assets). Must round-trip through .xopp."
+status = "finished"
+category = "feature"
+created = 2026-08-02
+completed = 2026-08-02
+tags = ["pages"]
+
+[[task]]
 id = "delete-pages-from-the-page-overview"
 title = "Delete pages from the page overview"
 description = "Select one or more pages in the grid/overview and delete them, with the document and .xopp output updating accordingly. Should be undoable."

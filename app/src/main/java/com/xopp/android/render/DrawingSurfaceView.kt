@@ -171,6 +171,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Pages picked in the overview grid (by index), the set a delete acts on. View-only state. */
     private val selectedPages = mutableSetOf<Int>()
 
+    /** Pages copied out of the overview, awaiting a paste. View-only state; pages are immutable. */
+    private var pageClipboard: List<Page> = emptyList()
+
     /** The text box a placement tap hit, awaiting an edit-or-delete from the editor. */
     private var editingTarget: TextElement? = null
     /** Which page index was last reported to [onCurrentPageChanged], to suppress duplicate calls. */
@@ -195,6 +198,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onCurrentPageChanged: ((Int) -> Unit)? = null
     /** Notified with how many overview pages are selected whenever the selection changes. */
     var onPageSelectionChanged: ((Int) -> Unit)? = null
+    /** Notified with how many pages are on the page clipboard whenever a copy changes it. */
+    var onPageClipboardChanged: ((Int) -> Unit)? = null
     /** Notified with (scrollY, totalHeightPx, viewportPx) whenever the vertical scroll or content extent changes — drives the right-edge scroll thumb. */
     var onScrollChanged: ((Float, Float, Float) -> Unit)? = null
     /** Notified when a placement tap lands, so the editor can prompt for content / pick an image. */
@@ -678,6 +683,35 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val pages = PageOps.removeAll(doc.pages, selectedPages)
         clearPageSelection()
         editPages(pages)
+    }
+
+    /**
+     * Put the selected pages on the page clipboard, in document order. Nothing is edited yet — the
+     * clipboard is view state that survives until the next copy (or the editor closing), so a copy can
+     * be pasted repeatedly. The selection is left alone so "copy, then paste after these" reads
+     * naturally.
+     */
+    fun copySelectedPages() {
+        val copied = PageOps.copyOf(doc.pages, selectedPages)
+        if (copied.isEmpty()) return
+        pageClipboard = copied
+        onPageClipboardChanged?.invoke(copied.size)
+    }
+
+    /** How many pages are on the page clipboard (0 when nothing has been copied). */
+    fun copiedPageCount(): Int = pageClipboard.size
+
+    /**
+     * Paste the clipboard pages as one undoable edit, directly after the last selected page — or after
+     * the page nearest the viewport centre when nothing is selected. The pasted pages carry their
+     * strokes, layers, size and background verbatim (see [PageOps.copyOf]), so they round-trip.
+     */
+    fun pasteCopiedPages() {
+        if (pageClipboard.isEmpty()) return
+        val after = selectedPages.maxOrNull() ?: currentPageIndex()
+        val at = after.coerceIn(0, doc.pages.lastIndex.coerceAtLeast(0))
+        editPages(PageOps.insertAfter(doc.pages, at, pageClipboard))
+        goToPage(at + 1)
     }
 
     /**
