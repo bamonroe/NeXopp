@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -221,6 +222,15 @@ private fun RailItemRow(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
 ) {
+    // `pointerInput` is keyed by the item id alone, so its block — and the drag callbacks captured
+    // inside it — is created once and never re-created while the row lives. Reading the callbacks
+    // through `rememberUpdatedState` means the gesture always calls the *latest* ones; capturing
+    // them directly would commit a reorder against the settings snapshot from first composition,
+    // wiping every show/hide toggle made since.
+    val dragStart by rememberUpdatedState(onDragStart)
+    val drag by rememberUpdatedState(onDrag)
+    val dragEnd by rememberUpdatedState(onDragEnd)
+    val height by rememberUpdatedState(onHeight)
     Surface(
         // Lift the held row above its neighbours so it visibly floats over the list it's crossing.
         tonalElevation = if (dragging) 6.dp else 0.dp,
@@ -230,13 +240,13 @@ private fun RailItemRow(
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer { translationY = dragOffset }
             // Not keyed by index: re-keying mid-drag would restart the gesture and drop the finger.
-            .onSizeChanged { onHeight(it.height) }
+            .onSizeChanged { height(it.height) }
             .pointerInput(item.id) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = { onDragStart() },
-                    onDrag = { change, amount -> change.consume(); onDrag(amount.y) },
-                    onDragEnd = onDragEnd,
-                    onDragCancel = onDragEnd,
+                    onDragStart = { dragStart() },
+                    onDrag = { change, amount -> change.consume(); drag(amount.y) },
+                    onDragEnd = { dragEnd() },
+                    onDragCancel = { dragEnd() },
                 )
             },
     ) {

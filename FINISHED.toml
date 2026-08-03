@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-rearranging-rail-items-in-settings-resets-enable-toggles"
+title = "Fix: rearranging rail items in settings resets enable toggles"
+description = "In the settings page, reordering items in the toolbar rail resets every item's enabled/disabled state back to enabled. Steps: disable some rail items, then drag to rearrange one — all previously disabled items flip back to enabled. The reorder path is likely rebuilding the rail item list from defaults instead of preserving each item's enabled flag. Fix so reordering preserves enabled/disabled state."
+status = "finished"
+category = "bug"
+created = 2026-08-02
+completed = 2026-08-02
+tags = []
+
+[[task]]
 id = "investigate-stylus-precision-loss-at-low-zoom-multi-column-view"
 title = "Investigate stylus precision loss at low zoom / multi-column view"
 description = """
