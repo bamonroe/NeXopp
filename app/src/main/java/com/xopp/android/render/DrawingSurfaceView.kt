@@ -122,26 +122,38 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var lastSpan = 0f
 
     // Momentum scrolling: a released pan keeps gliding, decelerating, until it stalls or hits a bound.
-    private val fling = Fling()
+    // The whole loop — velocity tracking, the release seed, and the per-frame glide — is [MomentumDriver]'s.
+    private val choreographer = Choreographer.getInstance()
+    private val momentum = MomentumDriver(
+        context = context,
+        choreographer = choreographer,
+        canScroll = { maxScrollY() > 0f || maxScrollX() > 0f },
+        scrollBy = { dx, dy -> scrollViewportBy(dx, dy) },
+        // Already inside a frame dispatch: paint now rather than deferring to the next vsync. Nothing
+        // can have posted [paintCallback] since the glide started ([render] no-ops while flinging), so
+        // this is the only buffer posted for this vsync.
+        paintFrame = { paintPosted = false; paint() },
+        cancelQueuedPaint = {
+            if (paintPosted) {
+                choreographer.removeFrameCallback(paintCallback)
+                paintPosted = false
+            }
+        },
+    )
+
     /** Scales the release velocity fed into a fling; 1 = as-flung, 0 disables momentum. Driven by the
      * momentum-strength setting (see [Momentum]). */
-    var flingStrength = Momentum.NORMAL
+    var flingStrength: Float
+        get() = momentum.strength
+        set(value) { momentum.strength = value }
     /** The velocity→coast response shape for momentum (see [MomentumCurve]); driven by the setting. */
-    var momentumCurve = MomentumCurve.QUADRATIC
+    var momentumCurve: MomentumCurve
+        get() = momentum.curve
+        set(value) { momentum.curve = value }
     /** Scales how far the document moves per unit of pan travel; 1 = one-to-one, 0 freezes it under a
      * pan, >1 pans faster than the finger. Driven by the panning-sensitivity setting (see
      * [PanSensitivity]). Also scales the released velocity so a fling glides at the same visual rate. */
     var panSensitivity = PanSensitivity.NORMAL
-    private val choreographer = Choreographer.getInstance()
-    private var flinging = false
-    private var flingLastFrameNanos = 0L
-    /** Release velocity of the just-ended pan (content-space px/s), captured on the final ACTION_UP. */
-    private var releaseVx = 0f
-    private var releaseVy = 0f
-    /** Estimates the pan's velocity from its focus samples so [endGesture] can launch a fling. */
-    private val velocityEstimator = VelocityEstimator()
-    private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity.toFloat()
-    private val flingCallback = Choreographer.FrameCallback { frameTimeNanos -> onFlingFrame(frameTimeNanos) }
 
     /** Set between a [render] request and the vsync that services it — see [render]. */
     private var paintPosted = false
@@ -1398,7 +1410,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                stopFling(); beginPointer(event, 0); beginHandTap(event); armPageDrag(event)
+                momentum.stop(); beginPointer(event, 0); beginHandTap(event); armPageDrag(event)
             }
             MotionEvent.ACTION_POINTER_DOWN -> { handTapCandidate = false; cancelPageDrag(); onPointerDown(event) }
             MotionEvent.ACTION_MOVE -> {
@@ -1437,22 +1449,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return true
     }
 
-    /** Read the pan's release velocity and adopt it as the fling seed, but only when the release was a
-     * real flick (>= [Fling.MIN_SPEED_PX]); a slow drift, or the near-motionless single-finger tail of
-     * a two-finger release, stays at the zero seeded by [beginScroll], so only a genuine one-finger
-     * flick coasts. The magnitude→coast response is shaped later by [Momentum.seed]. */
-    private fun captureReleaseVelocity(event: MotionEvent) {
-        velocityEstimator.add(event.eventTime, focusX(event, skip = -1), focusY(event, skip = -1))
-        val v = velocityEstimator.velocity()
-        if (hypot(v.vx, v.vy) >= Fling.MIN_SPEED_PX) setReleaseVelocity(v)
-    }
-
-    /** Latch [v] as the release velocity: content glides opposite the finger, clamped to the platform's
-     * max fling speed. */
-    private fun setReleaseVelocity(v: Velocity) {
-        releaseVx = (-v.vx).coerceIn(-maxFlingVelocity, maxFlingVelocity)
-        releaseVy = (-v.vy).coerceIn(-maxFlingVelocity, maxFlingVelocity)
-    }
+    /** Latch the pan's release velocity as the fling seed — see [MomentumDriver.captureRelease]. */
+    private fun captureReleaseVelocity(event: MotionEvent) =
+        momentum.captureRelease(event.eventTime, focusX(event, skip = -1), focusY(event, skip = -1))
 
     // --- page-overview drag-to-reorder -----------------------------------------------------------
     // Only in the multi-column grid, and only for a finger: a long-press lifts the page under it, the
@@ -1479,7 +1478,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         overview.disarm()
         if (columns <= 1 || doc.pages.size < 2) return
         val box = layout.pageAt(scrollX + overview.armDownX, scrollY + overview.armDownY) ?: return
-        stopFling()
+        momentum.stop()
         scrolling = false
         overview.lift(box.index)
         performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
@@ -1560,7 +1559,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // A flick is a pan, not a tap — even one whose travel stayed inside the tap slop. Without this
         // a short-but-fast swipe in the overview grid would count as a tap and jump back to the page
         // under the finger, cancelling the glide it should have started.
-        if (handTapMoved || releaseVx != 0f || releaseVy != 0f) { handFirstTapTime = 0L; return }
+        if (handTapMoved || momentum.hasRelease) { handFirstTapTime = 0L; return }
         // In the overview grid a tap is about pages, not paging/zooming around: in edit mode it picks
         // pages out for a bulk edit, in view mode it just jumps to the page you tapped.
         if (columns > 1) {
@@ -1694,8 +1693,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // otherwise that discontinuity would read as a huge phantom flick. A side effect is that a
         // two-finger release carries no momentum (its near-motionless single-finger tail is all that
         // survives the reset), which is the intended feel — only a one-finger pan flings.
-        velocityEstimator.reset()
-        velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
+        momentum.rebaseline(event.eventTime, lastFocusX, lastFocusY)
     }
 
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
@@ -1707,7 +1705,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun cancelGesture() {
-        stopFling()
+        momentum.stop()
         endGuideDrag(null)
         clearSpline()
         current = null; shaping = false; scrolling = false; erasing = false; placing = false
@@ -1926,10 +1924,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         lastSpan = spanOf(event)
         // A fresh pan starts with no carried flick — otherwise a near-motionless release could keep a
         // latched velocity from the previous gesture (see [captureReleaseVelocity]).
-        releaseVx = 0f
-        releaseVy = 0f
-        velocityEstimator.reset()
-        velocityEstimator.add(event.eventTime, lastFocusX, lastFocusY)
+        momentum.clearRelease()
+        momentum.rebaseline(event.eventTime, lastFocusX, lastFocusY)
     }
 
     private fun doScroll(event: MotionEvent) {
@@ -1944,7 +1940,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val span = spanOf(event)
         if (lastSpan > PINCH_MIN_SPAN_PX && span > PINCH_MIN_SPAN_PX) zoomAbout(fx, fy, span / lastSpan)
         lastSpan = span
-        velocityEstimator.add(event.eventTime, fx, fy)
+        momentum.track(event.eventTime, fx, fy)
         render()
     }
 
@@ -1987,58 +1983,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
         finishGesture()
         gesturePointerId = -1
         stylusOwner = false
-        if (wasScrolling) startFlingIfFast()
+        if (wasScrolling) momentum.launch(panSensitivity)
     }
 
-    /** Launch a decelerating glide from the just-captured release velocity, if it's fast enough. The
-     * seed runs through [Momentum.seed]'s quadratic response so a slow flick barely coasts while a fast
-     * swipe flies; [panSensitivity] then scales the glide to match the visual pan gain. */
-    private fun startFlingIfFast() {
-        if (maxScrollY() <= 0f && maxScrollX() <= 0f) return // nothing to scroll
-        val (seedX, seedY) = Momentum.seed(releaseVx, releaseVy, flingStrength, momentumCurve)
-        fling.start(seedX * panSensitivity, seedY * panSensitivity)
-        if (!fling.isMoving) return
-        flinging = true
-        flingLastFrameNanos = 0L
-        // Drop any paint already queued for the coming vsync: the fling frame will paint it, and both
-        // firing would post two buffers for one vsync.
-        if (paintPosted) {
-            choreographer.removeFrameCallback(paintCallback)
-            paintPosted = false
-        }
-        choreographer.postFrameCallback(flingCallback)
-    }
-
-    /** One animation frame of the glide: decay velocity, scroll by the step, stop when done/stuck. */
-    private fun onFlingFrame(frameTimeNanos: Long) {
-        if (!flinging) return
-        // First frame seeds the clock; later frames use the real elapsed time so the glide is
-        // frame-rate independent. Clamp big gaps (e.g. after a stall) so one step can't teleport.
-        val dt = if (flingLastFrameNanos == 0L) 0f
-        else ((frameTimeNanos - flingLastFrameNanos) / 1e9f).coerceIn(0f, 0.05f)
-        flingLastFrameNanos = frameTimeNanos
-        val step = fling.advance(dt)
-        val prevY = scrollY
+    /** Scroll the viewport by one glide step, clamped; false when it didn't move (pinned at a bound). */
+    private fun scrollViewportBy(dx: Float, dy: Float): Boolean {
         val prevX = scrollX
-        scrollY = (scrollY + step.dy).coerceIn(0f, maxScrollY())
-        scrollX = (scrollX + step.dx).coerceIn(0f, maxScrollX())
-        // Already inside a frame dispatch: paint now rather than deferring to the next vsync. Nothing
-        // can have posted [paintCallback] since the glide started ([render] no-ops while flinging), so
-        // this is the only buffer posted for this vsync.
-        paintPosted = false
-        paint()
-        // Stop once too slow, or when both axes are pinned at a bound (nowhere left to glide).
-        val stuck = scrollY == prevY && scrollX == prevX && dt > 0f
-        if (!fling.isMoving || stuck) stopFling() else choreographer.postFrameCallback(flingCallback)
-    }
-
-    /** Halt any in-flight glide (a new touch, a cancel, or detachment). */
-    private fun stopFling() {
-        if (flinging) {
-            flinging = false
-            choreographer.removeFrameCallback(flingCallback)
-        }
-        fling.stop()
+        val prevY = scrollY
+        scrollY = (scrollY + dy).coerceIn(0f, maxScrollY())
+        scrollX = (scrollX + dx).coerceIn(0f, maxScrollX())
+        return scrollX != prevX || scrollY != prevY
     }
 
     /** Record one undo step if this gesture actually changed the document. */
@@ -2221,10 +2175,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         pendingGuide?.let { pendingGuide = null; placeGuide(it) }
         render()
     }
-    override fun surfaceDestroyed(holder: SurfaceHolder) = stopFling()
+    override fun surfaceDestroyed(holder: SurfaceHolder) = momentum.stop()
 
     override fun onDetachedFromWindow() {
-        stopFling()
+        momentum.stop()
         choreographer.removeFrameCallback(paintCallback)
         paintPosted = false
         inkCache.clear()
@@ -2263,12 +2217,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * exactly one buffer per vsync, in phase, so every frame shown is the newest state.
      */
     private fun render() {
-        // A glide already paints once per vsync from [onFlingFrame]; posting a second callback for the
+        // A glide already paints once per vsync from [MomentumDriver]; posting a second callback for the
         // same frame would post two buffers per vsync and bring back exactly the buffer-walk flicker
         // above. This is the common case when zoomed in and panning: every PDF tile that lands calls
         // back into [requestRender] mid-fling. Whatever asked for this repaint is shown by the glide's
         // own frame anyway, so dropping the request loses nothing.
-        if (paintPosted || flinging) return
+        if (paintPosted || momentum.isFlinging) return
         paintPosted = true
         choreographer.postFrameCallback(paintCallback)
     }
