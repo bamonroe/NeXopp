@@ -94,6 +94,9 @@ class XoppZipTest {
         val b = XoppZip.open(ByteArrayInputStream(writeZip(second)), store::newFile).pdf!!
 
         assertNotEquals(a.absolutePath, b.absolutePath)
+        // Both must still be on disk: the first document keeps rasterising from its file while the
+        // second one opens, so "unique path" is only useful if neither file was replaced or removed.
+        assertTrue(a.isFile && b.isFile)
         assertEquals("%PDF-first", a.readText())
         assertEquals("%PDF-second", b.readText())
     }
