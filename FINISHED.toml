@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "open-a-pdf-handed-in-by-an-incoming-intent"
+title = "Open a PDF handed in by an incoming intent"
+description = "Handle the launch intent (and onNewIntent) in MainActivity: take the ACTION_VIEW/ACTION_EDIT data URI, take a persistable read permission where granted, and route it through the same open path the SAF picker uses. FileKind.sniff already classifies the bytes and LoadedFile.Pdf already becomes a fresh annotatable document over the PDF pages, so this is wiring the URI in, not new format work. Cover the intent-to-URI extraction with a unit test."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["pdf", "intent"]
+
+[[task]]
 id = "declare-view-edit-intent-filters-for-application-pdf"
 title = "Declare VIEW/EDIT intent filters for application/pdf"
 description = "Add intent-filter blocks to MainActivity in AndroidManifest.xml so Android offers the app as a PDF handler: ACTION_VIEW and ACTION_EDIT, categories DEFAULT and BROWSABLE, mimeType application/pdf over content:// and file:// schemes, plus a path-pattern fallback for .pdf on file URIs. Keep the existing MAIN/LAUNCHER filter in its own block. No document-loading changes here."

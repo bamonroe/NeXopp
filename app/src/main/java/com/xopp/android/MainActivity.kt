@@ -21,6 +21,7 @@ import com.xopp.android.audio.AudioSession
 import com.xopp.android.audio.documentAudioFiles
 import com.xopp.android.format.SaveFormat
 import com.xopp.android.io.DocumentIo
+import com.xopp.android.io.IncomingDocument
 import com.xopp.android.io.LoadedFile
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
@@ -195,6 +196,8 @@ class MainActivity : ComponentActivity() {
         val store = settingsStore
         audioFolder = store.load().audioFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
         audio.onStateChanged = { runOnUiThread { audioTick.value++ } }
+        // A cold start from another app's "open with": stash it now, open it once the canvas is up.
+        takeIncoming(intent)
         setContent {
             // Settings live above the theme so the Appearance choice re-colours the whole app.
             var settings by remember { mutableStateOf(store.load()) }
@@ -220,6 +223,7 @@ class MainActivity : ComponentActivity() {
                         view.onDocumentEdited = { doc -> mirrors.propagate(p, doc) }
                         attachAudio(view)
                         restoreTabs(p)
+                        openIncoming()
                     },
                     settings = settings,
                     onSettingsChange = { settings = it; store.save(it) },
@@ -232,6 +236,47 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    // --- handovers from other apps --------------------------------------------------------------
+
+    /**
+     * A document another app handed us that hasn't been opened yet. The intent lands before the
+     * canvas exists, so the URI waits here until the surface is up and the restored tabs are back.
+     */
+    private var pendingIntentUri: Uri? = null
+
+    /**
+     * A second handover while we're already running (the app was picked from a share/open sheet
+     * without having been killed). Same routing as the cold start; the tab strip grows by one.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        takeIncoming(intent)
+        // Already running, so the surface exists — no need to wait for onSurfaceCreated.
+        openIncoming()
+    }
+
+    /** Stash the document URI [intent] is handing over, if it is handing one over at all. */
+    private fun takeIncoming(intent: Intent?) {
+        val stream = @Suppress("DEPRECATION") intent?.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+        val chosen = IncomingDocument.uriString(
+            action = intent?.action,
+            data = intent?.data?.toString(),
+            stream = stream?.toString(),
+        ) ?: return
+        pendingIntentUri = Uri.parse(chosen)
+    }
+
+    /**
+     * Open the handed-over document, once. Called after the surface is live (cold start) or straight
+     * away (already running); clearing the field first keeps a re-entrant call from double-opening.
+     */
+    private fun openIncoming() {
+        val uri = pendingIntentUri ?: return
+        pendingIntentUri = null
+        openDocument(uri)
     }
 
     /**
