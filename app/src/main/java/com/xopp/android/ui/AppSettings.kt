@@ -103,13 +103,29 @@ data class AppSettings(
     val audioFolderUri: String = "",
     /** Light, dark, or follow the system — applied to the whole app's Material 3 scheme. */
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    /** The two-ring menu the barrel double-click opens at the pen tip (see [RadialPalette]). */
-    val radialPalette: RadialPalette = RadialPalette.default(),
+    /**
+     * The user's radial palettes in display order, never empty (see [RadialPalette]); which one the
+     * pen opens is [activePaletteIndex].
+     */
+    val palettes: List<RadialPalette> = listOf(RadialPalette.default()),
+    /** Which entry of [palettes] the barrel double-click opens at the pen tip. */
+    val activePaletteIndex: Int = 0,
     /** The user's saved tool snapshots, in display order (see [ToolPreset]). */
     val presets: List<ToolPreset> = emptyList(),
 ) {
     /** The fill alpha to draw with, or null when fill is off — the two fill fields as one value. */
     val currentFill: Int? get() = if (fillEnabled) fillAlpha else null
+
+    /** The palette list and its active index as one value — what the pure edits in `PaletteList.kt` take. */
+    val paletteSet: PaletteSet get() = PaletteSet(palettes, activePaletteIndex).normalized()
+
+    /** The palette the pen opens: the active entry, tolerating a stale index or an empty list. */
+    val radialPalette: RadialPalette get() = paletteSet.active
+
+    /** This settings object with [set] adopted, normalised so the list stays non-empty and in range. */
+    fun withPalettes(set: PaletteSet): AppSettings = set.normalized().let {
+        copy(palettes = it.palettes, activePaletteIndex = it.activeIndex)
+    }
 
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
@@ -173,10 +189,19 @@ class SettingsStore(context: Context) {
             railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
             audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
             themeMode = enumOr(prefs.getString(KEY_THEME_MODE, null), d.themeMode),
-            radialPalette = decodeRadialPalette(prefs.getString(KEY_RADIAL_PALETTE, null)) ?: d.radialPalette,
             presets = decodeToolPresets(prefs.getString(KEY_PRESETS, null)),
-        )
+        ).withPalettes(loadPaletteSet())
     }
+
+    /**
+     * The saved palette list, or — for a pref file written before palettes became a list — the single
+     * palette that build stored, migrated into a one-entry list so nobody loses their setup.
+     */
+    private fun loadPaletteSet(): PaletteSet = migratedPaletteSet(
+        listRaw = prefs.getString(KEY_PALETTES, null),
+        legacyRaw = prefs.getString(KEY_RADIAL_PALETTE, null),
+        activeIndex = prefs.getInt(KEY_ACTIVE_PALETTE, 0),
+    )
 
     fun save(s: AppSettings) {
         val e = prefs.edit()
@@ -209,7 +234,10 @@ class SettingsStore(context: Context) {
         e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
         e.putString(KEY_AUDIO_FOLDER, s.audioFolderUri)
         e.putString(KEY_THEME_MODE, s.themeMode.name)
-        e.putString(KEY_RADIAL_PALETTE, encodeRadialPalette(s.radialPalette))
+        e.putString(KEY_PALETTES, encodeRadialPalettes(s.palettes))
+        e.putInt(KEY_ACTIVE_PALETTE, s.activePaletteIndex)
+        // The pre-list key is dropped once the list exists, so the migration above runs exactly once.
+        e.remove(KEY_RADIAL_PALETTE)
         e.putString(KEY_PRESETS, encodeToolPresets(s.presets))
         e.apply()
     }
@@ -245,7 +273,10 @@ class SettingsStore(context: Context) {
         const val KEY_RAIL_HIDDEN = "rail_hidden"
         const val KEY_AUDIO_FOLDER = "audio_folder_uri"
         const val KEY_THEME_MODE = "theme_mode"
+        /** Pre-list key: one palette. Still read (and then cleared) so old installs migrate. */
         const val KEY_RADIAL_PALETTE = "radial_palette"
+        const val KEY_PALETTES = "radial_palettes"
+        const val KEY_ACTIVE_PALETTE = "radial_palette_active"
         const val KEY_PRESETS = "tool_presets"
 
         /**

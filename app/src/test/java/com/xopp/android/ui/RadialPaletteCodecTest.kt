@@ -81,9 +81,32 @@ class RadialPaletteCodecTest {
 
     @Test
     fun `separators in the name do not corrupt the fields`() {
-        val palette = RadialPalette(name = "a;b,c", inner = List(8) { PaletteAction.Undo })
+        val palette = RadialPalette(name = "a;b,c|d", inner = List(8) { PaletteAction.Undo })
         val decoded = decodeRadialPalette(encodeRadialPalette(palette))!!
-        assertEquals("a b c", decoded.name)
+        assertEquals("a b c d", decoded.name)
         assertEquals(8, decoded.filledCount)
+    }
+
+    @Test
+    fun `a palette list round-trips`() {
+        val palettes = listOf(
+            RadialPalette.default(),
+            RadialPalette(name = "Sketch", inner = List(8) { PaletteAction.Undo }),
+            RadialPalette(name = "Empty"),
+        )
+        assertEquals(palettes, decodeRadialPalettes(encodeRadialPalettes(palettes)))
+    }
+
+    @Test
+    fun `an absent or blank list decodes to nothing saved`() {
+        assertEquals(emptyList<RadialPalette>(), decodeRadialPalettes(null))
+        assertEquals(emptyList<RadialPalette>(), decodeRadialPalettes("  "))
+    }
+
+    @Test
+    fun `an unreadable record costs one palette, not the list`() {
+        val raw = encodeRadialPalettes(listOf(RadialPalette(name = "A"), RadialPalette(name = "B")))
+        val decoded = decodeRadialPalettes(raw.replaceAfterLast('|', ""))
+        assertEquals(listOf("A"), decoded.map { it.name })
     }
 }

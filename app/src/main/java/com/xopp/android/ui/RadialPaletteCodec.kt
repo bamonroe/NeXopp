@@ -19,7 +19,7 @@ package com.xopp.android.ui
 
 /** Serialise [palette] into the one-line form [decodeRadialPalette] reads back. */
 fun encodeRadialPalette(palette: RadialPalette): String = listOf(
-    palette.name.replace(FIELD_SEP, ' ').replace(SLOT_SEP, ' '),
+    palette.name.replace(FIELD_SEP, ' ').replace(SLOT_SEP, ' ').replace(PALETTE_SEP, ' '),
     encodeRing(palette.inner),
     encodeRing(palette.outer),
 ).joinToString(FIELD_SEP.toString())
@@ -39,8 +39,28 @@ fun decodeRadialPalette(raw: String?): RadialPalette? {
     )
 }
 
+/**
+ * Serialise a whole palette list into one line: each palette in the single-palette form above,
+ * separated by `|` (the same record separator [encodeToolPresets] uses).
+ */
+fun encodeRadialPalettes(palettes: List<RadialPalette>): String =
+    palettes.joinToString(PALETTE_SEP.toString(), transform = ::encodeRadialPalette)
+
+/**
+ * Parse what [encodeRadialPalettes] wrote. Empty/blank input yields an empty list so the caller can
+ * tell "nothing saved" from "one palette saved" and fall back (or migrate) accordingly; a record
+ * this build can't read at all is dropped rather than taking the list down with it.
+ */
+fun decodeRadialPalettes(raw: String?): List<RadialPalette> {
+    if (raw.isNullOrBlank()) return emptyList()
+    return raw.split(PALETTE_SEP).mapNotNull(::decodeRadialPalette)
+}
+
 /** Separates the palette's three top-level fields. */
 private const val FIELD_SEP: Char = ';'
+
+/** Separates palettes in the list form. */
+private const val PALETTE_SEP: Char = '|'
 
 /** Separates one ring's slots. */
 private const val SLOT_SEP: Char = ','
