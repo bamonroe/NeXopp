@@ -19,7 +19,10 @@ import java.io.File
  * of them writes it.
  *
  * Unique names mean the folder would grow forever, so [prune] sweeps it against the paths the live
- * tabs still reference — called whenever a session is persisted.
+ * tabs still reference — called whenever a session is persisted. Liveness alone bounds nothing
+ * between two of those sweeps (a long session can open document after document), so [prune] also
+ * takes a byte budget and, once the folder exceeds it, drops the oldest files that nothing live
+ * refers to.
  */
 class PdfStore(private val dir: File) {
 
@@ -50,18 +53,45 @@ class PdfStore(private val dir: File) {
     }
 
     /**
-     * Delete every file in this store that is not one of [keep] (the `pdfPath`s of the tabs that are
-     * still open, in either pane). Files outside [dir] are none of our business, so a `keep` entry
-     * pointing elsewhere simply matches nothing.
+     * Delete the files in this store that neither a live tab nor the [cached] index refers to.
+     * [keep] is the `pdfPath`s of the tabs still open in either pane; files outside [dir] are none of
+     * our business, so a `keep` entry pointing elsewhere simply matches nothing.
+     *
+     * A cached entry outliving its tab is the point of caching — reopening the same text file should
+     * not pay to typeset it again — so the cache is bounded by [maxBytes] rather than by liveness:
+     * once the folder exceeds the budget, cached entries are evicted oldest-first until it fits. Live
+     * files are never evicted, whatever the budget says, so a store whose open documents alone exceed
+     * it simply stays over. Anything the budget drops costs at most one regeneration.
      */
-    fun prune(keep: Collection<String?>) {
+    fun prune(keep: Collection<String?>, maxBytes: Long = UNLIMITED) {
         val live = keep.filterNotNull().toSet()
+        val cached = index().values.map { File(dir, it).absolutePath }.toSet()
         dir.listFiles()?.forEach { file ->
             // The index is bookkeeping, not a background: never sweep it away with the PDFs.
-            if (file.isFile && file.name != INDEX_FILE && file.absolutePath !in live) file.delete()
+            if (file.isFile && file.name != INDEX_FILE &&
+                file.absolutePath !in live && file.absolutePath !in cached
+            ) {
+                file.delete()
+            }
         }
+        trimTo(maxBytes, live)
         val surviving = index().filterValues { File(dir, it).isFile }
         writeIndex(surviving)
+    }
+
+    /** Delete the **oldest** non-[live] files until the folder fits in [maxBytes]. */
+    private fun trimTo(maxBytes: Long, live: Set<String>) {
+        if (maxBytes >= UNLIMITED) return
+        val files = dir.listFiles().orEmpty().filter { it.isFile && it.name != INDEX_FILE }
+        var total = files.sumOf(File::length)
+        if (total <= maxBytes) return
+        files.filter { it.absolutePath !in live }
+            .sortedBy(File::lastModified)
+            .forEach { file ->
+                if (total <= maxBytes) return
+                val size = file.length()
+                if (file.delete()) total -= size
+            }
     }
 
     /** The content-key → file-name map, as last written. Missing or corrupt reads as empty. */
@@ -81,11 +111,14 @@ class PdfStore(private val dir: File) {
         }
     }
 
-    private companion object {
+    companion object {
+        /** The "no budget" [prune] cap — every file that survives the liveness sweep is kept. */
+        const val UNLIMITED: Long = Long.MAX_VALUE
+
         /** Salts the name so two allocations within the same millisecond still differ. */
-        var counter = 0
+        private var counter = 0
 
         /** Sidecar holding the [cached] key → file-name map. Tab-separated, one entry per line. */
-        const val INDEX_FILE = "index.tsv"
+        private const val INDEX_FILE = "index.tsv"
     }
 }

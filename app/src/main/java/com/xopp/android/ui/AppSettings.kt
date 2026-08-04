@@ -115,7 +115,24 @@ data class AppSettings(
     val activePaletteIndex: Int = 0,
     /** The user's saved tool snapshots, in display order (see [ToolPreset]). */
     val presets: List<ToolPreset> = emptyList(),
+    /**
+     * Largest plain-text file (MiB) that may be typeset into a background PDF. Typesetting reads the
+     * whole file and lays out every line, so an unbounded import of a several-hundred-megabyte log
+     * would stall the app and fill the cache; past this, the open is refused with a message instead.
+     */
+    val textImportLimitMb: Int = DEFAULT_TEXT_IMPORT_LIMIT_MB,
+    /**
+     * How much (MiB) the generated/background PDF cache may keep. Pruning drops unreferenced files
+     * oldest-first once the folder exceeds this; a dropped generated PDF simply regenerates.
+     */
+    val pdfCacheLimitMb: Int = DEFAULT_PDF_CACHE_LIMIT_MB,
 ) {
+    /** [textImportLimitMb] in bytes — what [com.xopp.android.io.DocumentIo] actually enforces. */
+    val textImportLimitBytes: Long get() = textImportLimitMb.toLong() * BYTES_PER_MB
+
+    /** [pdfCacheLimitMb] in bytes — what [com.xopp.android.io.PdfStore] prunes against. */
+    val pdfCacheLimitBytes: Long get() = pdfCacheLimitMb.toLong() * BYTES_PER_MB
+
     /** The fill alpha to draw with, or null when fill is off — the two fill fields as one value. */
     val currentFill: Int? get() = if (fillEnabled) fillAlpha else null
 
@@ -152,6 +169,21 @@ data class AppSettings(
 
         /** How many recently-used colours the picker remembers — one row's worth. */
         const val MAX_RECENT_COLORS: Int = 7
+
+        /** One mebibyte, the unit both storage caps are expressed in. */
+        const val BYTES_PER_MB: Long = 1024L * 1024L
+
+        /** Default text-import cap: comfortably larger than any hand-written note, far under a log dump. */
+        const val DEFAULT_TEXT_IMPORT_LIMIT_MB: Int = 16
+
+        /** Default background-PDF cache budget. */
+        const val DEFAULT_PDF_CACHE_LIMIT_MB: Int = 256
+
+        /** The cap values the Storage section offers, in MiB. */
+        val TEXT_IMPORT_LIMIT_CHOICES: List<Int> = listOf(1, 4, 16, 64, 256)
+
+        /** The cache-budget values the Storage section offers, in MiB. */
+        val PDF_CACHE_LIMIT_CHOICES: List<Int> = listOf(64, 128, 256, 512, 1024)
     }
 }
 
@@ -194,6 +226,8 @@ class SettingsStore(context: Context) {
             audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
             themeMode = enumOr(prefs.getString(KEY_THEME_MODE, null), d.themeMode),
             presets = decodeToolPresets(prefs.getString(KEY_PRESETS, null)),
+            textImportLimitMb = prefs.getInt(KEY_TEXT_IMPORT_LIMIT, d.textImportLimitMb).coerceAtLeast(1),
+            pdfCacheLimitMb = prefs.getInt(KEY_PDF_CACHE_LIMIT, d.pdfCacheLimitMb).coerceAtLeast(1),
         ).withPalettes(loadPaletteSet())
     }
 
@@ -244,6 +278,8 @@ class SettingsStore(context: Context) {
         // The pre-list key is dropped once the list exists, so the migration above runs exactly once.
         e.remove(KEY_RADIAL_PALETTE)
         e.putString(KEY_PRESETS, encodeToolPresets(s.presets))
+        e.putInt(KEY_TEXT_IMPORT_LIMIT, s.textImportLimitMb)
+        e.putInt(KEY_PDF_CACHE_LIMIT, s.pdfCacheLimitMb)
         e.apply()
     }
 
@@ -284,6 +320,8 @@ class SettingsStore(context: Context) {
         const val KEY_PALETTES = "radial_palettes"
         const val KEY_ACTIVE_PALETTE = "radial_palette_active"
         const val KEY_PRESETS = "tool_presets"
+        const val KEY_TEXT_IMPORT_LIMIT = "text_import_limit_mb"
+        const val KEY_PDF_CACHE_LIMIT = "pdf_cache_limit_mb"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

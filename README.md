@@ -165,6 +165,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   its own, and the typeset pages are **saved inside** the `.xopp` (the zipped single-file package) —
   so the file reopens with its text intact on this device *and* in desktop Xournal++, with nothing
   else to keep alongside it. Reopening the same text file again reuses the pages already typeset.
+  Very large files are **refused rather than opened**: typesetting reads the whole file at once, so a
+  file over the **text import limit** (16 MB by default) comes back as *"Text file is N MB, over the
+  16 MB import limit"* instead of stalling the app. Raise or lower that limit under
+  **Settings → Storage**.
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
   **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —
@@ -424,7 +428,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
 - **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Palette**, **Editor**,
-  **Toolbar**, **Navigation** and **Appearance**. Tap a section to open it as its own page; back returns to the list, and back from
+  **Toolbar**, **Navigation**, **Appearance** and **Storage**. Tap a section to open it as its own page; back returns to the list, and back from
   the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
     (best on a stylus tablet where a palm would otherwise draw).
@@ -554,6 +558,16 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     **Dark**. The choice repaints the whole app from one Material 3 scheme: the top bar, the tool
     rail and its swatch rings, the settings pages, and the canvas backdrop, selection and guide
     colours. Page and ink colours are document data and never change with the theme.
+
+  Under **Storage** — two budgets that bound what opening documents costs on disk and in memory:
+  - **Text import limit** — the largest plain-text file that may be typeset into a document
+    (1 / 4 / **16** / 64 / 256 MB). Opening a text file lays out *all* of it up front, so a
+    several-hundred-megabyte log would otherwise stall the app; anything over the limit is refused
+    with a message naming both sizes. Raise it if you really do mean to import something huge.
+  - **PDF cache limit** — how much space the app keeps for the background PDFs it generates and
+    imports (64 / 128 / **256** / 512 / 1024 MB). These are what make reopening the same text file
+    instant. Once the cache is over budget, the **oldest** ones no open tab is using are deleted;
+    they are regenerated the next time you open that file, so nothing is lost but time.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
   element merged on top, then written to the location you pick. When a page came from an **imported

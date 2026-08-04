@@ -447,7 +447,7 @@ app/
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
-      PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index
+      PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index, byte-budget eviction
       TextImport.kt          # text file -> generated background PDF, cached by content hash
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
@@ -552,7 +552,7 @@ app/
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
-      SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation) + shared controls
+      SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation / Storage) + shared controls
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
@@ -946,13 +946,24 @@ Two consequences fall out of the generated PDF living only in the cache:
   Reopening the same file while the entry survives reuses the PDF instead of typesetting it again.
   `MainActivity.adoptPdf(inStore = true)` then takes the store file **in place** rather than copying
   it, so the cached file *is* the tab's `pdfPath` — which is what keeps liveness pruning from
-  sweeping it out from under its own cache entry. `prune` drops index entries whose file it deleted,
-  so a closed tab simply means the next open regenerates.
+  sweeping it out from under its own cache entry. A cached entry deliberately **outlives its tab** —
+  `prune` keeps every file the index still names — so the cache is bounded by a **byte budget**
+  instead: once the folder exceeds `StorageLimits.pdfCacheBytes` (Settings → Storage), `prune`
+  evicts the oldest non-live files until it fits, and drops the index entries whose file it deleted,
+  so an evicted entry simply regenerates on the next open.
 - **It must be saved `ZIPPED`, not `ORIGINAL`.** There is no stable on-disk source to link: the
   cache path would be swept and the document would reopen blank. So the text branch makes the sticky
   save format `ZIPPED`, and `encode` embeds the bytes through the existing `domain="attach"` path.
   `TextImportRoundTripTest` guards the whole journey — open text → annotate → save → reopen — and
   `TextImportTest` the caching contract.
+- **It is bounded by a size cap.** Typesetting holds the whole text *and* its whole laid-out page
+  list in memory, so an unbounded import of a several-hundred-megabyte log would stall the app and
+  fill the cache. `TextImport.pdfFor` therefore checks the staged file's **length before reading a
+  byte** against `StorageLimits.textImportBytes` and throws `TextTooLargeException` when it is over;
+  `MainActivity`'s existing "Open failed: …" toast shows the message, which names both sizes and
+  points at Settings → Storage. Both limits are pushed into `DocumentIo.limits` by
+  `MainActivity.applyStorageLimits` on load and on every settings edit, since `DocumentIo` outlives
+  any one `AppSettings` value.
 
 Those JVM tests need one build-level accommodation: PDFBox reads its **CMap data** (`Identity-H`,
 needed by every `PDType0Font`) out of the AAR's `assets/` through Android's `AssetManager`, which
@@ -1016,7 +1027,7 @@ page-number bubble beside it. A rounded grip "peninsula" bulges out of the thumb
 visual — the whole band already catches touches) so there's an obvious finger-sized target to grab. It is a pure navigation affordance — no `.xopp` state, so nothing
 round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`, which is an **index of sections** (`SettingsSection` —
-Stylus, Editor, Navigation): each row opens that section as its own page, with back returning to the
+Stylus, Editor, Toolbar, Palette, Navigation, Appearance, Storage): each row opens that section as its own page, with back returning to the
 index and back from the index leaving settings. Section bodies live in `SettingsSections.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives beside its pop-up (`ToolbarColorPopup.kt` / `ToolbarSizePopup.kt`); the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in

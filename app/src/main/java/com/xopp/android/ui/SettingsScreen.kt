@@ -41,6 +41,7 @@ enum class SettingsSection(val title: String, val summary: String) {
     PALETTE("Palette", "The radial palette's rings — what each slot does at the pen tip."),
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
     APPEARANCE("Appearance", "Light, dark, or follow the system theme."),
+    STORAGE("Storage", "How big a text file may be imported, and how much cache to keep."),
 }
 
 /**
@@ -73,6 +74,7 @@ fun SettingsScreen(
                 SettingsSection.PALETTE -> PaletteSection(settings, onChange)
                 SettingsSection.NAVIGATION -> NavigationSection(settings, onChange)
                 SettingsSection.APPEARANCE -> AppearanceSection(settings, onChange)
+                SettingsSection.STORAGE -> StorageSection(settings, onChange)
             }
         }
     }

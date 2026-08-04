@@ -67,13 +67,31 @@ class TextImportTest {
         val import = TextImport(store, generator())
         val first = import.pdfFor(source("some notes"), "notes.txt")
 
-        store.prune(emptyList()) // the tab closed; nothing refers to it any more
+        // The tab closed and the cache budget is exhausted, so the entry is evicted.
+        store.prune(emptyList(), maxBytes = 0)
         generations = 0
         val second = import.pdfFor(source("some notes"), "notes.txt")
 
         assertNotEquals("the swept file is not handed back", first, second)
         assertEquals("it was typeset again", 1, generations)
         assertTrue(second.isFile)
+    }
+
+    @Test fun aFileOverTheCapIsRefusedWithoutTypesettingIt() {
+        val import = TextImport(PdfStore(tmp.newFolder()), generator())
+        val big = source("x".repeat(4096))
+        generations = 0
+
+        val failure = runCatching { import.pdfFor(big, "huge.log", maxBytes = 1024) }.exceptionOrNull()
+
+        assertTrue("refused as too large: $failure", failure is TextTooLargeException)
+        assertTrue("the message names the limit", failure!!.message!!.contains("limit"))
+        assertEquals("nothing was typeset", 0, generations)
+    }
+
+    @Test fun aFileUnderTheCapImportsNormally() {
+        val import = TextImport(PdfStore(tmp.newFolder()), generator())
+        assertTrue(import.pdfFor(source("small note"), "notes.txt", maxBytes = 1024).isFile)
     }
 
     @Test fun aLivePdfSurvivesPruning() {

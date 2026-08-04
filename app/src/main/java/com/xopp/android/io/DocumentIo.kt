@@ -42,6 +42,18 @@ sealed interface LoadedFile {
 }
 
 /**
+ * The user-set bounds on what document I/O may spend on disk and on a single import (Settings →
+ * Storage). Kept as a plain value here rather than reaching for `AppSettings`, so the I/O layer stays
+ * independent of the UI one.
+ */
+data class StorageLimits(
+    /** Largest plain-text file that may be typeset into a background PDF (see [TextImport]). */
+    val textImportBytes: Long = Long.MAX_VALUE,
+    /** Byte budget for the generated/background PDF cache (see [PdfStore.prune]). */
+    val pdfCacheBytes: Long = PdfStore.UNLIMITED,
+)
+
+/**
  * Owns everything between a `content://` URI and a document the canvas can show: the staging area,
  * the two background-PDF stores, and the read/encode/merge steps in between.
  *
@@ -78,6 +90,13 @@ class DocumentIo(
 
     /** Text → PDF, cached in [pdfStore] by content. Null when no font-backed generator was supplied. */
     private val textImport = textPdf?.let { TextImport(pdfStore, it) }
+
+    /**
+     * The two storage caps the user sets in Settings → Storage, pushed in by the activity whenever
+     * settings change. Held as a field rather than a constructor argument because this object
+     * outlives any one settings value; unset, both are effectively unlimited.
+     */
+    var limits: StorageLimits = StorageLimits()
 
     // --- transfers ------------------------------------------------------------------------------
 
@@ -116,7 +135,10 @@ class DocumentIo(
         // works unchanged from here (see [TextImport]).
         if (kind == FileKind.TEXT) {
             val generator = textImport ?: error("no text generator configured")
-            return LoadedFile.Pdf(generator.pdfFor(staged, name), generated = true)
+            return LoadedFile.Pdf(
+                generator.pdfFor(staged, name, limits.textImportBytes),
+                generated = true,
+            )
         }
         return staged.inputStream().use { raw ->
             val input = raw.buffered()
@@ -180,9 +202,13 @@ class DocumentIo(
     /**
      * Drop the background PDFs nothing refers to any more. Each open allocates its own file, so
      * without this sweep the folders would grow with every document opened.
+     *
+     * The cache store is additionally held to [StorageLimits.pdfCacheBytes], so a session that opens
+     * many large PDFs can't sit on hundreds of megabytes of cache between sweeps. The *joined* store
+     * is not: a saved `.xopp` links those by path, so deleting one would break a document on disk.
      */
     fun prune(live: Collection<String?>) {
-        pdfStore.prune(live)
+        pdfStore.prune(live, limits.pdfCacheBytes)
         joinedPdfStore.prune(live)
     }
 

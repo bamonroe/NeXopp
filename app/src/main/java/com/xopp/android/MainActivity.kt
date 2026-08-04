@@ -23,6 +23,7 @@ import com.xopp.android.format.SaveFormat
 import com.xopp.android.io.DocumentIo
 import com.xopp.android.io.IncomingDocument
 import com.xopp.android.io.LoadedFile
+import com.xopp.android.io.StorageLimits
 import com.xopp.android.io.xoppNameFor
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
@@ -39,6 +40,7 @@ import com.xopp.android.tabs.OpenTab
 import com.xopp.android.tabs.TabManager
 import com.xopp.android.tabs.TabStore
 import com.xopp.android.render.Placement
+import com.xopp.android.ui.AppSettings
 import com.xopp.android.ui.AudioUiState
 import com.xopp.android.ui.EditorScreen
 import com.xopp.android.ui.SettingsStore
@@ -209,7 +211,7 @@ class MainActivity : ComponentActivity() {
         takeIncoming(intent)
         setContent {
             // Settings live above the theme so the Appearance choice re-colours the whole app.
-            var settings by remember { mutableStateOf(store.load()) }
+            var settings by remember { mutableStateOf(store.load().also(::applyStorageLimits)) }
             XoppTheme(darkTheme = settings.themeMode.isDark()) {
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
@@ -235,7 +237,7 @@ class MainActivity : ComponentActivity() {
                         openIncoming()
                     },
                     settings = settings,
-                    onSettingsChange = { settings = it; store.save(it) },
+                    onSettingsChange = { settings = it; store.save(it); applyStorageLimits(it) },
                     audio = audioUiState(),
                     tabs = panes.map(::tabsUiState),
                     splitView = splitView.value,
@@ -333,6 +335,18 @@ class MainActivity : ComponentActivity() {
                 done(result)
             }
         }.start()
+    }
+
+    /**
+     * Push the Storage preferences down into [io], which enforces them (refusing an oversized text
+     * import, and trimming the PDF cache on the next prune). Called on load and on every edit, since
+     * [DocumentIo] outlives any one settings value.
+     */
+    private fun applyStorageLimits(settings: AppSettings) {
+        io.limits = StorageLimits(
+            textImportBytes = settings.textImportLimitBytes,
+            pdfCacheBytes = settings.pdfCacheLimitBytes,
+        )
     }
 
     /** Put a staged local copy of the document onto the canvas ([DocumentIo] decided what it is). */

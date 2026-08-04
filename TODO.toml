@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "cap-text-import-pdf-generation-size-and-expose-the-cap-in-settings"
-title = "Cap text-import PDF generation size and expose the cap in settings"
-description = "Bound the cost of importing a several-hundred-megabyte log. Enforce a per-file size cap on text import with a clear user-facing message when a file exceeds it, and generate lazily/incrementally rather than converting the whole file up front. Add a cache size cap enforced in io/PdfStore.kt (which today prunes only by liveness, see prune() line 40) and wired through DocumentIo.prune(live) (line 160), which MainActivity already calls on session persist. Expose both caps as an Advanced/Storage section in settings: there is no such section today, so add the AppSettings field plus KEY_ const and load/save lines in ui/AppSettings.kt, a SettingsSection enum entry in ui/SettingsScreen.kt, and the composable in ui/SettingsSections.kt (EditorSection line 137 is the simplest pattern)."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 70
-created = 2026-08-04
-tags = ["text-import", "settings"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "typeset-markdown-files-pandoc-style-rather-than-verbatim"
 title = "Typeset markdown files Pandoc-style rather than verbatim"
 description = "A .md file is a separate rendering path from .txt: parsed and typeset the way Pandoc would render it to PDF, not set verbatim in monospace. That means proportional body text; heading levels with their own sizes and weights; bold, italic and inline-code spans; lists with indentation and bullets/numbers; block quotes; and horizontal rules. Monospace appears only in code blocks and inline code. This needs a small dependency-free markdown parser and a styled-run layout model - the plain-text wrapper handles a single font per line and is not sufficient. Investigate and break this into atomic tasks once the plain-text path (parser, styled-run wrapping, block layout, PDF emission of styled runs) is landed and its shape is known."
@@ -60,5 +46,19 @@ urgency = "normal"
 order = 90
 created = 2026-08-04
 tags = ["format", "pdf", "round-trip"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "typeset-a-large-text-import-incrementally-instead-of-all-at-once"
+title = "Typeset a large text import incrementally instead of all at once"
+description = "TextImport currently reads the whole text file and lays out every page before writing the PDF, which is why the import needs a hard size cap (Settings -> Storage). Investigate streaming the paginator: lay out and write one page at a time from a buffered reader in TextPdfGenerator.generate, so memory is bounded by a page rather than by the file, and a bigger cap becomes safe."
+status = "active"
+level = "scope"
+category = "refactor"
+urgency = "normal"
+order = 100
+created = 2026-08-04
+tags = []
 rebuild = false
 emulator_debug = false
