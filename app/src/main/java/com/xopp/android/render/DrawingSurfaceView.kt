@@ -75,9 +75,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
             onDocumentEdited?.invoke(value)
         }
     private var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
-    private var scrollY = 0f
-    private var scrollX = 0f
-    private var zoom = 1f
+    /** The scroll/zoom offsets and their clamps ([ViewportState] owns the numbers and the maths). */
+    private val viewport = ViewportState()
+    private var scrollY: Float
+        get() = viewport.scrollY
+        set(value) { viewport.scrollY = value }
+    private var scrollX: Float
+        get() = viewport.scrollX
+        set(value) { viewport.scrollX = value }
+    private val zoom: Float get() = viewport.zoom
     /** Pages shown side by side: 1 is the single-page stack, 2+ the page-overview grid. */
     private var columns = 1
 
@@ -127,7 +133,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private val momentum = MomentumDriver(
         context = context,
         choreographer = choreographer,
-        canScroll = { maxScrollY() > 0f || maxScrollX() > 0f },
+        canScroll = { viewport.canScroll() },
         scrollBy = { dx, dy -> scrollViewportBy(dx, dy) },
         // Already inside a frame dispatch: paint now rather than deferring to the next vsync. Nothing
         // can have posted [paintCallback] since the glide started ([render] no-ops while flinging), so
@@ -563,14 +569,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Set the zoom factor (clamped), keeping the point at the viewport centre roughly fixed. */
     private fun setZoom(target: Float) {
-        val next = target.coerceIn(MIN_ZOOM, MAX_ZOOM)
-        if (next == zoom) return
-        val yFrac = if (layout.totalHeightPx > 0f) (scrollY + height / 2f) / layout.totalHeightPx else 0f
-        val xFrac = if (layout.contentWidthPx > 0f) (scrollX + width / 2f) / layout.contentWidthPx else 0f
-        zoom = next
-        relayout()
-        scrollY = (yFrac * layout.totalHeightPx - height / 2f).coerceIn(0f, maxScrollY())
-        scrollX = (xFrac * layout.contentWidthPx - width / 2f).coerceIn(0f, maxScrollX())
+        if (!viewport.zoomTo(target, ::relayout)) return
         render()
         onZoomChanged?.invoke(zoom)
     }
@@ -581,16 +580,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * render; the pan frame that drives it renders once at the end. No-op if the clamp bites.
      */
     private fun zoomAbout(focusVx: Float, focusVy: Float, factor: Float) {
-        val next = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
-        if (next == zoom) return
-        // Work in zoom-invariant fractions so the anchor survives the relayout (layout px scale with zoom).
-        val xFrac = if (layout.contentWidthPx > 0f) (scrollX + focusVx) / layout.contentWidthPx else 0f
-        val yFrac = if (layout.totalHeightPx > 0f) (scrollY + focusVy) / layout.totalHeightPx else 0f
-        zoom = next
-        relayout()
-        scrollX = (xFrac * layout.contentWidthPx - focusVx).coerceIn(0f, maxScrollX())
-        scrollY = (yFrac * layout.totalHeightPx - focusVy).coerceIn(0f, maxScrollY())
-        onZoomChanged?.invoke(zoom)
+        if (viewport.zoomAbout(focusVx, focusVy, factor, ::relayout)) onZoomChanged?.invoke(zoom)
     }
 
     // --- pages ---------------------------------------------------------------------------------
@@ -827,7 +817,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Set the vertical scroll offset to [y] px from the top, clamped (driven by the right-edge scroll thumb). */
     fun scrollToY(y: Float) {
-        scrollY = y.coerceIn(0f, maxScrollY())
+        viewport.scrollToY(y)
         render()
     }
 
@@ -1944,8 +1934,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
-    private fun maxScrollY(): Float = (layout.totalHeightPx - height).coerceAtLeast(0f)
-    private fun maxScrollX(): Float = (layout.contentWidthPx - width).coerceAtLeast(0f)
+    private fun maxScrollY(): Float = viewport.maxScrollY()
+    private fun maxScrollX(): Float = viewport.maxScrollX()
 
     private fun endGesture() {
         endGuideDrag(null)
@@ -1987,13 +1977,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Scroll the viewport by one glide step, clamped; false when it didn't move (pinned at a bound). */
-    private fun scrollViewportBy(dx: Float, dy: Float): Boolean {
-        val prevX = scrollX
-        val prevY = scrollY
-        scrollY = (scrollY + dy).coerceIn(0f, maxScrollY())
-        scrollX = (scrollX + dx).coerceIn(0f, maxScrollX())
-        return scrollX != prevX || scrollY != prevY
-    }
+    private fun scrollViewportBy(dx: Float, dy: Float): Boolean = viewport.scrollBy(dx, dy)
 
     /** Record one undo step if this gesture actually changed the document. */
     private fun finishGesture() {
@@ -2187,8 +2171,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun relayout() {
         layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom, columns)
-        scrollY = scrollY.coerceIn(0f, maxScrollY())
-        scrollX = scrollX.coerceIn(0f, maxScrollX())
+        viewport.setBounds(width.toFloat(), height.toFloat(), layout.contentWidthPx, layout.totalHeightPx)
     }
 
     /**
@@ -2468,9 +2451,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val ERASER_RADIUS_PX = 18f
         /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
         const val HIGHLIGHTER_WIDTH_FACTOR = 6f
-        const val ZOOM_STEP = 1.25f
-        const val MIN_ZOOM = 0.25f
-        const val MAX_ZOOM = 10f
+        const val ZOOM_STEP = ViewportState.ZOOM_STEP
+        const val MIN_ZOOM = ViewportState.MIN_ZOOM
+        const val MAX_ZOOM = ViewportState.MAX_ZOOM
         /** Below this two-finger span (view px) the pinch ratio is too noisy to zoom by, so it's ignored. */
         const val PINCH_MIN_SPAN_PX = 40f
         const val TAP_SLOP_PX = 16f

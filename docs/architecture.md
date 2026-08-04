@@ -454,6 +454,7 @@ app/
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover
+      ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested)
       MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
       PageOverview.kt        # the overview grid's view state: edit mode, selection, clipboard, lift
       TextEditController.kt  # placing/editing text boxes, images and LaTeX images from a tap
