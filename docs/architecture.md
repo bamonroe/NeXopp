@@ -794,9 +794,14 @@ marquee and selects every element **wholly enclosed** by it (desktop's rectangle
 one-finger **tap** picks the single topmost element under the point. Selection is **per page** —
 anchored to the page the gesture started on — and elements are addressed by position, not identity, via
 `ElementRef(layerIndex, elementIndex)`: a move rewrites the element objects but never reorders them, so
-the refs stay valid across a live drag. The picking is pure and JVM-tested — `ElementBounds.of` gives
-each element's pt bounding box (strokes grown by half-width, images/teximages are their box, text is the
-same rough content-extent metric used for tap-to-edit), `SelectionTester` does rect-containment / topmost
+the refs stay valid across a live drag. The picking is pure and JVM-tested — **`ElementBounds` is the
+single owner of "what rectangle does this element occupy"**: `ElementBounds.of` gives each element's pt
+bounding box (strokes grown by half-width, images/teximages are their box, text a rough content-extent
+metric) and `ElementBounds.TAP_PAD` is the one hit-test margin. Every consumer routes through it —
+`SelectionTester` (picking), `PageRenderer` (viewport cull), `VerticalSpaceOps` (the grab line) and
+`ElementEdits.hitsText` (tap-to-edit) — so selection handles, culling and vertical-space insertion agree
+by construction rather than by coincidence; nothing re-derives a box locally. `SelectionTester` does
+rect-containment / topmost
 tap / union-bounds, and `SelectionOps` translates or deletes the addressed elements on a page list
 (returning a new list; immutable pages/layers share structure so a snapshot stays cheap). Dragging inside
 the selection outline translates the elements live (recomputing from the gesture-start document each

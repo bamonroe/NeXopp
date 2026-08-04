@@ -62,12 +62,8 @@ internal object ElementEdits {
     }
 
     /** Rough hit test for a text box from its content extent (glyph widths aren't measured here). */
-    fun hitsText(t: TextElement, xPt: Double, yPt: Double): Boolean {
-        val lines = t.content.split("\n")
-        val h = lines.size * t.size * 1.3
-        val w = (lines.maxOfOrNull { it.length } ?: 1) * t.size * 0.62
-        return xPt >= t.x - 4 && xPt <= t.x + w + 4 && yPt >= t.y - 4 && yPt <= t.y + h + 4
-    }
+    fun hitsText(t: TextElement, xPt: Double, yPt: Double): Boolean =
+        ElementBounds.of(t).expand(ElementBounds.TAP_PAD).contains(xPt, yPt)
 
     /** The natural pt size for an encoded image, scaled so its longest side is [IMG_MAX_PT]. */
     fun imageBoxPt(data: ByteArray): Pair<Double, Double> {

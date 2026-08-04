@@ -59,6 +59,57 @@ class ElementBoundsTest {
         assertFalse(view.intersects(Bounds(10.0, -40.0, 20.0, -0.5))) // just above
     }
 
+    /**
+     * A rotated stroke's box is recomputed from the baked-in points, not carried over: rotating a
+     * wide horizontal segment 90 degrees about its own centre swaps its extents, and the half-width
+     * inflation still applies on all four sides.
+     */
+    @Test fun rotatedStrokeBoundsFollowThePoints() {
+        val s = stroke(Triple(0.0, 50.0, 4.0), Triple(100.0, 50.0, 4.0))
+        val before = ElementBounds.of(s)
+        assertEquals(Bounds(-2.0, 48.0, 102.0, 52.0), before)
+        val r = SelectionOps.rotate(s, Math.PI / 2, 50.0, 50.0)
+        val after = ElementBounds.of(r)
+        assertEquals(48.0, after.left, 1e-6)
+        assertEquals(-2.0, after.top, 1e-6)
+        assertEquals(52.0, after.right, 1e-6)
+        assertEquals(102.0, after.bottom, 1e-6)
+        // Area is preserved by a rigid rotation of an axis-aligned segment.
+        assertEquals(before.width * before.height, after.width * after.height, 1e-6)
+    }
+
+    /**
+     * The selection outline and the vertical-space grab line read the same top edge — both go
+     * through [ElementBounds], so a fat stroke's ink-inflated top wins over its raw vertex y.
+     */
+    @Test fun strokeWidthInflationAgreesAcrossSelectionAndVerticalSpace() {
+        val fat = stroke(Triple(10.0, 100.0, 20.0), Triple(30.0, 100.0, 20.0))
+        val page = com.xopp.android.format.model.Page(
+            200.0, 400.0,
+            com.xopp.android.format.model.Background.Solid(0xFFFFFFFF.toInt(), "plain"),
+            listOf(com.xopp.android.format.model.Layer(listOf(fat))),
+        )
+        val selBounds = SelectionTester.boundsOf(page, setOf(ElementRef(0, 0)))!!
+        assertEquals(90.0, selBounds.top, 1e-9) // 100 - half of 20
+        // A grab line at 85pt sits above the inflated top (90) but below the raw vertex y (100), so
+        // the stroke counts as below the line only because both sides inflate by the half-width.
+        val shifted = VerticalSpaceOps.shiftBelow(listOf(page), 0, 85.0, 30.0)
+        val moved = shifted[0].layers[0].elements[0]
+        assertEquals(120.0, ElementBounds.of(moved).top, 1e-9)
+        // A pull-up can only close the 5pt gap between the inflated top and the grab line.
+        assertEquals(-5.0, VerticalSpaceOps.clampShift(listOf(page), 0, 85.0, -50.0), 1e-9)
+        // A line at 95pt is already inside the ink, so the stroke stays put rather than tearing.
+        assertEquals(listOf(page), VerticalSpaceOps.shiftBelow(listOf(page), 0, 95.0, 30.0))
+    }
+
+    /** Every hit test shares one pad, so a tap picks the same element whichever path handles it. */
+    @Test fun textTapPadIsSharedWithElementEdits() {
+        val t = TextElement("Sans", 10.0, 100.0, 50.0, 0xFF000000.toInt(), "ab")
+        val b = ElementBounds.of(t).expand(ElementBounds.TAP_PAD)
+        assertTrue(ElementEdits.hitsText(t, b.left + 0.1, b.top + 0.1))
+        assertFalse(ElementEdits.hitsText(t, b.left - 0.1, b.top + 0.1))
+    }
+
     @Test fun translateAndUnion() {
         val a = Bounds(0.0, 0.0, 10.0, 10.0).translate(5.0, -2.0)
         assertEquals(Bounds(5.0, -2.0, 15.0, 8.0), a)

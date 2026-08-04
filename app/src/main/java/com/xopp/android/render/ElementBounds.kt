@@ -49,6 +49,13 @@ object ElementBounds {
     private const val TEXT_CHAR_W = 0.62
     private const val TEXT_LINE_H = 1.3
 
+    /**
+     * Extra pt margin around an element's box when tap-testing, so thin strokes and empty text
+     * boxes stay pickable. Shared by every hit test ([SelectionTester], [ElementEdits]) so a tap
+     * picks the same element whichever path handles it.
+     */
+    const val TAP_PAD = 4.0
+
     fun of(element: Element): Bounds = when (element) {
         is Stroke -> strokeBounds(element)
         is TextElement -> textBounds(element)

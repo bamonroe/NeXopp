@@ -20,8 +20,8 @@ data class Vec2(val x: Double, val y: Double)
  */
 object SelectionTester {
 
-    /** Extra pt margin around an element's bounds when tap-testing, so thin strokes are pickable. */
-    private const val TAP_PAD = 4.0
+    /** Extra pt margin around an element's bounds when tap-testing — owned by [ElementBounds]. */
+    private const val TAP_PAD = ElementBounds.TAP_PAD
 
     /** Every element on [page] whose bounds lie wholly inside [rect] (desktop rectangle-select). */
     fun inRect(page: Page, rect: Bounds): Set<ElementRef> {
