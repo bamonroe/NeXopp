@@ -64,6 +64,10 @@ fun SideToolbar(
     onLineStyle: (LineStyle) -> Unit,
     fill: Int?,
     onFill: (Int?) -> Unit,
+    presets: List<ToolPreset> = emptyList(),
+    onPresets: (List<ToolPreset>) -> Unit = {},
+    onActivatePreset: (ToolPreset) -> Unit = {},
+    onCapturePreset: (String) -> ToolPreset = { ToolPreset(it, it, tool, color, width) },
     recognizeShapes: Boolean = false,
     onRecognizeShapes: (Boolean) -> Unit = {},
     guideKind: GuideKind,
@@ -124,6 +128,7 @@ fun SideToolbar(
                 "color" -> ColorPopupButton(color, onColor, palette, onRedefineCustom)
                 "size" -> SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
                 "style" -> StylePopupButton(lineStyle, onLineStyle, fill, onFill)
+                "presets" -> PresetsPopupButton(presets, onPresets, onActivatePreset, onCapturePreset)
                 "shapes" -> ShapeRecognitionButton(recognizeShapes, onRecognizeShapes)
                 "guides" -> GuidePopupButton(guideKind, onGuideKind)
                 "layers" -> LayersPopupButton(

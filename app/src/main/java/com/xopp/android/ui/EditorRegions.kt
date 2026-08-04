@@ -140,6 +140,10 @@ fun EditorToolbar(
                 settings.copy(fillEnabled = it != null, fillAlpha = it ?: settings.fillAlpha)
             )
         },
+        presets = settings.presets,
+        onPresets = { onSettingsChange(settings.copy(presets = it)) },
+        onActivatePreset = { applyToolPreset(it, ui, surface, settings, onSettingsChange) },
+        onCapturePreset = { name -> ToolPreset.capture(ui, settings, name) },
         recognizeShapes = settings.recognizeShapes,
         onRecognizeShapes = {
             surface?.recognizeShapes = it

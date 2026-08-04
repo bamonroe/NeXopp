@@ -1,0 +1,162 @@
+package com.xopp.android.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+
+/**
+ * The presets rail slot: the user's saved [ToolPreset]s, each one tap away.
+ *
+ * The menu lists every saved preset with a swatch in its colour and a dot scaled to its width (the
+ * same [TipDot] language the size popup uses), then a "save current tool" row with an inline name
+ * field. Reorder arrows and a delete button sit on each row; every edit goes through the pure
+ * helpers in `ToolPresetList.kt` and back out via [onPresets], which is what persists it.
+ */
+@Composable
+internal fun PresetsPopupButton(
+    presets: List<ToolPreset>,
+    onPresets: (List<ToolPreset>) -> Unit,
+    onActivate: (ToolPreset) -> Unit,
+    onCapture: (String) -> ToolPreset,
+) {
+    var open by remember { mutableStateOf(false) }
+    var newName by remember { mutableStateOf("") }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                Icons.Filled.Bookmark,
+                contentDescription = "Presets",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            MenuHeading(if (presets.isEmpty()) "No presets saved yet" else "Presets")
+            presets.forEachIndexed { i, preset ->
+                PresetRow(
+                    preset = preset,
+                    canMoveUp = i > 0,
+                    canMoveDown = i < presets.lastIndex,
+                    onActivate = { onActivate(preset); open = false },
+                    onMove = { delta -> onPresets(moveToolPreset(presets, i, delta)) },
+                    onDelete = { onPresets(removeToolPreset(presets, preset.id)) },
+                )
+            }
+            SavePresetRow(
+                name = newName,
+                onName = { newName = it },
+                onSave = {
+                    val name = newName.trim().ifEmpty { "Preset ${presets.size + 1}" }
+                    onPresets(addToolPreset(presets, onCapture(name)))
+                    newName = ""
+                },
+            )
+        }
+    }
+}
+
+/** One saved preset: swatch, name, reorder arrows, delete. Tapping the row activates the preset. */
+@Composable
+private fun PresetRow(
+    preset: ToolPreset,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onActivate: () -> Unit,
+    onMove: (Int) -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.padding(start = 12.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier.clickable(onClick = onActivate).padding(vertical = 8.dp).width(180.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PresetSwatch(preset)
+            Spacer(Modifier.width(12.dp))
+            Text(preset.name, style = MaterialTheme.typography.bodyMedium)
+        }
+        IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
+            Icon(Icons.Filled.ArrowDropUp, contentDescription = "Move ${preset.name} up")
+        }
+        IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
+            Icon(Icons.Filled.ArrowDropDown, contentDescription = "Move ${preset.name} down")
+        }
+        IconButton(onClick = onDelete) {
+            Icon(Icons.Filled.Delete, contentDescription = "Delete ${preset.name}")
+        }
+    }
+}
+
+/**
+ * A preset's face: a dot in the preset's colour, sized against the width slider's own maximum so a
+ * fine pen and a fat marker read differently at a glance. Outlined so a white preset is still visible.
+ */
+@Composable
+private fun PresetSwatch(preset: ToolPreset) {
+    val diameter = (SWATCH_MAX * (preset.widthPt / PEN_WIDTH_MAX)).coerceIn(SWATCH_MIN, SWATCH_MAX)
+    Box(modifier = Modifier.size(SWATCH_MAX), contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier
+                .size(diameter)
+                .clip(CircleShape)
+                .background(Color(preset.colorArgb))
+                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
+        )
+    }
+}
+
+/** The "save the live tool" row: a name field plus the button that captures it. */
+@Composable
+private fun SavePresetRow(name: String, onName: (String) -> Unit, onSave: () -> Unit) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = onName,
+            singleLine = true,
+            label = { Text("Save current tool as…") },
+            modifier = Modifier.width(200.dp),
+        )
+        IconButton(onClick = onSave) {
+            Icon(Icons.Filled.Add, contentDescription = "Save preset")
+        }
+    }
+}
+
+/** The swatch box, and the smallest dot drawn in it so a hair-thin preset is still a target. */
+private val SWATCH_MAX = 24.dp
+private val SWATCH_MIN = 8.dp

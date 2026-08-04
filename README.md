@@ -176,7 +176,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
-  way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Guides**, **Layers**, **Zoom**,
+  way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Presets**, **Guides**, **Layers**, **Zoom**,
   **Background**, **Pages** — each open a small pop-up anchored
   to their own button (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with
   **one finger or the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
@@ -259,6 +259,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   Turning fill off keeps the opacity you last picked, so switching it back on restores it. The
   switch and its opacity are remembered across launches. Both save on the `<stroke>` element
   (`style` / `fill`) and reopen the same way in desktop Xournal++.
+- **Presets** — the **Presets** pop-up (the bookmark slot on the rail) saves the whole tool
+  configuration under a name: the tool itself plus its colour, width, line style and fill. Type a
+  name in **Save current tool as…** and tap **+** (leave the name blank for "Preset 1", "Preset 2",
+  …); saving under a name you already used overwrites that preset. Each saved preset shows a swatch
+  in its colour, sized to its width. **Tap a preset to make it the live tool** — one tap restores
+  every knob at once. The **▲/▼** arrows reorder the list and the bin deletes a preset. Presets are
+  remembered across launches, and are an app-side convenience only: nothing about them is written
+  into the `.xopp` file.
 - **Erase** — tap the rail's **Eraser** slot and drag over strokes. **Long-press** the slot to pick
   which eraser it stands for: **Eraser (partial)** rubs out just the part of a stroke the eraser
   passes over, splitting it into the surviving pieces; **Eraser (whole stroke)** removes any stroke
@@ -458,7 +466,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     **Top**, or **Bottom**. Top/bottom lay the tool, colour, size, zoom, and page buttons out in a
     horizontal row along that edge; left/right keep the familiar vertical rail.
   - **Rail buttons** — the full list of rail positions (the seven tool slots plus Colour, Size,
-    Style, Layers, Zoom, Background and Pages), each with a **switch** to hide it. To move one,
+    Style, Presets, Layers, Zoom, Background and Pages), each with a **switch** to hide it. To move one,
     **press and hold** its row and **drag** it up or down — the row lifts and the rest of the list
     shuffles under it as you go, so you can carry a button several places in one gesture. The rail
     draws them in this order, top-to-bottom (left-to-right when docked
