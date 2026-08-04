@@ -33,3 +33,31 @@ created = 2026-08-04
 tags = ["epic", "ui", "palette"]
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "keep-the-radial-palette-open-until-you-click-off-it"
+title = "Keep the radial palette open until you click off it"
+description = "The radial menu currently dismisses as soon as a slot is selected. Instead it should stay open after a selection so several settings can be picked in one summoning, and only dismiss when the user taps/clicks outside the ring (or otherwise explicitly closes it)."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "let-the-eraser-partially-erase-shape-strokes"
+title = "Let the eraser partially erase shape strokes"
+description = "Strokes drawn with the shape tools (line, rectangle, ellipse, arrow) can't be erased at all right now — the eraser won't even delete them, let alone split them. The eraser should treat shape strokes like freehand strokes: delete-stroke should remove them, and the partial/split eraser should be able to cut a drawn line in two."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 40
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true

@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-radial-palette-hit-testing-when-summoned-near-a-screen-edge"
+title = "Fix radial palette hit-testing when summoned near a screen edge"
+description = "When the radial palette is summoned near a screen edge, the ring is correctly clamped so it draws on-screen, but the hit-test coordinates appear to still be computed from the original off-screen center. The result is that the slots draw in one place and respond in another, so selections don't work near edges. Make the selection geometry use the same clamped center the ring is drawn at."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "open-the-radial-palette-on-a-two-finger-tap"
 title = "Open the radial palette on a two-finger tap"
 description = "Implement the TWO_FINGER_TAP invocation: a quick two-pointer finger tap that does not become a pan or pinch opens the palette centred between the two fingers. Must not steal the existing pan/zoom gestures or the hand double-tap; guard on movement and duration thresholds. Verify on the emulator."

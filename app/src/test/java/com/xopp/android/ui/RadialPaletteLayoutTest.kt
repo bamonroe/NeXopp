@@ -63,6 +63,22 @@ class RadialPaletteLayoutTest {
     }
 
     @Test
+    fun `a menu summoned in a corner hit-tests around the clamped centre it draws at`() {
+        val anchor = clampAnchor(4f, 6f, 1000f, 800f, geometry)
+        for ((slot, _) in RadialPalette.default().slots()) {
+            val c = slot.drawCenter(anchor.x, anchor.y, geometry)
+            val hit = RadialPalette.default().hitTest(anchor.x, anchor.y, c.x, c.y, geometry)
+            assertEquals(slot, (hit as RadialHit.Slot).slot)
+        }
+    }
+
+    @Test
+    fun `clamping an already-clamped anchor leaves it where it was`() {
+        val once = clampAnchor(4f, 6f, 1000f, 800f, geometry)
+        assertEquals(once, clampAnchor(once.x, once.y, 1000f, 800f, geometry))
+    }
+
+    @Test
     fun `colour slots carry a swatch and the rest carry a short glyph`() {
         assertEquals(0xFFE00000.toInt(), PaletteAction.SetColor(0xFFE00000.toInt()).face().swatchArgb)
         val undo = PaletteAction.Undo.face()

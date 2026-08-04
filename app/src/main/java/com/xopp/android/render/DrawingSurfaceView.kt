@@ -34,6 +34,8 @@ import com.xopp.android.format.model.Tool
 import com.xopp.android.ui.PaletteAction
 import com.xopp.android.ui.RadialHit
 import com.xopp.android.ui.RadialPalette
+import com.xopp.android.ui.RadialPoint
+import com.xopp.android.ui.clampAnchor
 import com.xopp.android.ui.hitTest
 import kotlin.math.atan2
 import kotlin.math.hypot
@@ -2258,12 +2260,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /**
      * Open [palette] anchored at ([x], [y]) in view pixels — where the gesture that summoned it was.
-     * The anchor is clamped at paint time so a menu opened near an edge stays wholly on screen.
+     * The anchor is clamped *here*, once, so a menu opened near an edge stays wholly on screen and
+     * the hit test measures the flick from the same centre the ring is drawn at.
      */
     fun openPalette(palette: RadialPalette, x: Float, y: Float) {
-        paletteOverlay = RadialPaletteRenderer.Overlay(palette, x, y)
-        lastPaletteAnchorX = x
-        lastPaletteAnchorY = y
+        val overlay = RadialPaletteRenderer.Overlay(palette, x, y)
+        val anchor =
+            if (width > 0 && height > 0) {
+                clampAnchor(x, y, width.toFloat(), height.toFloat(), overlay.geometry)
+            } else {
+                RadialPoint(x, y) // not laid out yet; the renderer clamps again at paint time
+            }
+        paletteOverlay = overlay.copy(anchorX = anchor.x, anchorY = anchor.y)
+        lastPaletteAnchorX = anchor.x
+        lastPaletteAnchorY = anchor.y
         render()
     }
 
