@@ -284,7 +284,9 @@ open (SAF Uri) → UriStaging.stageIn (worker thread) → local staging file
 
 The picker lists files on mounted network shares, and they arrive as ordinary `content://` URIs
 from a remote `DocumentsProvider` — the only difference is **latency**. So every document transfer
-is staged through a local file by `io/UriStaging.kt` and run off the UI thread by
+is staged through a local file by `io/UriStaging.kt` — driven by `io/DocumentIo.kt`, which owns the
+whole document-I/O policy (staging, both background-PDF stores, and the sniff/read, encode and merge
+steps) so the activity is left with intent plumbing — and run off the UI thread by
 `MainActivity.inBackground`, which shows the editor's blocking "Opening…/Saving…" overlay:
 
 - **Read** — the bytes come down once into a staging file; sniff/parse/rasterise then work against
@@ -299,7 +301,7 @@ bytes before they were parsed, and both tabs came up holding the same document.
 
 A document's **background PDF** gets its own file, allocated by `io/PdfStore.kt`. Whether it came
 out of a ZIP package (`XoppZip.open`), was resolved from a `pdf` background reference
-(`MainActivity.resolvePdfBackground`) or was imported (`adoptPdf`), the bytes land under a name no
+(`DocumentIo.resolvePdfBackground`) or was imported (`DocumentIo.adoptPdf`), the bytes land under a name no
 other document uses, and that name is what `OpenTab.pdfPath` records. This is a correctness
 requirement, not housekeeping: `PdfPageCache` rasterises through a file descriptor it holds open for
 as long as the document is on a canvas, so a shared fixed name (the old `background.pdf`) let the
@@ -429,7 +431,7 @@ app/
   src/main/AndroidManifest.xml
   src/main/res/                                            # strings, Material 3 theme, adaptive icon
   src/main/java/com/xopp/android/
-    MainActivity.kt          # hosts the editor; bridges the Storage Access Framework to I/O
+    MainActivity.kt          # hosts the editor; SAF intent plumbing over io/DocumentIo.kt
     format/                  # THE CORE — lossless .xopp read/write (pure Kotlin, no device deps)
       model/                 # Document, Page, Layer, Background, Element/Stroke/Text/Image/TexImage
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
@@ -444,6 +446,7 @@ app/
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
       PdfStore.kt            # one background-PDF file per open document; never rewritten
+      DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
     tabs/                    # several documents open at once, cached across app restarts
@@ -836,7 +839,7 @@ the open document's pages as one undoable edit (`PageOps.appendPages` → `Drawi
 which also drops a lone untouched blank sheet so it isn't stranded in front of the PDF). Because the
 `filename`/`domain` convention — and `XoppZip`'s single embedded `bg.pdf` — allow exactly **one** PDF
 per document, `APPEND` onto a document that already has a PDF background does not add a second
-reference: `MainActivity.appendMergedPdf` **merges** the two PDFs into one. `PdfMerger.join`
+reference: `MainActivity.appendMergedPdf` **merges** the two PDFs into one via `DocumentIo.merge`. `PdfMerger.join`
 concatenates the current background PDF and the incoming one with PDFBox's `PDFMergerUtility` (source
 pages imported verbatim, so they rasterise and re-export unchanged); the joined file is written to
 `filesDir` — not the cache, so the link a plain `Save` records survives — under a name allocated by

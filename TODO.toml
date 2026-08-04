@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "move-file-staging-and-pdf-plumbing-out-of-mainactivity"
-title = "Move file-staging and PDF plumbing out of MainActivity"
-description = "MainActivity.kt is 866 lines and mixes Android lifecycle/intent handling with document I/O policy: it owns UriStaging, two PdfStore instances (cache-backed and filesDir-backed), the merged-background-PDF join path, and the per-pane TabStore wiring. Extract a DocumentIoCoordinator (or similar) that owns staging, the two PDF stores, and the open/save/merge flows, leaving MainActivity as intent plumbing plus Compose host. This also makes the open/save paths unit-testable off-device."
-status = "active"
-category = "refactor"
-urgency = "low"
-order = 60
-created = 2026-08-03
-tags = ["mono-file"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "audit-element-selection-bounds-math-for-a-single-owner"
 title = "Audit element/selection bounds math for a single owner"
 description = "Bounds and rect math is spread across ElementBounds.kt, Selection.kt, PageRenderer.kt and VerticalSpaceOps.kt, with roughly eighteen open-coded min/max/RectF constructions in main. Confirm ElementBounds is the sole owner of 'what rectangle does this element occupy', route the other three through it, and add unit tests for the rotated/stroke-width-inflated cases so selection handles and vertical-space insertion agree by construction rather than by coincidence."

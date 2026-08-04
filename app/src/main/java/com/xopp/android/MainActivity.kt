@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -20,22 +19,15 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import androidx.core.content.ContextCompat
 import com.xopp.android.audio.AudioSession
 import com.xopp.android.audio.documentAudioFiles
-import com.xopp.android.format.FileKind
 import com.xopp.android.format.SaveFormat
-import com.xopp.android.format.Xopp
-import com.xopp.android.format.XoppZip
-import com.xopp.android.format.model.Background
-import com.xopp.android.io.UriStaging
-import com.xopp.android.render.ATTACH_DOMAIN
+import com.xopp.android.io.DocumentIo
+import com.xopp.android.io.LoadedFile
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.PdfImport
-import com.xopp.android.render.PdfMerger
-import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
-import com.xopp.android.io.PdfStore
 import com.xopp.android.panes.EditorPane
 import com.xopp.android.panes.MirrorSync
 import com.xopp.android.tabs.DocColors
@@ -121,22 +113,11 @@ class MainActivity : ComponentActivity() {
     /** Bumped whenever a tab list or selection changes, so the tab strips re-read them. */
     private var tabsTick = mutableStateOf(0)
 
-    /** Staging for document bytes, so slow remote (SSHFS/FTP/cloud) URIs never block the canvas. */
-    private val staging: UriStaging by lazy { UriStaging(contentResolver, File(cacheDir, STAGING_DIR)) }
-
     /**
-     * Where a document's background PDF is kept while it is open — one file per document, never
-     * rewritten (see [PdfStore]). Lives in the cache: a tab whose copy the OS reclaims falls back to
-     * blank backgrounds, which [showTab] already handles.
+     * All document I/O policy — staging, the background-PDF stores, and the read/encode/merge steps
+     * (see [DocumentIo]). The activity keeps only the intent plumbing and the canvas wiring.
      */
-    private val pdfStore: PdfStore by lazy { PdfStore(File(cacheDir, PDF_DIR)) }
-
-    /**
-     * Where a *merged* background PDF is kept ([appendMergedPdf]). In `filesDir` rather than the
-     * cache, because a plain Save records this path in the document and it has to still resolve on
-     * reopen.
-     */
-    private val joinedPdfStore: PdfStore by lazy { PdfStore(File(filesDir, JOINED_PDF_DIR)) }
+    private val io: DocumentIo by lazy { DocumentIo(contentResolver, cacheDir, filesDir) }
 
     /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */
     private var busy = mutableStateOf<String?>(null)
@@ -266,10 +247,10 @@ class MainActivity : ComponentActivity() {
         pendingSaveName = displayName(uri)
         tabsTick.value++
         // Keep the grant so plain Save can write back here later, even after a restart.
-        staging.persist(uri)
+        io.persist(uri)
         // The bytes may be coming off a network share, so fetch them on a worker and only touch the
         // canvas once they have landed. A failure takes the half-built tab back down with it.
-        inBackground("Opening ${displayName(uri)}…", { staging.stageIn(uri, "open") }) { result ->
+        inBackground("Opening ${displayName(uri)}…", { io.stageIn(uri, "open") }) { result ->
             // Staging names are unique per open, so the copy has to be swept once it has been read
             // or the cache would grow a file per document opened.
             result.mapCatching { staged -> try { loadDocument(staged, uri) } finally { staged.delete() } }
@@ -300,75 +281,27 @@ class MainActivity : ComponentActivity() {
         }.start()
     }
 
-    /** Read a staged local copy of the document into the canvas, sniffing its container. */
+    /** Put a staged local copy of the document onto the canvas ([DocumentIo] decided what it is). */
     private fun loadDocument(staged: File, source: Uri) {
-        // Sniff the container by its leading bytes, never by extension: the picker is unfiltered and
-        // SAF gives us content:// URIs with no reliable suffix. The verdict also fixes the sticky save
-        // format, so a reopened ZIP keeps saving ZIPPED and a gzip .xopp keeps saving gzip.
-        val kind = staged.inputStream().use { FileKind.sniff(it.buffered()) }
-        if (kind == FileKind.PDF) {
+        when (val loaded = io.read(staged)) {
             // A raw PDF isn't a document to parse — it becomes a fresh annotatable one over its pages.
-            saveFormat = SaveFormat.ORIGINAL
-            adoptPdf(staged, ImportPdfMode.REPLACE, reference = source.toString())
-            return
-        }
-        staged.inputStream().use { raw ->
-            val input = raw.buffered()
-            when (kind) {
-                FileKind.ZIP -> openZip(input)
-                FileKind.GZIP -> openGzip(input)
-                // Desktop Xournal++ can write plain XML; accept it and save it back compressed.
-                FileKind.XML -> openParsed(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()))
-                else -> error("unrecognised file type")
+            is LoadedFile.Pdf -> {
+                saveFormat = SaveFormat.ORIGINAL
+                adoptPdf(loaded.file, ImportPdfMode.REPLACE, reference = source.toString())
+                return
+            }
+            is LoadedFile.Doc -> {
+                saveFormat = loaded.format
+                surface?.setPdfSource(loaded.pdf?.let(::PdfPageCache))
+                surface?.setPdfTextIndex(null) // cleared until extraction below finishes
+                surface?.load(loaded.document)
+                if (loaded.pdf != null) extractPdfTextInBackground(loaded.pdf)
+                else if (loaded.missingPdf) toast("Background PDF not found; those pages will be blank")
             }
         }
         // The document may reference recordings made elsewhere; fetch them so its strokes replay.
         pullAudioSidecars()
     }
-
-    /** Open a ZIP-package .xopp: the PDF travels inside, so the background rasterises without a sibling. */
-    private fun openZip(input: java.io.InputStream) {
-        val (doc, pdfFile) = XoppZip.open(input, pdfStore::newFile)
-        saveFormat = SaveFormat.ZIPPED
-        surface?.setPdfSource(pdfFile?.let(::PdfPageCache))
-        surface?.setPdfTextIndex(null)
-        surface?.load(doc)
-        if (pdfFile != null) extractPdfTextInBackground(pdfFile)
-    }
-
-    /** Open a legacy gzip .xopp, resolving a PDF background from its linked path/URI (may be absent). */
-    private fun openGzip(input: java.io.InputStream) = openParsed(Xopp.open(input))
-
-    /** Load an already-parsed document, resolving any linked PDF background. Saves back as gzip. */
-    private fun openParsed(doc: com.xopp.android.format.model.Document) {
-        saveFormat = SaveFormat.ORIGINAL
-        // Reload the PDF a `pdf` background references, so a saved project reopens with its
-        // background intact. Only the first PDF-backed page carries the reference (import convention).
-        val pdfRef = doc.pages.firstNotNullOfOrNull { (it.background as? Background.Pdf)?.filename }
-        val pdfFile = pdfRef?.let(::resolvePdfBackground)
-        surface?.setPdfSource(pdfFile?.let(::PdfPageCache))
-        surface?.setPdfTextIndex(null)
-        surface?.load(doc)
-        if (pdfFile != null) extractPdfTextInBackground(pdfFile)
-        else if (pdfRef != null) toast("Background PDF not found; those pages will be blank")
-    }
-
-    /**
-     * Resolve a `pdf` background reference back to a local file we can rasterise. The reference is
-     * either a `content://` URI (what Android records for `domain="absolute"` — a picked PDF has no
-     * filesystem path) or an on-disk path (what desktop Xournal++ records). Copies the bytes into the
-     * cache; returns null when the source can't be reached (e.g. a Linux path on Android), so the
-     * caller falls back to blank pages.
-     */
-    private fun resolvePdfBackground(ref: String): File? = runCatching {
-        val stream = when {
-            ref.startsWith("content://") -> contentResolver.openInputStream(Uri.parse(ref))
-            else -> File(ref).takeIf(File::exists)?.inputStream()
-        } ?: return@runCatching null
-        val out = pdfStore.newFile()
-        stream.use { input -> out.outputStream().use { input.copyTo(it) } }
-        out
-    }.getOrNull()
 
     /**
      * Import a PDF as annotatable pages — one `.xopp` page per PDF page, rendered as backgrounds.
@@ -386,7 +319,7 @@ class MainActivity : ComponentActivity() {
         // still works if the grant isn't persistable.
         runCatching { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
         // The PDF may live on a network share: fetch it on a worker, then build pages from the copy.
-        inBackground("Importing ${displayName(uri)}…", { staging.stageIn(uri, "import") }) { result ->
+        inBackground("Importing ${displayName(uri)}…", { io.stageIn(uri, "import") }) { result ->
             // adoptPdf copies the bytes into the PdfStore, so the staged copy is scratch either way.
             result.mapCatching { staged -> try { adoptPdf(staged, mode, uri.toString()) } finally { staged.delete() } }
                 .onFailure { toast("PDF import failed: ${it.message}") }
@@ -395,8 +328,7 @@ class MainActivity : ComponentActivity() {
 
     /** Turn an already-local [source] PDF into annotatable pages, per [mode]. */
     private fun adoptPdf(source: File, mode: ImportPdfMode, reference: String) {
-        val file = pdfStore.newFile()
-        source.inputStream().use { input -> file.outputStream().use { input.copyTo(it) } }
+        val file = io.adoptPdf(source)
         val view = surface
         val existing = view?.pdfSourceFile()
         if (mode == ImportPdfMode.APPEND && existing != null && view.hasPdfBackground()) {
@@ -427,7 +359,7 @@ class MainActivity : ComponentActivity() {
         val offset = view.pdfSourcePageCount()
         // Size the new pages from the incoming PDF before anything is closed or replaced.
         val added = PdfPageCache(incoming).use { PdfImport.pagesFor(it, reference = null, pageNoOffset = offset) }
-        val joined = PdfMerger.join(existing, incoming, joinedPdfStore.newFile())
+        val joined = io.merge(existing, incoming)
         view.setPdfSource(PdfPageCache(joined)) // closes the old rasteriser, releasing the old file
         view.setPdfTextIndex(null) // cleared until extraction below finishes
         view.appendPdfPages(added, joined.absolutePath)
@@ -474,23 +406,10 @@ class MainActivity : ComponentActivity() {
         val view = surface ?: return
         // Encode locally first, then push the finished bytes across in one pass: on a slow or flaky
         // remote share, serialising straight down the wire risks leaving a half-written .xopp behind.
-        val staged = runCatching {
-            val out = staging.newFile("save")
-            out.outputStream().use { output ->
-                when (saveFormat) {
-                    SaveFormat.ORIGINAL -> Xopp.save(view.toDocument(), output)
-                    SaveFormat.ZIPPED -> {
-                        val pdf = view.pdfSourceFile()
-                        val doc = if (pdf != null) documentWithPdfDomain(view.toDocument(), ATTACH_DOMAIN)
-                        else view.toDocument()
-                        XoppZip.save(doc, pdf, output)
-                    }
-                }
-            }
-            out
-        }.getOrElse { toast("Save failed: ${it.message}"); return }
+        val staged = runCatching { io.encode(view.toDocument(), view.pdfSourceFile(), saveFormat) }
+            .getOrElse { toast("Save failed: ${it.message}"); return }
 
-        inBackground("Saving ${displayName(uri)}…", { staging.stageOut(staged, uri) }) { result ->
+        inBackground("Saving ${displayName(uri)}…", { io.stageOut(staged, uri) }) { result ->
             staged.delete()
             result.onFailure { toast("Save failed: ${it.message}") }
                 .onSuccess { afterSaved(view, uri) }
@@ -500,7 +419,7 @@ class MainActivity : ComponentActivity() {
     /** Book-keeping for a document that has just landed on disk at [uri]. */
     private fun afterSaved(view: DrawingSurfaceView, uri: Uri) {
         // Hold the grant so the next plain Save can write back here without asking again.
-        staging.persist(uri)
+        io.persist(uri)
         // The tab now belongs to the file it was just written to: relabel it and remember where it
         // lives, so the strip shows the real name and a restored session points at the same document.
         tabs.updateActive { it.copy(title = displayName(uri), uri = uri.toString()) }
@@ -523,7 +442,7 @@ class MainActivity : ComponentActivity() {
      * share), and only fall back to asking for a location when we don't.
      */
     private fun saveActiveTab() {
-        val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(staging::isWritable)
+        val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable)
         if (target != null) saveDocument(target) else saveLauncher.launch(pendingSaveName)
     }
 
@@ -726,8 +645,7 @@ class MainActivity : ComponentActivity() {
         val live = panes.flatMap { p ->
             p.tabs.tabs.map(OpenTab::pdfPath) + listOf(p.surface?.pdfSourceFile()?.absolutePath)
         }
-        pdfStore.prune(live)
-        joinedPdfStore.prune(live)
+        io.prune(live)
     }
 
     /**
@@ -745,11 +663,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** The file name behind a `content://` URI, for the tab's label. Falls back to [UNTITLED]. */
-    private fun displayName(uri: Uri): String = runCatching {
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
-            if (c.moveToFirst()) c.getString(0)?.takeIf(String::isNotBlank) else null
-        }
-    }.getOrNull() ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf(String::isNotBlank) ?: UNTITLED
+    private fun displayName(uri: Uri): String = io.displayName(uri, UNTITLED)
 
     // --- audio: record onto strokes, replay from them, keep sidecars beside the .xopp -----------
 
@@ -853,15 +767,6 @@ class MainActivity : ComponentActivity() {
          * order. The first keeps its historical name so an existing session still restores.
          */
         val TABS_DIRS = listOf("tabs", "tabs-right")
-
-        /** Cache subfolder holding the local staging copies of documents in transit (see `UriStaging`). */
-        const val STAGING_DIR = "staging"
-
-        /** Cache subfolder holding one background PDF per open document (see [PdfStore]). */
-        const val PDF_DIR = "pdf"
-
-        /** `filesDir` subfolder holding merged background PDFs, which saved documents link to. */
-        const val JOINED_PDF_DIR = "pdf-joined"
 
         /** Tab label for a document that has never been opened from, or saved to, a file. */
         const val UNTITLED = "Untitled"
