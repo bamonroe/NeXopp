@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "typeset-markdown-files-pandoc-style-rather-than-verbatim"
-title = "Typeset markdown files Pandoc-style rather than verbatim"
-description = "A .md file is a separate rendering path from .txt: parsed and typeset the way Pandoc would render it to PDF, not set verbatim in monospace. That means proportional body text; heading levels with their own sizes and weights; bold, italic and inline-code spans; lists with indentation and bullets/numbers; block quotes; and horizontal rules. Monospace appears only in code blocks and inline code. This needs a small dependency-free markdown parser and a styled-run layout model - the plain-text wrapper handles a single font per line and is not sufficient. Investigate and break this into atomic tasks once the plain-text path (parser, styled-run wrapping, block layout, PDF emission of styled runs) is landed and its shape is known."
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 80
-created = 2026-08-04
-tags = ["text-import", "markdown"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "investigate-relative-pdf-background-paths-in-the-xopp-format"
 title = "Investigate relative PDF background paths in the xopp format"
 description = "Today every PDF background we write is linked with domain=\"absolute\" and a full path/URI (see docs/architecture.md, the SaveFormat table, and format/Xopp.kt). Desktop Xournal++ appears to support other domains for the background filename — investigate what the real format and the desktop reader actually accept: read the Xournal++ source/spec for the <background filename=... domain=...> attribute, and confirm by experiment whether a path relative to the .xopp file's own directory round-trips when reopened on desktop Linux. Establish what the relative path is resolved against, whether Android's SAF content:// world can even produce a meaningful relative path, and what happens on desktop when the reference does not resolve. If relative paths do work, add the atomic tasks to implement them: the writer change in the save path, the resolution change in the reader/relink path, a user-facing preference or heuristic for when to prefer relative over absolute, round-trip tests, and the README/architecture doc updates. If they do not work, close this scope with the finding recorded rather than adding children."
@@ -62,3 +48,87 @@ created = 2026-08-04
 tags = []
 rebuild = false
 emulator_debug = false
+
+[[task]]
+id = "detect-markdown-imports-and-route-them-to-a-markdown-path"
+title = "Detect markdown imports and route them to a markdown path"
+description = "Today FileKind.of() classifies a .md file as plain TEXT (content sniffing only, no extension) and DocumentIo.read() sends it to TextImport. Add a markdown verdict: since SAF gives a display name at DocumentIo.read()/TextImport.pdfFor(name), route on a .md/.markdown suffix on that name, with FileKind.TEXT still the content-level verdict. Introduce the seam (a MarkdownImport alongside TextImport, or a mode flag through TextPdfGenerator) so the later parser/layout tasks have somewhere to land, and cache under a distinct key prefix so the same bytes imported as text and as markdown do not collide in PdfStore. Tests in FileKindTest/TextImportTest; document the routing rule in docs/architecture.md and the user-visible behaviour in README.md."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 110
+created = 2026-08-04
+tags = ["markdown", "text"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "write-a-dependency-free-markdown-block-parser"
+title = "Write a dependency-free markdown block parser"
+description = "A pure-Kotlin parser (no Android, no deps, sibling of TextPaginator) that turns markdown source into a list of blocks: ATX/setext headings with level, paragraphs, fenced and indented code blocks, ordered/unordered lists with nesting depth, block quotes with depth, horizontal rules, and blank-line separation. Output is a data model only - no measurement, no layout. Inline spans are NOT this task's job (they come next); a paragraph block carries its raw inline text. Full unit-test coverage of each block type plus the awkward cases (lazy continuation, list item containing a code block, quote containing a list, CRLF, tabs)."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 120
+created = 2026-08-04
+tags = ["markdown"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "parse-markdown-inline-spans-into-styled-runs"
+title = "Parse markdown inline spans into styled runs"
+description = "Turn a block's raw inline text into a list of styled runs: (text, bold, italic, code) - the styled-run model the layout needs. Handles *em*, _em_, **strong**, __strong__, nested emphasis, backtick code spans (including double-backtick spans containing backticks), escaped punctuation, and link text (render the label; the URL has no home in a printed PDF so drop or append it - pick one and record the decision). Pure and unit-tested; no measurement."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 130
+created = 2026-08-04
+tags = ["markdown"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "wrap-styled-runs-against-per-style-font-metrics"
+title = "Wrap styled runs against per-style font metrics"
+description = "TextPaginator wraps a single font per line via one (String) -> Float measurer. Markdown needs multiple faces and sizes on one line, so add a styled wrapper that takes a measurer per style key (proportional regular/bold/italic/bold-italic, monospace for code) and greedily fills a line by run fragments, splitting a run mid-word only on the same hard-break rule as today. Emits laid-out lines as positioned run fragments with an x offset and a style. Keep TextPaginator's plain path intact and factor the shared wrapping logic rather than duplicating it. Pure and unit-tested with synthetic metrics."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 140
+created = 2026-08-04
+tags = ["markdown"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "lay-out-markdown-blocks-into-pages-with-block-styling"
+title = "Lay out markdown blocks into pages with block styling"
+description = "Compose parsed blocks into pages: per-heading-level font size and weight, space-before/space-after between blocks, list indentation with bullet or number markers, block-quote indent (and a rule if wanted), horizontal rules, and code blocks set in monospace at a fixed size with their own indent. Owns page breaking - a block spans pages, and a heading should not be orphaned at the page foot. Extends the PageSpec idea into a markdown style spec so sizes live in one place. Pure Kotlin over the styled wrapper; unit-tested for block spacing, indent arithmetic, and page-break behaviour."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 150
+created = 2026-08-04
+tags = ["markdown"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "emit-styled-markdown-runs-to-pdf"
+title = "Emit styled markdown runs to PDF"
+description = "Extend the PDF emitter so a laid-out line can draw several runs at different x offsets in different fonts. Requires PdfFonts to embed the bold/italic/bold-italic DejaVu faces alongside the existing Sans and Sans Mono (add the TTFs to app/src/main/assets/fonts plus the LICENSE note), load them per document with the same per-doc cache, and expose a measurer per face so wrap widths match drawn widths exactly. Also draw horizontal rules as filled rects. Verify end-to-end with a round-trip test that extracts the text back out of a generated markdown PDF, and update README.md and docs/architecture.md in the same commit."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 160
+created = 2026-08-04
+tags = ["markdown", "pdf"]
+rebuild = true
+emulator_debug = true
