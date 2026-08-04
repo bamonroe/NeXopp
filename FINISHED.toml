@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "tool-presets-save-and-swap-full-tool-configurations"
+title = "Tool presets: save and swap full tool configurations"
+description = "A preset captures the entire current tool configuration - the active tool, its size, its color, and the rest of the tool-rail state - and saves it under a preset slot. Other presets are likewise just whatever tool configuration was active when they were saved. The user can then swap between completely different tool/color/size configurations with a single preset selection. Needs: capture-current-state action, preset storage/persistence, a UI to save, name, reorder and delete presets, and a fast way to activate one. Pairs naturally with the radial palette epic (presets are good palette segment contents)."
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["presets", "ui"]
+
+[[task]]
 id = "radial-palette-invoke-via-barrel-double-click-and-select-by-flick"
 title = "Radial palette: invoke via barrel double-click and select by flick"
 description = "Add a RADIAL_PALETTE option to BarrelDoubleAction (render/InputClassifier.kt) and wire it in ui/SettingsSections.kt and ui/EditorRegions.kt so a barrel double-click opens the palette at the pen tip. While open, hover/drag updates the highlighted slot via the hit-test; releasing or tapping a slot fires its action; flicking back to the centre or lifting outside cancels. Must not emit a stroke while the palette is open."
