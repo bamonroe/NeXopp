@@ -3,9 +3,12 @@ package com.xopp.android.render
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import java.io.ByteArrayOutputStream
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 /**
  * Exercises the real PDFBox authoring path: the bundled monospace face is embedded straight from
@@ -14,7 +17,10 @@ import org.junit.Test
  */
 class TextPdfGeneratorTest {
 
+    @get:Rule val tmp = TemporaryFolder()
+
     private fun generator() = TextPdfGenerator(AssetFonts.loader())
+
 
     private fun render(text: String, spec: TextPaginator.PageSpec = TextPaginator.PageSpec()): Pair<Int, ByteArray> {
         val out = ByteArrayOutputStream()
@@ -65,4 +71,21 @@ class TextPdfGeneratorTest {
         val (_, bytes) = render("привет мир")
         assertTrue(stripped(bytes).contains("привет мир"))
     }
+
+
+
+    /** The streaming entry point reads from disk a line at a time and must match the String form. */
+    @Test
+    fun `generating from a file matches generating from its text`() {
+        val spec = TextPaginator.PageSpec()
+        val source = (1..spec.linesPerPage + 5).joinToString("\n") { "line$it" }
+        val file: File = tmp.newFile().apply { writeText(source) }
+        val out = ByteArrayOutputStream()
+
+        assertEquals(2, generator().generate(file, out, spec))
+        val text = stripped(out.toByteArray())
+        assertTrue(text.contains("line1"))
+        assertTrue(text.contains("line${spec.linesPerPage + 5}"))
+    }
+
 }

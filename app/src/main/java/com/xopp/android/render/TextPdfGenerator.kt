@@ -6,6 +6,7 @@ import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
 import com.xopp.android.render.markdown.MarkdownLayout
 import com.xopp.android.render.markdown.MarkdownStyle
+import java.io.File
 import java.io.OutputStream
 
 /**
@@ -35,13 +36,46 @@ class TextPdfGenerator(
         out: OutputStream,
         spec: TextPaginator.PageSpec = TextPaginator.PageSpec(),
         flavor: TextFlavor = TextFlavor.PLAIN,
-    ): Int {
+    ): Int = write(out) { doc ->
+        when (flavor) {
+            TextFlavor.PLAIN -> writePlain(doc, text.splitToSequence("\n"), spec)
+            TextFlavor.MARKDOWN -> writeMarkdown(doc, text, spec)
+        }
+    }
+
+    /**
+     * Streaming counterpart: typeset the text in [source] without ever holding the file in memory as
+     * a `String`. The plain path reads and lays out a line at a time; markdown still needs the whole
+     * source, since its block parse is not incremental.
+     */
+    fun generate(
+        source: File,
+        out: OutputStream,
+        spec: TextPaginator.PageSpec = TextPaginator.PageSpec(),
+        flavor: TextFlavor = TextFlavor.PLAIN,
+    ): Int = write(out) { doc ->
+        when (flavor) {
+            TextFlavor.PLAIN -> source.bufferedReader(Charsets.UTF_8).use {
+                writePlain(doc, it.lineSequence(), spec)
+            }
+            TextFlavor.MARKDOWN -> writeMarkdown(doc, source.readText(Charsets.UTF_8), spec)
+        }
+    }
+
+    /**
+     * Author one document with [fill] and save it to [out].
+     *
+     * It is one `PDDocument` on purpose. Authoring in bounded chunks and concatenating them was
+     * measured and is **worse**: PDFBox 2's merge rebuilds the entire joined document in memory
+     * before writing (`legacyMergeDocuments`), which costs more than simply holding every page in
+     * the first place — a 16 MiB source peaked at 405 MiB chunked against 319 MiB unchunked. The
+     * document itself is therefore the memory ceiling here, and the text-import cap in
+     * [com.xopp.android.ui.AppSettings] is what keeps it in bounds.
+     */
+    private fun write(out: OutputStream, fill: (PDDocument) -> Int): Int {
         val doc = PDDocument()
         try {
-            val count = when (flavor) {
-                TextFlavor.PLAIN -> writePlain(doc, text, spec)
-                TextFlavor.MARKDOWN -> writeMarkdown(doc, text, spec)
-            }
+            val count = fill(doc)
             doc.save(out)
             return count
         } finally {
@@ -49,12 +83,18 @@ class TextPdfGenerator(
         }
     }
 
-    /** Plain text: one face, one column of baselines per page. */
-    private fun writePlain(doc: PDDocument, text: String, spec: TextPaginator.PageSpec): Int {
+    /**
+     * Plain text: one face, one column of baselines per page. Layout is a lazy sequence drained page
+     * by page, so neither the source text nor its wrapped lines are ever held whole.
+     */
+    private fun writePlain(doc: PDDocument, rawLines: Sequence<String>, spec: TextPaginator.PageSpec): Int {
         val font = loadFont(doc, plainFace)
-        val pages = TextPaginator.layout(text, spec, font.measurer(spec.fontSizePt))
-        pages.forEach { lines -> writePage(doc, font, lines, spec) }
-        return pages.size
+        var pages = 0
+        TextPaginator.layout(rawLines, spec, font.measurer(spec.fontSizePt)).forEach { lines ->
+            writePage(doc, font, lines, spec)
+            pages++
+        }
+        return pages
     }
 
     /**

@@ -116,9 +116,10 @@ data class AppSettings(
     /** The user's saved tool snapshots, in display order (see [ToolPreset]). */
     val presets: List<ToolPreset> = emptyList(),
     /**
-     * Largest plain-text file (MiB) that may be typeset into a background PDF. Typesetting reads the
-     * whole file and lays out every line, so an unbounded import of a several-hundred-megabyte log
-     * would stall the app and fill the cache; past this, the open is refused with a message instead.
+     * Largest plain-text file (MiB) that may be typeset into a background PDF. Typesetting now reads
+     * and lays out the file a line at a time, so the cap bounds *time* and output size rather than
+     * memory — but an unbounded import of a several-hundred-megabyte log would still take minutes
+     * and fill the cache, so past this the open is refused with a message instead.
      */
     val textImportLimitMb: Int = DEFAULT_TEXT_IMPORT_LIMIT_MB,
     /**
@@ -173,14 +174,19 @@ data class AppSettings(
         /** One mebibyte, the unit both storage caps are expressed in. */
         const val BYTES_PER_MB: Long = 1024L * 1024L
 
-        /** Default text-import cap: comfortably larger than any hand-written note, far under a log dump. */
-        const val DEFAULT_TEXT_IMPORT_LIMIT_MB: Int = 16
+        /**
+         * Default text-import cap. Measured on the streaming typesetting path: a 64 MiB source is
+         * ~16k pages in about 11 s and stays well inside a 512 MiB app heap, where the old
+         * whole-file path was already near the edge at 16 MiB. Comfortably larger than any
+         * hand-written note, still far under a full log dump.
+         */
+        const val DEFAULT_TEXT_IMPORT_LIMIT_MB: Int = 64
 
         /** Default background-PDF cache budget. */
         const val DEFAULT_PDF_CACHE_LIMIT_MB: Int = 256
 
         /** The cap values the Storage section offers, in MiB. */
-        val TEXT_IMPORT_LIMIT_CHOICES: List<Int> = listOf(1, 4, 16, 64, 256)
+        val TEXT_IMPORT_LIMIT_CHOICES: List<Int> = listOf(1, 16, 64, 128, 256)
 
         /** The cache-budget values the Storage section offers, in MiB. */
         val PDF_CACHE_LIMIT_CHOICES: List<Int> = listOf(64, 128, 256, 512, 1024)

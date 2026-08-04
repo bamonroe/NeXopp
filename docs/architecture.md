@@ -961,6 +961,17 @@ exactly as on a born-digital PDF. Fonts are **injected** as a
 default — the sensible choice for logs and source. An empty file still yields one blank sheet to
 annotate.
 
+`generate` comes in two forms: one taking the text as a `String`, and a **streaming** one taking the
+staged `File`. The streaming form reads the source a line at a time and drains `TextPaginator`'s lazy
+page sequence page by page, so neither the file's text nor its wrapped lines are ever held whole —
+that is the form `TextImport` uses. Authoring is still **one** `PDDocument`: writing it in bounded
+chunks and concatenating them with `PdfMerger` was implemented and measured, and is *worse*, because
+PDFBox 2's `legacyMergeDocuments` rebuilds the entire joined document in memory before writing (a
+16 MiB source peaked at 405 MiB chunked against 319 MiB unchunked). The finished document is
+therefore the memory ceiling, and it grows slowly: 128 MiB of source is ~31k pages at 479 MiB peak.
+The text-import cap in `AppSettings` now bounds *time and output size* rather than memory, which is
+why it defaults to 64 MiB.
+
 **Authoring the markdown PDF (`render/MarkdownPdfWriter.kt`).** The markdown flavour keeps the same
 split — pure layout in `render/markdown/`, PDFBox only here. `TextPdfGenerator.writeMarkdown` derives
 a `MarkdownStyle` from the caller's `PageSpec` (page geometry, body size and line-height carry over;
@@ -1090,7 +1101,8 @@ moves a break.
 Two consequences fall out of the generated PDF living only in the cache:
 
 - **It is cached by content, not copied.** `PdfStore.cached(key) { … }` keys the generated file on a
-  SHA-256 of the source text plus the file's display name (the staged copy's own name is per-open
+  SHA-256 of the file's display name followed by its bytes, **streamed** through the digest a buffer
+  at a time so a large import never becomes a large `String` (the staged copy's own name is per-open
   scratch and would never hit), recording key → file name in an `index.tsv` sidecar the sweep skips.
   Reopening the same file while the entry survives reuses the PDF instead of typesetting it again.
   `MainActivity.adoptPdf(inStore = true)` then takes the store file **in place** rather than copying

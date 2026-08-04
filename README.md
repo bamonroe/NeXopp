@@ -175,9 +175,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   blocks in monospace, lists get hanging bullets or numbers, block quotes are indented, and `---`
   becomes a drawn horizontal rule — with the markup characters themselves gone from the page. The
   result is still selectable text, so **Select text (PDF)** copies the words without the syntax.
-  Very large files are **refused rather than opened**: typesetting reads the whole file at once, so a
-  file over the **text import limit** (16 MB by default) comes back as *"Text file is N MB, over the
-  16 MB import limit"* instead of stalling the app. Raise or lower that limit under
+  Very large files are **refused rather than opened**: typesetting a huge log takes minutes and fills
+  the cache, so a file over the **text import limit** (64 MB by default) comes back as *"Text file is
+  N MB, over the 64 MB import limit"* instead of stalling the app. Raise or lower that limit under
   **Settings → Storage**.
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
@@ -576,9 +576,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 
   Under **Storage** — two budgets that bound what opening documents costs on disk and in memory:
   - **Text import limit** — the largest plain-text file that may be typeset into a document
-    (1 / 4 / **16** / 64 / 256 MB). Opening a text file lays out *all* of it up front, so a
-    several-hundred-megabyte log would otherwise stall the app; anything over the limit is refused
-    with a message naming both sizes. Raise it if you really do mean to import something huge.
+    (1 / 16 / **64** / 128 / 256 MB). Text is typeset a line at a time, so the limit is about time
+    and output size rather than memory — a several-hundred-megabyte log is tens of thousands of
+    pages and would take minutes; anything over the limit is refused with a message naming both
+    sizes. Raise it if you really do mean to import something huge.
   - **PDF cache limit** — how much space the app keeps for the background PDFs it generates and
     imports (64 / 128 / **256** / 512 / 1024 MB). These are what make reopening the same text file
     instant. Once the cache is over budget, the **oldest** ones no open tab is using are deleted;
