@@ -493,6 +493,8 @@ app/
       PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       TextPaginator.kt       # text-import word-wrap + A4 pagination, injected measurement (pure)
+      PdfFonts.kt            # embeds the bundled Unicode fonts (DejaVu) into a PDDocument, cached per doc
+      GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
       PageEraser.kt          # eraser applied to a page: mode, tip size, hidden-layer skip (pure)
@@ -885,7 +887,8 @@ fresh sheet whose background ruling is drawn as vectors (`PdfBackgroundPainter`)
 overlay. `PdfVectorPainter` mirrors the on-screen `StrokePainter`/`ElementRenderer` geometry at scale
 1 — the `.xopp` unit == the PDF unit (1/72") — flipping y into PDF's bottom-left space via
 `PdfPageTransform`; pen strokes taper per segment, the highlighter is one constant-width translucent
-path, text uses the base-14 fonts, and images embed losslessly. **Nothing is rasterised** except
+path, `.xopp` text elements use the base-14 fonts (see **Fonts in generated PDFs** below), and images
+embed losslessly. **Nothing is rasterised** except
 user bitmap images (already raster), so a no-op import→export round-trips a PDF at ~its original size
 and fidelity instead of bloating ~10× from a raster flatten. **Rotated source pages** (`/Rotate`
 90/180/270) are handled: since the on-screen renderer already applies `/Rotate`, annotations are
@@ -894,6 +897,25 @@ a `PdfOverlayMatrix` (a pure, unit-tested `cm` matrix — the inverse of the dis
 crop-box origin folded in) that maps visual coordinates into the page's unrotated content space; the
 viewer's `/Rotate` then cancels back to the drawn position, so strokes, text, and images all land
 correctly. For `/Rotate 0` the matrix is just the crop-origin shift.
+
+**Fonts in generated PDFs.** The PDF **base-14** fonts (`PDType1Font.HELVETICA` and friends) only
+encode WinAnsi, so `PdfVectorPainter` drops any codepoint outside `0x20..0xFF`. That is acceptable
+for `.xopp` `<text>` elements — desktop Xournal++ owns their font description and the element is
+preserved in the file regardless — but **not** for **text import**, where the source is arbitrary
+UTF-8 and the glyphs only exist in the generated PDF. So the text-import path draws with fonts
+**bundled as app assets** and embedded per document by `PdfFonts`
+(`PDType0Font.load(doc, stream, subset = true)`): PDFBox subsets them into the output, so a CJK or
+Cyrillic import renders identically everywhere without bloating the file with a whole face.
+
+The bundled pair is **DejaVu Sans** (proportional) and **DejaVu Sans Mono** (monospace), chosen for
+broad Unicode coverage at a modest ~1.1 MB and a permissive licence — Bitstream Vera + Arev, with the
+DejaVu changes in the public domain, compatible with the Apache-2.0/OFL-only rule that already ruled
+out iText. They live in `app/src/main/assets/fonts/` with the full licence text beside them as
+`LICENSE.txt`. Codepoints even DejaVu lacks are **substituted, never fatal**: `GlyphSanitizer` (pure,
+unit-tested; encodability injected as a predicate) maps each unencodable codepoint to U+FFFD — or `?`,
+or a space — memoising per codepoint, and iterates by codepoint so an astral character becomes one
+substitute rather than two surrogate halves. `PdfFonts.Embedded.measurer` is also what feeds
+`TextPaginator`'s injected measurement, so wrapping is measured against the exact font that draws.
 
 **PDF text selection.** An imported PDF's **text layer** is extracted on import (off the UI thread)
 by `PdfTextExtractor` — a `PDFTextStripper` subclass that turns each positioned glyph into a

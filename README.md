@@ -551,6 +551,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
   editable `.xopp`.
+- **Fonts in generated PDFs** — when Xopp *generates* a PDF page for you (the text-import path), it
+  typesets with **DejaVu Sans** and **DejaVu Sans Mono**, which ship inside the app. Because they are
+  embedded (and subsetted) into the PDF, imported text in Cyrillic, Greek, CJK, or box-drawing
+  characters renders the same on any viewer without those fonts installed, and the file only carries
+  the glyphs it actually used. A character even DejaVu doesn't have is drawn as a `�` placeholder
+  rather than failing the export. Both fonts are freely licensed; the full licence ships with the app
+  and is checked in at `app/src/main/assets/fonts/LICENSE.txt`.
 - **Audio (record & replay)** — the rail's **Audio** slot records the microphone while you write,
   and every stroke you draw is tagged with the moment in that recording it was started. Tap
   **Record** to start (Android asks for microphone permission the first time), and **Stop
