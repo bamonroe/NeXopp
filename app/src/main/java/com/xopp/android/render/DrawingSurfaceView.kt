@@ -367,21 +367,31 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Notified when the copy/cut clipboard gains or loses content (drives the Paste affordance). */
     var onClipboardChanged: ((Boolean) -> Unit)? = null
 
+    /**
+     * The select/transform gestures — the rubber-band that picks elements and the move/resize/rotate
+     * drags of what is picked. It owns the selection and the transform snapshot; see
+     * [SelectionGestureController].
+     */
+    private val gestures = SelectionGestureController(
+        document = { doc },
+        setDocument = { doc = it },
+        layout = { layout },
+        viewport = viewport,
+        lassoMode = { lassoMode },
+        snapRotation = { snapRotation },
+        beginGesture = { gestureStartDoc = it },
+        refresh = { relayout(); render() },
+        render = { render() },
+        onSelectionChanged = { onSelectionChanged?.invoke(it) },
+    )
+
     /** The current selection (a page index + the refs of its selected elements), or null. */
-    private var selection: ActiveSelection? = null
+    private var selection: ActiveSelection?
+        get() = gestures.selection
+        set(value) { gestures.selection = value }
 
     /** Copied/cut elements, ready to paste onto the visible page. */
     private var clipboard: List<Element> = emptyList()
-
-    // Live rubber-band marquee (view px) and the page it selects within.
-    private var banding = false
-    private var bandPage = 0
-    private var bandX0 = 0f
-    private var bandY0 = 0f
-    private var bandX1 = 0f
-    private var bandY1 = 0f
-    // Free-form lasso path (view px, x/y interleaved) captured while banding in lasso mode.
-    private val lassoPts = ArrayList<Float>()
 
     /** When true, a one-finger/stylus drag selects text over an imported PDF's extracted text layer. */
     var textSelectMode: Boolean = false
@@ -402,16 +412,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var textSelAnchor = -1
     private var textSelFocus = -1
 
-    // Live move of the current selection (also the base snapshot for resize/rotate, so a live
-    // transform recomputes from the gesture-start document each frame and never drifts).
-    private var movingSel = false
-    private var moveStartDoc: Document? = null
-    private var moveStartPtX = 0.0
-    private var moveStartPtY = 0.0
-
     // Live vertical-space drag: the grabbed page, the grab line (page pt) and its view-px Y for the
     // guide overlay. Like a selection move, each frame recomputes from the gesture-start snapshot.
     private var vspacing = false
+    private var vspaceStartDoc: Document? = null
     private var vspacePage = 0
     private var vspaceLinePt = 0.0
     private var vspaceLineViewY = 0f
@@ -423,18 +427,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var pendingGuide: GuideKind? = null
     private var guideGrabDx = 0.0
     private var guideGrabDy = 0.0
-
-    // Live uniform resize about a fixed anchor (the opposite corner), in page-local pt.
-    private var resizing = false
-    private var resizeAnchorX = 0.0
-    private var resizeAnchorY = 0.0
-    private var resizeStartDist = 1.0
-
-    // Live rotate about the selection centre (pt); strokes only.
-    private var rotating = false
-    private var rotatePivotX = 0.0
-    private var rotatePivotY = 0.0
-    private var rotateStartAngle = 0.0
 
     private val strokePainter = StrokePainter()
     private val elementRenderer = ElementRenderer()
@@ -807,151 +799,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // --- selection: rubber-band / tap to select, drag to move, delete --------------------------
 
-    /** A live selection: the page it lives on and the position-addressed elements it holds. */
-    private data class ActiveSelection(val pageIndex: Int, val refs: Set<ElementRef>)
-
-    /**
-     * Down in Select mode. With a live selection, a touch near a corner **resizes**, near the
-     * right-edge rotate knob (strokes only) **rotates**, and inside the outline **moves**; otherwise it starts
-     * a new rubber-band (or lasso). The handle hit-tests run in view px against the drawn outline.
-     */
+    /** Down in Select mode: clear the other modes and let [SelectionGestureController] take it. */
     private fun beginSelect(event: MotionEvent) {
         scrolling = false
         erasing = false
         placing = false
         current = null
-        val sel = selection
-        if (sel != null && dispatchHandle(event, sel)) return
-        beginBand(event)
-    }
-
-    /** Try to start a resize/rotate/move for [sel] from a down at (event.x, event.y); else false. */
-    private fun dispatchHandle(event: MotionEvent, sel: ActiveSelection): Boolean {
-        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return false
-        val page = doc.pages.getOrNull(sel.pageIndex) ?: return false
-        val b = SelectionTester.boundsOf(page, sel.refs) ?: return false
-        // Rotate knob poking out midway from the right edge, offered only when every element is a stroke.
-        if (isAllStrokes(sel)) {
-            val midY = ((b.top + b.bottom) / 2 * box.scale + box.topPx - scrollY).toFloat()
-            val rightX = (b.right * box.scale + box.leftPx - scrollX).toFloat() + SELECT_PAD_PX + ROTATE_ARM_PX
-            if (hypot(event.x - rightX, event.y - midY) <= HANDLE_HIT_PX) {
-                beginRotate(event, box, (b.left + b.right) / 2, (b.top + b.bottom) / 2)
-                return true
-            }
-        }
-        // Four corner resize handles; the anchor is the diagonally-opposite corner.
-        val cornersPt = arrayOf(b.left to b.top, b.right to b.top, b.right to b.bottom, b.left to b.bottom)
-        for (i in 0..3) {
-            val padX = if (cornersPt[i].first == b.left) -SELECT_PAD_PX else SELECT_PAD_PX
-            val padY = if (cornersPt[i].second == b.top) -SELECT_PAD_PX else SELECT_PAD_PX
-            val hx = (cornersPt[i].first * box.scale + box.leftPx - scrollX).toFloat() + padX
-            val hy = (cornersPt[i].second * box.scale + box.topPx - scrollY).toFloat() + padY
-            if (hypot(event.x - hx, event.y - hy) <= HANDLE_HIT_PX) {
-                val anchor = cornersPt[(i + 2) % 4]
-                beginResize(event, box, anchor.first, anchor.second)
-                return true
-            }
-        }
-        // Inside the outline: move.
-        if (b.expand(MOVE_GRAB_PAD).contains(ptX(box, event.x), ptY(box, event.y))) {
-            beginMove(event, sel, box)
-            return true
-        }
-        return false
-    }
-
-    /** True if every element in [sel] is a stroke (the only element whose rotation round-trips). */
-    private fun isAllStrokes(sel: ActiveSelection): Boolean {
-        val page = doc.pages.getOrNull(sel.pageIndex) ?: return false
-        return sel.refs.isNotEmpty() && sel.refs.all {
-            page.layers.getOrNull(it.layerIndex)?.elements?.getOrNull(it.elementIndex) is Stroke
-        }
-    }
-
-    private fun beginMove(event: MotionEvent, sel: ActiveSelection, box: PageBox) {
-        movingSel = true
-        gestureStartDoc = doc
-        moveStartDoc = doc
-        moveStartPtX = ptX(box, event.x)
-        moveStartPtY = ptY(box, event.y)
-    }
-
-    private fun beginResize(event: MotionEvent, box: PageBox, anchorX: Double, anchorY: Double) {
-        resizing = true
-        gestureStartDoc = doc
-        moveStartDoc = doc
-        resizeAnchorX = anchorX
-        resizeAnchorY = anchorY
-        resizeStartDist = hypot(ptX(box, event.x) - anchorX, ptY(box, event.y) - anchorY).coerceAtLeast(1e-3)
-    }
-
-    /** Resize the selection: a uniform scale by (current distance / start distance) about the anchor. */
-    private fun resizeSelect(event: MotionEvent) {
-        val sel = selection ?: return
-        val start = moveStartDoc ?: return
-        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
-        val dist = hypot(ptX(box, event.x) - resizeAnchorX, ptY(box, event.y) - resizeAnchorY)
-        val factor = (dist / resizeStartDist).coerceIn(MIN_RESIZE, MAX_RESIZE)
-        doc = doc.copy(pages = SelectionOps.scale(start.pages, sel.pageIndex, sel.refs, factor, resizeAnchorX, resizeAnchorY))
-        relayout()
-        render()
-    }
-
-    private fun beginRotate(event: MotionEvent, box: PageBox, pivotX: Double, pivotY: Double) {
-        rotating = true
-        gestureStartDoc = doc
-        moveStartDoc = doc
-        rotatePivotX = pivotX
-        rotatePivotY = pivotY
-        rotateStartAngle = atan2(ptY(box, event.y) - pivotY, ptX(box, event.x) - pivotX)
-    }
-
-    /** Rotate the selection's strokes by the angle swept around the pivot since the gesture start. */
-    private fun rotateSelect(event: MotionEvent) {
-        val sel = selection ?: return
-        val start = moveStartDoc ?: return
-        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
-        val swept = atan2(ptY(box, event.y) - rotatePivotY, ptX(box, event.x) - rotatePivotX) - rotateStartAngle
-        // Snapping the swept angle (not the absolute one) keeps the steps relative to where the
-        // selection started, so a snapped drag returns exactly to the original orientation at rest.
-        val angle = if (snapRotation) Snapping.snapAngle(swept) else swept
-        doc = doc.copy(pages = SelectionOps.rotate(start.pages, sel.pageIndex, sel.refs, angle, rotatePivotX, rotatePivotY))
-        relayout()
-        render()
-    }
-
-    /**
-     * Finish a move: if the selection's centre now sits over a different page, re-home the elements
-     * onto that page's top layer (mapping through both pages' pt frames so they land where they're
-     * dropped). The whole move records as one undoable edit via [finishGesture].
-     */
-    private fun commitMove() {
-        val sel = selection ?: return
-        val srcBox = layout.boxes.getOrNull(sel.pageIndex) ?: return
-        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
-        val b = SelectionTester.boundsOf(page, sel.refs) ?: return
-        val centreXContent = ((b.left + b.right) / 2 * srcBox.scale + srcBox.leftPx).toFloat()
-        val centreYContent = ((b.top + b.bottom) / 2 * srcBox.scale + srcBox.topPx).toFloat()
-        val target = layout.nearestPage(centreXContent, centreYContent) ?: return
-        if (target.index == sel.pageIndex) return
-        val s = srcBox.scale.toDouble() / target.scale.toDouble()
-        val dx = (srcBox.leftPx - target.leftPx) / target.scale.toDouble()
-        val dy = (srcBox.topPx - target.topPx) / target.scale.toDouble()
-        val (pages, refs) = SelectionOps.moveToPage(doc.pages, sel.pageIndex, target.index, sel.refs, s, dx, dy)
-        doc = doc.copy(pages = pages)
-        selection = ActiveSelection(target.index, refs)
-    }
-
-    /** Drag the selection: translate the elements from their gesture-start positions, live. */
-    private fun moveSelect(event: MotionEvent) {
-        val sel = selection ?: return
-        val start = moveStartDoc ?: return
-        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
-        val dx = ptX(box, event.x) - moveStartPtX
-        val dy = ptY(box, event.y) - moveStartPtY
-        doc = doc.copy(pages = SelectionOps.translate(start.pages, sel.pageIndex, sel.refs, dx, dy))
-        relayout()
-        render()
+        gestures.beginSelect(event)
     }
 
     /**
@@ -967,68 +821,18 @@ class DrawingSurfaceView @JvmOverloads constructor(
         vspaceLinePt = ptY(box, event.y)
         vspaceLineViewY = event.y
         gestureStartDoc = doc
-        moveStartDoc = doc
+        vspaceStartDoc = doc
         gesturePointerId = event.getPointerId(0)
         render()
     }
 
     /** Drag the vertical-space line: re-apply the whole shift from the gesture-start snapshot. */
     private fun verticalSpaceMove(event: MotionEvent) {
-        val start = moveStartDoc ?: return
+        val start = vspaceStartDoc ?: return
         val box = layout.boxes.getOrNull(vspacePage) ?: return
         val dy = ptY(box, event.y) - vspaceLinePt
         doc = doc.copy(pages = VerticalSpaceOps.shiftBelow(start.pages, vspacePage, vspaceLinePt, dy))
         relayout()
-        render()
-    }
-
-    private fun beginBand(event: MotionEvent) {
-        if (selection != null) {
-            selection = null
-            onSelectionChanged?.invoke(false)
-        }
-        banding = true
-        bandPage = layout.pageAt(event.x + scrollX, event.y + scrollY)?.index ?: 0
-        bandX0 = event.x; bandY0 = event.y
-        bandX1 = event.x; bandY1 = event.y
-        lassoPts.clear()
-        if (lassoMode) { lassoPts.add(event.x); lassoPts.add(event.y) }
-        render()
-    }
-
-    private fun bandMove(event: MotionEvent) {
-        bandX1 = event.x
-        bandY1 = event.y
-        if (lassoMode) { lassoPts.add(event.x); lassoPts.add(event.y) }
-        render()
-    }
-
-    /**
-     * Up from a marquee: a tap (no real drag) picks the topmost element; a rectangle drag selects
-     * everything wholly enclosed; a lasso drag selects everything wholly inside the traced polygon.
-     */
-    private fun commitBand() {
-        val box = layout.boxes.getOrNull(bandPage) ?: return
-        val page = doc.pages.getOrNull(bandPage) ?: return
-        val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= TAP_SLOP_PX
-        val refs: Set<ElementRef> = when {
-            isTap -> SelectionTester.pickTopmost(page, ptX(box, bandX0), ptY(box, bandY0))?.let { setOf(it) } ?: emptySet()
-            lassoMode -> {
-                val poly = ArrayList<Vec2>(lassoPts.size / 2)
-                var i = 0
-                while (i < lassoPts.size) { poly.add(Vec2(ptX(box, lassoPts[i]), ptY(box, lassoPts[i + 1]))); i += 2 }
-                SelectionTester.inPolygon(page, poly)
-            }
-            else -> {
-                val rect = Bounds(
-                    min(ptX(box, bandX0), ptX(box, bandX1)), min(ptY(box, bandY0), ptY(box, bandY1)),
-                    max(ptX(box, bandX0), ptX(box, bandX1)), max(ptY(box, bandY0), ptY(box, bandY1)),
-                )
-                SelectionTester.inRect(page, rect)
-            }
-        }
-        selection = if (refs.isEmpty()) null else ActiveSelection(bandPage, refs)
-        onSelectionChanged?.invoke(selection != null)
         render()
     }
 
@@ -1099,8 +903,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Drop the current selection (a view-only change; not recorded in history). */
     fun clearSelection() {
         if (selection == null) return
-        selection = null
-        onSelectionChanged?.invoke(false)
+        gestures.clearSelection()
         render()
     }
 
@@ -1352,11 +1155,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
                     scrolling -> doScroll(event)
                     erasing -> eraseMove(event)
                     placing -> placeMove(event)
-                    resizing -> resizeSelect(event)
-                    rotating -> rotateSelect(event)
-                    movingSel -> moveSelect(event)
+                    gestures.resizing -> gestures.resizeSelect(event)
+                    gestures.rotating -> gestures.rotateSelect(event)
+                    gestures.moving -> gestures.moveSelect(event)
                     vspacing -> verticalSpaceMove(event)
-                    banding -> bandMove(event)
+                    gestures.banding -> gestures.bandMove(event)
                     textSelecting -> textSelectMove(event)
                     splineDragging -> splineMove(event)
                     current != null -> extendStroke(event)
@@ -1626,9 +1429,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
     private fun abandonInProgress() {
         clearSpline()
-        current = null; shaping = false; erasing = false; placing = false; banding = false
-        movingSel = false; resizing = false; rotating = false; scrolling = false; textSelecting = false
-        vspacing = false
+        current = null; shaping = false; erasing = false; placing = false
+        scrolling = false; textSelecting = false; vspacing = false
+        gestures.reset()
     }
 
     private fun cancelGesture() {
@@ -1636,7 +1439,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         endGuideDrag(null)
         clearSpline()
         current = null; shaping = false; scrolling = false; erasing = false; placing = false
-        movingSel = false; resizing = false; rotating = false; banding = false; gestureStartDoc = null
+        gestures.reset(); gestureStartDoc = null
         textSelecting = false; vspacing = false
         gesturePointerId = -1; stylusOwner = false
     }
@@ -1881,32 +1684,29 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasScrolling = scrolling
         val wasErasing = erasing
         val wasPlacing = placing
-        val wasMoving = movingSel
-        val wasTransforming = resizing || rotating
-        val wasBanding = banding
+        val wasMoving = gestures.moving
+        val wasTransforming = gestures.resizing || gestures.rotating
+        val wasBanding = gestures.banding
         val wasTextSelecting = textSelecting
         val wasVspacing = vspacing
         vspacing = false
         scrolling = false
         erasing = false
         placing = false
-        movingSel = false
-        resizing = false
-        rotating = false
-        banding = false
         textSelecting = false
+        gestures.reset()
         when {
             wasPlacing -> commitPlace()
-            wasMoving -> commitMove() // translation applied live; re-home if dropped on another page
+            wasMoving -> gestures.commitMove() // applied live; re-home if dropped on another page
             wasTransforming -> Unit  // resize/rotate applied live; finishGesture records them
-            wasBanding -> commitBand()
+            wasBanding -> gestures.commitBand()
             wasTextSelecting -> Unit // the word range is updated live; the selection just stays put
             // The shift is applied live and finishGesture records it as one undo step; the repaint is
             // what clears the grab-line overlay, which would otherwise stay drawn after the release.
             wasVspacing -> render()
             !wasScrolling && !wasErasing -> commitCurrent()
         }
-        moveStartDoc = null
+        vspaceStartDoc = null
         finishGesture()
         gesturePointerId = -1
         stylusOwner = false
@@ -2190,7 +1990,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             selection?.let { drawSelectionBox(canvas, it) }
             if (overview.selected.isNotEmpty()) drawPageSelection(canvas)
             if (overview.dragging) drawPageDrag(canvas)
-            if (banding) drawBand(canvas)
+            if (gestures.banding) drawBand(canvas)
             if (vspacing) drawVerticalSpaceGuide(canvas)
             drawGuide(canvas)
             if (hovering && showHover && current == null) drawHover(canvas)
@@ -2281,7 +2081,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** False during gestures that rewrite the page model each frame, where caching would thrash. */
     private val inkCacheUsable: Boolean
-        get() = !movingSel && !resizing && !rotating && !erasing
+        get() = !gestures.transforming && !erasing
 
     /**
      * The viewport in this page's local pt space, so [PageRenderer] can drop elements that can't be
@@ -2336,7 +2136,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, chrome.handle)
         }
         // Rotate knob poking out midway from the right edge (strokes only).
-        if (isAllStrokes(sel)) {
+        if (gestures.isAllStrokes(sel)) {
             val midY = (t + bot) / 2f
             val knobX = r + ROTATE_ARM_PX
             canvas.drawLine(r, midY, knobX, midY, chrome.handleArm)
@@ -2361,20 +2161,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Draw the live marquee (view px): a rectangle, or the traced lasso path in lasso mode. */
     private fun drawBand(canvas: Canvas) {
-        if (lassoMode && lassoPts.size >= 4) {
+        val pts = gestures.lassoPts
+        if (lassoMode && pts.size >= 4) {
             chrome.lassoPath.reset()
-            chrome.lassoPath.moveTo(lassoPts[0], lassoPts[1])
+            chrome.lassoPath.moveTo(pts[0], pts[1])
             var i = 2
-            while (i < lassoPts.size) { chrome.lassoPath.lineTo(lassoPts[i], lassoPts[i + 1]); i += 2 }
+            while (i < pts.size) { chrome.lassoPath.lineTo(pts[i], pts[i + 1]); i += 2 }
             chrome.lassoPath.close()
             canvas.drawPath(chrome.lassoPath, chrome.bandFill)
             canvas.drawPath(chrome.lassoPath, chrome.selectionStroke)
             return
         }
-        val l = min(bandX0, bandX1)
-        val t = min(bandY0, bandY1)
-        val r = max(bandX0, bandX1)
-        val bot = max(bandY0, bandY1)
+        val l = min(gestures.bandX0, gestures.bandX1)
+        val t = min(gestures.bandY0, gestures.bandY1)
+        val r = max(gestures.bandX0, gestures.bandX1)
+        val bot = max(gestures.bandY0, gestures.bandY1)
         canvas.drawRect(l, t, r, bot, chrome.bandFill)
         canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
     }

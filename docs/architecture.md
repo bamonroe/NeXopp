@@ -458,6 +458,7 @@ app/
       MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
       PageOverview.kt        # the overview grid's view state: edit mode, selection, clipboard, lift
       PageCommands.kt        # the page/layer edit commands and the two undoable commit pipelines
+      SelectionGestureController.kt # the marquee/lasso pick and the move/resize/rotate drags
       TextEditController.kt  # placing/editing text boxes, images and LaTeX images from a tap
       ElementEdits.kt        # the document edits behind those placements (pure, tested)
       PageStacker.kt         # lays pages out in rows of N columns, fit to column (pure geometry)
