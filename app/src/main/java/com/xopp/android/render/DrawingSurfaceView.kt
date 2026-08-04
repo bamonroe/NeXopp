@@ -1410,12 +1410,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
             BarrelDoubleAction.NONE -> Unit
             BarrelDoubleAction.UNDO -> undo()
             BarrelDoubleAction.REDO -> redo()
-            // Honours the invocation setting: with the palette bound to a tip or finger gesture, the
-            // button must not also open it, or two menus' worth of gesture would be live at once.
-            BarrelDoubleAction.RADIAL_PALETTE ->
-                if (inputSettings.paletteInvocation == PaletteInvocation.BARREL_DOUBLE_CLICK) {
-                    openPalette(palette, event.x, event.y)
-                }
+            // The double-click setting is the sole owner of what the barrel button does: if it says
+            // palette, the palette opens, whatever touch gesture is also bound in the settings.
+            BarrelDoubleAction.RADIAL_PALETTE -> openPalette(palette, event.x, event.y)
             else -> onBarrelDoubleClick?.invoke(action)
         }
     }

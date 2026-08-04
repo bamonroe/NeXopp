@@ -13,8 +13,14 @@ import org.junit.Test
 class PaletteInvocationTest {
 
     @Test
-    fun `barrel double-click is the default`() {
-        assertEquals(PaletteInvocation.BARREL_DOUBLE_CLICK, AppSettings().paletteInvocation)
+    fun `no touch gesture is the default`() {
+        assertEquals(PaletteInvocation.NONE, AppSettings().paletteInvocation)
+    }
+
+    /** The barrel button has exactly one owner — the double-click setting — so it is absent here. */
+    @Test
+    fun `the touch setting never refers to the pen barrel button`() {
+        assert(PaletteInvocation.entries.none { it.name.contains("BARREL") })
     }
 
     @Test

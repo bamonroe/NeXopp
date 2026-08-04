@@ -128,19 +128,20 @@ data class InputSettings(
     val barrelAction: BarrelAction = BarrelAction.ERASE,
     /** What a rapid double-click of that same button invokes. */
     val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
-    /** Which gesture summons the radial palette (see [PaletteInvocation]). */
-    val paletteInvocation: PaletteInvocation = PaletteInvocation.BARREL_DOUBLE_CLICK,
+    /** Which *touch* gesture summons the radial palette (see [PaletteInvocation]). */
+    val paletteInvocation: PaletteInvocation = PaletteInvocation.NONE,
 )
 
 /**
- * How the radial palette is summoned. The barrel double-click is the default, but plenty of styluses
- * have no side button at all — those users need a gesture the tip or the fingers can make, which is
- * what the other two are for. Exactly one is live at a time: a long-press that also opened on a
- * two-finger tap would fight the pan/zoom gestures for every touch.
+ * Which **touch** gesture summons the radial palette. The barrel button is deliberately absent here:
+ * a double-click of it is owned solely by [BarrelDoubleAction.RADIAL_PALETTE], so there is exactly
+ * one owner of that gesture. This setting exists for the many styluses with no side button at all —
+ * those users need a gesture the tip or the fingers can make. Exactly one is live at a time: a
+ * long-press that also opened on a two-finger tap would fight the pan/zoom gestures for every touch.
  */
 enum class PaletteInvocation(val label: String) {
-    /** The default: a rapid double-click of the stylus barrel button, tip off the glass. */
-    BARREL_DOUBLE_CLICK("Barrel double-click"),
+    /** The default: no touch gesture opens the palette (the barrel double-click still can). */
+    NONE("None"),
 
     /** Hold the pen tip still on the glass; the ring opens where it rests, and no stroke is left. */
     PEN_TIP_LONG_PRESS("Pen-tip long press"),

@@ -92,9 +92,9 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     OptionGroup(
-        title = "Open the palette with",
-        subtitle = "Which gesture summons the radial palette — for a stylus with no side button, " +
-            "pick the pen-tip long press or the two-finger tap.",
+        title = "Open the palette by touch",
+        subtitle = "Touch gesture that summons the radial palette, for a stylus with no side " +
+            "button. The side button itself is set above, under Barrel double-click.",
         options = PaletteInvocation.values().toList(),
         selected = settings.paletteInvocation,
         label = { it.label },

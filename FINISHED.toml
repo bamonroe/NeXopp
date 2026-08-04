@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "double-tap-setting-and-palette-open-setting-contradict-each-other"
+title = "Double-tap setting and palette-open setting contradict each other"
+description = "The settings screen has two overlapping controls: a double-tap/double-click menu offering 'open the palette' or 'do nothing', and a separate 'how to open the palette' menu whose option is double-clicking the pen. They contradict each other. Fix: the palette-open setting must stop referring to the pen — it should cover finger/touch gestures only. If the user wants a pen double-click to open the palette, that must be expressed solely in the double-click section. Reconcile the two so there is exactly one owner of the pen double-click behaviour, and update the docs to match."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["settings", "palette", "stylus"]
+
+[[task]]
 id = "document-opening-pdfs-from-other-apps-in-readme"
 title = "Document opening PDFs from other apps in README"
 description = "Document the new flow in README.md: the app appears in Android's share/open-with list for PDFs, what happens on open (fresh annotatable document over the PDF pages), and how the first save writes a .xopp alongside. Note the PDF-background round-trip guarantee."

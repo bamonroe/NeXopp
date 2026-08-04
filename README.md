@@ -440,10 +440,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
     It starts from the built-in layout — tools and undo/redo on the inner ring, the standard pen
     colours on the outer one — and you can re-arrange it under **Settings > Palette** (below).
-  - **Open the palette with** — which gesture summons that menu, for the many styluses that have no
-    side button to double-click:
-      - **Barrel double-click** (default) — the double-click described above, with the barrel
-        double-click action set to **Radial palette**.
+  - **Open the palette by touch** — which *touch* gesture also summons that menu, for the many
+    styluses that have no side button at all. The side button is not an option here: what a barrel
+    double-click does is decided solely by **Barrel double-click** above, so there is exactly one
+    owner of that gesture.
+      - **None** (default) — no touch gesture opens the palette; only the barrel double-click can,
+        and only when it is set to **Radial palette**.
       - **Pen-tip long press** — rest the tip on the glass and hold it still; the ring opens where it
         rests, with a buzz. Move the tip more than a hair before the hold completes and you simply
         draw as usual — a stroke is never stolen, and the few pixels laid down while holding are
@@ -451,8 +453,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
       - **Two-finger tap** — tap two fingers on the canvas and lift them promptly; the ring opens
         midway between them. Anything that looks like a pan or a pinch (either finger travelling, a
         third finger, or a hold longer than a quarter-second) is left to pan and zoom as usual.
-    Only the chosen gesture is live, so the barrel double-click stops opening the palette while one
-    of the other two is selected.
+    Only one touch gesture is live at a time, so the two never fight each other for a touch. The
+    barrel double-click is independent of this setting and keeps working alongside whichever
+    touch gesture is chosen.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**

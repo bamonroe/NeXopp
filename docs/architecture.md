@@ -987,7 +987,10 @@ toolbar":
    the hover/generic event stream — never while the tip is down, so it can't interrupt a stroke —
    and runs the configured `BarrelDoubleAction` (undo/redo on the surface; the tool and full-page
    toggles are handed to `EditorScreen` through `onBarrelDoubleClick`).
-   The `RADIAL_PALETTE` action instead opens the pen-tip menu at the event's own `(x, y)` and the
+   The `RADIAL_PALETTE` action is the **sole owner** of what a barrel double-click does — the
+   separate `PaletteInvocation` setting covers *touch* gestures only (`NONE` by default, plus
+   pen-tip long press and two-finger tap), so the two settings can never contradict each other.
+   `RADIAL_PALETTE` opens the pen-tip menu at the event's own `(x, y)` and the
    overlay then **owns every pointer**: `onTouchEvent` returns before `beginPointer` while it is up,
    which is what makes "the menu can never leave a stroke behind" structural rather than a rule to
    remember. Hover moves re-hit-test the highlight (a hover *exit* is not a cancel — it's the tip

@@ -42,8 +42,8 @@ data class AppSettings(
     val barrelAction: BarrelAction = BarrelAction.ERASE,
     /** What a rapid double-click of that button does (recognised only with the tip off the glass). */
     val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
-    /** Which gesture opens the radial palette — for styluses with no barrel button to double-click. */
-    val paletteInvocation: PaletteInvocation = PaletteInvocation.BARREL_DOUBLE_CLICK,
+    /** Which touch gesture opens the radial palette — for styluses with no barrel button at all. */
+    val paletteInvocation: PaletteInvocation = PaletteInvocation.NONE,
     /** Show a preview ring where a hovering stylus will land. */
     val showHover: Boolean = true,
     /** Buzz as a radial-palette flick crosses into a new slot, and again when it commits. */

@@ -50,7 +50,7 @@ class PaletteInvocationInputTest {
     /** The same tap with the setting left on its default does nothing — only the chosen gesture is live. */
     @Test
     fun twoFingerTapIsInertUnderTheDefaultInvocation() = onView { view ->
-        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.BARREL_DOUBLE_CLICK)
+        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.NONE)
         twoFingerTap(view, holdMs = 40)
         assertFalse("the default invocation ignores the two-finger tap", view.paletteOpen)
     }
