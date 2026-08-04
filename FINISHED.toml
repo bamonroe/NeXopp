@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "document-the-color-theme-module-in-ui-theme"
+title = "Document the color/theme module in ui/theme"
+description = "ui/theme/Color.kt is the only file under app/src/main with no KDoc at all — every other source file carries at least a doc comment. Add a header explaining what the palette is, how it relates to ChromeColors (which converts scheme colours to the ARGB ints DrawingSurfaceView consumes) and Theme.kt, and document the individual colour roles."
+status = "finished"
+category = "docs"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["docs"]
+
+[[task]]
 id = "audit-element-selection-bounds-math-for-a-single-owner"
 title = "Audit element/selection bounds math for a single owner"
 description = "Bounds and rect math is spread across ElementBounds.kt, Selection.kt, PageRenderer.kt and VerticalSpaceOps.kt, with roughly eighteen open-coded min/max/RectF constructions in main. Confirm ElementBounds is the sole owner of 'what rectangle does this element occupy', route the other three through it, and add unit tests for the rotated/stroke-width-inflated cases so selection handles and vertical-space insertion agree by construction rather than by coincidence."

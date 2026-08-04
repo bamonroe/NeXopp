@@ -19,16 +19,3 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "document-the-color-theme-module-in-ui-theme"
-title = "Document the color/theme module in ui/theme"
-description = "ui/theme/Color.kt is the only file under app/src/main with no KDoc at all — every other source file carries at least a doc comment. Add a header explaining what the palette is, how it relates to ChromeColors (which converts scheme colours to the ARGB ints DrawingSurfaceView consumes) and Theme.kt, and document the individual colour roles."
-status = "active"
-category = "docs"
-urgency = "low"
-order = 80
-created = 2026-08-03
-tags = ["docs"]
-rebuild = false
-emulator_debug = false
