@@ -500,6 +500,10 @@ app/
       PdfFonts.kt            # embeds the bundled Unicode fonts (DejaVu) into a PDDocument, cached per doc
       TextPdfGenerator.kt    # authors the text-import PDF: selectable embedded text, injected font loader
       TextFlavor.kt          # plain vs markdown typesetting flavour + its PdfStore cache prefix
+      markdown/
+        MarkdownBlock.kt     # the block tree a markdown import lays out from (pure data model)
+        MarkdownLine.kt      # line-level "what does this line start?" recognisers (pure)
+        MarkdownParser.kt    # markdown source -> block tree, line-based recursive descent (pure)
       GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
@@ -954,6 +958,32 @@ second path would buy nothing. The `MARKDOWN` branch in the generator is the sea
 parser and block layout land in; until they exist it typesets the source verbatim, which is a
 correct if plain result. Each flavour carries its own `cachePrefix` (`text:` / `markdown:`) so the
 same bytes opened as `notes.txt` and as `notes.md` cannot collide in `PdfStore`.
+
+**Parsing markdown (`render/markdown/`).** Structure and geometry are split the same way plain text
+splits them: `MarkdownParser` turns source into a tree of `MarkdownBlock` and stops there — no
+measurement, no wrapping, no pages — exactly as `TextPaginator` is pure geometry with no knowledge of
+markup. The parser is dependency-free by policy (no CommonMark library): it is a **line-based
+recursive descent** over normalised lines (CRLF→LF, tabs expanded once, so indentation is
+countable), with the per-line "what does this start?" rules factored into `MarkdownLine` so each can
+be tested against a single string.
+
+Two decisions are load-bearing:
+
+- **Nesting is the tree, not a depth field.** `Quote` holds its child blocks and `ListItem` holds
+  its child blocks, so containers *recurse*: a quote's stripped content and a list item's dedented
+  content are each re-parsed as a document of their own. A list item containing a code block, or a
+  quote containing a list, therefore needs no special case, and no `depth` integer can fall out of
+  sync with the structure — layout counts depth as it descends.
+- **Inline markup stays raw.** A `Paragraph` or `Heading` carries its source text with `**bold**`
+  and `[a](b)` intact; decoding spans into styled runs is a separate pass, which keeps block
+  structure testable on its own and stops one parser from doing two jobs.
+
+The dialect is the common core of CommonMark — ATX and setext headings, paragraphs with lazy
+continuation, fenced and indented code, ordered and unordered lists with nesting, block quotes,
+thematic breaks. Reference links, tables, HTML blocks and footnotes are out of scope and survive
+verbatim inside a paragraph rather than being mangled. `MarkdownParserTest` covers each block type
+plus the cases a hand-written line parser gets wrong: lazy continuation, loose lists, unclosed
+fences, `* * *` beating a bullet marker, CRLF and tabs.
 
 Two consequences fall out of the generated PDF living only in the cache:
 
