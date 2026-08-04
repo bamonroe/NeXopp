@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "detect-text-files-in-filekind-and-accept-text-plain-intents"
+title = "Detect text files in FileKind and accept text/plain intents"
+description = "Add a TEXT kind to format/FileKind.kt. Plain text has no magic bytes, so this is a fallback rule rather than a prefix match: bump FileKind.MAGIC_BYTES above 8, sample the head of the stream, and classify as TEXT when the sample decodes as valid UTF-8 printable text (allowing tab/CR/LF), leaving UNKNOWN as the catch-all for binary. Keep FileKind.of() pure and extend app/src/test/java/com/xopp/android/format/FileKindTest.kt with UTF-8, ASCII, empty-file, BOM and binary cases. Then add text/plain VIEW+EDIT intent filters to AndroidManifest.xml alongside the existing application/pdf ones (lines 30-52), including the file:// pathPattern fallback for .txt and .md, so the app appears in the share/open-with sheet for text files."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["text-import", "format"]
+
+[[task]]
 id = "open-arbitrary-text-files-as-a-paginated-pdf-backed-document"
 title = "Open arbitrary text files as a paginated PDF-backed document"
 description = """
