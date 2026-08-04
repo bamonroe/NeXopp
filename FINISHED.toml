@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "radial-palette-configuration-ui-for-assigning-slots"
+title = "Radial palette: configuration UI for assigning slots"
+description = "Investigate how the settings screens (ui/SettingsScreen.kt, ui/SettingsSections.kt) should host a palette editor: a picker showing the two rings where the user taps a slot and chooses an action or clears it. Decide whether it is a settings subscreen or a dedicated editor, then add the concrete tasks."
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "preset-model-capture"
 title = "Tool presets: add the ToolPreset data model and capture-current-state"
 description = "Add ui/ToolPreset.kt: an immutable data class ToolPreset(id, name, tool, colorArgb, widthPt, lineStyle, fillEnabled, fillAlpha) capturing the whole tool configuration, plus ToolPreset.capture(ui: EditorUiState) to snapshot the live EditorUiState and an apply() that restores it through the same paths ui/PaletteActions.kt uses, so tool/color/width all reach DrawingSurfaceView. Pure-Kotlin unit tests for the capture/apply round-trip."

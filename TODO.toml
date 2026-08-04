@@ -35,20 +35,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "radial-palette-configuration-ui-for-assigning-slots"
-title = "Radial palette: configuration UI for assigning slots"
-description = "Investigate how the settings screens (ui/SettingsScreen.kt, ui/SettingsSections.kt) should host a palette editor: a picker showing the two rings where the user taps a slot and chooses an action or clears it. Decide whether it is a settings subscreen or a dedicated editor, then add the concrete tasks."
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 80
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "radial-palette-multiple-palettes-and-switching"
 title = "Radial palette: multiple palettes and switching"
 description = "Once a single palette works and persists, investigate supporting several named palettes and how the user switches between them (a slot action that swaps palette, a long-press, or a settings choice). Produces tasks, not code."
@@ -103,3 +89,59 @@ created = 2026-08-04
 tags = ["presets"]
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "palette-settings-section"
+title = "Radial palette: PALETTE settings section with a two-ring slot picker"
+description = "Add a PALETTE entry to SettingsSection (ui/SettingsScreen.kt:37) and a PaletteSection composable in ui/SettingsSections.kt, following the existing stateless (settings, onChange) pattern and the SettingsPage chrome. Render the two rings as a tappable diagram anchored on the same geometry the canvas uses: iterate RadialPalette.slots() and place each slot with RadialSlot.drawCenter()/slotDrawRadius() from RadialPaletteLayout.kt so the editor matches what the pen sees. Draw each slot with PaletteAction.face() (glyph + swatchArgb) from RadialPaletteLabel.kt; empty slots render as a dashed outline. Tapping a slot selects it (no assignment yet - that is the picker task). Unit-test slot placement/selection logic in a pure helper."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 82
+created = 2026-08-04
+tags = ["palette", "ui"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "palette-action-picker"
+title = "Radial palette: action picker sheet to assign or clear a slot"
+description = "When a slot is tapped in the PALETTE settings section, open a bottom sheet listing the assignable PaletteAction variants from ui/RadialPalette.kt:35 - SelectTool/ToggleTool (one row per EditorTool), SetColor (reuse ui/ColorPalette.kt swatches), SetWidth (slider bounded by PEN_WIDTH_MIN..MAX), Undo, Redo, ToggleFullPage, and Page(op) for each PalettePageOp. Include a Clear slot action mapping to RadialPalette.without(slot). Commit via onChange(settings.copy(radialPalette = palette.with(slot, action))) so SettingsStore persistence and the EditorScreen applySettings push work with no extra plumbing."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 84
+created = 2026-08-04
+tags = ["palette", "ui"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "palette-reset-controls"
+title = "Radial palette: reset-to-default and clear-all controls in the palette editor"
+description = "Add buttons to the PALETTE settings section for 'Reset to default' (RadialPalette.default()) and 'Clear all slots', plus a filled-count summary line using RadialPalette.filledCount. Confirm destructive clears with a dialog."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "low"
+order = 86
+created = 2026-08-04
+tags = ["palette", "ui"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "palette-editor-docs"
+title = "Radial palette: document the palette editor in README"
+description = "Document how a user opens Settings > Palette, taps a ring slot, assigns or clears an action, and how the configuration persists and takes effect immediately at the pen tip. Keep the data model detail in docs/architecture.md, not README."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 88
+created = 2026-08-04
+tags = ["palette", "docs"]
+rebuild = false
+emulator_debug = false
