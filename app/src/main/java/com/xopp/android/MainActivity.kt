@@ -23,6 +23,7 @@ import com.xopp.android.format.SaveFormat
 import com.xopp.android.io.DocumentIo
 import com.xopp.android.io.IncomingDocument
 import com.xopp.android.io.LoadedFile
+import com.xopp.android.io.xoppNameFor
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImportPdfMode
@@ -333,6 +334,13 @@ class MainActivity : ComponentActivity() {
             is LoadedFile.Pdf -> {
                 saveFormat = SaveFormat.ORIGINAL
                 adoptPdf(loaded.file, ImportPdfMode.REPLACE, reference = source.toString())
+                // The tab came from a PDF, so it has no `.xopp` on disk yet: drop the source URI so
+                // plain Save asks for a destination instead of writing document bytes over the PDF,
+                // and suggest the PDF's own name with the extension swapped. The PDF itself stays on
+                // as the page background, so the saved file still opens over it in desktop Xournal++.
+                pendingSaveName = xoppNameFor(displayName(source))
+                tabs.updateActive { it.copy(title = pendingSaveName, uri = null) }
+                tabsTick.value++
                 return
             }
             is LoadedFile.Doc -> {

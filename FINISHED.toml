@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "save-an-intent-opened-pdf-back-out-as-a-xopp-document"
+title = "Save an intent-opened PDF back out as a .xopp document"
+description = "A PDF arriving by intent has no .xopp target on disk. Make the first save prompt for a .xopp destination via CreateDocument, defaulting the name to the PDF's display name with a .xopp suffix, and keep the PDF as the page background so it round-trips to desktop Xournal++. Unit-test the default-name derivation."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["pdf"]
+
+[[task]]
 id = "open-a-pdf-handed-in-by-an-incoming-intent"
 title = "Open a PDF handed in by an incoming intent"
 description = "Handle the launch intent (and onNewIntent) in MainActivity: take the ACTION_VIEW/ACTION_EDIT data URI, take a persistable read permission where granted, and route it through the same open path the SAF picker uses. FileKind.sniff already classifies the bytes and LoadedFile.Pdf already becomes a fresh annotatable document over the PDF pages, so this is wiring the URI in, not new format work. Cover the intent-to-URI extraction with a unit test."
