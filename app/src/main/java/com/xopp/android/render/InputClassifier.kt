@@ -122,7 +122,7 @@ enum class GestureIntent { DRAW, ERASE, PAN, SELECT, SELECT_TEXT, PLACE, VERTICA
 
 /** Input-layer preferences the classifier consults (owned by the app's settings). */
 data class InputSettings(
-    /** When false, finger pointers only pan/zoom — never draw/erase (palm-safe for non-stylus use). */
+    /** When false, finger pointers only pan/zoom — they actuate no tool at all (stylus-only mode). */
     val fingerDraws: Boolean = true,
     /** What the stylus primary barrel-button invokes while held. */
     val barrelAction: BarrelAction = BarrelAction.ERASE,
@@ -160,7 +160,8 @@ enum class PaletteInvocation(val label: String) {
  * Precedence, matching desktop Xournal++'s "the pen hardware wins over the toolbar":
  *  1. The flipped-over **eraser tip** always erases, whatever the tool.
  *  2. A held **barrel button** applies its configured action (erase/select), whatever the tool.
- *  3. With **finger-draw off**, a finger on a drawing tool only pans (so a palm can't ink).
+ *  3. With **finger-draw off**, a finger only ever pans — it actuates no tool at all (pen, eraser,
+ *     highlighter, text, selection, placement…), so a palm can't ink and only the stylus works.
  *  4. Otherwise the on-screen tool's [ActiveTool.defaultIntent].
  */
 object InputClassifier {
@@ -181,7 +182,7 @@ object InputClassifier {
             }
         }
 
-        if (kind == PointerKind.FINGER && !settings.fingerDraws && activeTool.isDrawing()) {
+        if (kind == PointerKind.FINGER && !settings.fingerDraws) {
             return GestureIntent.PAN
         }
 

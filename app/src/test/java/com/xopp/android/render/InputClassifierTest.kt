@@ -57,11 +57,11 @@ class InputClassifierTest {
         assertEquals(GestureIntent.PAN, classify(PointerKind.FINGER, ActiveTool.ERASER, settings = s))
     }
 
-    @Test fun fingerDrawOffStillAllowsSelectAndPlace() {
+    @Test fun fingerDrawOffMakesEveryToolPan() {
         val s = InputSettings(fingerDraws = false)
-        assertEquals(GestureIntent.SELECT, classify(PointerKind.FINGER, ActiveTool.SELECT, settings = s))
-        assertEquals(GestureIntent.PLACE, classify(PointerKind.FINGER, ActiveTool.PLACE, settings = s))
-        assertEquals(GestureIntent.PAN, classify(PointerKind.FINGER, ActiveTool.HAND, settings = s))
+        for (tool in ActiveTool.values()) {
+            assertEquals("tool=$tool", GestureIntent.PAN, classify(PointerKind.FINGER, tool, settings = s))
+        }
     }
 
     @Test fun fingerDrawOffDoesNotAffectStylus() {

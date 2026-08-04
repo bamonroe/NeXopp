@@ -53,7 +53,7 @@ import com.xopp.android.render.StrokePrecision
 fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     SwitchRow(
         title = "Finger draws",
-        subtitle = "Off: fingers only pan/zoom, so a resting palm can't draw (stylus-first).",
+        subtitle = "Off: fingers only pan/zoom and never use any tool — stylus only.",
         checked = settings.fingerDraws,
         onCheckedChange = { onChange(settings.copy(fingerDraws = it)) },
     )

@@ -1317,8 +1317,9 @@ toolbar":
    picked `PaletteAction` leaves the surface via `onPaletteAction` and is run by `applyPaletteAction`
    (`ui/PaletteActions.kt`), which is deliberately the *only* mapping from action to edit so the
    palette and the toolbar can't drift into two meanings of the same command.
-3. **Finger-draw gate.** With the Settings **"finger draws"** toggle off, a finger on a *drawing* tool
-   only pans (select/place/hand still work with a finger) — palm-safe writing on non-stylus devices.
+3. **Finger-draw gate.** With the Settings **"finger draws"** toggle off, a finger **always pans** and
+   actuates no tool at all — pen, highlighter, eraser, text, selection and placement all become
+   stylus-only. Palm-safe writing on non-stylus devices.
 4. Otherwise the on-screen tool's default intent.
 
 **Palm rejection** is the stateful half, handled in the view around the classifier: the active

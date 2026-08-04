@@ -448,7 +448,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Palette**, **Editor**,
   **Toolbar**, **Navigation**, **Appearance** and **Storage**. Tap a section to open it as its own page; back returns to the list, and back from
   the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
-  - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
+  - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and never actuate a
+    tool at all — pen, highlighter, eraser, text and selection all become stylus-only
     (best on a stylus tablet where a palm would otherwise draw).
   - **Hover preview** — show a ring where a hovering stylus will land.
   - **Palette haptics** — tick as a radial-palette flick crosses into a new slot, with a
