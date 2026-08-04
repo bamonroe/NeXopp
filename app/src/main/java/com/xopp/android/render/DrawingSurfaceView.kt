@@ -210,6 +210,30 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** The document as it was when the current gesture began, so one gesture is one undo step. */
     private var gestureStartDoc: Document? = null
 
+    /** The page/layer edit commands and the two commit pipelines behind them (see [PageCommands]). */
+    private val pages = PageCommands(
+        document = { doc },
+        commit = { edited ->
+            val before = doc
+            doc = edited
+            history.record(before)
+            notifyHistory()
+        },
+        visiblePage = { visiblePageIndex() },
+        currentPage = { currentPageIndex() },
+        overview = overview,
+        resetLayerVisibility = { hiddenLayers.clear() },
+        clearActiveLayer = { activeLayerIndex = -1 },
+        refresh = {
+            relayout()
+            // A page's height (or the page count) may have changed, so keep the viewport in range.
+            scrollY = scrollY.coerceIn(0f, maxScrollY())
+            render()
+        },
+        onPageCountChanged = { onPageCountChanged?.invoke(it) },
+        onLayersChanged = { onLayersChanged?.invoke() },
+    )
+
     /** Notified with (canUndo, canRedo) whenever the history changes, so the chrome can enable buttons. */
     var onHistoryChanged: ((Boolean, Boolean) -> Unit)? = null
     /**
@@ -585,39 +609,23 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // --- pages ---------------------------------------------------------------------------------
 
-    /** Insert a blank page after the page in view (see [PageOps.addAfter]: keeps size and solid ruling,
-     *  drops a PDF/pixmap background to a plain sheet so it isn't a duplicate). */
-    fun addPage() {
-        val at = currentPageIndex()
-        editPages(PageOps.addAfter(doc.pages, at))
-    }
+    // Every page command is [PageCommands]'; the view only forwards, so the public canvas API stays
+    // one place while the edit itself (and its undo step) has a single testable home.
 
-    /**
-     * Append [pages] after the document's existing pages as one undoable edit — the "Append" half of
-     * PDF import (see [PageOps.appendPages]). Unlike [load] this keeps the current annotations and
-     * undo history, so an accidental import is one undo away.
-     */
-    fun appendPages(pages: List<Page>) = editPages(PageOps.appendPages(doc.pages, pages))
+    /** Insert a blank page after the page in view. */
+    fun addPage() = pages.addPage()
 
-    /**
-     * Append [pages] *and* re-point the document's PDF background reference at [reference] in one
-     * undoable edit — appending a second PDF, which merges into a single joined background PDF (see
-     * [PdfMerger]). Both halves have to move together: the appended pages' `pageno` values index the
-     * joined PDF, so a document holding the old reference with the new pages wouldn't round-trip.
-     */
-    fun appendPdfPages(pages: List<Page>, reference: String) {
-        val retargeted = documentWithPdfReference(doc, reference, ABSOLUTE_DOMAIN)
-        editPages(PageOps.appendPages(retargeted.pages, pages))
-    }
+    /** Append [newPages] after the document's existing pages as one undoable edit (PDF import). */
+    fun appendPages(newPages: List<Page>) = pages.appendPages(newPages)
+
+    /** Append [newPages] and re-point the document's PDF reference at [reference] in one edit. */
+    fun appendPdfPages(newPages: List<Page>, reference: String) = pages.appendPdfPages(newPages, reference)
 
     /** True when any page is backed by an imported PDF — i.e. the document already has a PDF source. */
     fun hasPdfBackground(): Boolean = doc.pages.any { it.background is Background.Pdf }
 
     /** Delete the page currently in view. No-op when only one page remains. */
-    fun removePage() {
-        val at = currentPageIndex()
-        editPages(PageOps.removeAt(doc.pages, at))
-    }
+    fun removePage() = pages.removePage()
 
     // --- page-overview selection -----------------------------------------------------------------
     // In the multi-column grid a Hand-tool finger tap picks pages out; the picked set is what
@@ -640,39 +648,18 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Drop the overview selection (e.g. on leaving the grid, or after a delete). */
     fun clearPageSelection() = overview.clearSelection()
 
-    /**
-     * Delete every selected page as one undoable edit and clear the selection. A selection covering
-     * the whole document is refused by [PageOps.removeAll] (a document always keeps a page), so
-     * nothing is deleted in that case.
-     */
-    fun deleteSelectedPages() {
-        val pages = PageOps.removeAll(doc.pages, overview.selected)
-        overview.clearSelection()
-        editPages(pages)
-    }
+    /** Delete every selected page as one undoable edit and clear the selection. */
+    fun deleteSelectedPages() = pages.deleteSelectedPages()
 
-    /**
-     * Put the selected pages on the page clipboard, in document order. Nothing is edited yet — the
-     * clipboard is view state that survives until the next copy (or the editor closing), so a copy can
-     * be pasted repeatedly.
-     */
-    fun copySelectedPages() = overview.copyToClipboard(PageOps.copyOf(doc.pages, overview.selected))
+    /** Put the selected pages on the page clipboard, in document order (no document edit yet). */
+    fun copySelectedPages() = pages.copySelectedPages()
 
     /** How many pages are on the page clipboard (0 when nothing has been copied). */
     fun copiedPageCount(): Int = overview.clipboard.size
 
-    /**
-     * Paste the clipboard pages as one undoable edit, directly after the last selected page — or after
-     * the page nearest the viewport centre when nothing is selected. The pasted pages carry their
-     * strokes, layers, size and background verbatim (see [PageOps.copyOf]), so they round-trip.
-     */
+    /** Paste the clipboard pages as one undoable edit and scroll to the first pasted page. */
     fun pasteCopiedPages() {
-        val copied = overview.clipboard
-        if (copied.isEmpty()) return
-        val after = overview.selected.maxOrNull() ?: currentPageIndex()
-        val at = after.coerceIn(0, doc.pages.lastIndex.coerceAtLeast(0))
-        editPages(PageOps.insertAfter(doc.pages, at, copied))
-        goToPage(at + 1)
+        pages.pasteCopiedPages()?.let { goToPage(it) }
     }
 
     /**
@@ -686,10 +673,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * Set the visible page's paper [style] (plain/lined/ruled/graph/dotted) as one undoable edit.
      * No-op on PDF/pixmap pages, whose background isn't a solid sheet.
      */
-    fun setPageBackgroundStyle(style: String) = editVisiblePage(resetViewState = false, op = { page ->
-        val bg = page.background
-        if (bg is Background.Solid && bg.style != style) page.copy(background = bg.copy(style = style)) else page
-    })
+    fun setPageBackgroundStyle(style: String) = pages.setPageBackgroundStyle(style)
 
     /** The visible page's size in points (width to height), or null when the document has no pages. */
     fun visiblePageSize(): Pair<Double, Double>? =
@@ -700,30 +684,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * clamped to a sane range. The stacked layout re-fits every page to the view width, so this
      * changes the page's on-screen aspect ratio (and the dimensions written to the `.xopp`).
      */
-    fun setPageSize(widthPt: Double, heightPt: Double) = editVisiblePage(resetViewState = false, op = { page ->
-        val w = widthPt.coerceIn(PAGE_SIZE_MIN_PT, PAGE_SIZE_MAX_PT)
-        val h = heightPt.coerceIn(PAGE_SIZE_MIN_PT, PAGE_SIZE_MAX_PT)
-        if (page.width == w && page.height == h) page else page.copy(width = w, height = h)
-    })
-
-    /** Apply a new page list as one undoable edit, if it actually differs. */
-    private fun editPages(pages: List<Page>) {
-        if (pages === doc.pages) return
-        val before = doc
-        doc = doc.copy(pages = pages)
-        history.record(before)
-        notifyHistory()
-        onPageCountChanged?.invoke(pages.size)
-        // Page indices shifted: view state keyed by page index is no longer valid.
-        clearPageSelection()
-        hiddenLayers.clear()
-        activeLayerIndex = -1
-        // keep the viewport valid, then keep zoom's centre-fraction sane
-        relayout()
-        scrollY = scrollY.coerceIn(0f, maxScrollY())
-        render()
-        onLayersChanged?.invoke()
-    }
+    fun setPageSize(widthPt: Double, heightPt: Double) = pages.setPageSize(widthPt, heightPt)
 
     /** Index of the page nearest the viewport centre — the one add/remove act on. */
     private fun currentPageIndex(): Int =
@@ -747,41 +708,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
-    /** Apply [op] to the visible page's layers as one undoable edit; [after] runs post-commit. */
-    private fun editVisiblePage(resetViewState: Boolean, op: (Page) -> Page, after: () -> Unit = {}) {
-        val before = doc
-        val pi = visiblePageIndex()
-        val page = doc.pages.getOrNull(pi) ?: return
-        val newPage = op(page)
-        if (newPage === page) { after(); onLayersChanged?.invoke(); return }
-        if (resetViewState) hiddenLayers.clear()
-        val pages = doc.pages.toMutableList().also { it[pi] = newPage }
-        doc = doc.copy(pages = pages)
-        history.record(before)
-        notifyHistory()
-        after()
-        relayout()
-        // A page's height may have changed (e.g. a resize), so keep the viewport in range.
-        scrollY = scrollY.coerceIn(0f, maxScrollY())
-        render()
-        onLayersChanged?.invoke()
-    }
-
     /** Add a fresh empty layer above the top and make it active. */
-    fun addLayer() = editVisiblePage(resetViewState = true, op = {
-        val (p, _) = LayerOps.add(it); p
-    }, after = { activeLayerIndex = -1 /* -1 already resolves to the new top */ })
+    fun addLayer() = pages.addLayer()
 
     /** Delete layer [index] (never the last remaining layer). */
-    fun deleteLayer(index: Int) = editVisiblePage(resetViewState = true, op = { LayerOps.remove(it, index) })
+    fun deleteLayer(index: Int) = pages.deleteLayer(index)
 
     /** Rename layer [index] ([name] blank clears the custom name). */
-    fun renameLayer(index: Int, name: String) =
-        editVisiblePage(resetViewState = false, op = { LayerOps.rename(it, index, name) })
+    fun renameLayer(index: Int, name: String) = pages.renameLayer(index, name)
 
     /** Reorder layer [from] to position [to] (changes z-order). */
-    fun moveLayer(from: Int, to: Int) =
-        editVisiblePage(resetViewState = true, op = { LayerOps.move(it, from, to) })
+    fun moveLayer(from: Int, to: Int) = pages.moveLayer(from, to)
 
     /** Make layer [index] the one new ink lands on (view state; no document change). */
     fun setActiveLayer(index: Int) {
@@ -801,7 +738,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun moveSelectionToLayer(index: Int) {
         val sel = selection ?: return
         if (sel.pageIndex != visiblePageIndex()) return
-        editVisiblePage(resetViewState = false, op = { page ->
+        pages.editVisiblePage(resetViewState = false, op = { page ->
             val (newPage, refs) = LayerOps.moveElementsToLayer(page, sel.refs, index)
             selection = if (refs.isEmpty()) null else ActiveSelection(sel.pageIndex, refs)
             newPage
@@ -1486,7 +1423,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val move = overview.endDrag()
         if (move == null) { render(); return }
         val (from, to) = move
-        editPages(PageOps.move(doc.pages, from, to))
+        pages.movePage(from, to)
         goToPage(to)
     }
 
