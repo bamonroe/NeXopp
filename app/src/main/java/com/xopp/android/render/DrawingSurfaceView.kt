@@ -6,6 +6,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import android.os.Handler
+import android.os.Looper
 import android.util.AttributeSet
 import android.view.Choreographer
 import android.view.HapticFeedbackConstants
@@ -1242,6 +1244,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // when the user has picked it, so at most one of them ever inspects a touch.
 
     private val paletteLongPressArm = Runnable { openPaletteOnLongPress() }
+
+    /**
+     * The hold rides on a plain main-looper handler rather than `View.postDelayed`, which queues its
+     * work until the view is attached to a window — that would make the gesture untestable, and
+     * silently dead for any surface not yet on screen.
+     */
+    private val paletteTimer = Handler(Looper.getMainLooper())
     private var paletteLongPressArmed = false
     private var paletteLongPressX = 0f
     private var paletteLongPressY = 0f
@@ -1259,7 +1268,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         paletteLongPressArmed = true
         paletteLongPressX = event.x
         paletteLongPressY = event.y
-        postDelayed(paletteLongPressArm, longPressMs)
+        paletteTimer.postDelayed(paletteLongPressArm, longPressMs)
     }
 
     /** A tip that travels past slop before the timeout is writing — never steal that stroke. */
@@ -1274,7 +1283,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun cancelPaletteLongPress() {
         if (!paletteLongPressArmed) return
         paletteLongPressArmed = false
-        removeCallbacks(paletteLongPressArm)
+        paletteTimer.removeCallbacks(paletteLongPressArm)
     }
 
     /**
@@ -1311,10 +1320,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         cancelPageDrag()
         cancelGesture()
         handTapCandidate = false
+        palettePendingLift = true
         tick(HapticFeedbackConstants.LONG_PRESS)
         openPalette(palette, x, y)
         return true
     }
+
+    /** True between a two-finger tap opening the menu and the last of those fingers coming up. */
+    private var palettePendingLift = false
 
     /** True when every pointer down is a finger — a stylus in the mix is drawing, not summoning. */
     private fun bothFingers(event: MotionEvent): Boolean =
@@ -2289,8 +2302,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return open.hit
     }
 
-    /** True while the radial palette is open and owns every pointer — no stroke can start under it. */
-    private val paletteOpen: Boolean get() = paletteOverlay != null
+    /**
+     * True while the radial palette is open and owns every pointer — no stroke can start under it.
+     * Internal rather than private so the on-device input tests can assert what a gesture summoned.
+     */
+    internal val paletteOpen: Boolean get() = paletteOverlay != null
 
     /**
      * Drive the open palette from a touch: dragging re-highlights, lifting fires the highlighted
@@ -2298,6 +2314,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * menu never leaves a stroke behind it.
      */
     private fun paletteTouch(event: MotionEvent): Boolean {
+        // The fingers that summoned the menu are still on the glass; their lift is the end of the
+        // *summoning* gesture, not a pick, so it is swallowed rather than committing a slot.
+        if (palettePendingLift) {
+            if (event.actionMasked == MotionEvent.ACTION_UP ||
+                event.actionMasked == MotionEvent.ACTION_CANCEL
+            ) {
+                palettePendingLift = false
+            }
+            return true
+        }
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_POINTER_DOWN ->
                 movePaletteTo(event.x, event.y)
