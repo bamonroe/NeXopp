@@ -82,6 +82,45 @@
                 <data android:pathPattern=".*\\..*\\.md" />
                 <data android:pathPattern=".*\\..*\\..*\\.md" />
             </intent-filter>
+
+            <!-- Offer the app as an image handler: a PNG/JPEG/WebP opens as a one-page document
+                 with the picture as the page background. Same content/file split as above. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="image/png" />
+                <data android:scheme="file" android:mimeType="image/png" />
+                <data android:scheme="content" android:mimeType="image/jpeg" />
+                <data android:scheme="file" android:mimeType="image/jpeg" />
+                <data android:scheme="content" android:mimeType="image/webp" />
+                <data android:scheme="file" android:mimeType="image/webp" />
+            </intent-filter>
+
+            <!-- Fallback for senders that hand over a file:// URI with no (or a generic)
+                 MIME type — match on the image extension instead. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.png" />
+                <data android:pathPattern=".*\\..*\\.png" />
+                <data android:pathPattern=".*\\..*\\..*\\.png" />
+                <data android:pathPattern=".*\\.jpg" />
+                <data android:pathPattern=".*\\..*\\.jpg" />
+                <data android:pathPattern=".*\\..*\\..*\\.jpg" />
+                <data android:pathPattern=".*\\.jpeg" />
+                <data android:pathPattern=".*\\..*\\.jpeg" />
+                <data android:pathPattern=".*\\..*\\..*\\.jpeg" />
+                <data android:pathPattern=".*\\.webp" />
+                <data android:pathPattern=".*\\..*\\.webp" />
+                <data android:pathPattern=".*\\..*\\..*\\.webp" />
+            </intent-filter>
         </activity>
     </application>
 

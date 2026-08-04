@@ -186,6 +186,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   saved `.xopp` points at the picture where it already lives, so keep it in place — and, as with a
   PDF, **the first Save asks where to put the `.xopp`**, since an image has no `.xopp` of its own.
   A truncated or corrupt image is refused with a *"Couldn't read that image"* notice.
+  Xopp also registers as an **image handler**, so — exactly as with a PDF — it appears in the
+  **Open with** / **Share** sheet of gallery apps, file managers, browsers, and mail clients: tap a
+  picture there, pick **Xopp**, and it opens in a **new tab** without disturbing the tabs you
+  already had.
   Reopening such a `.xopp` finds its picture again the same ways desktop Xournal++ does: by
   `content://` URI, by absolute path, by a path **relative to the `.xopp`'s own folder**, or from
   the sibling file an attached background names. A picture that can't be found leaves those pages
