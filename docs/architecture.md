@@ -74,6 +74,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 | `1f 8b` | `GZIP` | gzip `.xopp` (`Xopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
 | `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`Xopp.parseXml`); saved back compressed | `ORIGINAL` |
+| `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, returned as `LoadedFile.Image` for the caller to hang on a page as a pixmap background | `ORIGINAL` |
 | none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `ZIPPED` |
 | anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
@@ -452,7 +453,7 @@ app/
       Xopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
-      FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / UNKNOWN
+      FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / IMAGE / UNKNOWN
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide

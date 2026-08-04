@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "sniff-image-files-and-route-them-through-documentio"
-title = "Sniff image files and route them through DocumentIo"
-description = "Add PNG/JPEG (and WebP) magic-byte detection to FileKind.of (format/FileKind.kt:52-68) as a new FileKind.IMAGE, a LoadedFile.Image variant in io/DocumentIo.kt:33, and the read branch in DocumentIo.read (:135-165) so an image no longer errors as 'unrecognised file type'. Include unit tests for the sniffer."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 20
-created = 2026-08-04
-tags = ["image-background"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "create-an-image-backed-document-via-imageimport"
 title = "Create an image-backed Document via ImageImport"
 description = "Add render/ImageImport.kt mirroring render/PdfImport.kt:20-46: one Page sized from the image's pixel dimensions converted to points (72 dpi baseline), with Background.Pixmap(domain=absolute, filename=source URI) and a single empty Layer. Wire MainActivity.loadDocument (:352-368) with an adoptImage path modelled on adoptPdf (:410-427)."

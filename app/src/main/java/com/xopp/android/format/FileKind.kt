@@ -24,6 +24,12 @@ enum class FileKind {
     /** Plain text (`.txt`, `.md`, source…) — typeset into a generated PDF-backed document. */
     TEXT,
 
+    /**
+     * A raster image (PNG, JPEG, WebP) — opened as a one-page document with the picture as the
+     * page's pixmap background, which is the only shape the `.xopp` format has for it.
+     */
+    IMAGE,
+
     /** Nothing we recognise. */
     UNKNOWN,
     ;
@@ -53,9 +59,30 @@ enum class FileKind {
                 at(0) == 0x1f && at(1) == 0x8b -> GZIP
                 startsWith("%PDF-") -> PDF
                 startsWith("<?xml") || startsWith("<xournal") -> XML
+                isImage(::at) -> IMAGE
                 isPrintableUtf8(magic) -> TEXT
                 else -> UNKNOWN
             }
+        }
+
+        /**
+         * Whether the leading bytes are one of the raster formats Android can decode into a page
+         * background: PNG (`\x89PNG\r\n\x1a\n`), JPEG (`\xff\xd8\xff`), or WebP — a RIFF container
+         * whose `WEBP` tag sits four bytes past the `RIFF` one, after the little-endian length.
+         *
+         * Takes the byte accessor [of] already has rather than the array, so the "past the end reads
+         * as -1" rule stays in one place.
+         */
+        private fun isImage(at: (Int) -> Int): Boolean {
+            fun matches(offset: Int, signature: List<Int>) =
+                signature.indices.all { at(offset + it) == signature[it] }
+            fun tag(offset: Int, s: String) = matches(offset, s.map { it.code })
+
+            val png = matches(0, listOf(0x89)) && tag(1, "PNG") &&
+                matches(4, listOf(0x0d, 0x0a, 0x1a, 0x0a))
+            val jpeg = matches(0, listOf(0xff, 0xd8, 0xff))
+            val webp = tag(0, "RIFF") && tag(8, "WEBP")
+            return png || jpeg || webp
         }
 
         /** Name suffixes that mark a text file as markdown rather than prose to typeset verbatim. */

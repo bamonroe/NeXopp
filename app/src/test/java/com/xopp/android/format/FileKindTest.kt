@@ -61,10 +61,26 @@ class FileKindTest {
 
     @Test
     fun `binary content is not text`() {
+        // A PNG signature cut short is neither an image nor text.
         assertEquals(FileKind.UNKNOWN, sniff(byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte())))
         assertEquals(FileKind.UNKNOWN, sniff("text then a NUL".toByteArray() + 0x00.toByte() + " more".toByteArray()))
         assertEquals(FileKind.UNKNOWN, sniff(byteArrayOf(0xC3.toByte(), 0x28))) // invalid UTF-8
         assertEquals(FileKind.UNKNOWN, sniff(byteArrayOf(0x80.toByte(), 0x80.toByte())))
+    }
+
+    @Test
+    fun `png jpeg and webp are recognised as images`() {
+        val png = byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) + ByteArray(8)
+        assertEquals(FileKind.IMAGE, sniff(png))
+        assertEquals(FileKind.IMAGE, sniff(byteArrayOf(0xff.toByte(), 0xd8.toByte(), 0xff.toByte(), 0xe0.toByte())))
+        val webp = "RIFF".toByteArray() + byteArrayOf(0x24, 0, 0, 0) + "WEBPVP8 ".toByteArray()
+        assertEquals(FileKind.IMAGE, sniff(webp))
+    }
+
+    @Test
+    fun `a riff container that is not webp is not an image`() {
+        val wav = "RIFF".toByteArray() + byteArrayOf(0x24, 0, 0, 0) + "WAVEfmt ".toByteArray()
+        assertEquals(FileKind.UNKNOWN, sniff(wav))
     }
 
     @Test

@@ -366,6 +366,12 @@ class MainActivity : ComponentActivity() {
                 tabsTick.value++
                 return
             }
+            // Recognised, but the image-backed document it becomes isn't built yet: say so rather
+            // than leaving the tab silently empty.
+            is LoadedFile.Image -> {
+                toast("Image files can't be opened yet")
+                return
+            }
             is LoadedFile.Doc -> {
                 saveFormat = loaded.format
                 surface?.setPdfSource(loaded.pdf?.let(::PdfPageCache))

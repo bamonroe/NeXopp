@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "sniff-image-files-and-route-them-through-documentio"
+title = "Sniff image files and route them through DocumentIo"
+description = "Add PNG/JPEG (and WebP) magic-byte detection to FileKind.of (format/FileKind.kt:52-68) as a new FileKind.IMAGE, a LoadedFile.Image variant in io/DocumentIo.kt:33, and the read branch in DocumentIo.read (:135-165) so an image no longer errors as 'unrecognised file type'. Include unit tests for the sniffer."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["image-background"]
+
+[[task]]
 id = "open-image-files-as-documents"
 title = "Open image files as documents"
 description = "Allow opening a plain image file (PNG/JPEG, etc.) from the file picker the same way a PDF is opened today: as a LINKED page background, not as an embedded <image> element. That means a <background type=\"pixmap\"> with domain=absolute/attach and a filename pointing at the image on disk, so annotations live in the .xopp and the image stays an external file that round-trips to desktop Xournal++."

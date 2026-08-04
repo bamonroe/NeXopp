@@ -32,6 +32,13 @@ sealed interface LoadedFile {
     data class Pdf(val file: File, val generated: Boolean = false) : LoadedFile
 
     /**
+     * A raster image ([FileKind.IMAGE]), staged locally. It becomes a one-page document with the
+     * picture as that page's pixmap background — the only shape the `.xopp` format has for an image
+     * — so, like a generated PDF, the caller resolves it rather than parsing anything here.
+     */
+    data class Image(val file: File, val name: String) : LoadedFile
+
+    /**
      * A parsed `.xopp`. [pdf] is the local copy of its background PDF, if it had one we could
      * reach; [missingPdf] says the document referenced a background we could *not* resolve, so
      * those pages will come up blank.
@@ -133,6 +140,9 @@ class DocumentIo(
     fun read(staged: File, name: String = staged.name, source: Uri? = null): LoadedFile {
         val kind = staged.inputStream().use { FileKind.sniff(it.buffered()) }
         if (kind == FileKind.PDF) return LoadedFile.Pdf(staged)
+        // An image is likewise not a document to parse: it is handed back for the caller to hang on
+        // a page as a pixmap background (see [LoadedFile.Image]).
+        if (kind == FileKind.IMAGE) return LoadedFile.Image(staged, name)
         // A text file has no `.xopp` representation of its own, so it is typeset into a PDF and then
         // opened as one — every PDF path downstream (backgrounds, page building, text selection)
         // works unchanged from here (see [TextImport]).
