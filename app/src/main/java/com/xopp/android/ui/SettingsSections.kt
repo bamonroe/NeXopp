@@ -38,6 +38,7 @@ import com.xopp.android.render.BarrelAction
 import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
+import com.xopp.android.render.PaletteInvocation
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 import com.xopp.android.render.StrokePrecision
@@ -87,6 +88,17 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         selected = settings.barrelDoubleAction,
         label = { it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) },
         onSelect = { onChange(settings.copy(barrelDoubleAction = it)) },
+    )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    OptionGroup(
+        title = "Open the palette with",
+        subtitle = "Which gesture summons the radial palette — for a stylus with no side button, " +
+            "pick the pen-tip long press or the two-finger tap.",
+        options = PaletteInvocation.values().toList(),
+        selected = settings.paletteInvocation,
+        label = { it.label },
+        onSelect = { onChange(settings.copy(paletteInvocation = it)) },
     )
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))

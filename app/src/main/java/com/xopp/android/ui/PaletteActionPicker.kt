@@ -39,6 +39,7 @@ fun PaletteActionPickerSheet(
     current: PaletteAction?,
     palette: ColorPaletteState,
     presets: List<ToolPreset> = emptyList(),
+    palettes: List<RadialPalette> = emptyList(),
     onPick: (PaletteAction?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -72,7 +73,7 @@ fun PaletteActionPickerSheet(
                     onPick = { onPick(PaletteAction.SetWidth(it)) },
                 )
             }
-            for (group in paletteActionGroups(presets)) {
+            for (group in paletteActionGroups(presets, palettes)) {
                 item(key = group.title) { PickerHeader(group.title) }
                 items(group.choices, key = { group.title + it.label }) { choice ->
                     ChoiceRow(

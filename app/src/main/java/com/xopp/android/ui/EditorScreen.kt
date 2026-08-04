@@ -78,6 +78,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
         fingerDraws = s.fingerDraws,
         barrelAction = s.barrelAction,
         barrelDoubleAction = s.barrelDoubleAction,
+        paletteInvocation = s.paletteInvocation,
     )
     showHover = s.showHover
     paletteHaptics = s.paletteHaptics

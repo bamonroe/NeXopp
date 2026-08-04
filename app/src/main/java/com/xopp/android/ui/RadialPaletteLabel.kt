@@ -20,6 +20,7 @@ fun PaletteAction.face(): PaletteFace = when (this) {
     PaletteAction.ToggleFullPage -> PaletteFace("⛶")
     is PaletteAction.Page -> PaletteFace(op.glyph())
     is PaletteAction.ApplyPreset -> PaletteFace("★")
+    is PaletteAction.SwitchPalette -> PaletteFace("◎")
 }
 
 private fun EditorTool.glyph(): String = when (this) {

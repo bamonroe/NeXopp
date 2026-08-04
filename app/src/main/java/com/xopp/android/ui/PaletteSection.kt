@@ -80,6 +80,7 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
             current = palette[slot],
             palette = colors,
             presets = settings.presets,
+            palettes = set.palettes,
             onPick = { action ->
                 onPalette(palette.with(slot, action))
                 picking = null

@@ -67,6 +67,14 @@ sealed interface PaletteAction {
      * slot naming a preset the user has since deleted simply does nothing.
      */
     data class ApplyPreset(val presetId: String) : PaletteAction
+
+    /**
+     * Make the palette named [paletteName] the active one and reopen the ring in place, so a second
+     * flick picks from it without the pen leaving the glass. The palette is named rather than
+     * indexed because reordering the list must not silently repoint the slot at a different menu; a
+     * slot naming a palette the user has since deleted or renamed simply does nothing.
+     */
+    data class SwitchPalette(val paletteName: String) : PaletteAction
 }
 
 /**

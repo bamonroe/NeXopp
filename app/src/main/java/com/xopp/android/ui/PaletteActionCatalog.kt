@@ -14,11 +14,21 @@ data class PaletteActionChoice(val label: String, val action: PaletteAction)
 data class PaletteActionGroup(val title: String, val choices: List<PaletteActionChoice>)
 
 /** Every fixed (value-free) action a slot can hold, grouped the way the picker shows them. */
-fun paletteActionGroups(presets: List<ToolPreset> = emptyList()): List<PaletteActionGroup> = listOfNotNull(
+fun paletteActionGroups(
+    presets: List<ToolPreset> = emptyList(),
+    palettes: List<RadialPalette> = emptyList(),
+): List<PaletteActionGroup> = listOfNotNull(
     presets.takeIf { it.isNotEmpty() }?.let { saved ->
         PaletteActionGroup(
             "Preset",
             saved.map { PaletteActionChoice(it.name, PaletteAction.ApplyPreset(it.id)) },
+        )
+    },
+    // Only worth offering once there is somewhere to switch *to* — a lone palette has no targets.
+    palettes.takeIf { it.size > 1 }?.let { saved ->
+        PaletteActionGroup(
+            "Switch palette",
+            saved.map { PaletteActionChoice(it.name, PaletteAction.SwitchPalette(it.name)) },
         )
     },
     PaletteActionGroup(
@@ -67,4 +77,5 @@ fun PaletteAction.describeAction(presets: List<ToolPreset> = emptyList()): Strin
     // Named where the preset still exists; a slot pointing at a deleted preset says so plainly.
     is PaletteAction.ApplyPreset ->
         presets.firstOrNull { it.id == presetId }?.let { "Preset ${it.name}" } ?: "Preset (deleted)"
+    is PaletteAction.SwitchPalette -> "Switch to $paletteName"
 }

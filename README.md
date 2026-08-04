@@ -423,6 +423,19 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
     It starts from the built-in layout — tools and undo/redo on the inner ring, the standard pen
     colours on the outer one — and you can re-arrange it under **Settings > Palette** (below).
+  - **Open the palette with** — which gesture summons that menu, for the many styluses that have no
+    side button to double-click:
+      - **Barrel double-click** (default) — the double-click described above, with the barrel
+        double-click action set to **Radial palette**.
+      - **Pen-tip long press** — rest the tip on the glass and hold it still; the ring opens where it
+        rests, with a buzz. Move the tip more than a hair before the hold completes and you simply
+        draw as usual — a stroke is never stolen, and the few pixels laid down while holding are
+        thrown away rather than committed.
+      - **Two-finger tap** — tap two fingers on the canvas and lift them promptly; the ring opens
+        midway between them. Anything that looks like a pan or a pinch (either finger travelling, a
+        third finger, or a hold longer than a quarter-second) is left to pan and zoom as usual.
+    Only the chosen gesture is live, so the barrel double-click stops opening the palette while one
+    of the other two is selected.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**
@@ -456,6 +469,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     slot draws a **★**). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
     that preset updates the slot too; if you delete the preset, the slot reads "Preset (deleted)"
     and flicking onto it does nothing.
+  - **Switch palette** — once you have more than one palette, the sheet also lists a **Switch
+    palette** group with one row per palette (the slot draws a **◎**). Flicking onto it makes that
+    palette the active one *and* pops it straight back up in the same place, so you can step from a
+    pen palette to a shapes palette and make your pick without re-summoning the ring. The slot stores
+    the palette's *name*, so reordering the list is safe; renaming or deleting the target leaves the
+    slot doing nothing.
   - **Clear slot** — the first row of the sheet empties the slot; an empty slot cancels the menu
     when flicked onto, so it's the way to make a gap.
   - Below the diagram a summary line reports how full the palette is (**"12 of 24 slots assigned."**,

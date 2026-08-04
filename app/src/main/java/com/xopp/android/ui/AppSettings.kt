@@ -6,6 +6,7 @@ import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.GuideKind
 import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
+import com.xopp.android.render.PaletteInvocation
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 import com.xopp.android.render.StrokePrecision
@@ -41,6 +42,8 @@ data class AppSettings(
     val barrelAction: BarrelAction = BarrelAction.ERASE,
     /** What a rapid double-click of that button does (recognised only with the tip off the glass). */
     val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
+    /** Which gesture opens the radial palette — for styluses with no barrel button to double-click. */
+    val paletteInvocation: PaletteInvocation = PaletteInvocation.BARREL_DOUBLE_CLICK,
     /** Show a preview ring where a hovering stylus will land. */
     val showHover: Boolean = true,
     /** Buzz as a radial-palette flick crosses into a new slot, and again when it commits. */
@@ -163,6 +166,7 @@ class SettingsStore(context: Context) {
             fingerDraws = prefs.getBoolean(KEY_FINGER_DRAWS, d.fingerDraws),
             barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
             barrelDoubleAction = enumOr(prefs.getString(KEY_BARREL_DOUBLE, null), d.barrelDoubleAction),
+            paletteInvocation = enumOr(prefs.getString(KEY_PALETTE_INVOCATION, null), d.paletteInvocation),
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
             paletteHaptics = prefs.getBoolean(KEY_PALETTE_HAPTICS, d.paletteHaptics),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
@@ -208,6 +212,7 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_FINGER_DRAWS, s.fingerDraws)
             .putString(KEY_BARREL, s.barrelAction.name)
             .putString(KEY_BARREL_DOUBLE, s.barrelDoubleAction.name)
+            .putString(KEY_PALETTE_INVOCATION, s.paletteInvocation.name)
             .putBoolean(KEY_HOVER, s.showHover)
             .putBoolean(KEY_PALETTE_HAPTICS, s.paletteHaptics)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
@@ -246,6 +251,7 @@ class SettingsStore(context: Context) {
         const val KEY_FINGER_DRAWS = "finger_draws"
         const val KEY_BARREL = "barrel_action"
         const val KEY_BARREL_DOUBLE = "barrel_double_action"
+        const val KEY_PALETTE_INVOCATION = "palette_invocation"
         const val KEY_HOVER = "show_hover"
         const val KEY_PALETTE_HAPTICS = "palette_haptics"
         const val KEY_SENSITIVITY = "sensitivity"

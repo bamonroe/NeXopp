@@ -1093,11 +1093,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 momentum.stop(); beginPointer(event, 0); beginHandTap(event); armPageDrag(event)
+                armPaletteLongPress(event)
             }
-            MotionEvent.ACTION_POINTER_DOWN -> { handTapCandidate = false; cancelPageDrag(); onPointerDown(event) }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                handTapCandidate = false; cancelPageDrag(); cancelPaletteLongPress()
+                trackPaletteTapDown(event); onPointerDown(event)
+            }
             MotionEvent.ACTION_MOVE -> {
                 if (handTapCandidate) trackHandTapMove(event)
                 trackPageDragArm(event)
+                trackPaletteLongPressMove(event)
+                trackPaletteTapMove(event)
                 // A lifted page owns the gesture outright — no panning, drawing or erasing underneath it.
                 if (overview.dragging) { pageDragMove(event); return true }
                 // The guide is dragged by its own finger and runs *alongside* the other gestures —
@@ -1118,14 +1124,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
                     else -> Unit
                 }
             }
-            MotionEvent.ACTION_POINTER_UP -> onPointerUp(event)
+            // The two-finger tap is decided on the *first* lift — before the surviving finger can be
+            // handed a pan by [onPointerUp] — and takes the whole gesture with it when it fires.
+            MotionEvent.ACTION_POINTER_UP -> {
+                if (openPaletteOnTwoFingerTap(event)) return true
+                onPointerUp(event)
+            }
             // A spline node is still mid-curve on release — it must not run the commit-and-finish path.
             MotionEvent.ACTION_UP -> when {
                 overview.dragging -> { overview.disarm(); removeCallbacks(pageDragArm); finishPageDrag() }
                 splineDragging -> splineUp(event)
-                else -> { cancelPageDrag(); captureReleaseVelocity(event); handleHandTapUp(event); endGesture() }
+                else -> {
+                    cancelPageDrag(); cancelPaletteLongPress(); paletteTap.cancel()
+                    captureReleaseVelocity(event); handleHandTapUp(event); endGesture()
+                }
             }
-            MotionEvent.ACTION_CANCEL -> { handTapCandidate = false; cancelPageDrag(); cancelGesture() }
+            MotionEvent.ACTION_CANCEL -> {
+                handTapCandidate = false; cancelPageDrag(); cancelPaletteLongPress()
+                paletteTap.cancel(); cancelGesture()
+            }
             else -> return super.onTouchEvent(event)
         }
         return true
@@ -1220,6 +1237,89 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
+    // --- palette invocation gestures -------------------------------------------------------------
+    // The two button-free ways of summoning the ring (see [PaletteInvocation]). Each is live only
+    // when the user has picked it, so at most one of them ever inspects a touch.
+
+    private val paletteLongPressArm = Runnable { openPaletteOnLongPress() }
+    private var paletteLongPressArmed = false
+    private var paletteLongPressX = 0f
+    private var paletteLongPressY = 0f
+
+    /** The two-finger tap candidate; its rules — and their tests — live in [PaletteTapDetector]. */
+    private val paletteTap = PaletteTapDetector(touchSlopPx, TWO_FINGER_TAP_MS)
+
+    /** Arm the pen-tip hold that opens the palette, for a single stylus pointer coming down. */
+    private fun armPaletteLongPress(event: MotionEvent) {
+        cancelPaletteLongPress()
+        if (inputSettings.paletteInvocation != PaletteInvocation.PEN_TIP_LONG_PRESS) return
+        if (event.pointerCount != 1) return
+        val kind = pointerKindOf(event, 0)
+        if (kind != PointerKind.STYLUS && kind != PointerKind.ERASER_TIP) return
+        paletteLongPressArmed = true
+        paletteLongPressX = event.x
+        paletteLongPressY = event.y
+        postDelayed(paletteLongPressArm, longPressMs)
+    }
+
+    /** A tip that travels past slop before the timeout is writing — never steal that stroke. */
+    private fun trackPaletteLongPressMove(event: MotionEvent) {
+        if (!paletteLongPressArmed) return
+        if (hypot(event.x - paletteLongPressX, event.y - paletteLongPressY) > touchSlopPx) {
+            cancelPaletteLongPress()
+        }
+    }
+
+    /** Drop any pending pen-tip hold (moved, lifted, cancelled, or a second pointer arrived). */
+    private fun cancelPaletteLongPress() {
+        if (!paletteLongPressArmed) return
+        paletteLongPressArmed = false
+        removeCallbacks(paletteLongPressArm)
+    }
+
+    /**
+     * The hold fired: throw away the few pixels of stroke the tip has laid down and put the ring up
+     * where it rests. [cancelGesture] rather than [endGesture] is what makes the ink vanish instead
+     * of committing a dot to the document.
+     */
+    private fun openPaletteOnLongPress() {
+        paletteLongPressArmed = false
+        cancelGesture()
+        tick(HapticFeedbackConstants.LONG_PRESS)
+        openPalette(palette, paletteLongPressX, paletteLongPressY)
+    }
+
+    /** A second finger landing starts a tap candidate; a third one ends any hope of a tap. */
+    private fun trackPaletteTapDown(event: MotionEvent) {
+        if (inputSettings.paletteInvocation != PaletteInvocation.TWO_FINGER_TAP) return
+        if (event.pointerCount != 2 || !bothFingers(event)) { paletteTap.cancel(); return }
+        paletteTap.start(event.eventTime, event.getX(0), event.getY(0), event.getX(1), event.getY(1))
+    }
+
+    /** Feed both fingers to the detector, which drops the candidate once either one pans. */
+    private fun trackPaletteTapMove(event: MotionEvent) {
+        if (event.pointerCount < 2) return
+        paletteTap.move(event.getX(0), event.getY(0), event.getX(1), event.getY(1))
+    }
+
+    /**
+     * True when this lift completed a two-finger tap — in which case the pan it would otherwise have
+     * become is cancelled and the palette opens midway between the fingers.
+     */
+    private fun openPaletteOnTwoFingerTap(event: MotionEvent): Boolean {
+        val (x, y) = paletteTap.release(event.eventTime) ?: return false
+        cancelPageDrag()
+        cancelGesture()
+        handTapCandidate = false
+        tick(HapticFeedbackConstants.LONG_PRESS)
+        openPalette(palette, x, y)
+        return true
+    }
+
+    /** True when every pointer down is a finger — a stylus in the mix is drawing, not summoning. */
+    private fun bothFingers(event: MotionEvent): Boolean =
+        (0 until event.pointerCount).all { pointerKindOf(event, it) == PointerKind.FINGER }
+
     /** Arm double-tap tracking for a fresh single-finger touch, but only while the Hand tool is active. */
     private fun beginHandTap(event: MotionEvent) {
         handTapCandidate = handMode
@@ -1295,7 +1395,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
             BarrelDoubleAction.NONE -> Unit
             BarrelDoubleAction.UNDO -> undo()
             BarrelDoubleAction.REDO -> redo()
-            BarrelDoubleAction.RADIAL_PALETTE -> openPalette(palette, event.x, event.y)
+            // Honours the invocation setting: with the palette bound to a tip or finger gesture, the
+            // button must not also open it, or two menus' worth of gesture would be live at once.
+            BarrelDoubleAction.RADIAL_PALETTE ->
+                if (inputSettings.paletteInvocation == PaletteInvocation.BARREL_DOUBLE_CLICK) {
+                    openPalette(palette, event.x, event.y)
+                }
             else -> onBarrelDoubleClick?.invoke(action)
         }
     }
@@ -2144,8 +2249,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
      */
     fun openPalette(palette: RadialPalette, x: Float, y: Float) {
         paletteOverlay = RadialPaletteRenderer.Overlay(palette, x, y)
+        lastPaletteAnchorX = x
+        lastPaletteAnchorY = y
         render()
     }
+
+    /** Where the last menu stood, so a switch-palette slot can put its successor in the same place. */
+    private var lastPaletteAnchorX = 0f
+    private var lastPaletteAnchorY = 0f
+
+    /**
+     * Put [palette] up again at the anchor the menu that just closed used — what a
+     * [PaletteAction.SwitchPalette] slot fires, so the pen never has to re-summon the ring.
+     */
+    fun reopenPalette(palette: RadialPalette) =
+        openPalette(palette, lastPaletteAnchorX, lastPaletteAnchorY)
 
     /** Move the pen over the open menu, re-hit-testing which slot is highlighted. No-op if closed. */
     fun movePaletteTo(x: Float, y: Float) {
@@ -2246,6 +2364,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val MAX_ZOOM = ViewportState.MAX_ZOOM
         /** Below this two-finger span (view px) the pinch ratio is too noisy to zoom by, so it's ignored. */
         const val PINCH_MIN_SPAN_PX = 40f
+        /**
+         * How long two fingers may rest before their lift stops counting as a palette tap. Kept
+         * short (well under the long-press timeout) so a deliberate two-finger pan never trips it.
+         */
+        const val TWO_FINGER_TAP_MS = 250L
         const val TAP_SLOP_PX = 16f
         const val SELECT_PAD_PX = 6f
         const val MOVE_GRAB_PAD = 8.0

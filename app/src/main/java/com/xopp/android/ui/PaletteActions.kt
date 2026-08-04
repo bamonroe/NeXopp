@@ -37,7 +37,29 @@ fun applyPaletteAction(
         // A slot naming a preset that has since been deleted is a no-op rather than an error.
         is PaletteAction.ApplyPreset -> settings.presets.firstOrNull { it.id == action.presetId }
             ?.let { applyToolPreset(it, ui, surface, settings, onSettingsChange) }
+        is PaletteAction.SwitchPalette -> switchPalette(action.paletteName, surface, settings, onSettingsChange)
     }
+}
+
+/**
+ * Make the palette named [name] active and pop it straight back up where the last one stood, so the
+ * switch costs one flick rather than a flick and a fresh summoning gesture. A name no palette
+ * carries any more (deleted or renamed) is a no-op, matching the deleted-preset case above.
+ */
+private fun switchPalette(
+    name: String,
+    surface: DrawingSurfaceView,
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    val index = settings.palettes.indexOfFirst { it.name == name }
+    if (index < 0) return
+    val updated = settings.withPalettes(activatePalette(settings.paletteSet, index))
+    onSettingsChange(updated)
+    // Pushed in directly rather than waiting for the settings round trip to reach `applySettings`:
+    // the reopen happens now, and recomposition is a frame or more away.
+    surface.palette = updated.radialPalette
+    surface.reopenPalette(updated.radialPalette)
 }
 
 /** The page half of [applyPaletteAction] — split out to keep each function one screen long. */
