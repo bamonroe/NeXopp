@@ -5,6 +5,8 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import org.junit.Test
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 
 /** The open path must classify by content, since the picker is unfiltered and URIs carry no suffix. */
 class FileKindTest {
@@ -69,6 +71,18 @@ class FileKindTest {
     fun `a multi-byte character cut off by the sample limit still reads as text`() {
         val long = "é".repeat(FileKind.MAGIC_BYTES) // 2 bytes each, so the sample ends mid-character
         assertEquals(FileKind.TEXT, sniff(long.toByteArray()))
+    }
+
+    @Test
+    fun `markdown is a name verdict, not a content one`() {
+        // The bytes of a markdown file are plain text; only the display name says otherwise.
+        assertEquals(FileKind.TEXT, sniff("# heading\n\nsome *emphasis*\n".toByteArray()))
+        assertTrue(FileKind.isMarkdownName("notes.md"))
+        assertTrue(FileKind.isMarkdownName("notes.markdown"))
+        assertTrue(FileKind.isMarkdownName("READ.ME.MD"))
+        assertFalse(FileKind.isMarkdownName("notes.txt"))
+        assertFalse(FileKind.isMarkdownName("md"))
+        assertFalse(FileKind.isMarkdownName("notes.md.txt"))
     }
 
     @Test

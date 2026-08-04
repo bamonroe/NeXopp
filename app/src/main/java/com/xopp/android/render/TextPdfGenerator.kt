@@ -20,14 +20,25 @@ import java.io.OutputStream
 class TextPdfGenerator(private val loadFont: (PDDocument) -> PdfFonts.Embedded) {
 
     /**
-     * Write [text] to [out] as a PDF laid out to [spec]. Returns the page count written (always at
-     * least one, so an empty file still yields a blank sheet to annotate). The stream is not closed.
+     * Write [text] to [out] as a PDF laid out to [spec], typeset for [flavor]. Returns the page
+     * count written (always at least one, so an empty file still yields a blank sheet to annotate).
+     * The stream is not closed.
      */
-    fun generate(text: String, out: OutputStream, spec: TextPaginator.PageSpec = TextPaginator.PageSpec()): Int {
+    fun generate(
+        text: String,
+        out: OutputStream,
+        spec: TextPaginator.PageSpec = TextPaginator.PageSpec(),
+        flavor: TextFlavor = TextFlavor.PLAIN,
+    ): Int {
         val doc = PDDocument()
         try {
             val font = loadFont(doc)
-            val pages = TextPaginator.layout(text, spec, font.measurer(spec.fontSizePt))
+            // The markdown branch is the seam the parser/layout work lands in; until it exists,
+            // markdown is typeset exactly as its source text, which is a correct (if plain) result.
+            val source = when (flavor) {
+                TextFlavor.PLAIN, TextFlavor.MARKDOWN -> text
+            }
+            val pages = TextPaginator.layout(source, spec, font.measurer(spec.fontSizePt))
             pages.forEach { lines -> writePage(doc, font, lines, spec) }
             doc.save(out)
             return pages.size

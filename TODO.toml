@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "detect-markdown-imports-and-route-them-to-a-markdown-path"
-title = "Detect markdown imports and route them to a markdown path"
-description = "Today FileKind.of() classifies a .md file as plain TEXT (content sniffing only, no extension) and DocumentIo.read() sends it to TextImport. Add a markdown verdict: since SAF gives a display name at DocumentIo.read()/TextImport.pdfFor(name), route on a .md/.markdown suffix on that name, with FileKind.TEXT still the content-level verdict. Introduce the seam (a MarkdownImport alongside TextImport, or a mode flag through TextPdfGenerator) so the later parser/layout tasks have somewhere to land, and cache under a distinct key prefix so the same bytes imported as text and as markdown do not collide in PdfStore. Tests in FileKindTest/TextImportTest; document the routing rule in docs/architecture.md and the user-visible behaviour in README.md."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 110
-created = 2026-08-04
-tags = ["markdown", "text"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "write-a-dependency-free-markdown-block-parser"
 title = "Write a dependency-free markdown block parser"
 description = "A pure-Kotlin parser (no Android, no deps, sibling of TextPaginator) that turns markdown source into a list of blocks: ATX/setext headings with level, paragraphs, fenced and indented code blocks, ordered/unordered lists with nesting depth, block quotes with depth, horizontal rules, and blank-line separation. Output is a data model only - no measurement, no layout. Inline spans are NOT this task's job (they come next); a paragraph block carries its raw inline text. Full unit-test coverage of each block type plus the awkward cases (lazy continuation, list item containing a code block, quote containing a list, CRLF, tabs)."

@@ -62,6 +62,26 @@ class TextImportTest {
         assertNotEquals(base, import.pdfFor(source("some notes"), "other.txt"))
     }
 
+    @Test fun theSameBytesImportedAsMarkdownDoNotReuseThePlainTextPdf() {
+        val import = TextImport(PdfStore(tmp.newFolder()), generator())
+        val plain = import.pdfFor(source("# heading"), "notes.txt")
+        generations = 0
+        val markdown = import.pdfFor(source("# heading"), "notes.md")
+
+        assertNotEquals("markdown is cached under its own key", plain, markdown)
+        assertEquals("and was typeset in its own right", 1, generations)
+    }
+
+    @Test fun markdownIsRoutedByNameNotByContent() {
+        val import = TextImport(PdfStore(tmp.newFolder()), generator())
+        val md = import.pdfFor(source("# heading"), "notes.md")
+        generations = 0
+
+        assertEquals("the suffix alone decides, and it caches", md, import.pdfFor(source("# heading"), "notes.md"))
+        assertEquals(0, generations)
+        assertNotEquals("a .markdown suffix routes the same way a .md does", md, import.pdfFor(source("# heading"), "notes.markdown"))
+    }
+
     @Test fun pruningTheStoreForcesRegeneration() {
         val store = PdfStore(tmp.newFolder())
         val import = TextImport(store, generator())

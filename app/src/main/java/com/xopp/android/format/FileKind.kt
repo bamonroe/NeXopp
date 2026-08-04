@@ -58,6 +58,18 @@ enum class FileKind {
             }
         }
 
+        /** Name suffixes that mark a text file as markdown rather than prose to typeset verbatim. */
+        private val MARKDOWN_SUFFIXES = listOf(".md", ".markdown")
+
+        /**
+         * Whether the *display name* [name] says this text file is markdown. Deliberately the one
+         * place we look at a suffix: markdown has no signature to sniff — a `.md` file is printable
+         * UTF-8 like any other, so the content verdict stays [TEXT] and only the name distinguishes
+         * "render the syntax" from "typeset it literally". SAF gives us that name at open time.
+         */
+        fun isMarkdownName(name: String): Boolean =
+            MARKDOWN_SUFFIXES.any { name.endsWith(it, ignoreCase = true) }
+
         /**
          * Whether [sample] looks like human-readable UTF-8 text. Empty input is not text (there is
          * nothing to typeset). The sample is a *prefix* of the file, so a multi-byte character may

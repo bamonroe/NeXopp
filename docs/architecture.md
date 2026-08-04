@@ -499,6 +499,7 @@ app/
       TextPaginator.kt       # text-import word-wrap + A4 pagination, injected measurement (pure)
       PdfFonts.kt            # embeds the bundled Unicode fonts (DejaVu) into a PDDocument, cached per doc
       TextPdfGenerator.kt    # authors the text-import PDF: selectable embedded text, injected font loader
+      TextFlavor.kt          # plain vs markdown typesetting flavour + its PdfStore cache prefix
       GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
@@ -940,6 +941,19 @@ file" — the only thing that round-trips is a PDF background — so `DocumentIo
 `PdfImport.documentFor`, text selection, saving) runs unchanged with no text-specific branch. The
 generator is injected into `DocumentIo` (it needs the bundled fonts, and so an `AssetManager`), which
 keeps the rest of the class Android-free.
+
+**Markdown routes on the name, not the bytes.** A `.md` file is printable UTF-8 like any other text,
+so sniffing cannot separate the two: `FileKind.of` still returns `TEXT` for markdown, and the
+markdown verdict is a **second, name-level** one — `FileKind.isMarkdownName(name)` matches a `.md` /
+`.markdown` suffix (case-insensitively) on the *display* name SAF hands `DocumentIo.read()`. That is
+the single place in the open path an extension is consulted, and it is consulted only to pick a
+**flavour**, never a format. `TextImport.pdfFor` turns the name into a `render/TextFlavor`
+(`PLAIN` · `MARKDOWN`) and rides it through `TextPdfGenerator.generate(…, flavor)` rather than
+forking a parallel import class — everything downstream of the generated PDF is identical, so a
+second path would buy nothing. The `MARKDOWN` branch in the generator is the seam the markdown
+parser and block layout land in; until they exist it typesets the source verbatim, which is a
+correct if plain result. Each flavour carries its own `cachePrefix` (`text:` / `markdown:`) so the
+same bytes opened as `notes.txt` and as `notes.md` cannot collide in `PdfStore`.
 
 Two consequences fall out of the generated PDF living only in the cache:
 

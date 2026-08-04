@@ -169,6 +169,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   its own, and the typeset pages are **saved inside** the `.xopp` (the zipped single-file package) —
   so the file reopens with its text intact on this device *and* in desktop Xournal++, with nothing
   else to keep alongside it. Reopening the same text file again reuses the pages already typeset.
+  A file named `.md` or `.markdown` is recognised as **markdown** and imported on its own track,
+  cached separately from the same text opened under a `.txt` name — for now it is typeset just like
+  plain text, with rendered headings, emphasis and lists still to come.
   Very large files are **refused rather than opened**: typesetting reads the whole file at once, so a
   file over the **text import limit** (16 MB by default) comes back as *"Text file is N MB, over the
   16 MB import limit"* instead of stalling the app. Raise or lower that limit under

@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "detect-markdown-imports-and-route-them-to-a-markdown-path"
+title = "Detect markdown imports and route them to a markdown path"
+description = "Today FileKind.of() classifies a .md file as plain TEXT (content sniffing only, no extension) and DocumentIo.read() sends it to TextImport. Add a markdown verdict: since SAF gives a display name at DocumentIo.read()/TextImport.pdfFor(name), route on a .md/.markdown suffix on that name, with FileKind.TEXT still the content-level verdict. Introduce the seam (a MarkdownImport alongside TextImport, or a mode flag through TextPdfGenerator) so the later parser/layout tasks have somewhere to land, and cache under a distinct key prefix so the same bytes imported as text and as markdown do not collide in PdfStore. Tests in FileKindTest/TextImportTest; document the routing rule in docs/architecture.md and the user-visible behaviour in README.md."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["markdown", "text"]
+
+[[task]]
 id = "typeset-a-large-text-import-incrementally-instead-of-all-at-once"
 title = "Typeset a large text import incrementally instead of all at once"
 description = "TextImport currently reads the whole text file and lays out every page before writing the PDF, which is why the import needs a hard size cap (Settings -> Storage). Investigate streaming the paginator: lay out and write one page at a time from a buffered reader in TextPdfGenerator.generate, so memory is bounded by a page rather than by the file, and a bigger cap becomes safe."
