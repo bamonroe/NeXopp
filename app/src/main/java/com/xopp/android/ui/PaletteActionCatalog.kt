@@ -14,7 +14,13 @@ data class PaletteActionChoice(val label: String, val action: PaletteAction)
 data class PaletteActionGroup(val title: String, val choices: List<PaletteActionChoice>)
 
 /** Every fixed (value-free) action a slot can hold, grouped the way the picker shows them. */
-fun paletteActionGroups(): List<PaletteActionGroup> = listOf(
+fun paletteActionGroups(presets: List<ToolPreset> = emptyList()): List<PaletteActionGroup> = listOfNotNull(
+    presets.takeIf { it.isNotEmpty() }?.let { saved ->
+        PaletteActionGroup(
+            "Preset",
+            saved.map { PaletteActionChoice(it.name, PaletteAction.ApplyPreset(it.id)) },
+        )
+    },
     PaletteActionGroup(
         "Select tool",
         EditorTool.entries.map { PaletteActionChoice(it.label, PaletteAction.SelectTool(it)) },
@@ -49,7 +55,7 @@ val PalettePageOp.label: String
     }
 
 /** How an assigned action reads in the "Selected slot" line and in the picker's current-value row. */
-fun PaletteAction.describeAction(): String = when (this) {
+fun PaletteAction.describeAction(presets: List<ToolPreset> = emptyList()): String = when (this) {
     is PaletteAction.SelectTool -> "Select ${tool.label.lowercase()}"
     is PaletteAction.ToggleTool -> "Toggle ${tool.label.lowercase()}"
     is PaletteAction.SetColor -> "Colour #%06X".format(argb and 0xFFFFFF)
@@ -58,4 +64,7 @@ fun PaletteAction.describeAction(): String = when (this) {
     PaletteAction.Redo -> "Redo"
     PaletteAction.ToggleFullPage -> "Toggle full page"
     is PaletteAction.Page -> op.label
+    // Named where the preset still exists; a slot pointing at a deleted preset says so plainly.
+    is PaletteAction.ApplyPreset ->
+        presets.firstOrNull { it.id == presetId }?.let { "Preset ${it.name}" } ?: "Preset (deleted)"
 }

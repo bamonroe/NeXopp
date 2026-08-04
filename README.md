@@ -441,8 +441,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     spells out which ring, which position, and what it currently holds). The tap also opens the
     **action picker** — a bottom sheet listing everything a slot can do: **Select tool** and
     **Toggle tool** for each tool, the shared **colour** swatches, a **width** slider with a
-    *Set width* button, **Undo**, **Redo**, **Toggle full page**, and the page operations (new page
-    after/before, duplicate, delete, next, previous). Pick one and the sheet closes.
+    *Set width* button, **Undo**, **Redo**, **Toggle full page**, the page operations (new page
+    after/before, duplicate, delete, next, previous), and — once you have saved any — a **Preset**
+    group listing your saved tool presets, so one flick restores a whole tool configuration (the
+    slot draws a **★**). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
+    that preset updates the slot too; if you delete the preset, the slot reads "Preset (deleted)"
+    and flicking onto it does nothing.
   - **Clear slot** — the first row of the sheet empties the slot; an empty slot cancels the menu
     when flicked onto, so it's the way to make a gap.
   - Below the diagram a summary line reports how full the palette is (**"12 of 24 slots assigned."**,

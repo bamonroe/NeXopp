@@ -53,7 +53,7 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     Column {
         Text("Selected slot", style = MaterialTheme.typography.bodyLarge)
-        Text(selected.describe(settings.radialPalette), style = MaterialTheme.typography.bodySmall)
+        Text(selected.describe(settings.radialPalette, settings.presets), style = MaterialTheme.typography.bodySmall)
     }
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     PaletteResetControls(settings.radialPalette) { updated ->
@@ -65,6 +65,7 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
             slot = slot,
             current = settings.radialPalette[slot],
             palette = colors,
+            presets = settings.presets,
             onPick = { action ->
                 onChange(settings.copy(radialPalette = settings.radialPalette.with(slot, action)))
                 picking = null
@@ -75,10 +76,10 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
 }
 
 /** How the selected slot reads in prose: which ring, which position, and what it currently holds. */
-internal fun RadialSlot?.describe(palette: RadialPalette): String {
+internal fun RadialSlot?.describe(palette: RadialPalette, presets: List<ToolPreset> = emptyList()): String {
     if (this == null) return "None — tap a slot in the diagram above."
     val ringName = if (ring == RadialRing.INNER) "Inner" else "Outer"
-    val holds = palette[this]?.describeAction() ?: "empty"
+    val holds = palette[this]?.describeAction(presets) ?: "empty"
     return "$ringName ring, slot ${index + 1} of ${ring.slotCount} — $holds."
 }
 

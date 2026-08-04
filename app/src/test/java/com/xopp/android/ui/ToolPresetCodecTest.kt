@@ -54,6 +54,29 @@ class ToolPresetCodecTest {
     }
 
     @Test
+    fun `a preset palette action round-trips through the palette codec`() {
+        val palette = RadialPalette().with(
+            RadialSlot(RadialRing.INNER, 0),
+            PaletteAction.ApplyPreset("marker"),
+        )
+        assertEquals(palette, decodeRadialPalette(encodeRadialPalette(palette)))
+    }
+
+    @Test
+    fun `a preset slot names the preset, or says it is gone`() {
+        val action = PaletteAction.ApplyPreset("marker")
+        assertEquals("Preset Marker", action.describeAction(presets))
+        assertEquals("Preset (deleted)", action.describeAction(emptyList()))
+    }
+
+    @Test
+    fun `saved presets become picker choices`() {
+        val group = paletteActionGroups(presets).first { it.title == "Preset" }
+        assertEquals(presets.map { PaletteAction.ApplyPreset(it.id) }, group.choices.map { it.action })
+        assertTrue(paletteActionGroups().none { it.title == "Preset" })
+    }
+
+    @Test
     fun `an out-of-range width is coerced rather than dropped`() {
         val raw = "wide;Wide;PEN;-1;9999;PLAIN;0;128"
         assertEquals(PEN_WIDTH_MAX, decodeToolPresets(raw).single().widthPt)

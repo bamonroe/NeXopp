@@ -60,6 +60,13 @@ sealed interface PaletteAction {
 
     /** A page-level operation. */
     data class Page(val op: PalettePageOp) : PaletteAction
+
+    /**
+     * Activate the saved [ToolPreset] with this id — the whole tool configuration in one flick.
+     * The id is stored rather than the preset itself so editing a preset also updates the slot; a
+     * slot naming a preset the user has since deleted simply does nothing.
+     */
+    data class ApplyPreset(val presetId: String) : PaletteAction
 }
 
 /**

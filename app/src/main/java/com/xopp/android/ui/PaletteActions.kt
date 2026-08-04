@@ -34,6 +34,9 @@ fun applyPaletteAction(
         PaletteAction.Redo -> surface.redo()
         PaletteAction.ToggleFullPage -> ui.fullPage = !ui.fullPage
         is PaletteAction.Page -> applyPageOp(action.op, surface)
+        // A slot naming a preset that has since been deleted is a no-op rather than an error.
+        is PaletteAction.ApplyPreset -> settings.presets.firstOrNull { it.id == action.presetId }
+            ?.let { applyToolPreset(it, ui, surface, settings, onSettingsChange) }
     }
 }
 

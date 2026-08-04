@@ -65,6 +65,7 @@ private fun encodeAction(action: PaletteAction): String = when (action) {
     PaletteAction.Redo -> "redo"
     PaletteAction.ToggleFullPage -> "fullpage"
     is PaletteAction.Page -> "page:${action.op.name}"
+    is PaletteAction.ApplyPreset -> "preset:${action.presetId}"
 }
 
 /** Parse one slot token, yielding `null` (an empty slot) for anything this build can't make sense of. */
@@ -82,6 +83,7 @@ private fun decodeAction(token: String): PaletteAction? {
         "redo" -> PaletteAction.Redo
         "fullpage" -> PaletteAction.ToggleFullPage
         "page" -> enumOrNull<PalettePageOp>(arg)?.let(PaletteAction::Page)
+        "preset" -> arg.takeIf { it.isNotEmpty() }?.let(PaletteAction::ApplyPreset)
         else -> null
     }
 }

@@ -38,6 +38,7 @@ fun PaletteActionPickerSheet(
     slot: RadialSlot,
     current: PaletteAction?,
     palette: ColorPaletteState,
+    presets: List<ToolPreset> = emptyList(),
     onPick: (PaletteAction?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -48,7 +49,7 @@ fun PaletteActionPickerSheet(
                 Column(Modifier.padding(bottom = 8.dp)) {
                     Text(slot.title(), style = MaterialTheme.typography.titleMedium)
                     Text(
-                        current?.let { "Currently: ${it.describeAction()}" } ?: "Currently empty",
+                        current?.let { "Currently: ${it.describeAction(presets)}" } ?: "Currently empty",
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -71,7 +72,7 @@ fun PaletteActionPickerSheet(
                     onPick = { onPick(PaletteAction.SetWidth(it)) },
                 )
             }
-            for (group in paletteActionGroups()) {
+            for (group in paletteActionGroups(presets)) {
                 item(key = group.title) { PickerHeader(group.title) }
                 items(group.choices, key = { group.title + it.label }) { choice ->
                     ChoiceRow(

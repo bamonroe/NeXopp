@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "preset-activate"
+title = "Tool presets: activate a preset in one tap, incl. from a radial palette slot"
+description = "Fast activation: tapping a preset in the rail popup applies it immediately, and add PaletteAction.ApplyPreset(presetId) to ui/RadialPalette.kt handled in ui/PaletteActions.kt so a radial slot can hold a whole preset. Update RadialPaletteLabel to show the preset name and cover the new action in the palette unit tests."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["presets"]
+
+[[task]]
 id = "preset-rail-ui"
 title = "Tool presets: rail UI to save, name, reorder and delete presets"
 description = "A presets popup in the tool rail (ui/ToolbarPresetsPopup.kt, alongside ToolbarColorPopup/ToolbarSizePopup, plus a RailItem entry in ui/RailItems.kt): list saved presets with a colour/width swatch, 'Save current tool as preset' with an inline name field, reorder, and delete. Writes through onSettingsChange."
