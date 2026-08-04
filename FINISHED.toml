@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "radial-palette-data-model-for-slots-and-actions"
+title = "Radial palette: data model for slots and actions"
+description = "Define the palette data model in ui/: a RadialPalette with an inner ring of 8 slots and an outer ring of 16, each slot either empty or holding a PaletteAction (tool switch, color, width, undo/redo, page ops). Reuse the EditorTool enum (ui/EditorTool.kt) and the existing toolbar actions so a slot maps onto something EditorUiState already knows how to do. Pure Kotlin + unit tests, no UI."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "double-barrel-button-click-action"
 title = "Double barrel-button click action"
 description = "The stylus barrel button currently has a hold action. Add a distinct action for a rapid double-click of the barrel button (two presses in quick succession), which triggers a different action/tool from the hold. Needs a double-click detection window and a configurable action binding."

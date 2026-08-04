@@ -528,6 +528,7 @@ app/
       ToolbarLayersPopup.kt  # rail slot: the layer manager list + rename dialog
       ColorPalette.kt        # the one colour picker (swatches + custom slot + recents) all three sites use
       ColorPicker.kt         # the arbitrary-colour HSV/hex dialog behind the palette's custom slot
+      RadialPalette.kt       # the pen-tip radial menu's model: two rings of slots holding PaletteActions (pure)
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
