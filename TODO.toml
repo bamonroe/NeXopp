@@ -32,8 +32,11 @@ Investigate and break down into atomic tasks; the shape looks like:
 - Pagination: a new layout unit that wraps the text into lines and paginates it against the default paper size from the user's default page settings, white background. Fonts come from format/FontDescription.kt; line layout logic overlaps render/TextBlock.kt and may be shareable.
 - PDF generation: emit a real PDF with PDFBox using embedded, selectable text (no rasterising and no OCR - the characters are already known). Reuse the vector text path in render/PdfVectorPainter.kt where it fits.
 - Wiring: hand the generated PDF to PdfStore/PdfImport so it lands as Background.Pdf like a normal import; text selection then falls out of PdfTextExtractor/PdfText for free.
-- Round-trip: decide how the generated PDF is persisted on save - it must be attached/zipped into the .xopp (there is no on-disk source PDF), so the ZIPPED/attach encode path in DocumentIo.kt is the likely default.
-- Open questions to settle while scoping: font choice and size, tabs/CJK/unicode coverage, very large files, whether re-opening re-generates or reuses the stored PDF, and monospace vs proportional defaults."""
+
+RESOLVED open questions (2026-08-04):
+- Persistence: the generated PDF lives in the app cache via the existing io/PdfStore.kt, which is already one-file-per-document and prunes against the tabs still open - so closing the tab drops it, and clearing app cache through Android drops it too. Extend it with a small manifest keyed by a content hash of the source text (plus title), so reopening the same file while its cache entry survives reuses the PDF instead of regenerating. On save to .xopp the generated PDF must be attached/zipped (ZIPPED/attach encode path in DocumentIo.kt) since there is no source PDF on disk.
+- Fonts: ship a permissively licensed open-source family (no license encumbrance), one proportional and one monospace; monospace is the sensible default for logs and source. Unicode coverage is settled by that same font choice - pick one with broad coverage and document the fallback for characters it lacks.
+- Very large files: cap it. Generate lazily / incrementally rather than converting a whole several-hundred-megabyte log up front, and enforce a per-file cache size cap with a clear message when a file exceeds it. Expose the cap as an Advanced setting."""
 status = "active"
 level = "scope"
 category = "feature"
