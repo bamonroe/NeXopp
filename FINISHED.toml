@@ -17,6 +17,50 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "open-the-radial-palette-on-a-two-finger-tap"
+title = "Open the radial palette on a two-finger tap"
+description = "Implement the TWO_FINGER_TAP invocation: a quick two-pointer finger tap that does not become a pan or pinch opens the palette centred between the two fingers. Must not steal the existing pan/zoom gestures or the hand double-tap; guard on movement and duration thresholds. Verify on the emulator."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
+id = "open-the-radial-palette-on-a-pen-tip-long-press"
+title = "Open the radial palette on a pen-tip long-press"
+description = "In DrawingSurfaceView, arm the existing longPressMs timer on a stylus-down when PaletteInvocation is PEN_TIP_LONG_PRESS, cancel it once the pointer moves past touch slop so it never steals a stroke, and open the two-ring palette at the down point. Verify on the emulator with a simulated stylus hold."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
+id = "add-a-palette-invocation-setting-for-styluses-without-a-barrel-button"
+title = "Add a palette-invocation setting for styluses without a barrel button"
+description = "Introduce a PaletteInvocation enum in InputSettings (BARREL_DOUBLE_CLICK default, PEN_TIP_LONG_PRESS, TWO_FINGER_TAP) with a SettingsStore key and a settings-screen choice, so invocation is user-selectable rather than hardwired to EditorRegions.onBarrelDoubleClick. Unit-test the setting round-trip; document in README."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
+id = "add-a-switch-palette-slot-action-to-the-radial-palette"
+title = "Add a switch-palette slot action to the radial palette"
+description = "Add a SWITCH_PALETTE action to PaletteActionCatalog/PaletteActions carrying a target palette id, so a flick to that slot makes another palette active (and optionally reopens the ring in place at the pen tip). Cover the codec token and the hit-test dispatch with unit tests; document in README."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "palette-manager-ui-add-rename-reorder-and-delete-palettes"
 title = "Palette manager UI: add, rename, reorder and delete palettes"
 description = "In PaletteSection/PaletteEditorLayout, add a manager row above the ring editor to create a palette, rename it, reorder it, delete it (never below one), and choose which palette the editor edits and which is active. Follow the presets rail pattern already used for tool presets. Document in README."
