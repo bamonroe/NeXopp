@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "break-sidetoolbar-kt-into-per-section-files"
+title = "Break SideToolbar.kt into per-section files"
+description = "SideToolbar.kt is 1303 lines holding the toolbar shell plus every popup it can open; the SideToolbar composable itself is ~117 lines and PagesPopupButton ~102, both over the ~100-line guideline. Split along the popup boundaries (pages popup, layers popup, tool option groups, colour entry) into sibling files in ui/, mirroring how SettingsScreen/SettingsSections is already split. Pure code motion — no behaviour change."
+status = "finished"
+category = "refactor"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["mono-file", "ui"]
+
+[[task]]
 id = "unify-the-three-colour-pickers-behind-one-component"
 title = "Unify the three colour pickers behind one component"
 description = """

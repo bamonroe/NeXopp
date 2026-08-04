@@ -515,7 +515,14 @@ app/
       EditorUiState.kt       # the screen's remembered chrome state (pen, open dialogs, panes) in one holder
       EditorRegions.kt       # the screen's regions: top bar, ☰ menu, the rail's wiring, one pane's canvas
       EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import dialogs
-      SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
+      SideToolbar.kt         # left vertical rail: the shell + tool-group slots; each pop-up is a Toolbar*.kt below
+      EditorTool.kt          # the editor's tool modes + their labels/icons (pure)
+      ToolbarColorPopup.kt   # rail slot: the pen colour drop-down (wraps ColorPalette.kt)
+      ToolbarSizePopup.kt    # rail slot: the three pen-width slots + their long-press resize dialog
+      ToolbarStylePopup.kt   # rail slots: line style + fill controls, and the shape-recognition toggle
+      ToolbarViewPopups.kt   # rail slots: zoom, page background, drawing guides, audio
+      ToolbarPagesPopup.kt   # rail slot: page navigation/clipboard, overview grid controls, page-size dialog
+      ToolbarLayersPopup.kt  # rail slot: the layer manager list + rename dialog
       ColorPalette.kt        # the one colour picker (swatches + custom slot + recents) all three sites use
       ColorPicker.kt         # the arbitrary-colour HSV/hex dialog behind the palette's custom slot
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
@@ -721,7 +728,7 @@ layer (where new ink lands) and per-layer *visibility* are view-only editor stat
 visibility just skips a layer in `PageRenderer.drawElements`, so it never touches the file. The UI for
 all four lives in the rail's **Tool** (shapes, eraser mode), **Style** (line style / fill), and
 **Layers** pop-ups (`SideToolbar`). Fill is a switch plus a continuous alpha `Slider`
-(`SideToolbar.FillControls`) rather than preset levels; its on/off state and alpha persist as
+(`ToolbarStylePopup.FillControls`) rather than preset levels; its on/off state and alpha persist as
 `AppSettings.fillEnabled` / `fillAlpha`, and `AppSettings.currentFill` derives the surface's fill
 from that pair (`null` when off) instead of the screen holding separate session state.
 
@@ -918,7 +925,7 @@ round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`, which is an **index of sections** (`SettingsSection` —
 Stylus, Editor, Navigation): each row opens that section as its own page, with back returning to the
 index and back from the index leaving settings. Section bodies live in `SettingsSections.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
-lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
+lives beside its pop-up (`ToolbarColorPopup.kt` / `ToolbarSizePopup.kt`); the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in
 `ColorPicker.kt`. Every place a colour is chosen — the pen's rail button, the text-box dialog, the
 selection recolour menu — renders the **one** `ColorPaletteRows` component (`ColorPalette.kt`):
