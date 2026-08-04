@@ -21,19 +21,6 @@ finish_work = "When a task is fully finished (built, tested, documented), run `t
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "unify-the-ink-and-pdf-bitmap-caches-under-one-memory-budget"
-title = "Unify the ink and PDF bitmap caches under one memory budget"
-description = "There are two independent bitmap caches with unrelated eviction policies and separate budgets: InkCache (render/InkCache.kt) uses a plain HashMap keyed by page index, evicting only via retain(keep) on viewport change with a per-entry BUDGET_PX ceiling, while PdfPageCache (render/PdfPageCache.kt:57) uses an access-ordered LinkedHashMap LRU with its own byte budget. On a PDF-backed document both fill simultaneously and neither knows the other's footprint, so total bitmap memory is the sum of two guesses rather than one bound. Extract a shared BitmapBudget (bytes accounted centrally, LRU eviction, recycle on evict) that both caches allocate through, sized from the app's actual heap via ActivityManager.memoryClass instead of hard-coded constants."
-status = "active"
-category = "refactor"
-urgency = "normal"
-order = 40
-created = 2026-08-03
-tags = ["memory", "performance"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "break-sidetoolbar-kt-into-per-section-files"
 title = "Break SideToolbar.kt into per-section files"
 description = "SideToolbar.kt is 1303 lines holding the toolbar shell plus every popup it can open; the SideToolbar composable itself is ~117 lines and PagesPopupButton ~102, both over the ~100-line guideline. Split along the popup boundaries (pages popup, layers popup, tool option groups, colour entry) into sibling files in ui/, mirroring how SettingsScreen/SettingsSections is already split. Pure code motion — no behaviour change."
