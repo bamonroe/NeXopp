@@ -598,7 +598,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun pdfSourcePageCount(): Int = pdfSource?.pageCount ?: 0
 
     /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
-    fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource).export(doc, out)
+    fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource, imageSource).export(doc, out)
 
     // --- undo / redo ---------------------------------------------------------------------------
 

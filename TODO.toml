@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "paint-image-backgrounds-in-pdf-export"
-title = "Paint image backgrounds in PDF export"
-description = "PdfExporter.kt:43 / render/PdfBackgroundPainter.kt:27-36 only handle solid and original-PDF backgrounds. Draw the resolved background bitmap onto the PDFBox content stream so an image-backed document flattens correctly on export."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 60
-created = 2026-08-04
-tags = ["image-background"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "open-image-files-from-the-launcher-via-intent-filters"
 title = "Open image files from the launcher via intent filters"
 description = "Add image/png, image/jpeg (and .png/.jpg pathPattern) VIEW/EDIT intent filters to AndroidManifest.xml mirroring the PDF blocks at :30-52, so the app appears as an image handler and IncomingDocument routing picks them up."

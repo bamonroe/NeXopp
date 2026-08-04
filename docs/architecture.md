@@ -916,12 +916,15 @@ is available (`PdfPageCache.source`, the cached import) is **imported verbatim s
 content is preserved** (`PDDocument.importPage`), and the annotations are appended over it as a
 **vector overlay** (`PdfVectorPainter`, an `APPEND`-mode content stream); every other page becomes a
 fresh sheet whose background ruling is drawn as vectors (`PdfBackgroundPainter`) with the same
-overlay. `PdfVectorPainter` mirrors the on-screen `StrokePainter`/`ElementRenderer` geometry at scale
+overlay. A `pixmap`-backed page additionally gets its picture embedded over that sheet —
+`PdfExporter` decodes it synchronously through `ImageBackgroundCache.render` at 2× the page's point
+size (~150 dpi) and draws it to the page box, so an image-backed document flattens to what the
+editor shows; a picture that no longer decodes leaves the bare sheet. `PdfVectorPainter` mirrors the on-screen `StrokePainter`/`ElementRenderer` geometry at scale
 1 — the `.xopp` unit == the PDF unit (1/72") — flipping y into PDF's bottom-left space via
 `PdfPageTransform`; pen strokes taper per segment, the highlighter is one constant-width translucent
 path, `.xopp` text elements use the base-14 fonts (see **Fonts in generated PDFs** below), and images
 embed losslessly. **Nothing is rasterised** except
-user bitmap images (already raster), so a no-op import→export round-trips a PDF at ~its original size
+bitmaps that were already raster (user images and `pixmap` backgrounds), so a no-op import→export round-trips a PDF at ~its original size
 and fidelity instead of bloating ~10× from a raster flatten. **Rotated source pages** (`/Rotate`
 90/180/270) are handled: since the on-screen renderer already applies `/Rotate`, annotations are
 authored in the page's *visual* space, so `PdfExporter` pre-multiplies the overlay content stream by

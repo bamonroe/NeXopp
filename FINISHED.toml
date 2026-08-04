@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "paint-image-backgrounds-in-pdf-export"
+title = "Paint image backgrounds in PDF export"
+description = "PdfExporter.kt:43 / render/PdfBackgroundPainter.kt:27-36 only handle solid and original-PDF backgrounds. Draw the resolved background bitmap onto the PDFBox content stream so an image-backed document flattens correctly on export."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["image-background"]
+
+[[task]]
 id = "resolve-and-store-linked-pixmap-backgrounds"
 title = "Resolve and store linked pixmap backgrounds"
 description = "Extend DocumentIo.linked/resolvePdfBackground (:170-203) and portableReference (:288-296) to handle Background.Pixmap, add an image store mirroring io/PdfStore.kt with its own dir constant and prune support (:262,:319-327), and add a pixmap counterpart to render/PdfBackgroundDomain.kt:31-53 for attach-domain saves (new XoppZip attach entry alongside PDF_ENTRY, XoppZip.kt:37-38)."

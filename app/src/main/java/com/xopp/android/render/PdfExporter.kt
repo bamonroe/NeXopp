@@ -4,6 +4,7 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.util.Matrix
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
@@ -15,14 +16,18 @@ import java.io.OutputStream
  * **vector** content instead of being rasterised. For a `pdf`-backed page whose source is available
  * ([pdfSource].source), the untouched source page is imported verbatim and the annotations are
  * appended as a vector overlay; every other page becomes a fresh sheet with a vector background plus
- * the same overlay. Nothing is rasterised except user-placed bitmap images, which are already
- * raster. A no-op import→export therefore round-trips the PDF at ~its original size and fidelity.
+ * the same overlay. A `pixmap`-backed page gets its picture embedded over that sheet (see
+ * [pixmapBackground]). Nothing is rasterised except bitmaps that were already raster — user-placed
+ * images and image backgrounds. A no-op import→export therefore round-trips the PDF at ~its original size and fidelity.
  *
  * Rotated source pages (`/Rotate` 90/180/270) are handled: the overlay is authored in the page's
  * visual space, so a [PdfOverlayMatrix] pre-transforms the content stream into the page's unrotated
  * space and the viewer's `/Rotate` cancels back to the drawn position (see [preservedPage]).
  */
-class PdfExporter(private val pdfSource: PdfPageCache?) {
+class PdfExporter(
+    private val pdfSource: PdfPageCache?,
+    private val imageSource: ImageBackgroundCache? = null,
+) {
 
     private val painter = PdfVectorPainter()
 
@@ -69,7 +74,33 @@ class PdfExporter(private val pdfSource: PdfPageCache?) {
         val transform = PdfPageTransform(0f, 0f, page.height.toFloat())
         PDPageContentStream(outDoc, pdPage).use { cs ->
             PdfBackgroundPainter.draw(cs, page, transform)
+            pixmapBackground(outDoc, cs, page, transform)
             painter.paint(outDoc, cs, page, transform)
         }
+    }
+
+    /**
+     * An image-backed page: embed the decoded picture over the sheet fill, stretched to the page box
+     * exactly as the editor blits it. Decoded at [EXPORT_SCALE]× the page's point size so the flatten
+     * keeps print-usable detail; a picture that can't be decoded leaves the bare sheet behind.
+     */
+    private fun pixmapBackground(
+        outDoc: PDDocument,
+        cs: PDPageContentStream,
+        page: Page,
+        t: PdfPageTransform,
+    ) {
+        val bg = page.background as? Background.Pixmap ?: return
+        val width = (page.width * EXPORT_SCALE).toInt()
+        val bmp = imageSource?.render(bg.filename, width) ?: return
+        runCatching {
+            val xobj = LosslessFactory.createFromImage(outDoc, bmp)
+            cs.drawImage(xobj, t.x(0.0), t.y(page.height), page.width.toFloat(), page.height.toFloat())
+        }
+    }
+
+    private companion object {
+        /** Points→pixels for the exported background: ~150 dpi, enough to print without bloating. */
+        const val EXPORT_SCALE = 2.0
     }
 }

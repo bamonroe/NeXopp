@@ -606,8 +606,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     instant. Once the cache is over budget, the **oldest** ones no open tab is using are deleted;
     they are regenerated the next time you open that file, so nothing is lost but time.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
-  drawn at its true size with its background (a PDF page or a ruled sheet) and every stroke and
-  element merged on top, then written to the location you pick. When a page came from an **imported
+  drawn at its true size with its background (a PDF page, an image, or a ruled sheet) and every
+  stroke and element merged on top, then written to the location you pick. Pages backed by an
+  **image** keep that picture in the export, at print-usable resolution. When a page came from an **imported
   PDF**, its original page is **kept as vector content** and your annotations are laid over it as
   vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
