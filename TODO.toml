@@ -91,20 +91,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "palette-action-picker"
-title = "Radial palette: action picker sheet to assign or clear a slot"
-description = "When a slot is tapped in the PALETTE settings section, open a bottom sheet listing the assignable PaletteAction variants from ui/RadialPalette.kt:35 - SelectTool/ToggleTool (one row per EditorTool), SetColor (reuse ui/ColorPalette.kt swatches), SetWidth (slider bounded by PEN_WIDTH_MIN..MAX), Undo, Redo, ToggleFullPage, and Page(op) for each PalettePageOp. Include a Clear slot action mapping to RadialPalette.without(slot). Commit via onChange(settings.copy(radialPalette = palette.with(slot, action))) so SettingsStore persistence and the EditorScreen applySettings push work with no extra plumbing."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 84
-created = 2026-08-04
-tags = ["palette", "ui"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "palette-reset-controls"
 title = "Radial palette: reset-to-default and clear-all controls in the palette editor"
 description = "Add buttons to the PALETTE settings section for 'Reset to default' (RadialPalette.default()) and 'Clear all slots', plus a filled-count summary line using RadialPalette.filledCount. Confirm destructive clears with a dialog."

@@ -37,15 +37,17 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     var selected by remember { mutableStateOf<RadialSlot?>(null) }
+    var picking by remember { mutableStateOf<RadialSlot?>(null) }
+    val colors = rememberColorPaletteState(settings, onChange)
     Text("Radial palette", style = MaterialTheme.typography.titleMedium)
     Text(
-        "The menu a barrel double-click opens at the pen tip. Tap a slot to select it.",
+        "The menu a barrel double-click opens at the pen tip. Tap a slot to assign it.",
         style = MaterialTheme.typography.bodySmall,
     )
     PaletteDiagram(
         palette = settings.radialPalette,
         selected = selected,
-        onSelect = { selected = it },
+        onSelect = { selected = it; picking = it },
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
     )
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
@@ -53,14 +55,25 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         Text("Selected slot", style = MaterialTheme.typography.bodyLarge)
         Text(selected.describe(settings.radialPalette), style = MaterialTheme.typography.bodySmall)
     }
+    picking?.let { slot ->
+        PaletteActionPickerSheet(
+            slot = slot,
+            current = settings.radialPalette[slot],
+            palette = colors,
+            onPick = { action ->
+                onChange(settings.copy(radialPalette = settings.radialPalette.with(slot, action)))
+                picking = null
+            },
+            onDismiss = { picking = null },
+        )
+    }
 }
 
 /** How the selected slot reads in prose: which ring, which position, and what it currently holds. */
 internal fun RadialSlot?.describe(palette: RadialPalette): String {
     if (this == null) return "None — tap a slot in the diagram above."
     val ringName = if (ring == RadialRing.INNER) "Inner" else "Outer"
-    val action = palette[this]
-    val holds = if (action == null) "empty" else action.face().glyph.ifEmpty { "colour" }
+    val holds = palette[this]?.describeAction() ?: "empty"
     return "$ringName ring, slot ${index + 1} of ${ring.slotCount} — $holds."
 }
 
