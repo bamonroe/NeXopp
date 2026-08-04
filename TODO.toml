@@ -104,3 +104,17 @@ created = 2026-08-04
 tags = ["text-import", "markdown"]
 rebuild = true
 emulator_debug = false
+
+[[task]]
+id = "investigate-relative-pdf-background-paths-in-the-xopp-format"
+title = "Investigate relative PDF background paths in the xopp format"
+description = "Today every PDF background we write is linked with domain=\"absolute\" and a full path/URI (see docs/architecture.md, the SaveFormat table, and format/Xopp.kt). Desktop Xournal++ appears to support other domains for the background filename — investigate what the real format and the desktop reader actually accept: read the Xournal++ source/spec for the <background filename=... domain=...> attribute, and confirm by experiment whether a path relative to the .xopp file's own directory round-trips when reopened on desktop Linux. Establish what the relative path is resolved against, whether Android's SAF content:// world can even produce a meaningful relative path, and what happens on desktop when the reference does not resolve. If relative paths do work, add the atomic tasks to implement them: the writer change in the save path, the resolution change in the reader/relink path, a user-facing preference or heuristic for when to prefer relative over absolute, round-trip tests, and the README/architecture doc updates. If they do not work, close this scope with the finding recorded rather than adding children."
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 90
+created = 2026-08-04
+tags = ["format", "pdf", "round-trip"]
+rebuild = false
+emulator_debug = false
