@@ -16,6 +16,7 @@ import com.xopp.android.render.PdfMerger
 import com.xopp.android.render.TextPdfGenerator
 import com.xopp.android.render.documentWithPdfDomain
 import com.xopp.android.render.documentWithPdfReference
+import com.xopp.android.render.documentWithPixmapAttachments
 import java.io.File
 
 /**
@@ -48,6 +49,14 @@ sealed interface LoadedFile {
         val pdf: File?,
         val format: SaveFormat,
         val missingPdf: Boolean = false,
+        /**
+         * The local copy of each `pixmap` background's picture, keyed by the reference the document
+         * carries. The document's own references are left as they were read (so a plain Save writes
+         * them back unchanged) and the renderer decodes through this side table instead.
+         */
+        val images: Map<String, File> = emptyMap(),
+        /** True when some pixmap background named a picture we could not reach. */
+        val missingImage: Boolean = false,
     ) : LoadedFile
 }
 
@@ -97,6 +106,13 @@ class DocumentIo(
      * a plain Save records this path in the document and it has to still resolve on reopen.
      */
     private val joinedPdfStore = PdfStore(File(filesDir, JOINED_PDF_DIR))
+
+    /**
+     * Where the pictures behind `pixmap` backgrounds are kept while a document is open (see
+     * [ImageStore]). In the cache like [pdfStore]: a copy the OS reclaims costs a blank page
+     * background, which the renderer already handles, and the document's own reference is untouched.
+     */
+    private val imageStore = ImageStore(File(cacheDir, IMAGE_DIR))
 
     /** Text → PDF, cached in [pdfStore] by content. Null when no font-backed generator was supplied. */
     private val textImport = textPdf?.let { TextImport(pdfStore, it) }
@@ -157,8 +173,18 @@ class DocumentIo(
             val input = raw.buffered()
             when (kind) {
                 // A ZIP package carries its PDF inside, so the background needs no sibling file.
-                FileKind.ZIP -> XoppZip.open(input, pdfStore::newFile)
-                    .let { (doc, pdf) -> LoadedFile.Doc(doc, pdf, SaveFormat.ZIPPED) }
+                // A ZIP package's pictures ride inside it too, keyed by the entry name an attached
+                // `pixmap` background points at, so they resolve without touching the filesystem.
+                FileKind.ZIP -> XoppZip.open(input, pdfStore::newFile, imageStore::newFile)
+                    .let { (doc, pdf, images) ->
+                        LoadedFile.Doc(
+                            doc,
+                            pdf,
+                            SaveFormat.ZIPPED,
+                            images = images,
+                            missingImage = pixmapReferences(doc).any { it !in images },
+                        )
+                    }
                 FileKind.GZIP -> linked(Xopp.open(input), name, source)
                 // Desktop Xournal++ can write plain XML; accept it and save it back compressed.
                 FileKind.XML -> linked(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()), name, source)
@@ -175,7 +201,43 @@ class DocumentIo(
         val bg = doc.pages.firstNotNullOfOrNull { it.background as? Background.Pdf }
         val ref = bg?.filename
         val pdf = ref?.let { resolvePdfBackground(it, bg.domain, name, source) }
-        return LoadedFile.Doc(doc, pdf, SaveFormat.ORIGINAL, missingPdf = ref != null && pdf == null)
+        val references = pixmapReferences(doc)
+        val images = resolvePixmapBackgrounds(doc, name, source)
+        return LoadedFile.Doc(
+            doc,
+            pdf,
+            SaveFormat.ORIGINAL,
+            missingPdf = ref != null && pdf == null,
+            images = images,
+            missingImage = references.any { it !in images },
+        )
+    }
+
+    /** Every distinct `filename` a `pixmap` background in [doc] names, in page order. */
+    private fun pixmapReferences(doc: Document): List<String> = doc.pages
+        .mapNotNull { (it.background as? Background.Pixmap)?.filename?.takeIf(String::isNotEmpty) }
+        .distinct()
+
+    /**
+     * Copy the picture behind every `pixmap` background into [imageStore], keyed by the reference
+     * the document names it under, so the renderer decodes from a stable local file for as long as
+     * the document is open. References that resolve to the same string are copied once.
+     *
+     * The reference shapes are the same set [resolvePdfBackground] handles — a `content://` URI, an
+     * absolute path, a relative path beside the `.xopp`, or `domain="attach"`'s
+     * `<name>.xopp.<filename>` sibling — because desktop Xournal++ resolves both background kinds
+     * through the same `getAbsoluteFilepath`. Unreachable pictures are simply absent from the map;
+     * those pages come up with a blank background.
+     */
+    private fun resolvePixmapBackgrounds(doc: Document, name: String, source: Uri?): Map<String, File> {
+        val resolved = LinkedHashMap<String, File>()
+        doc.pages.forEach { page ->
+            val bg = page.background as? Background.Pixmap ?: return@forEach
+            val ref = bg.filename.takeIf(String::isNotEmpty) ?: return@forEach
+            if (ref in resolved) return@forEach
+            openReference(ref, bg.domain, name, source)?.let { resolved[ref] = imageStore.copyIn(it) }
+        }
+        return resolved
     }
 
     /**
@@ -193,16 +255,26 @@ class DocumentIo(
      * on Android, a provider we hold no grant on), so the caller falls back to blank pages.
      */
     private fun resolvePdfBackground(ref: String, domain: String?, name: String, source: Uri?): File? =
-        runCatching {
-            val stream = when {
-                domain == ATTACH_DOMAIN ->
-                    openSibling(source, PdfReference.attachSiblingName(name, ref))
-                ref.startsWith("content://") -> resolver.openInputStream(Uri.parse(ref))
-                PdfReference.isRelative(ref) -> openSibling(source, ref)
-                else -> File(ref).takeIf(File::exists)?.inputStream()
-            } ?: return@runCatching null
-            copyIntoStore(stream)
-        }.getOrNull()
+        openReference(ref, domain, name, source)?.let(::copyIntoStore)
+
+    /**
+     * Open the bytes a background reference names, in every shape a `.xopp` can carry one (the four
+     * cases listed on [resolvePdfBackground]). Shared by the PDF and pixmap paths, because desktop
+     * Xournal++ resolves both through one `getAbsoluteFilepath`. Null when it can't be reached.
+     */
+    private fun openReference(
+        ref: String,
+        domain: String?,
+        name: String,
+        source: Uri?,
+    ): java.io.InputStream? = runCatching {
+        when {
+            domain == ATTACH_DOMAIN -> openSibling(source, PdfReference.attachSiblingName(name, ref))
+            ref.startsWith("content://") -> resolver.openInputStream(Uri.parse(ref))
+            PdfReference.isRelative(ref) -> openSibling(source, ref)
+            else -> File(ref).takeIf(File::exists)?.inputStream()
+        }
+    }.getOrNull()
 
     /**
      * Open the file [ref] names *relative to the document at [source]* — the one lookup a relative or
@@ -244,6 +316,13 @@ class DocumentIo(
     fun adoptPdf(source: File): File = copyIntoStore(source.inputStream())
 
     /**
+     * Take a local picture into the image store, so a freshly imported image keeps rendering (and
+     * can be bundled into a ZIP save) after the staging copy is swept and whatever grant we opened
+     * it under expires. The document still references the original.
+     */
+    fun adoptImage(source: File): File = imageStore.copyIn(source.inputStream())
+
+    /**
      * Merge [existing] and [incoming] into one joined background PDF — the only shape a `.xopp` can
      * represent, since it holds a single background reference. The joined file lands in `filesDir`
      * (not the cache) so the link a plain Save records survives; successive appends get fresh names,
@@ -260,9 +339,10 @@ class DocumentIo(
      * many large PDFs can't sit on hundreds of megabytes of cache between sweeps. The *joined* store
      * is not: a saved `.xopp` links those by path, so deleting one would break a document on disk.
      */
-    fun prune(live: Collection<String?>) {
+    fun prune(live: Collection<String?>, liveImages: Collection<String?> = emptyList()) {
         pdfStore.prune(live, limits.pdfCacheBytes)
         joinedPdfStore.prune(live)
+        imageStore.prune(liveImages)
     }
 
     // --- writing --------------------------------------------------------------------------------
@@ -276,16 +356,29 @@ class DocumentIo(
      *   [target] whenever the PDF sits in the same folder ([portableReference]).
      * - [SaveFormat.ZIPPED] — a ZIP package with [pdf] embedded (`domain="attach"`, `bg.pdf`).
      */
-    fun encode(document: Document, pdf: File?, format: SaveFormat, target: Uri? = null): File {
+    fun encode(
+        document: Document,
+        pdf: File?,
+        format: SaveFormat,
+        target: Uri? = null,
+        images: Map<String, File> = emptyMap(),
+    ): File {
         val out = staging.newFile("save")
         out.outputStream().use { output ->
             when (format) {
                 SaveFormat.ORIGINAL -> Xopp.save(portableReference(document, target), output)
-                SaveFormat.ZIPPED -> XoppZip.save(
-                    if (pdf != null) documentWithPdfDomain(document, ATTACH_DOMAIN) else document,
-                    pdf,
-                    output,
-                )
+                SaveFormat.ZIPPED -> {
+                    // Pictures ride inside the package as numbered entries, so a ZIP save is
+                    // self-contained for pixmap backgrounds exactly as it already is for the PDF.
+                    val bundled = documentWithPixmapAttachments(document) { images[it] }
+                    XoppZip.save(
+                        if (pdf != null) documentWithPdfDomain(bundled.document, ATTACH_DOMAIN)
+                        else bundled.document,
+                        pdf,
+                        output,
+                        bundled.entries,
+                    )
+                }
             }
         }
         return out
@@ -303,12 +396,34 @@ class DocumentIo(
      * id, unknown destination) keeps its absolute reference rather than becoming a broken relative
      * one. Returns a copy; the working document is untouched.
      */
-    private fun portableReference(document: Document, target: Uri?): Document {
+    private fun portableReference(document: Document, target: Uri?): Document =
+        portablePixmapReferences(portablePdfReference(document, target), target)
+
+    private fun portablePdfReference(document: Document, target: Uri?): Document {
         val bg = document.pages.firstNotNullOfOrNull { it.background as? Background.Pdf } ?: return document
         val ref = bg.filename?.takeIf { it.isNotEmpty() } ?: return document
         if (bg.domain == ATTACH_DOMAIN || PdfReference.isRelative(ref)) return document
         val relative = relativeTo(target ?: return document, ref) ?: return document
         return documentWithPdfReference(document, relative, ABSOLUTE_DOMAIN)
+    }
+
+    /**
+     * The same relativisation for `pixmap` backgrounds — each page's picture is made relative to the
+     * document's own folder where it lives there, and left alone otherwise. Unlike the PDF there can
+     * be one per page, so every one is considered; an unrelativisable reference keeps its absolute
+     * form rather than becoming a relative path that resolves to nothing.
+     */
+    private fun portablePixmapReferences(document: Document, target: Uri?): Document {
+        if (target == null) return document
+        if (document.pages.none { it.background is Background.Pixmap }) return document
+        val pages = document.pages.map { page ->
+            val bg = page.background as? Background.Pixmap ?: return@map page
+            val ref = bg.filename.takeIf(String::isNotEmpty) ?: return@map page
+            if (bg.domain == ATTACH_DOMAIN || PdfReference.isRelative(ref)) return@map page
+            val relative = relativeTo(target, ref) ?: return@map page
+            page.copy(background = bg.copy(domain = ABSOLUTE_DOMAIN, filename = relative))
+        }
+        return document.copy(pages = pages)
     }
 
     /** The path of the PDF at [ref] relative to a document saved at [target], if it sits below it. */
@@ -332,6 +447,9 @@ class DocumentIo(
 
         /** Cache subfolder holding one background PDF per open document (see [PdfStore]). */
         const val PDF_DIR = "pdf"
+
+        /** Cache subfolder holding the local copies of pixmap background pictures (see [ImageStore]). */
+        const val IMAGE_DIR = "images"
 
         /** `filesDir` subfolder holding merged background PDFs, which saved documents link to. */
         const val JOINED_PDF_DIR = "pdf-joined"

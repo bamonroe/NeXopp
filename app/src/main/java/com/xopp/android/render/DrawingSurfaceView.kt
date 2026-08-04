@@ -111,6 +111,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         ImageBackgroundCache(::openBackgroundImage).apply { onImageReady = { requestRender() } }
     }
 
+    /** Local copies of the `pixmap` pictures, by document reference (see [setImageSources]). */
+    private var imageBackgrounds: Map<String, java.io.File> = emptyMap()
+
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
     private var current: ArrayList<StrokePoint>? = null
     private var currentPage = 0
@@ -562,6 +565,22 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // tiles in one frame's time, so the redraws are coalesced into a single pass.
         source?.onPageReady = { requestRender() }
     }
+
+    /**
+     * Supply the local copy of each `pixmap` background's picture, keyed by the reference the
+     * document names it under (see `io.DocumentIo`). The document's own references are left as they
+     * were read so a save round-trips them unchanged, so this side table is how a reference that
+     * only the loader could resolve — an archive entry, a sibling beside the `.xopp` — becomes
+     * bytes the decoder can open. References not in the map fall back to being opened directly.
+     */
+    fun setImageSources(sources: Map<String, java.io.File>) {
+        imageBackgrounds = sources
+        imageSource.clear()
+        requestRender()
+    }
+
+    /** The local copies backing this document's `pixmap` backgrounds, by document reference. */
+    fun imageSources(): Map<String, java.io.File> = imageBackgrounds
 
     /** Supply the imported PDF's extracted text layer for the text-select tool, or null to clear it. */
     fun setPdfTextIndex(index: PdfTextIndex?) {
@@ -2177,11 +2196,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /**
-     * Open the bytes a `pixmap` background's `filename` points at. On Android that is normally the
-     * source picture's `content://` URI (`domain="absolute"`, recorded by the image open path); a
-     * plain path is read straight off disk, which is what a `.xopp` written on the desktop carries.
+     * Open the bytes a `pixmap` background's `filename` points at. The local copy the loader made
+     * ([setImageSources]) wins whenever there is one — it is the only form that works for a picture
+     * bundled in a ZIP package or living beside the `.xopp`, and it outlives the grant the original
+     * was opened under. Otherwise the reference is opened directly: a `content://` URI through the
+     * resolver, a plain path off disk (what a desktop-written `.xopp` carries).
      */
     private fun openBackgroundImage(reference: String): java.io.InputStream? = runCatching {
+        imageBackgrounds[reference]?.takeIf { it.isFile }?.let { return@runCatching it.inputStream() }
         if (reference.contains("://")) {
             context.contentResolver.openInputStream(android.net.Uri.parse(reference))
         } else {

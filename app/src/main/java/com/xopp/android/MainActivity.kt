@@ -386,9 +386,13 @@ class MainActivity : ComponentActivity() {
                 saveFormat = loaded.format
                 surface?.setPdfSource(loaded.pdf?.let(::PdfPageCache))
                 surface?.setPdfTextIndex(null) // cleared until extraction below finishes
+                // The pictures behind pixmap backgrounds were copied out to local files on load;
+                // hand them over before the document, so the first frame already has them.
+                surface?.setImageSources(loaded.images)
                 surface?.load(loaded.document)
                 if (loaded.pdf != null) extractPdfTextInBackground(loaded.pdf)
                 else if (loaded.missingPdf) toast("Background PDF not found; those pages will be blank")
+                else if (loaded.missingImage) toast("Background image not found; those pages will be blank")
             }
         }
         // The document may reference recordings made elsewhere; fetch them so its strokes replay.
@@ -435,7 +439,11 @@ class MainActivity : ComponentActivity() {
         view?.setPdfSource(cache)
         view?.setPdfTextIndex(null) // cleared until extraction below finishes
         when (mode) {
-            ImportPdfMode.REPLACE -> view?.load(PdfImport.documentFor(cache, reference))
+            // A replaced document keeps none of the old one's pixmap pictures.
+            ImportPdfMode.REPLACE -> {
+                view?.setImageSources(emptyMap())
+                view?.load(PdfImport.documentFor(cache, reference))
+            }
             ImportPdfMode.APPEND -> view?.appendPages(PdfImport.pagesFor(cache, reference))
         }
         extractPdfTextInBackground(file)
@@ -447,14 +455,18 @@ class MainActivity : ComponentActivity() {
      * `content://` URI, whose read grant the open path has already persisted, so a saved `.xopp`
      * still resolves the image when reopened.
      *
-     * Unlike a PDF the bytes are *not* copied into a store: a pixmap background is linked by
-     * location, so the picture stays where the user keeps it. Returns false when the file doesn't
-     * decode, leaving the canvas untouched.
+     * The document links the picture by location — a pixmap background is a reference, and the
+     * picture stays where the user keeps it — but a copy is kept in the image store anyway, so the
+     * page still renders once the staged file is swept and bundles into a ZIP save. Returns false
+     * when the file doesn't decode, leaving the canvas untouched.
      */
     private fun adoptImage(source: File, reference: String): Boolean {
         val (widthPx, heightPx) = ImageImport.pixelSize(source) ?: return false
         surface?.setPdfSource(null)
         surface?.setPdfTextIndex(null)
+        // The document links the picture by its source URI, but the staged copy is swept and the
+        // grant expires — so keep our own copy and render (and bundle) from that.
+        surface?.setImageSources(mapOf(reference to io.adoptImage(source)))
         surface?.load(ImageImport.documentFor(widthPx, heightPx, reference))
         return true
     }
@@ -520,7 +532,9 @@ class MainActivity : ComponentActivity() {
         val view = surface ?: return
         // Encode locally first, then push the finished bytes across in one pass: on a slow or flaky
         // remote share, serialising straight down the wire risks leaving a half-written .xopp behind.
-        val staged = runCatching { io.encode(view.toDocument(), view.pdfSourceFile(), saveFormat, uri) }
+        val staged = runCatching {
+            io.encode(view.toDocument(), view.pdfSourceFile(), saveFormat, uri, view.imageSources())
+        }
             .getOrElse { toast("Save failed: ${it.message}"); return }
 
         inBackground("Saving ${displayName(uri)}…", { io.stageOut(staged, uri) }) { result ->
@@ -759,7 +773,12 @@ class MainActivity : ComponentActivity() {
         val live = panes.flatMap { p ->
             p.tabs.tabs.map(OpenTab::pdfPath) + listOf(p.surface?.pdfSourceFile()?.absolutePath)
         }
-        io.prune(live)
+        // Pixmap copies aren't recorded in a tab (a reopened document re-resolves them), so only the
+        // pictures the live canvases are decoding from are kept.
+        val liveImages = panes.flatMap { p ->
+            p.surface?.imageSources()?.values?.map(File::getAbsolutePath).orEmpty()
+        }
+        io.prune(live, liveImages)
     }
 
     /**

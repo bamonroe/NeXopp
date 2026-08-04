@@ -194,6 +194,22 @@ class ImageBackgroundCache(
         if (set.isEmpty()) widths.remove(key.reference)
     }
 
+    /**
+     * Forget everything cached, including the [missing] blacklist — called when the document changes
+     * or its pictures are resolved to new local copies, since the same reference then means
+     * different bytes and a remembered failure would otherwise keep a now-resolvable page blank.
+     */
+    fun clear() {
+        synchronized(lock) {
+            pending.clear()
+            cache.clear()
+            widths.clear()
+            missing.clear()
+            budget.credit(cachedBytes)
+            cachedBytes = 0
+        }
+    }
+
     override fun close() {
         synchronized(lock) {
             if (closed) return

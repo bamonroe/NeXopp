@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "resolve-and-store-linked-pixmap-backgrounds"
+title = "Resolve and store linked pixmap backgrounds"
+description = "Extend DocumentIo.linked/resolvePdfBackground (:170-203) and portableReference (:288-296) to handle Background.Pixmap, add an image store mirroring io/PdfStore.kt with its own dir constant and prune support (:262,:319-327), and add a pixmap counterpart to render/PdfBackgroundDomain.kt:31-53 for attach-domain saves (new XoppZip attach entry alongside PDF_ENTRY, XoppZip.kt:37-38)."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["image-background"]
+
+[[task]]
 id = "render-pixmap-page-backgrounds"
 title = "Render pixmap page backgrounds"
 description = "BackgroundRenderer.kt:36-77 currently falls back to a white sheet for Background.Pixmap. Add an ImageBackgroundCache (decode + scale by box.widthPx, async fill like PdfPageCache.request/onPageReady) and feed the existing pageImage blit slot from DrawingSurfaceView.paint (:2119-2155)."

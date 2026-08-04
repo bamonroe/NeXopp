@@ -496,6 +496,7 @@ app/
       BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
       ImageImport.kt         # builds a one-page Document with an image as its pixmap background
       ImageBackgroundCache.kt # decodes+scales pixmap background pictures (LRU, off the frame)
+      PixmapBackgroundDomain.kt # re-points pixmap backgrounds at bundled ZIP entries for attach saves
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
       PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
@@ -1008,9 +1009,10 @@ home for a picture behind a page — `<background type="pixmap">` — so an open
 **single page** carrying `Background.Pixmap(domain="absolute", filename=<source content:// URI>)` and
 one empty layer. The page is sized straight from the image's pixels at the 72-dpi baseline `.xopp`
 user space already uses (one pixel → one point), which keeps its aspect ratio without inventing a
-physical size the file never stated. Unlike a PDF the bytes are **not** copied into a store: a pixmap
-background is linked by location, so the open path's persisted read grant on that URI is what makes a
-saved `.xopp` reopen with its picture. `ImageImport.pixelSize` reads the dimensions bounds-only
+physical size the file never stated. The document links the picture by location — a pixmap background
+is a reference, not embedded bytes — but a copy is taken into the image store all the same
+(`DocumentIo.adoptImage`), so the page keeps rendering once the staging copy is swept and the picture
+can be bundled into a ZIP save. `ImageImport.pixelSize` reads the dimensions bounds-only
 (`inJustDecodeBounds`), so a phone-camera photo never has to be decoded in full just to size a page;
 a file that doesn't decode leaves the canvas untouched and toasts instead.
 
@@ -1027,9 +1029,31 @@ so a 12-megapixel photo shown at tablet width is never materialised in full. A r
 won't open or decode is retired, so a frame doesn't re-queue it forever.
 `DrawingSurfaceView.pageBitmapFor` is the one place both caches meet: a `pdf` page asks `PdfPageCache`
 and a `pixmap` page asks `ImageBackgroundCache`, and either answer rides the same `pageImage` slot
-into `BackgroundRenderer.draw`. Resolving the reference is deliberately thin for now — a `content://`
-URI goes through the resolver, anything else is read as a path — with `domain`-aware resolution and
-`attach` storage still to come.
+into `BackgroundRenderer.draw`.
+
+**Resolving and storing a pixmap reference (`io/ImageStore.kt`, `render/PixmapBackgroundDomain.kt`).**
+A `pixmap` `filename` comes in every shape a `pdf` one does, and desktop Xournal++ resolves both
+through the same `getAbsoluteFilepath`, so `DocumentIo` resolves them through one `openReference`
+helper: a `content://` URI, an absolute path, a relative path beside the `.xopp`, or
+`domain="attach"`'s `<name>.xopp.<filename>` sibling. Whatever it can reach is **copied into
+`ImageStore`** (cache dir `images/`, one never-rewritten file per copy, swept by `DocumentIo.prune`
+against the pictures the live canvases decode from), and the copies come back on `LoadedFile.Doc` as
+an `images: reference → File` map — never as a rewrite of the document. That side table is the whole
+design point: the document keeps the reference it was read with, so a plain Save round-trips it
+unchanged, while `DrawingSurfaceView.setImageSources` hands the map to `ImageBackgroundCache`, which
+prefers the local copy and only falls back to opening the reference itself. A reference nothing could
+resolve leaves that page blank and toasts (`LoadedFile.Doc.missingImage`).
+
+Saving mirrors the PDF rules. `SaveFormat.ORIGINAL` relativises each pixmap reference against the
+document's own folder where it lives there (`portablePixmapReferences`, the pixmap twin of the PDF
+path) and otherwise leaves it alone. `SaveFormat.ZIPPED` bundles: `documentWithPixmapAttachments`
+re-points every pixmap background at `domain="attach"`, `filename="bg-<n>.<ext>"` and hands
+`XoppZip.save` the entry → file map to embed, with the extension sniffed from the picture's own bytes
+(`extensionFor`) because desktop picks its image loader by suffix and a `content://` URI has none. A
+background whose picture can't be reached keeps its original reference rather than becoming an attach
+name with no entry behind it. `XoppZip.open` extracts every non-bookkeeping, non-`bg.pdf` entry into
+the image store and returns them as `Loaded.images`, keyed by entry name — which is exactly what the
+attached background's `filename` says — so a package reopens self-contained.
 
 **Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
 file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits

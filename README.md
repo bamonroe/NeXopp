@@ -186,6 +186,13 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   saved `.xopp` points at the picture where it already lives, so keep it in place — and, as with a
   PDF, **the first Save asks where to put the `.xopp`**, since an image has no `.xopp` of its own.
   A truncated or corrupt image is refused with a *"Couldn't read that image"* notice.
+  Reopening such a `.xopp` finds its picture again the same ways desktop Xournal++ does: by
+  `content://` URI, by absolute path, by a path **relative to the `.xopp`'s own folder**, or from
+  the sibling file an attached background names. A picture that can't be found leaves those pages
+  blank with a *"Background image not found"* notice — the reference itself is preserved, so
+  putting the file back makes it render again. Saving through **Save As… → zipped `.xopp`** instead
+  **bundles the pictures inside the `.xopp`**, one archive entry per image-backed
+  page, so the file carries its backgrounds to another machine.
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
   **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —
