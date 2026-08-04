@@ -475,6 +475,7 @@ app/
       LatexParser.kt         # LaTeX source -> node tree (pure, no Android deps)
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
+      BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
       PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
@@ -631,10 +632,20 @@ bucket** (widths step by `InkCache.BUCKET_RATIO`, 1.19×), so a pinch only re-ra
 crosses a bucket edge and the zooms in between are a ≤19 % stretch of the bitmap it already has. An
 entry is invalidated by page identity (any edit rebuilds the `Page`), by its hidden-layer set, or by
 scrolling out of view (`InkCache.retain` keeps only the visible pages). The cache **declines** two
-cases and the direct element path takes over: a page whose bucket would exceed `InkCache.BUDGET_PX`
-(3 M px — at deep zoom a page spans many screens and its full raster would dwarf the screen it
-feeds, and the viewport cull is the better tool there), and any gesture that rewrites the page every
-frame — drag, resize, rotate, erase — where caching would only thrash. **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
+cases and the direct element path takes over: a page whose bucket would exceed its per-entry ceiling
+(`InkCache.PAGE_SHARE` of the shared budget — at deep zoom a page spans many screens and its full
+raster would dwarf the screen it feeds, and the viewport cull is the better tool there), and any
+gesture that rewrites the page every frame — drag, resize, rotate, erase — where caching would only thrash.
+Both bitmap caches allocate through **one** `BitmapBudget` (`BitmapBudget.shared`, sized at startup
+from `ActivityManager.memoryClass`), so a PDF-backed document has a single memory bound rather than
+two independent guesses. A cache `charge`s each bitmap it rasterises; when the total goes over, the
+budget asks its clients to `trim` — the *other* clients first, the one that just allocated last, so
+the pixels being drawn this frame survive. `InkCache.trim` gives back off-screen pages first,
+`PdfPageCache.trim` its least-recently-used entries (pinned tiles last). Trimmed bitmaps are dropped
+but never recycled: another thread's trim can hit a bitmap the drawing thread holds for the current
+frame. `BitmapBudget` never calls a client back while holding its own lock — clients charge while
+holding *their* locks, so a callback under both would invert the lock order.
+**Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one
 gesture at a time (snapshots are cheap — immutable pages/layers share structure). The stack is

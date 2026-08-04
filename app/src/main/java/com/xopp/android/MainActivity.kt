@@ -27,6 +27,7 @@ import com.xopp.android.format.XoppZip
 import com.xopp.android.format.model.Background
 import com.xopp.android.io.UriStaging
 import com.xopp.android.render.ATTACH_DOMAIN
+import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.PdfImport
@@ -208,6 +209,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // PDFBox needs its font/resource loader primed once before any PDF export can run.
         PDFBoxResourceLoader.init(applicationContext)
+        // Size the one bitmap-cache budget from this device's heap, before any cache is built.
+        BitmapBudget.configure(applicationContext)
         val store = settingsStore
         audioFolder = store.load().audioFolderUri.takeIf { it.isNotBlank() }?.let(Uri::parse)
         audio.onStateChanged = { runOnUiThread { audioTick.value++ } }

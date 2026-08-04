@@ -16,11 +16,21 @@ import com.xopp.android.format.model.Page
  * entry is dropped when the page's content changes (page identity), when its hidden-layer set
  * changes, or when it leaves the viewport ([retain]).
  *
- * The cache **declines** any page whose bucket would exceed [BUDGET_PX] — at deep zoom a page spans
+ * The cache **declines** any page whose bucket would exceed [budgetPx] — at deep zoom a page spans
  * many screens and its full raster would dwarf the screen it feeds. [draw] returns false there and
  * the caller falls back to drawing elements directly, where viewport culling already does the work.
+ *
+ * Every raster is charged to a shared [BitmapBudget], so this cache and [PdfPageCache] live under
+ * one bound instead of two independent guesses; when the total goes over, [trim] hands back the
+ * off-screen pages first.
  */
-class InkCache(private val budgetPx: Int = BUDGET_PX) {
+class InkCache(
+    private val budget: BitmapBudget = BitmapBudget.shared,
+) : BitmapBudget.Client {
+
+    /** Max pixels in one cached page raster, from this device's share of the shared budget. */
+    private val budgetPx: Int =
+        (budget.perEntryBytes(PAGE_SHARE) / BYTES_PER_PX).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     private class Entry(
         val bitmap: Bitmap,
@@ -29,9 +39,17 @@ class InkCache(private val budgetPx: Int = BUDGET_PX) {
         val widthPx: Int,
     )
 
+    /** Guards [entries] and [retained]: [trim] can arrive from the PDF worker thread. */
+    private val lock = Any()
     private val entries = HashMap<Int, Entry>()
+    /** The pages last asked for by [retain] — what [trim] gives back last. */
+    private var retained: Set<Int> = emptySet()
     private val blit = Paint(Paint.FILTER_BITMAP_FLAG)
     private val dst = RectF()
+
+    init {
+        budget.register(this)
+    }
 
     /**
      * Blit page [box]'s ink at its on-screen position, rasterising it first if needed. Returns false
@@ -56,12 +74,39 @@ class InkCache(private val budgetPx: Int = BUDGET_PX) {
 
     /** Drop every cached page not in [keep] — off-screen pages are the bulk of the memory. */
     fun retain(keep: Set<Int>) {
-        val gone = entries.keys.filter { it !in keep }
-        for (i in gone) entries.remove(i)?.bitmap?.recycle()
+        var freed = 0L
+        synchronized(lock) {
+            retained = HashSet(keep)
+            val gone = entries.keys.filter { it !in keep }
+            for (i in gone) entries.remove(i)?.bitmap?.let { freed += it.byteCount.toLong(); it.recycle() }
+        }
+        if (freed > 0) budget.credit(freed)
     }
 
     /** Drop everything (surface teardown, document swap). */
     fun clear() = retain(emptySet())
+
+    /**
+     * Give [bytes] back to the shared budget, off-screen pages first. Bitmaps handed back here are
+     * **not** recycled: unlike [retain] this can run on another cache's worker thread while the
+     * drawing thread still holds the bitmap for the current frame.
+     */
+    override fun trim(bytes: Long): Long {
+        var freed = 0L
+        synchronized(lock) {
+            for (pass in 0..1) {
+                val it = entries.entries.iterator()
+                while (freed < bytes && it.hasNext()) {
+                    val e = it.next()
+                    if (pass == 0 && e.key in retained) continue
+                    freed += e.value.bitmap.byteCount.toLong()
+                    it.remove()
+                }
+                if (freed >= bytes) break
+            }
+        }
+        return freed
+    }
 
     /** The live entry for [box], rasterising on a miss. Null when the page exceeds the budget. */
     private fun entryFor(
@@ -74,18 +119,21 @@ class InkCache(private val budgetPx: Int = BUDGET_PX) {
         val bucketW = bucketWidth(box.widthPx) ?: return null
         val bucketH = ((box.heightPx / box.widthPx) * bucketW).toInt().coerceAtLeast(1)
         if (bucketW.toLong() * bucketH > budgetPx) return null
-        val cached = entries[box.index]
-        if (cached != null &&
-            cached.page === box.page &&
-            cached.widthPx == bucketW &&
-            cached.hidden == hidden
-        ) {
-            return cached
+        synchronized(lock) {
+            val cached = entries[box.index]
+            if (cached != null &&
+                cached.page === box.page &&
+                cached.widthPx == bucketW &&
+                cached.hidden == hidden
+            ) {
+                return cached
+            }
+            entries.remove(box.index)?.bitmap?.let { budget.credit(it.byteCount.toLong()); it.recycle() }
         }
-        cached?.bitmap?.recycle()
-        entries.remove(box.index)
         val fresh = rasterise(box, hidden, bucketW, bucketH, strokes, elements) ?: return null
-        entries[box.index] = fresh
+        synchronized(lock) { entries[box.index] = fresh }
+        // Charged after the insert, so an over-budget total can evict this very entry if it must.
+        budget.charge(this, fresh.bitmap.byteCount.toLong())
         return fresh
     }
 
@@ -123,8 +171,10 @@ class InkCache(private val budgetPx: Int = BUDGET_PX) {
     }
 
     private companion object {
-        /** Max pixels in one cached page raster (~12 MB at ARGB_8888). */
-        const val BUDGET_PX = 3_000_000
+        /** The share of the shared budget one cached page raster may take. */
+        const val PAGE_SHARE = 0.25
+
+        const val BYTES_PER_PX = 4
 
         /** Narrowest bucket; below this a page is a thumbnail and the raster is nearly free. */
         const val BUCKET_BASE = 256

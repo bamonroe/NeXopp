@@ -41,7 +41,10 @@ data class PdfTile(
  *    you zoom while the heap stays bounded by the viewport rather than the page;
  *  - [prefetch] warms pages just outside the viewport so scrolling meets a filled cache.
  */
-class PdfPageCache(val source: File) : Closeable {
+class PdfPageCache(
+    val source: File,
+    private val budget: BitmapBudget = BitmapBudget.shared,
+) : Closeable, BitmapBudget.Client {
 
     private var descriptor = ParcelFileDescriptor.open(source, ParcelFileDescriptor.MODE_READ_ONLY)
     private var renderer = PdfRenderer(descriptor)
@@ -83,6 +86,11 @@ class PdfPageCache(val source: File) : Closeable {
     private val pinnedKeys = HashSet<Key>()
     private val sizes = HashMap<Int, Pair<Double, Double>>()
     private val pending = LinkedHashSet<Key>()
+    /**
+     * The entry [put] is inserting right now, spared by [trim] — the budget calls back into us from
+     * inside that very insert, and evicting what we just rasterised would loop forever.
+     */
+    private var protectedKey: Key? = null
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "pdf-raster").apply { isDaemon = true } }
     @Volatile private var closed = false
 
@@ -95,6 +103,10 @@ class PdfPageCache(val source: File) : Closeable {
      */
     var pageCount: Int = renderer.pageCount
         private set
+
+    init {
+        budget.register(this)
+    }
 
     /** Page [i]'s (width, height) in points (1/72"), the same unit `.xopp` uses. */
     fun pageSizePt(i: Int): Pair<Double, Double> {
@@ -187,7 +199,7 @@ class PdfPageCache(val source: File) : Closeable {
             }
             // Only warm the ring while there is room to hold it. Prefetching into a full cache means
             // every ring tile evicts something already earned, which is where the thrash starts.
-            if (cachedBytes < budget * PREFETCH_HEADROOM) {
+            if (budget.used() < budget.totalBytes * PREFETCH_HEADROOM) {
                 queued += prefetchRing(i, scale, cols, rows, c0, c1, r0, r1, MAX_TILES_PER_FRAME - queued)
             }
             tileMemo[i] = TileMemo(scale, c0, c1, r0, r1, generation, tiles)
@@ -331,6 +343,7 @@ class PdfPageCache(val source: File) : Closeable {
         pinnedKeys.clear()
         sizes.clear()
         generation++
+        budget.credit(cachedBytes)
         cachedBytes = 0
     }
 
@@ -367,8 +380,9 @@ class PdfPageCache(val source: File) : Closeable {
     private fun rasterWidth(i: Int, targetWidthPx: Int): Int {
         val (pw, ph) = pageSizePt(i)
         val aspect = if (pw > 0) ph / pw else 1.0
-        // bytes = w * (w * aspect) * 4  ≤  budget * PER_PAGE_SHARE
-        val byteCap = kotlin.math.sqrt(budget * PER_PAGE_SHARE / (4.0 * aspect)).toInt()
+        // bytes = w * (w * aspect) * 4  ≤  the budget's per-entry ceiling
+        val byteCap =
+            kotlin.math.sqrt(budget.perEntryBytes(PER_PAGE_SHARE) / (4.0 * aspect)).toInt()
         val w = targetWidthPx.coerceAtMost(minOf(MAX_RASTER_WIDTH, byteCap.coerceAtLeast(64)))
         return bucket(w)
     }
@@ -452,30 +466,50 @@ class PdfPageCache(val source: File) : Closeable {
         return cache[Key(i, best)]
     }
 
-    /** Caller holds [lock]. */
+    /**
+     * Caller holds [lock]. Inserts, then charges the shared budget — which may call straight back
+     * into [trim] to make room, here or in another cache.
+     */
     private fun put(key: Key, bmp: Bitmap) {
-        cache.put(key, bmp)?.let { cachedBytes -= it.byteCount.toLong() }
-        cachedBytes += bmp.byteCount.toLong()
+        val replaced = cache.put(key, bmp)?.byteCount?.toLong() ?: 0L
+        cachedBytes += bmp.byteCount.toLong() - replaced
         index(key)
         generation++
-        // First pass spares the pinned (on-screen) tiles; if that alone can't get under budget, a
-        // second pass evicts them too, so a viewport too large to cache still stays memory-bounded.
-        if (evict(key, sparePinned = true)) evict(key, sparePinned = false)
+        protectedKey = key
+        try {
+            if (replaced > 0) budget.credit(replaced)
+            budget.charge(this, bmp.byteCount.toLong())
+        } finally {
+            protectedKey = null
+        }
     }
 
-    /** Caller holds [lock]. Evicts until under [budget]; returns true if it is still over. */
-    private fun evict(keep: Key, sparePinned: Boolean): Boolean {
-        val it = cache.entries.iterator()
-        while (cachedBytes > budget && cache.size > 1 && it.hasNext()) {
-            val eldest = it.next()
-            if (eldest.key == keep) continue
-            if (sparePinned && eldest.key in pinnedKeys) continue
-            cachedBytes -= eldest.value.byteCount.toLong()
-            // Not recycled: the drawing thread may still hold this bitmap for the current frame.
-            it.remove()
-            unindex(eldest.key)
+    /**
+     * Give [bytes] back to the shared budget, least-recently-used first. The first pass spares the
+     * pinned (on-screen) tiles; if that alone can't free enough, a second pass takes them too, so a
+     * viewport too large to cache still stays memory-bounded.
+     *
+     * Evicted bitmaps are not recycled: the drawing thread may still hold one for the current frame.
+     */
+    override fun trim(bytes: Long): Long {
+        var freed = 0L
+        synchronized(lock) {
+            for (sparePinned in listOf(true, false)) {
+                val it = cache.entries.iterator()
+                while (freed < bytes && cache.size > 1 && it.hasNext()) {
+                    val eldest = it.next()
+                    if (eldest.key == protectedKey) continue
+                    if (sparePinned && eldest.key in pinnedKeys) continue
+                    freed += eldest.value.byteCount.toLong()
+                    it.remove()
+                    unindex(eldest.key)
+                }
+                if (freed >= bytes) break
+            }
+            cachedBytes -= freed
+            if (freed > 0) generation++
         }
-        return cachedBytes > budget
+        return freed
     }
 
     /** Caller holds [lock]. Track a whole-page entry's width for [nearest]. */
@@ -498,6 +532,7 @@ class PdfPageCache(val source: File) : Closeable {
             closed = true
             discard()
         }
+        budget.unregister(this)
         // Under [renderLock] so an in-flight rasterise finishes before the renderer goes away.
         // Tolerant of an already-closed renderer: a failed reopen in [checkSource] closes the old
         // one before calling us, and closing twice throws.
@@ -509,13 +544,6 @@ class PdfPageCache(val source: File) : Closeable {
     }
 
     private companion object {
-        /**
-         * Byte budget for cached page bitmaps — a quarter of the heap, clamped so a short document
-         * still gets a few pages and a huge heap doesn't hoard. Replaces a fixed page count: a
-         * page's cost varies ~64× between thumbnail and 4k zoom, so counting pages budgets nothing.
-         */
-        val budget: Long = (Runtime.getRuntime().maxMemory() / 4).coerceIn(24L shl 20, 192L shl 20)
-
         /**
          * Ceiling on the rasterised width of a *whole* page. A bitmap wider than this would blow the
          * heap; past it the whole-page bitmap is only the coarse under-layer and the sharp pixels
