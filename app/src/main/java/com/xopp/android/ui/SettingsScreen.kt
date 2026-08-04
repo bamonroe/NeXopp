@@ -38,6 +38,7 @@ enum class SettingsSection(val title: String, val summary: String) {
     STYLUS("Stylus", "Finger drawing, hover preview, barrel button, pressure feel."),
     EDITOR("Editor", "Default tool and snapping to the grid or to 15° rotations."),
     TOOLBAR("Toolbar", "Which rail buttons appear, and in what order."),
+    PALETTE("Palette", "The radial palette's rings — what each slot does at the pen tip."),
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
     APPEARANCE("Appearance", "Light, dark, or follow the system theme."),
 }
@@ -69,6 +70,7 @@ fun SettingsScreen(
                 SettingsSection.STYLUS -> StylusSection(settings, onChange)
                 SettingsSection.EDITOR -> EditorSection(settings, onChange)
                 SettingsSection.TOOLBAR -> ToolbarSection(settings, onChange)
+                SettingsSection.PALETTE -> PaletteSection(settings, onChange)
                 SettingsSection.NAVIGATION -> NavigationSection(settings, onChange)
                 SettingsSection.APPEARANCE -> AppearanceSection(settings, onChange)
             }
