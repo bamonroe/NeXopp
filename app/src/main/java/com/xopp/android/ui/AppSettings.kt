@@ -43,6 +43,8 @@ data class AppSettings(
     val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
     /** Show a preview ring where a hovering stylus will land. */
     val showHover: Boolean = true,
+    /** Buzz as a radial-palette flick crosses into a new slot, and again when it commits. */
+    val paletteHaptics: Boolean = true,
     /** How pen pressure maps to stroke width. */
     val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
     /** How much digitiser detail a freehand stroke keeps (fidelity vs. file size). */
@@ -146,6 +148,7 @@ class SettingsStore(context: Context) {
             barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
             barrelDoubleAction = enumOr(prefs.getString(KEY_BARREL_DOUBLE, null), d.barrelDoubleAction),
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
+            paletteHaptics = prefs.getBoolean(KEY_PALETTE_HAPTICS, d.paletteHaptics),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
             recognizeShapes = prefs.getBoolean(KEY_RECOGNIZE_SHAPES, d.recognizeShapes),
@@ -181,6 +184,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_BARREL, s.barrelAction.name)
             .putString(KEY_BARREL_DOUBLE, s.barrelDoubleAction.name)
             .putBoolean(KEY_HOVER, s.showHover)
+            .putBoolean(KEY_PALETTE_HAPTICS, s.paletteHaptics)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
             .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
             .putBoolean(KEY_RECOGNIZE_SHAPES, s.recognizeShapes)
@@ -215,6 +219,7 @@ class SettingsStore(context: Context) {
         const val KEY_BARREL = "barrel_action"
         const val KEY_BARREL_DOUBLE = "barrel_double_action"
         const val KEY_HOVER = "show_hover"
+        const val KEY_PALETTE_HAPTICS = "palette_haptics"
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_STROKE_PRECISION = "stroke_precision"
         const val KEY_RECOGNIZE_SHAPES = "recognize_shapes"

@@ -405,6 +405,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
     (best on a stylus tablet where a palm would otherwise draw).
   - **Hover preview** — show a ring where a hovering stylus will land.
+  - **Palette haptics** — tick as a radial-palette flick crosses into a new slot, with a
+    stronger confirm buzz when it commits. Turn it off for a silent palette.
   - **Barrel button** — what the stylus side-button does while held: **Erase** (default), **Select**,
     or **None**.
   - **Barrel double-click** — what a *rapid double-click* of that same button does, recognised only

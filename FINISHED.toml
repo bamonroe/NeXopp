@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "radial-palette-haptic-tick-when-the-flick-crosses-into-a-new-slot"
+title = "Radial palette: haptic tick when the flick crosses into a new slot"
+description = "The renderer already highlights the hovered slot (RadialPaletteRenderer.drawSlot), but there is no tactile confirmation. Fire a short performHapticFeedback tick from DrawingSurfaceView whenever the hovered RadialHit.Slot changes while the palette is held, and a slightly stronger one on commit. Gate it behind an AppSettings toggle so it can be turned off."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "preset-activate"
 title = "Tool presets: activate a preset in one tap, incl. from a radial palette slot"
 description = "Fast activation: tapping a preset in the rail popup applies it immediately, and add PaletteAction.ApplyPreset(presetId) to ui/RadialPalette.kt handled in ui/PaletteActions.kt so a radial slot can hold a whole preset. Update RadialPaletteLabel to show the preset name and cover the new action in the palette unit tests."

@@ -62,6 +62,12 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         checked = settings.showHover,
         onCheckedChange = { onChange(settings.copy(showHover = it)) },
     )
+    SwitchRow(
+        title = "Palette haptics",
+        subtitle = "Tick as a radial-palette flick crosses slots, and confirm when it commits.",
+        checked = settings.paletteHaptics,
+        onCheckedChange = { onChange(settings.copy(paletteHaptics = it)) },
+    )
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     OptionGroup(

@@ -293,6 +293,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var strokePrecision: StrokePrecision = StrokePrecision.DEFAULT
     /** When true, a hovering stylus shows a preview dot (from `ACTION_HOVER_MOVE`). */
     var showHover: Boolean = true
+
+    /** When true, the open radial palette buzzes as the flick crosses slots and on commit. */
+    var paletteHaptics: Boolean = true
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
     var handMode: Boolean = false
     /** When non-null, a one-finger tap places an element of this kind instead of drawing. */
@@ -2149,9 +2152,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val open = paletteOverlay ?: return
         val hit = open.palette.hitTest(open.anchorX, open.anchorY, x, y, open.geometry)
         if (hit != open.hit) {
+            if (PaletteHaptics.shouldTick(open.hit, hit)) tick(HapticFeedbackConstants.CLOCK_TICK)
             paletteOverlay = open.copy(hit = hit)
             render()
         }
+    }
+
+    /** Fire one haptic [constant], unless the user has turned palette haptics off in settings. */
+    private fun tick(constant: Int) {
+        if (paletteHaptics) performHapticFeedback(constant)
     }
 
     /** Close the menu and return what the pen was over — [RadialHit.Cancel] if it wasn't open. */
@@ -2182,7 +2191,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Close the menu and run whatever the pen was over; the dead zone and empty slots do nothing. */
     private fun commitPalette() {
-        val action = (closePalette() as? RadialHit.Slot)?.action ?: return
+        val hit = closePalette()
+        if (PaletteHaptics.shouldConfirm(hit)) tick(HapticFeedbackConstants.CONFIRM)
+        val action = (hit as? RadialHit.Slot)?.action ?: return
         onPaletteAction?.invoke(action)
     }
 

@@ -80,6 +80,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
         barrelDoubleAction = s.barrelDoubleAction,
     )
     showHover = s.showHover
+    paletteHaptics = s.paletteHaptics
     pressureGamma = s.sensitivity.gamma
     strokePrecision = s.strokePrecision
     recognizeShapes = s.recognizeShapes
