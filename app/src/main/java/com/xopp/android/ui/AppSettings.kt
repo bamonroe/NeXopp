@@ -104,11 +104,12 @@ data class AppSettings(
 
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
-     * truncated to [MAX_RECENT_COLORS] — and recorded as the pen's [lastColor].
+     * truncated to [MAX_RECENT_COLORS]. Every picker records its choice here, so recents are shared;
+     * only the pen's own picks pass [asPen], which also makes it the [lastColor] restored on launch.
      */
-    fun withColorUsed(color: Int): AppSettings = copy(
+    fun withColorUsed(color: Int, asPen: Boolean = true): AppSettings = copy(
         recentColors = (listOf(color) + recentColors.filter { it != color }).take(MAX_RECENT_COLORS),
-        lastColor = color,
+        lastColor = if (asPen) color else lastColor,
     )
 
     companion object {

@@ -1,7 +1,6 @@
 package com.xopp.android.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
@@ -48,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -67,11 +64,15 @@ fun BoxScope.EditorOverlays(
     ui: EditorUiState,
     pane: PaneState,
     settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
     currentSaveFormat: () -> SaveFormat,
     onSaveAs: (filename: String, format: SaveFormat) -> Unit,
     onImportPdf: (ImportPdfMode) -> Unit,
 ) {
     val surface = pane.surface
+    // One palette for every picker below, so a colour used here shares the pen's recents and
+    // custom slot (see ColorPalette.kt).
+    val palette = rememberColorPaletteState(settings, onSettingsChange)
     val barModifier = Modifier.align(Alignment.BottomCenter).padding(24.dp)
 
     // Contextual actions for the Select tools: the full action bar while something is selected,
@@ -83,6 +84,7 @@ fun BoxScope.EditorOverlays(
             onDuplicate = { surface?.duplicateSelection() },
             onDelete = { surface?.deleteSelection() },
             onRecolor = { c -> surface?.restyleSelection(c, null) },
+            palette = palette,
             onReWidth = { w -> surface?.restyleSelection(null, w.toDouble()) },
             widthSlots = settings.penWidths,
             onDeselect = { surface?.clearSelection() },
@@ -117,6 +119,7 @@ fun BoxScope.EditorOverlays(
             initialItalic = seedFont?.italic ?: defaults.italic,
             initialSize = existing?.size ?: defaults.size,
             initialColor = existing?.color ?: defaults.color,
+            palette = palette,
             onConfirm = { content, family, bold, italic, sizePt, colorArgb ->
                 surface?.insertText(
                     placement, content, FontDescription(family, bold, italic).compose(), sizePt, colorArgb
@@ -168,6 +171,7 @@ private fun SelectionActionBar(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onRecolor: (Int) -> Unit,
+    palette: ColorPaletteState,
     onReWidth: (Float) -> Unit,
     widthSlots: List<Float>,
     onDeselect: () -> Unit,
@@ -188,7 +192,7 @@ private fun SelectionActionBar(
             IconButton(onClick = onCut) { Icon(Icons.Filled.ContentCut, contentDescription = "Cut") }
             IconButton(onClick = onCopy) { Icon(Icons.Filled.ContentCopy, contentDescription = "Copy") }
             IconButton(onClick = onDuplicate) { Icon(Icons.Filled.LibraryAdd, contentDescription = "Duplicate") }
-            RecolorMenu(onRecolor)
+            RecolorMenu(onRecolor, palette)
             ReWidthMenu(widthSlots, onReWidth)
             IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, contentDescription = "Delete") }
             TextButton(onClick = onDeselect) { Text("Done") }
@@ -196,29 +200,27 @@ private fun SelectionActionBar(
     }
 }
 
-/** A palette drop-down that recolours the selection. */
+/**
+ * A drop-down that recolours the selection, offering the shared [ColorPaletteRows] — the same
+ * swatches, custom slot and recents as the pen's palette. The colour picked is recorded as used
+ * (but not as the *pen's* colour: recolouring a selection doesn't change what the pen draws with).
+ */
 @Composable
-private fun RecolorMenu(onRecolor: (Int) -> Unit) {
+private fun RecolorMenu(onRecolor: (Int) -> Unit, palette: ColorPaletteState) {
     var open by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Filled.Palette, contentDescription = "Recolour") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                for (c in PEN_COLORS) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color(c))
-                            .clickable { onRecolor(c); open = false },
-                    )
-                }
-            }
+            ColorPaletteRows(
+                selected = null,
+                palette = palette,
+                onPick = { c -> onRecolor(c); palette.note(c); open = false },
+                onEditCustom = { editing = true; open = false },
+            )
         }
     }
+    CustomColorEditor(visible = editing, palette = palette, onDismiss = { editing = false })
 }
 
 /** A width drop-down that re-widths the selected strokes, using the same configurable slots as the pen. */
@@ -452,6 +454,7 @@ private fun TextBoxDialog(
     initialItalic: Boolean,
     initialSize: Double,
     initialColor: Int,
+    palette: ColorPaletteState,
     onConfirm: (content: String, family: String, bold: Boolean, italic: Boolean, sizePt: Double, colorArgb: Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -461,7 +464,10 @@ private fun TextBoxDialog(
     var italic by remember { mutableStateOf(initialItalic) }
     var size by remember { mutableStateOf(initialSize.toFloat().coerceIn(TEXT_SIZE_MIN, TEXT_SIZE_MAX)) }
     var colorArgb by remember { mutableStateOf(initialColor) }
+    var editingColor by remember { mutableStateOf(false) }
 
+    // Outside the AlertDialog below: the HSV editor must outlive the row that opened it.
+    CustomColorEditor(visible = editingColor, palette = palette, onDismiss = { editingColor = false })
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -487,9 +493,12 @@ private fun TextBoxDialog(
                     onValueChange = { size = it },
                     valueRange = TEXT_SIZE_MIN..TEXT_SIZE_MAX,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (c in PEN_COLORS) TextSwatch(color = c, selected = c == colorArgb) { colorArgb = c }
-                }
+                ColorPaletteRows(
+                    selected = colorArgb,
+                    palette = palette,
+                    onPick = { c -> colorArgb = c; palette.note(c) },
+                    onEditCustom = { editingColor = true },
+                )
             }
         },
         confirmButton = {
@@ -542,16 +551,3 @@ private fun FontFamilyPicker(family: String, onFamily: (String) -> Unit) {
     }
 }
 
-/** A tappable colour circle for the text dialog (a local twin of the toolbar's swatch). */
-@Composable
-private fun TextSwatch(color: Int, selected: Boolean, onClick: () -> Unit) {
-    val ring = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .background(Color(color))
-            .border(if (selected) 3.dp else 1.dp, ring, CircleShape)
-            .clickable(onClick = onClick),
-    )
-}

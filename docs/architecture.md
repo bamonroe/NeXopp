@@ -516,6 +516,8 @@ app/
       EditorRegions.kt       # the screen's regions: top bar, ☰ menu, the rail's wiring, one pane's canvas
       EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import dialogs
       SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
+      ColorPalette.kt        # the one colour picker (swatches + custom slot + recents) all three sites use
+      ColorPicker.kt         # the arbitrary-colour HSV/hex dialog behind the palette's custom slot
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
@@ -918,10 +920,16 @@ Stylus, Editor, Navigation): each row opens that section as its own page, with b
 index and back from the index leaving settings. Section bodies live in `SettingsSections.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives in `SideToolbar.kt`; the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in
-`ColorPicker.kt`. `AppSettings` also remembers the pen you left off with — `lastColor`/`lastWidth`,
-re-pushed onto a freshly created surface by `EditorScreen` — and a `recentColors` MRU list
-(`withColorUsed`, capped at `MAX_RECENT_COLORS`, stored as a comma-joined pref) that `ColorPopupButton`
-renders as the picker's "Recent" row. The **Select** tool adds a rail entry and a floating action bar; its
+`ColorPicker.kt`. Every place a colour is chosen — the pen's rail button, the text-box dialog, the
+selection recolour menu — renders the **one** `ColorPaletteRows` component (`ColorPalette.kt`):
+fixed swatches, the editable custom slot (long-press → `CustomColorEditor`) and the recents row,
+reading and writing one `ColorPaletteState` over `AppSettings`. The swatches wrap (`FlowRow`) so the
+custom slot survives a narrow dialog, and the HSV editor is hoisted *outside* the menu that opened it
+so dismissing that menu doesn't take the dialog with it. `AppSettings` also remembers the pen you
+left off with — `lastColor`/`lastWidth`, re-pushed onto a freshly created surface by `EditorScreen` —
+and a `recentColors` MRU list (`withColorUsed`, capped at `MAX_RECENT_COLORS`, stored as a
+comma-joined pref) shared by all three pickers; only the pen's own picks pass `asPen`, so colouring
+text or a selection fills recents without changing what the pen draws with next launch. The **Select** tool adds a rail entry and a floating action bar; its
 mechanics are in [Selecting objects](#selecting-objects-render) above.
 
 ## Stylus & selection roadmap

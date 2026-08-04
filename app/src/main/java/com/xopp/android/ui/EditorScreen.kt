@@ -187,6 +187,7 @@ fun EditorScreen(
             ui = ui,
             pane = pane,
             settings = settings,
+            onSettingsChange = onSettingsChange,
             currentSaveFormat = currentSaveFormat,
             onSaveAs = onSaveAs,
             onImportPdf = onImportPdf,

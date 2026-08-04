@@ -193,7 +193,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at a time, or type an exact
   point size into the **text field**. Below the swatches the Colour pop-up shows a **Recent** row —
   the last seven colours you picked, most-recent-first — so a colour mixed in the custom picker stays
-  one tap away after you move on. The custom colour, the three widths, the recent row, and the
+  one tap away after you move on. That same palette — swatches, custom slot and Recent row — is what
+  the text-box dialog and the selection recolour menu offer, so a colour picked anywhere shows up in
+  the recents everywhere. The custom colour, the three widths, the recent row, and the
   colour/width you were last drawing with are all remembered across restarts, so the app reopens with
   the pen you left off with. New strokes land on the **active layer**
   (see **Layers** below) of whichever page you draw on.
@@ -290,7 +292,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Drag a corner handle** to resize (uniform scale).
   - **Drag the round knob poking out from the right edge** to rotate — shown only when the selection is *all
     strokes* (text and images have no rotation in the `.xopp` format, so they can't be rotated).
-  - The floating action bar offers **Cut**, **Copy**, **Duplicate**, a **palette** to recolour and
+  - The floating action bar offers **Cut**, **Copy**, **Duplicate**, a **palette** to recolour (the
+    same swatches, custom slot and Recent row as the pen's colour pop-up) and
     a **line-weight** menu to re-width the selection, **Delete**, and **Done** (deselect).
   - **Paste** appears in the bottom bar (when nothing is selected) and drops the copied objects onto
     the page you're viewing.
@@ -298,7 +301,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   All of these are undoable. (Selection is per page; two-finger pan still works.)
 - **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
   takes the content from the keyboard and lets you style it: **font family** (Sans / Serif /
-  Monospace), **bold**, **italic**, a **size** slider (6–96 pt), and its own **colour**. Tapping
+  Monospace), **bold**, **italic**, a **size** slider (6–96 pt), and a **colour** — the same picker
+  the pen uses, so the custom slot and the Recent row are shared with it. Tapping
   an existing text box reopens it for editing with all of that prefilled from the box (clearing the
   text deletes it). Every property round-trips to and from desktop Xournal++ via the `.xopp`
   `<text>` element. (Underline isn't offered — the format can't store it.)

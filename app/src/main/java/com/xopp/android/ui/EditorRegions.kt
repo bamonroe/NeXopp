@@ -105,8 +105,7 @@ fun EditorToolbar(
         onToolGroupSelections = { onSettingsChange(settings.copy(toolGroupSelections = it)) },
         color = ui.color,
         onColor = { ui.color = it; surface?.colorArgb = it; onSettingsChange(settings.withColorUsed(it)) },
-        customColor = settings.customColor,
-        recentColors = settings.recentColors,
+        palette = rememberColorPaletteState(settings, onSettingsChange),
         onRedefineCustom = { newColor ->
             val old = settings.customColor
             onSettingsChange(settings.copy(customColor = newColor))

@@ -2,7 +2,6 @@ package com.xopp.android.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -90,7 +89,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -199,9 +197,8 @@ fun SideToolbar(
     onToolGroupSelections: (Map<String, EditorTool>) -> Unit,
     color: Int,
     onColor: (Int) -> Unit,
-    customColor: Int,
+    palette: ColorPaletteState,
     onRedefineCustom: (Int) -> Unit,
-    recentColors: List<Int>,
     width: Float,
     onWidth: (Float) -> Unit,
     widthSlots: List<Float>,
@@ -266,7 +263,7 @@ fun SideToolbar(
                     },
                 )
             } else when (item.id) {
-                "color" -> ColorPopupButton(color, onColor, customColor, onRedefineCustom, recentColors)
+                "color" -> ColorPopupButton(color, onColor, palette, onRedefineCustom)
                 "size" -> SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
                 "style" -> StylePopupButton(lineStyle, onLineStyle, fill, onFill)
                 "shapes" -> ShapeRecognitionButton(recognizeShapes, onRecognizeShapes)
@@ -363,18 +360,17 @@ private fun ToolGroupButton(
 }
 
 /**
- * The colour picker: the fixed [PEN_COLORS] palette followed by one editable **custom** slot (marked
- * with a pencil). Tapping any swatch selects it; **long-pressing the custom slot** opens a
- * [CustomColorPickerDialog] whose result the parent persists via [onRedefineCustom].
+ * The pen's colour button: the shared [ColorPaletteRows] in a drop-down. The palette itself (fixed
+ * swatches, the editable custom slot, recents) lives in `ColorPalette.kt` and is the same component
+ * the text-box dialog and the selection recolour menu use; this only adds the button and the menu
+ * around it, and the extra step of pushing the pick onto the canvas via [onColor].
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ColorPopupButton(
     color: Int,
     onColor: (Int) -> Unit,
-    customColor: Int,
+    palette: ColorPaletteState,
     onRedefineCustom: (Int) -> Unit,
-    recentColors: List<Int>,
 ) {
     var open by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
@@ -383,47 +379,20 @@ private fun ColorPopupButton(
             Icon(Icons.Filled.Circle, contentDescription = "Colour", tint = Color(color))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Text(
-                "Tap to pick · long-press ✎ to edit",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            ColorPaletteRows(
+                selected = color,
+                palette = palette,
+                onPick = { c -> onColor(c); open = false },
+                onEditCustom = { editing = true; open = false },
             )
-            Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                for (c in PEN_COLORS) {
-                    Swatch(color = c, selected = c == color, onClick = { onColor(c); open = false })
-                }
-                Swatch(
-                    color = customColor,
-                    selected = customColor == color,
-                    onClick = { onColor(customColor); open = false },
-                    onLongClick = { editing = true; open = false },
-                    editable = true,
-                )
-            }
-            if (recentColors.isNotEmpty()) {
-                MenuHeading("Recent")
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    for (c in recentColors) {
-                        Swatch(color = c, selected = c == color, onClick = { onColor(c); open = false })
-                    }
-                }
-            }
         }
     }
-    if (editing) {
-        CustomColorPickerDialog(
-            initial = customColor,
-            onConfirm = { newColor -> onRedefineCustom(newColor); editing = false },
-            onDismiss = { editing = false },
-        )
-    }
+    CustomColorEditor(
+        visible = editing,
+        palette = palette,
+        onDismiss = { editing = false },
+        onRedefine = onRedefineCustom,
+    )
 }
 
 /** The box a tip dot is drawn in, and the largest dot that fits comfortably inside it. */
@@ -1212,44 +1181,6 @@ private fun MenuHeading(text: String) {
         style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-}
-
-/**
- * A colour swatch: a filled circle with a selection ring. Passing [onLongClick] makes it respond to a
- * long-press (used by the editable custom slot); [editable] overlays a small pencil to mark that slot.
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun Swatch(
-    color: Int,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    editable: Boolean = false,
-) {
-    val ring = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    val ringWidth = if (selected) 3.dp else 1.dp
-    val clickModifier = if (onLongClick != null)
-        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-    else Modifier.clickable(onClick = onClick)
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(Color(color))
-            .border(ringWidth, ring, CircleShape)
-            .then(clickModifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (editable) {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = "Edit custom colour",
-                tint = if (Color(color).luminance() < 0.5f) Color.White else Color.Black,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
 }
 
 /**
