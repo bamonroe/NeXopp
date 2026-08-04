@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "register-the-app-as-a-default-opener-for-pdf-documents"
+title = "Register the app as a default opener for PDF documents"
+description = "Declare intent filters so Android offers xopp_android as a handler for application/pdf (VIEW/EDIT, content:// and file:// URIs), and open the incoming PDF as a PDF-background document that round-trips to .xopp."
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "epic-radial-palette-tool-at-the-pen-tip"
 title = "EPIC: radial palette tool at the pen tip"
 description = "Large multi-part feature. A radial palette that pops up right at the pen tip location, made of two concentric rings: an inner ring of 8 segments and an outer ring of 16 segments. Any segment may be empty. Each filled segment holds a tool/action the user selects by flicking or tapping toward it. Sub-work to flesh out: (1) rendering the two-ring radial menu anchored at the pen tip, (2) hit-testing angle+radius to a segment, (3) invocation gesture (likely tied to the barrel button double-click or hold), (4) the palette configuration UI - how the user assigns tools to inner/outer slots and leaves others empty, (5) persistence of palette configuration, (6) possibly multiple palettes and how to switch between them. Break this epic into concrete child tasks before implementing."
