@@ -22,29 +22,99 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "open-arbitrary-text-files-as-a-paginated-pdf-backed-document"
-title = "Open arbitrary text files as a paginated PDF-backed document"
-description = """
-Let the app accept a plain-text file (VIEW/EDIT intent or picker) and convert it on the fly into a PDF that becomes the page background, so it opens exactly like any other PDF-backed tab and can be annotated and saved as .xopp.
+id = "detect-text-files-in-filekind-and-accept-text-plain-intents"
+title = "Detect text files in FileKind and accept text/plain intents"
+description = "Add a TEXT kind to format/FileKind.kt. Plain text has no magic bytes, so this is a fallback rule rather than a prefix match: bump FileKind.MAGIC_BYTES above 8, sample the head of the stream, and classify as TEXT when the sample decodes as valid UTF-8 printable text (allowing tab/CR/LF), leaving UNKNOWN as the catch-all for binary. Keep FileKind.of() pure and extend app/src/test/java/com/xopp/android/format/FileKindTest.kt with UTF-8, ASCII, empty-file, BOM and binary cases. Then add text/plain VIEW+EDIT intent filters to AndroidManifest.xml alongside the existing application/pdf ones (lines 30-52), including the file:// pathPattern fallback for .txt and .md, so the app appears in the share/open-with sheet for text files."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-04
+tags = ["text-import", "format"]
+rebuild = true
+emulator_debug = false
 
-Investigate and break down into atomic tasks; the shape looks like:
-- Sniffing: extend format/FileKind.kt to recognise text (and probably markdown/source) alongside PDF/XML/ZIP, and add text/plain intent filters in AndroidManifest.xml plus a branch in MainActivity/io/DocumentIo.kt next to LoadedFile.Pdf.
-- Pagination: a new layout unit that wraps the text into lines and paginates it against the default paper size from the user's default page settings, white background. Fonts come from format/FontDescription.kt; line layout logic overlaps render/TextBlock.kt and may be shareable.
-- PDF generation: emit a real PDF with PDFBox using embedded, selectable text (no rasterising and no OCR - the characters are already known). Reuse the vector text path in render/PdfVectorPainter.kt where it fits.
-- Wiring: hand the generated PDF to PdfStore/PdfImport so it lands as Background.Pdf like a normal import; text selection then falls out of PdfTextExtractor/PdfText for free.
+[[task]]
+id = "wrap-and-paginate-plain-text-against-a-page-size"
+title = "Wrap and paginate plain text against a page size"
+description = "Add an Android-free layout unit that turns a string into pages of laid-out lines. Extend render/TextBlock.kt (or a sibling in the same style) with a wrap(text, maxWidth, measure: (String) -> Float) that breaks on whitespace, hard-breaks over-long runs (long log lines, no spaces), expands tabs, and preserves existing newlines verbatim. Then paginate: given page width/height and margins, fill lines at LINE_HEIGHT_RATIO spacing until the page is full and start the next. Page size comes from the A4 constants in render/DrawingSurfaceView.kt (A4_WIDTH_PT/A4_HEIGHT_PT) - there is no user default paper pref today, so hardcode A4 for now and note it. Measurement is injected so the unit stays free of PDFBox and Android; unit-test wrapping, hard breaks, tab expansion and page boundaries."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-04
+tags = ["text-import", "layout"]
+rebuild = true
+emulator_debug = false
 
-RESOLVED open questions (2026-08-04):
-- Persistence: the generated PDF lives in the app cache via the existing io/PdfStore.kt, which is already one-file-per-document and prunes against the tabs still open - so closing the tab drops it, and clearing app cache through Android drops it too. Extend it with a small manifest keyed by a content hash of the source text (plus title), so reopening the same file while its cache entry survives reuses the PDF instead of regenerating. On save to .xopp the generated PDF must be attached/zipped (ZIPPED/attach encode path in DocumentIo.kt) since there is no source PDF on disk.
-- Fonts: ship a permissively licensed open-source family (no license encumbrance), one proportional and one monospace; monospace is the sensible default for logs and source. Unicode coverage is settled by that same font choice - pick one with broad coverage and document the fallback for characters it lacks.
-- Very large files: cap it. Generate lazily / incrementally rather than converting a whole several-hundred-megabyte log up front, and enforce a per-file cache size cap with a clear message when a file exceeds it. Expose the cap as an Advanced setting.
+[[task]]
+id = "embed-an-open-licence-font-pair-for-generated-pdfs"
+title = "Embed an open-licence font pair for generated PDFs"
+description = "render/PdfVectorPainter.kt uses base-14 PDType1Fonts and sanitize() (line 195) drops anything outside 0x20..0xFF, which would mangle arbitrary UTF-8 in an imported text file. Ship one permissively licensed proportional family and one monospace (e.g. an OFL pair with broad Unicode coverage) as app assets, load them with PDType0Font.load so they embed and subset into the generated PDF, and route the text-import path through them instead of the base-14 fonts. Document the chosen fonts and their licences, and define the fallback for codepoints the font lacks (substitution glyph rather than a crash). Keep the existing base-14 path for .xopp text elements unchanged unless it is trivially shareable."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 40
+created = 2026-08-04
+tags = ["text-import", "fonts"]
+rebuild = true
+emulator_debug = false
 
-- Markdown is a separate rendering path from .txt. Plain .txt is set verbatim in monospace. A .md file is parsed and typeset the way Pandoc would render it to PDF: proportional body text, heading levels with their own font sizes and weights, bold/italic/inline-code spans, lists with indentation and bullets/numbers, block quotes, and horizontal rules. Monospace appears only in code blocks and inline code. This means the markdown path needs a small markdown parser and a styled-run layout model, not just line wrapping - scope it as its own child task or tasks, distinct from the plain-text one."""
+[[task]]
+id = "generate-a-pdf-from-paginated-text-with-pdfbox"
+title = "Generate a PDF from paginated text with PDFBox"
+description = "Write the text-to-PDF generator: take the paginated lines and emit a real PDF with selectable, embedded text - no rasterising, no OCR. Follow the authoring template in render/PdfExporter.kt freshPage() (line 66): PDPage(PDRectangle) -> addPage -> PDPageContentStream -> beginText/setFont/newLineAtOffset/showText per line -> save. White background, monospace by default (the sensible choice for logs and source), using the embedded fonts. Measurement for the wrapper is PDFont.getStringWidth(s)/1000*size. Unit-test that the output opens, has the expected page count, and that PdfTextExtractor recovers the original text."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 50
+created = 2026-08-04
+tags = ["text-import", "pdf"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "wire-text-import-through-documentio-and-cache-the-generated-pdf"
+title = "Wire text import through DocumentIo and cache the generated PDF"
+description = "Join the pieces so a text file opens exactly like a PDF-backed document. In io/DocumentIo.read() (line 94) add a FileKind.TEXT branch next to the PDF short-circuit at line 96 that generates the PDF and returns LoadedFile.Pdf(generated) - MainActivity.loadDocument then needs no change, and Background.Pdf, PdfImport and PdfTextExtractor selection all fall out for free. Cache via the existing io/PdfStore.kt: add a small manifest keyed by a content hash of the source text plus title so reopening the same file while its cache entry survives reuses the PDF instead of regenerating; liveness pruning already drops it when the tab closes. On save to .xopp the generated PDF has no on-disk source, so it must be attached through the ZIPPED/attach encode path in DocumentIo. Cover the round-trip with a test: open text -> annotate -> save -> reopen."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 60
+created = 2026-08-04
+tags = ["text-import"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "cap-text-import-pdf-generation-size-and-expose-the-cap-in-settings"
+title = "Cap text-import PDF generation size and expose the cap in settings"
+description = "Bound the cost of importing a several-hundred-megabyte log. Enforce a per-file size cap on text import with a clear user-facing message when a file exceeds it, and generate lazily/incrementally rather than converting the whole file up front. Add a cache size cap enforced in io/PdfStore.kt (which today prunes only by liveness, see prune() line 40) and wired through DocumentIo.prune(live) (line 160), which MainActivity already calls on session persist. Expose both caps as an Advanced/Storage section in settings: there is no such section today, so add the AppSettings field plus KEY_ const and load/save lines in ui/AppSettings.kt, a SettingsSection enum entry in ui/SettingsScreen.kt, and the composable in ui/SettingsSections.kt (EditorSection line 137 is the simplest pattern)."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 70
+created = 2026-08-04
+tags = ["text-import", "settings"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "typeset-markdown-files-pandoc-style-rather-than-verbatim"
+title = "Typeset markdown files Pandoc-style rather than verbatim"
+description = "A .md file is a separate rendering path from .txt: parsed and typeset the way Pandoc would render it to PDF, not set verbatim in monospace. That means proportional body text; heading levels with their own sizes and weights; bold, italic and inline-code spans; lists with indentation and bullets/numbers; block quotes; and horizontal rules. Monospace appears only in code blocks and inline code. This needs a small dependency-free markdown parser and a styled-run layout model - the plain-text wrapper handles a single font per line and is not sufficient. Investigate and break this into atomic tasks once the plain-text path (parser, styled-run wrapping, block layout, PDF emission of styled runs) is landed and its shape is known."
 status = "active"
 level = "scope"
 category = "feature"
 urgency = "normal"
-order = 10
+order = 80
 created = 2026-08-04
-tags = ["pdf", "text", "import"]
+tags = ["text-import", "markdown"]
 rebuild = true
 emulator_debug = false
