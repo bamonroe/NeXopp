@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "open-image-files-as-documents"
+title = "Open image files as documents"
+description = "Allow opening a plain image file (PNG/JPEG, etc.) from the file picker the same way a PDF is opened today: as a LINKED page background, not as an embedded <image> element. That means a <background type=\"pixmap\"> with domain=absolute/attach and a filename pointing at the image on disk, so annotations live in the .xopp and the image stays an external file that round-trips to desktop Xournal++."
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "mouse-scroll-wheel-scrolls-the-document-vertically"
 title = "Mouse scroll wheel scrolls the document vertically"
 description = "With a Bluetooth mouse connected, the scroll wheel currently does nothing on the canvas. Handle the hover/scroll axis events (MotionEvent ACTION_SCROLL / AXIS_VSCROLL from a SOURCE_MOUSE device) and translate them into vertical document scrolling — wheel down moves further down the page, the same direction as dragging a scrollbar downward, not an inverted 'grab the paper and pull' pan. Clamp to the same document bounds the existing pan uses, and keep the current zoom level unchanged."
