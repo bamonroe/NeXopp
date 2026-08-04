@@ -14,7 +14,8 @@ import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
  * background) draws with these embedded `PDType0Font`s instead: PDFBox subsets them into the output,
  * so the file stays small and renders identically everywhere without the font installed.
  *
- * The bundled faces are **DejaVu Sans** (proportional) and **DejaVu Sans Mono** (monospace), from
+ * The bundled faces are **DejaVu Sans** (proportional, with its bold, oblique and bold-oblique
+ * companions for markdown emphasis) and **DejaVu Sans Mono** (monospace), from
  * `app/src/main/assets/fonts/`. They are permissively licensed — Bitstream Vera + Arev, with the
  * DejaVu changes in the public domain — and the full licence ships alongside them as
  * `assets/fonts/LICENSE.txt`. See `docs/architecture.md` for why this pair.
@@ -27,6 +28,9 @@ class PdfFonts(private val assets: AssetManager) {
     /** The bundled faces, by role. */
     enum class Face(val assetPath: String) {
         PROPORTIONAL("fonts/DejaVuSans.ttf"),
+        PROPORTIONAL_BOLD("fonts/DejaVuSans-Bold.ttf"),
+        PROPORTIONAL_ITALIC("fonts/DejaVuSans-Oblique.ttf"),
+        PROPORTIONAL_BOLD_ITALIC("fonts/DejaVuSans-BoldOblique.ttf"),
         MONOSPACE("fonts/DejaVuSansMono.ttf"),
     }
 

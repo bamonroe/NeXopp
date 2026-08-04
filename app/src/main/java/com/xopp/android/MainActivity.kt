@@ -124,11 +124,10 @@ class MainActivity : ComponentActivity() {
      * (see [DocumentIo]). The activity keeps only the intent plumbing and the canvas wiring.
      */
     private val io: DocumentIo by lazy {
-        // Monospace is the sensible default for the logs and source a text import usually holds.
+        // Plain text defaults to monospace — the sensible face for the logs and source it usually
+        // holds; markdown picks its own faces per run style (see MarkdownPdfWriter).
         val fonts = PdfFonts(assets)
-        DocumentIo(contentResolver, cacheDir, filesDir, TextPdfGenerator { doc ->
-            fonts.load(doc, PdfFonts.Face.MONOSPACE)
-        })
+        DocumentIo(contentResolver, cacheDir, filesDir, TextPdfGenerator(fonts::load))
     }
 
     /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */

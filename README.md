@@ -169,9 +169,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   its own, and the typeset pages are **saved inside** the `.xopp` (the zipped single-file package) —
   so the file reopens with its text intact on this device *and* in desktop Xournal++, with nothing
   else to keep alongside it. Reopening the same text file again reuses the pages already typeset.
-  A file named `.md` or `.markdown` is recognised as **markdown** and imported on its own track,
-  cached separately from the same text opened under a `.txt` name — for now it is typeset just like
-  plain text, with rendered headings, emphasis and lists still to come.
+  A file named `.md` or `.markdown` is recognised as **markdown** and **typeset as markdown**,
+  cached separately from the same text opened under a `.txt` name. Headings are set large and bold,
+  `**bold**` and `*italic*` are drawn in real bold and italic type, `` `code` `` and fenced code
+  blocks in monospace, lists get hanging bullets or numbers, block quotes are indented, and `---`
+  becomes a drawn horizontal rule — with the markup characters themselves gone from the page. The
+  result is still selectable text, so **Select text (PDF)** copies the words without the syntax.
   Very large files are **refused rather than opened**: typesetting reads the whole file at once, so a
   file over the **text import limit** (16 MB by default) comes back as *"Text file is N MB, over the
   16 MB import limit"* instead of stalling the app. Raise or lower that limit under
@@ -588,7 +591,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
   editable `.xopp`.
 - **Fonts in generated PDFs** — when Xopp *generates* a PDF page for you (the text-import path), it
-  typesets with **DejaVu Sans** and **DejaVu Sans Mono**, which ship inside the app. Because they are
+  typesets with **DejaVu Sans** (plus its **bold**, *oblique* and ***bold-oblique*** companions, used
+  for markdown emphasis) and **DejaVu Sans Mono**, which ship inside the app. Because they are
   embedded (and subsetted) into the PDF, imported text in Cyrillic, Greek, CJK, or box-drawing
   characters renders the same on any viewer without those fonts installed, and the file only carries
   the glyphs it actually used. A character even DejaVu doesn't have is drawn as a `�` placeholder

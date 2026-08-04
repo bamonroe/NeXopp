@@ -1,13 +1,11 @@
 package com.xopp.android.render
 
 import com.tom_roush.pdfbox.pdmodel.PDDocument
-import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.ByteArrayOutputStream
-import java.io.File
 
 /**
  * Exercises the real PDFBox authoring path: the bundled monospace face is embedded straight from
@@ -16,12 +14,7 @@ import java.io.File
  */
 class TextPdfGeneratorTest {
 
-    private val fontFile = File("src/main/assets/" + PdfFonts.Face.MONOSPACE.assetPath)
-
-    private fun generator() = TextPdfGenerator { doc ->
-        val font = fontFile.inputStream().use { PDType0Font.load(doc, it, true) }
-        PdfFonts.Embedded(font, GlyphSanitizer { s -> runCatching { font.getStringWidth(s) }.isSuccess })
-    }
+    private fun generator() = TextPdfGenerator(AssetFonts.loader())
 
     private fun render(text: String, spec: TextPaginator.PageSpec = TextPaginator.PageSpec()): Pair<Int, ByteArray> {
         val out = ByteArrayOutputStream()

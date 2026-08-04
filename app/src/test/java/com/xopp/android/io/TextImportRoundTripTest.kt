@@ -1,6 +1,5 @@
 package com.xopp.android.io
 
-import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.xopp.android.format.XoppZip
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
@@ -10,20 +9,18 @@ import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.ATTACH_DOMAIN
-import com.xopp.android.render.GlyphSanitizer
-import com.xopp.android.render.PdfFonts
+import com.xopp.android.render.AssetFonts
 import com.xopp.android.render.PdfTextExtractor
 import com.xopp.android.render.TextPdfGenerator
 import com.xopp.android.render.documentWithPdfDomain
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.io.File
 
 /**
  * The whole text-import journey, end to end: open a `.txt` → annotate it → save → reopen.
@@ -38,12 +35,7 @@ class TextImportRoundTripTest {
 
     @get:Rule val tmp = TemporaryFolder()
 
-    private val fontFile = File("src/main/assets/" + PdfFonts.Face.MONOSPACE.assetPath)
-
-    private fun generator() = TextPdfGenerator { doc ->
-        val font = fontFile.inputStream().use { PDType0Font.load(doc, it, true) }
-        PdfFonts.Embedded(font, GlyphSanitizer { s -> runCatching { font.getStringWidth(s) }.isSuccess })
-    }
+    private fun generator() = TextPdfGenerator(AssetFonts.loader())
 
     private val annotation = Stroke(
         tool = Tool.PEN,

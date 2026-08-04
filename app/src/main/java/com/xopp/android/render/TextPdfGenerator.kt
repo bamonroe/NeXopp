@@ -4,6 +4,8 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.xopp.android.render.markdown.MarkdownLayout
+import com.xopp.android.render.markdown.MarkdownStyle
 import java.io.OutputStream
 
 /**
@@ -12,12 +14,16 @@ import java.io.OutputStream
  * OCR is involved: each laid-out line is drawn with `showText` using a bundled `PDType0Font`, so
  * [PdfTextExtractor] recovers the original characters and the reader can select and search them.
  *
- * Layout is delegated wholly to [TextPaginator] — this class only authors the PDF. The font is
- * injected as a `(PDDocument) -> PdfFonts.Embedded` loader so the generator stays free of Android's
- * `AssetManager` and is unit-testable on the JVM; the app passes `{ fonts.load(it, MONOSPACE) }`,
- * monospace being the sensible default for logs and source.
+ * Layout is delegated wholly to [TextPaginator] (plain) or [MarkdownLayout] (markdown) — this class
+ * only picks the flavour and authors the PDF, handing the markdown half to [MarkdownPdfWriter].
+ * Fonts are injected as a `(PDDocument, Face) -> PdfFonts.Embedded` loader so the generator stays
+ * free of Android's `AssetManager` and is unit-testable on the JVM; [plainFace] is the single face
+ * the plain path draws in, monospace being the sensible default for logs and source.
  */
-class TextPdfGenerator(private val loadFont: (PDDocument) -> PdfFonts.Embedded) {
+class TextPdfGenerator(
+    private val loadFont: (PDDocument, PdfFonts.Face) -> PdfFonts.Embedded,
+    private val plainFace: PdfFonts.Face = PdfFonts.Face.MONOSPACE,
+) {
 
     /**
      * Write [text] to [out] as a PDF laid out to [spec], typeset for [flavor]. Returns the page
@@ -32,20 +38,49 @@ class TextPdfGenerator(private val loadFont: (PDDocument) -> PdfFonts.Embedded) 
     ): Int {
         val doc = PDDocument()
         try {
-            val font = loadFont(doc)
-            // The markdown branch is the seam the parser/layout work lands in; until it exists,
-            // markdown is typeset exactly as its source text, which is a correct (if plain) result.
-            val source = when (flavor) {
-                TextFlavor.PLAIN, TextFlavor.MARKDOWN -> text
+            val count = when (flavor) {
+                TextFlavor.PLAIN -> writePlain(doc, text, spec)
+                TextFlavor.MARKDOWN -> writeMarkdown(doc, text, spec)
             }
-            val pages = TextPaginator.layout(source, spec, font.measurer(spec.fontSizePt))
-            pages.forEach { lines -> writePage(doc, font, lines, spec) }
             doc.save(out)
-            return pages.size
+            return count
         } finally {
             doc.close()
         }
     }
+
+    /** Plain text: one face, one column of baselines per page. */
+    private fun writePlain(doc: PDDocument, text: String, spec: TextPaginator.PageSpec): Int {
+        val font = loadFont(doc, plainFace)
+        val pages = TextPaginator.layout(text, spec, font.measurer(spec.fontSizePt))
+        pages.forEach { lines -> writePage(doc, font, lines, spec) }
+        return pages.size
+    }
+
+    /**
+     * Markdown: parsed into blocks, wrapped against the very faces it will be drawn in, then paged.
+     * A source with no blocks at all still gets one blank sheet, as the plain path does.
+     */
+    private fun writeMarkdown(doc: PDDocument, text: String, spec: TextPaginator.PageSpec): Int {
+        val writer = MarkdownPdfWriter.forDocument(doc, loadFont)
+        val style = markdownStyle(spec)
+        val pages = MarkdownLayout.layout(text, style, writer.measure)
+        if (pages.isEmpty()) {
+            writer.writeBlankPage(doc, style)
+            return 1
+        }
+        pages.forEach { writer.writePage(doc, it, style) }
+        return pages.size
+    }
+
+    /** The markdown sizes inherit the caller's page geometry and body type; the rest are defaults. */
+    private fun markdownStyle(spec: TextPaginator.PageSpec) = MarkdownStyle(
+        widthPt = spec.widthPt,
+        heightPt = spec.heightPt,
+        marginPt = spec.marginPt,
+        bodyFontSizePt = spec.fontSizePt,
+        lineHeightRatio = spec.lineHeightRatio,
+    )
 
     /** One sheet: white background, then a baseline per laid-out line, top-down. */
     private fun writePage(

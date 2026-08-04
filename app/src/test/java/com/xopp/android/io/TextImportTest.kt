@@ -1,18 +1,16 @@
 package com.xopp.android.io
 
 import com.tom_roush.pdfbox.pdmodel.PDDocument
-import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.tom_roush.pdfbox.text.PDFTextStripper
-import com.xopp.android.render.GlyphSanitizer
-import com.xopp.android.render.PdfFonts
+import com.xopp.android.render.AssetFonts
 import com.xopp.android.render.TextPdfGenerator
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 
 /**
  * Covers the caching contract a text import leans on: typesetting is expensive, so the same text
@@ -23,15 +21,9 @@ class TextImportTest {
 
     @get:Rule val tmp = TemporaryFolder()
 
-    private val fontFile = File("src/main/assets/" + PdfFonts.Face.MONOSPACE.assetPath)
-
     private var generations = 0
 
-    private fun generator() = TextPdfGenerator { doc ->
-        generations++
-        val font = fontFile.inputStream().use { PDType0Font.load(doc, it, true) }
-        PdfFonts.Embedded(font, GlyphSanitizer { s -> runCatching { font.getStringWidth(s) }.isSuccess })
-    }
+    private fun generator() = TextPdfGenerator(AssetFonts.loader { generations++ })
 
     private fun source(text: String): File = tmp.newFile().apply { writeText(text) }
 

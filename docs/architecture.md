@@ -501,6 +501,7 @@ app/
       PdfFonts.kt            # embeds the bundled Unicode fonts (DejaVu) into a PDDocument, cached per doc
       TextPdfGenerator.kt    # authors the text-import PDF: selectable embedded text, injected font loader
       TextFlavor.kt          # plain vs markdown typesetting flavour + its PdfStore cache prefix
+      MarkdownPdfWriter.kt   # draws laid-out markdown pages: a face per run style, rules as filled rects
       markdown/
         MarkdownBlock.kt     # the block tree a markdown import lays out from (pure data model)
         MarkdownLine.kt      # line-level "what does this line start?" recognisers (pure)
@@ -927,8 +928,9 @@ UTF-8 and the glyphs only exist in the generated PDF. So the text-import path dr
 (`PDType0Font.load(doc, stream, subset = true)`): PDFBox subsets them into the output, so a CJK or
 Cyrillic import renders identically everywhere without bloating the file with a whole face.
 
-The bundled pair is **DejaVu Sans** (proportional) and **DejaVu Sans Mono** (monospace), chosen for
-broad Unicode coverage at a modest ~1.1 MB and a permissive licence — Bitstream Vera + Arev, with the
+The bundled family is **DejaVu Sans** — regular, **bold**, oblique and bold-oblique, the four faces
+markdown emphasis needs — and **DejaVu Sans Mono** (monospace, which also sets markdown code), chosen
+for broad Unicode coverage at a modest ~3 MB and a permissive licence — Bitstream Vera + Arev, with the
 DejaVu changes in the public domain, compatible with the Apache-2.0/OFL-only rule that already ruled
 out iText. They live in `app/src/main/assets/fonts/` with the full licence text beside them as
 `LICENSE.txt`. Codepoints even DejaVu lacks are **substituted, never fatal**: `GlyphSanitizer` (pure,
@@ -936,6 +938,10 @@ unit-tested; encodability injected as a predicate) maps each unencodable codepoi
 or a space — memoising per codepoint, and iterates by codepoint so an astral character becomes one
 substitute rather than two surrogate halves. `PdfFonts.Embedded.measurer` is also what feeds
 `TextPaginator`'s injected measurement, so wrapping is measured against the exact font that draws.
+Markdown needs the same guarantee across *five* faces at once, so `MarkdownPdfWriter` resolves every
+`RunStyle` to an `Embedded` up front and exposes that map both as the layout's `SizedMeasurer` and as
+the draw-time font lookup — one table, so a line can never be wider on the page than the width it was
+wrapped to.
 
 **Generating the text-import PDF.** `TextPdfGenerator` turns a plain-text file into the PDF a text
 import is opened against. It owns only the authoring — layout is entirely `TextPaginator`'s — and
@@ -943,10 +949,32 @@ emits **real, selectable text**: a white sheet per page, then one `beginText`/`s
 `newLineAtOffset`/`showText` per laid-out line at `heightPt - baselineFromTop(i)` (PDF's origin is
 bottom-left, the paginator's is top-left). Nothing is rasterised and no OCR is involved, so
 `PdfTextExtractor` recovers the original characters and text selection works on an imported `.txt`
-exactly as on a born-digital PDF. The font is **injected** as a `(PDDocument) -> PdfFonts.Embedded`
-loader, keeping the generator free of `AssetManager` and unit-testable on the JVM; the app passes the
-monospace face, the sensible default for logs and source. An empty file still yields one blank sheet
-to annotate.
+exactly as on a born-digital PDF. Fonts are **injected** as a
+`(PDDocument, PdfFonts.Face) -> PdfFonts.Embedded` loader, keeping the generator free of
+`AssetManager` and unit-testable on the JVM; the plain path draws in one `plainFace`, monospace by
+default — the sensible choice for logs and source. An empty file still yields one blank sheet to
+annotate.
+
+**Authoring the markdown PDF (`render/MarkdownPdfWriter.kt`).** The markdown flavour keeps the same
+split — pure layout in `render/markdown/`, PDFBox only here. `TextPdfGenerator.writeMarkdown` derives
+a `MarkdownStyle` from the caller's `PageSpec` (page geometry, body size and line-height carry over;
+the markdown-only sizes stay at their defaults), runs `MarkdownLayout.layout`, and hands each
+`MarkdownPage` back to the writer. Three differences from the plain path:
+
+- **A line is many fragments, not one string.** Each `RunFragment` gets its own
+  `beginText`/`setFont`/`newLineAtOffset`/`showText` at `margin + indentPt + fragment.xPt`, because
+  neighbouring fragments differ in face. A list `marker` is drawn the same way at its (negative)
+  `markerXPt`, so bullets hang in the gutter the indent opened.
+- **All fragments on a line share `line.fontSizePt`.** That is the size the composer measured them
+  at, including inline code spans — code takes a different *face*, not a different size, inside a
+  paragraph. Only a code *block* gets `codeFontSizePt`, and the composer stamps that onto the line.
+- **A rule is a filled rect, not a stroke** — `addRect`/`fill` centred on the placed `yPt`, which
+  needs no line-width or stroking-colour state and so cannot leak graphics state into later text.
+
+A source that yields no blocks still gets one blank sheet, matching the plain path.
+`MarkdownPdfWriterTest` closes the loop end-to-end: markdown in, real PDF out, `PDFTextStripper` back
+out again — asserting the words survive, the markup characters do not, and more than one face is
+embedded on the page.
 
 **Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
 file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits
@@ -964,9 +992,8 @@ the single place in the open path an extension is consulted, and it is consulted
 **flavour**, never a format. `TextImport.pdfFor` turns the name into a `render/TextFlavor`
 (`PLAIN` · `MARKDOWN`) and rides it through `TextPdfGenerator.generate(…, flavor)` rather than
 forking a parallel import class — everything downstream of the generated PDF is identical, so a
-second path would buy nothing. The `MARKDOWN` branch in the generator is the seam the markdown
-parser and block layout land in; until they exist it typesets the source verbatim, which is a
-correct if plain result. Each flavour carries its own `cachePrefix` (`text:` / `markdown:`) so the
+second path would buy nothing. The `MARKDOWN` branch in the generator runs the markdown parser,
+layout and `MarkdownPdfWriter` in place of `TextPaginator`. Each flavour carries its own `cachePrefix` (`text:` / `markdown:`) so the
 same bytes opened as `notes.txt` and as `notes.md` cannot collide in `PdfStore`.
 
 **Parsing markdown (`render/markdown/`).** Structure and geometry are split the same way plain text
