@@ -99,6 +99,9 @@ data class AppSettings(
     /** Light, dark, or follow the system — applied to the whole app's Material 3 scheme. */
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
 ) {
+    /** The fill alpha to draw with, or null when fill is off — the two fill fields as one value. */
+    val currentFill: Int? get() = if (fillEnabled) fillAlpha else null
+
     /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
      * truncated to [MAX_RECENT_COLORS] — and recorded as the pen's [lastColor].

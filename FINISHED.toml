@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "hoist-editorscreen-s-loose-state-into-a-single-state-holder"
+title = "Hoist EditorScreen's loose state into a single state holder"
+description = "EditorScreen.kt's top-level composable is ~400 lines and the file carries 31 separate mutableStateOf declarations (SideToolbar has another 25). That many independent remembered values in one scope makes recomposition scope hard to reason about and the composable untestable. Introduce an EditorUiState holder class (remembered once) grouping the related flags — dialog visibility, active tool, popup open-state, pending insert placement — and break the 400-line composable into named sub-composables per region. Reduces recomposition churn and brings the function under the ~100-line guideline."
+status = "finished"
+category = "refactor"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["compose", "state"]
+
+[[task]]
 id = "centralise-the-argb-alpha-blend-helper-into-xoppcolor"
 title = "Centralise the ARGB alpha-blend helper into XoppColor"
 description = "The '(color and 0x00FFFFFF) or (alpha shl 24)' idiom is open-coded in at least six places: StrokePainter.kt:60 and :133, DrawingSurfaceView.kt:450, :459, :498 (a private withAlpha extension), :2345, :2669. Move a single 'Int.withAlpha(alpha: Int)' (plus a named half-alpha/highlighter constant) into format/XoppColor.kt, which already owns ARGB packing at line 37, and have every call site use it. Kills the magic masks and gives the highlighter's 0x80 alpha one documented home."

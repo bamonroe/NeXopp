@@ -365,8 +365,8 @@ The design decisions worth keeping:
   1 `filesDir/tabs-right`, so an existing session still restores and the right-hand pane's documents
   survive both a split-view toggle and a restart. `onPause` snapshots and writes *both*.
 - **A pane's Compose mirror is per pane too.** `ui/PaneState.kt` holds the zoom/page/layer/undo state
-  a canvas pushes up through its callbacks; `EditorScreen` keeps one per pane and aliases the active
-  one into the names the chrome reads. Each surface's callbacks write into *its own* `PaneState`, so
+  a canvas pushes up through its callbacks; `EditorUiState` keeps one per pane and `EditorScreen`
+  hands the active one to each region. Each surface's callbacks write into *its own* `PaneState`, so
   a background pane stays current instead of scribbling over the focused one.
 - **Turning split view off doesn't destroy the pane.** Its canvas is disposed, so when it comes back
   `restoreTabs` finds a non-empty session and re-loads the showing tab onto the *replacement*
@@ -510,7 +510,10 @@ app/
       AudioStore.kt          # app-private recordings dir + SAF tree import/export of sidecars
       AudioSession.kt        # the editor's single audio facade (record / stamp / play / sync)
     ui/                      # Compose Material 3
-      EditorScreen.kt        # top bar (undo/redo + ☰ overflow menu), left rail, canvas, author dialogs
+      EditorScreen.kt        # the editor's assembly: scaffold + body layout (rail edge, split panes)
+      EditorUiState.kt       # the screen's remembered chrome state (pen, open dialogs, panes) in one holder
+      EditorRegions.kt       # the screen's regions: top bar, ☰ menu, the rail's wiring, one pane's canvas
+      EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import dialogs
       SideToolbar.kt         # left vertical rail: grouped tool slots + Colour/Size/Zoom/Pages pop-ups
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
@@ -706,12 +709,12 @@ visibility just skips a layer in `PageRenderer.drawElements`, so it never touche
 all four lives in the rail's **Tool** (shapes, eraser mode), **Style** (line style / fill), and
 **Layers** pop-ups (`SideToolbar`). Fill is a switch plus a continuous alpha `Slider`
 (`SideToolbar.FillControls`) rather than preset levels; its on/off state and alpha persist as
-`AppSettings.fillEnabled` / `fillAlpha`, and `EditorScreen` derives the surface's `currentFill`
-from that pair (`null` when off) instead of holding separate session state.
+`AppSettings.fillEnabled` / `fillAlpha`, and `AppSettings.currentFill` derives the surface's fill
+from that pair (`null` when off) instead of the screen holding separate session state.
 
 **Authoring non-stroke elements.** With the **Text**, **Image**, or **LaTeX** tool active, the
 surface is in a *placement* mode (`placeKind`): a one-finger tap (not a drag) raises `onPlace` with
-the page-local point, which `EditorScreen` turns into a keyboard dialog (text/LaTeX) or, for images,
+the page-local point, which `EditorOverlays` turns into a keyboard dialog (text/LaTeX) or, for images,
 an `onPickImage` callback up to `MainActivity`'s SAF picker. The chosen content is inserted via
 `insertText` / `insertTex` / `insertImage` — each a single undoable edit appended to the page's top
 layer. Tapping an existing text box reopens it for editing (clearing the content deletes it);
@@ -775,7 +778,7 @@ tap / union-bounds, and `SelectionOps` translates or deletes the addressed eleme
 (returning a new list; immutable pages/layers share structure so a snapshot stays cheap). Dragging inside
 the selection outline translates the elements live (recomputing from the gesture-start document each
 frame so there's no drift) and commits as **one undoable edit**; a floating **Delete / Deselect** bar
-(`EditorScreen.SelectionActionBar`, shown via `onSelectionChanged`) deletes (undoable) or clears the
+(`EditorOverlays.SelectionActionBar`, shown via `onSelectionChanged`) deletes (undoable) or clears the
 selection. The dashed outline and marquee are drawn by the view over the page stack. Two-finger pan still
 works in Select mode (it abandons the in-progress selection gesture).
 
