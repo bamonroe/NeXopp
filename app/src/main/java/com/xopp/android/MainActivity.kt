@@ -351,7 +351,7 @@ class MainActivity : ComponentActivity() {
 
     /** Put a staged local copy of the document onto the canvas ([DocumentIo] decided what it is). */
     private fun loadDocument(staged: File, source: Uri) {
-        when (val loaded = io.read(staged, displayName(source))) {
+        when (val loaded = io.read(staged, displayName(source), source)) {
             // A raw PDF isn't a document to parse — it becomes a fresh annotatable one over its pages.
             is LoadedFile.Pdf -> {
                 // A PDF we typeset from a text file lives only in the prunable cache, so there is no
@@ -487,7 +487,7 @@ class MainActivity : ComponentActivity() {
         val view = surface ?: return
         // Encode locally first, then push the finished bytes across in one pass: on a slow or flaky
         // remote share, serialising straight down the wire risks leaving a half-written .xopp behind.
-        val staged = runCatching { io.encode(view.toDocument(), view.pdfSourceFile(), saveFormat) }
+        val staged = runCatching { io.encode(view.toDocument(), view.pdfSourceFile(), saveFormat, uri) }
             .getOrElse { toast("Save failed: ${it.message}"); return }
 
         inBackground("Saving ${displayName(uri)}…", { io.stageOut(staged, uri) }) { result ->

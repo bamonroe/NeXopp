@@ -2,6 +2,7 @@ package com.xopp.android.io
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import com.xopp.android.format.FileKind
 import com.xopp.android.format.SaveFormat
@@ -9,10 +10,12 @@ import com.xopp.android.format.Xopp
 import com.xopp.android.format.XoppZip
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
+import com.xopp.android.render.ABSOLUTE_DOMAIN
 import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.PdfMerger
 import com.xopp.android.render.TextPdfGenerator
 import com.xopp.android.render.documentWithPdfDomain
+import com.xopp.android.render.documentWithPdfReference
 import java.io.File
 
 /**
@@ -127,7 +130,7 @@ class DocumentIo(
      * reliable suffix. The verdict also fixes the sticky save format, so a reopened ZIP keeps saving
      * ZIPPED and a gzip `.xopp` keeps saving gzip.
      */
-    fun read(staged: File, name: String = staged.name): LoadedFile {
+    fun read(staged: File, name: String = staged.name, source: Uri? = null): LoadedFile {
         val kind = staged.inputStream().use { FileKind.sniff(it.buffered()) }
         if (kind == FileKind.PDF) return LoadedFile.Pdf(staged)
         // A text file has no `.xopp` representation of its own, so it is typeset into a PDF and then
@@ -146,9 +149,9 @@ class DocumentIo(
                 // A ZIP package carries its PDF inside, so the background needs no sibling file.
                 FileKind.ZIP -> XoppZip.open(input, pdfStore::newFile)
                     .let { (doc, pdf) -> LoadedFile.Doc(doc, pdf, SaveFormat.ZIPPED) }
-                FileKind.GZIP -> linked(Xopp.open(input))
+                FileKind.GZIP -> linked(Xopp.open(input), name, source)
                 // Desktop Xournal++ can write plain XML; accept it and save it back compressed.
-                FileKind.XML -> linked(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()))
+                FileKind.XML -> linked(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()), name, source)
                 else -> error("unrecognised file type")
             }
         }
@@ -158,25 +161,65 @@ class DocumentIo(
      * Resolve the PDF background a gzip/XML document links to, so a saved project reopens with its
      * background intact. Only the first PDF-backed page carries the reference (import convention).
      */
-    private fun linked(doc: Document): LoadedFile.Doc {
-        val ref = doc.pages.firstNotNullOfOrNull { (it.background as? Background.Pdf)?.filename }
-        val pdf = ref?.let(::resolvePdfBackground)
+    private fun linked(doc: Document, name: String, source: Uri?): LoadedFile.Doc {
+        val bg = doc.pages.firstNotNullOfOrNull { it.background as? Background.Pdf }
+        val ref = bg?.filename
+        val pdf = ref?.let { resolvePdfBackground(it, bg.domain, name, source) }
         return LoadedFile.Doc(doc, pdf, SaveFormat.ORIGINAL, missingPdf = ref != null && pdf == null)
     }
 
     /**
-     * Resolve a `pdf` background reference back to a local file we can rasterise. The reference is
-     * either a `content://` URI (what Android records for `domain="absolute"` — a picked PDF has no
-     * filesystem path) or an on-disk path (what desktop Xournal++ records). Copies the bytes into the
-     * store; returns null when the source can't be reached (e.g. a Linux path on Android), so the
-     * caller falls back to blank pages.
+     * Resolve a `pdf` background reference back to a local file we can rasterise, covering every
+     * shape desktop Xournal++ and this app can write (see [PdfReference]):
+     *
+     * - a `content://` URI — what Android records for `domain="absolute"` when a picked PDF has no
+     *   filesystem path of its own;
+     * - an absolute on-disk path — what desktop Xournal++ records for a PDF outside the folder;
+     * - a **relative** path under `domain="absolute"` — resolved against the folder holding the
+     *   `.xopp` being opened, which is the portable form and so the one we prefer to write;
+     * - `domain="attach"` on a non-zip document — the `<name>.xopp.<filename>` sibling.
+     *
+     * Copies the bytes into the store; returns null when the source can't be reached (a Linux path
+     * on Android, a provider we hold no grant on), so the caller falls back to blank pages.
      */
-    private fun resolvePdfBackground(ref: String): File? = runCatching {
-        val stream = when {
-            ref.startsWith("content://") -> resolver.openInputStream(Uri.parse(ref))
-            else -> File(ref).takeIf(File::exists)?.inputStream()
-        } ?: return@runCatching null
-        copyIntoStore(stream)
+    private fun resolvePdfBackground(ref: String, domain: String?, name: String, source: Uri?): File? =
+        runCatching {
+            val stream = when {
+                domain == ATTACH_DOMAIN ->
+                    openSibling(source, PdfReference.attachSiblingName(name, ref))
+                ref.startsWith("content://") -> resolver.openInputStream(Uri.parse(ref))
+                PdfReference.isRelative(ref) -> openSibling(source, ref)
+                else -> File(ref).takeIf(File::exists)?.inputStream()
+            } ?: return@runCatching null
+            copyIntoStore(stream)
+        }.getOrNull()
+
+    /**
+     * Open the file [ref] names *relative to the document at [source]* — the one lookup a relative or
+     * attached reference needs. A `file://` source relativises on the filesystem; a `content://` one
+     * relativises on its SAF document id, which only works when the provider's ids are decomposable
+     * paths (`primary:Docs/notes.xopp`). Anything else — an opaque Downloads id, no source at all —
+     * gives null, and the caller falls back to blank pages with the usual "not found" note.
+     */
+    private fun openSibling(source: Uri?, ref: String): java.io.InputStream? {
+        val uri = source ?: return null
+        return when (uri.scheme) {
+            "file" -> uri.path
+                ?.let { PdfReference.resolveRelative(it, ref) }
+                ?.let { File("/$it") }
+                ?.takeIf(File::exists)
+                ?.inputStream()
+            "content" -> siblingUri(uri, ref)?.let { runCatching { resolver.openInputStream(it) }.getOrNull() }
+            else -> null
+        }
+    }
+
+    /** The SAF URI of [ref] resolved beside the document at [source], or null if its ids aren't paths. */
+    private fun siblingUri(source: Uri, ref: String): Uri? = runCatching {
+        val docId = DocumentsContract.getDocumentId(source)
+        val siblingId = PdfReference.resolveRelativeDocumentId(docId, ref) ?: return null
+        if (DocumentsContract.isTreeUri(source)) DocumentsContract.buildDocumentUriUsingTree(source, siblingId)
+        else DocumentsContract.buildDocumentUri(source.authority, siblingId)
     }.getOrNull()
 
     private fun copyIntoStore(stream: java.io.InputStream): File {
@@ -219,14 +262,15 @@ class DocumentIo(
      * slow or flaky remote share, serialising straight down the wire risks leaving a half-written
      * `.xopp` behind, so the finished bytes are always pushed across in one later pass.
      *
-     * - [SaveFormat.ORIGINAL] — gzip XML, PDF background left linked by path/URI (interchange-safe).
+     * - [SaveFormat.ORIGINAL] — gzip XML, PDF background linked by path/URI, made **relative** to
+     *   [target] whenever the PDF sits in the same folder ([portableReference]).
      * - [SaveFormat.ZIPPED] — a ZIP package with [pdf] embedded (`domain="attach"`, `bg.pdf`).
      */
-    fun encode(document: Document, pdf: File?, format: SaveFormat): File {
+    fun encode(document: Document, pdf: File?, format: SaveFormat, target: Uri? = null): File {
         val out = staging.newFile("save")
         out.outputStream().use { output ->
             when (format) {
-                SaveFormat.ORIGINAL -> Xopp.save(document, output)
+                SaveFormat.ORIGINAL -> Xopp.save(portableReference(document, target), output)
                 SaveFormat.ZIPPED -> XoppZip.save(
                     if (pdf != null) documentWithPdfDomain(document, ATTACH_DOMAIN) else document,
                     pdf,
@@ -236,6 +280,41 @@ class DocumentIo(
         }
         return out
     }
+
+    /**
+     * Make the document's PDF background reference as portable as it can be for a save to [target]:
+     * **relative to the document's own folder** whenever the PDF lives there, since a relative
+     * reference is the only form that survives the file being copied to another machine — desktop
+     * Xournal++ resolves it against the `.xopp`, while a `content://` URI means nothing off-device
+     * and an absolute path means nothing off this filesystem.
+     *
+     * A reference that is already relative is left exactly as it was read, so a desktop-authored
+     * document round-trips unchanged. Anything we can't relativise (different folder, opaque provider
+     * id, unknown destination) keeps its absolute reference rather than becoming a broken relative
+     * one. Returns a copy; the working document is untouched.
+     */
+    private fun portableReference(document: Document, target: Uri?): Document {
+        val bg = document.pages.firstNotNullOfOrNull { it.background as? Background.Pdf } ?: return document
+        val ref = bg.filename?.takeIf { it.isNotEmpty() } ?: return document
+        if (bg.domain == ATTACH_DOMAIN || PdfReference.isRelative(ref)) return document
+        val relative = relativeTo(target ?: return document, ref) ?: return document
+        return documentWithPdfReference(document, relative, ABSOLUTE_DOMAIN)
+    }
+
+    /** The path of the PDF at [ref] relative to a document saved at [target], if it sits below it. */
+    private fun relativeTo(target: Uri, ref: String): String? = runCatching {
+        when {
+            // Both sides SAF: compare document ids, which for path-shaped providers relativise.
+            ref.startsWith("content://") && target.scheme == "content" -> PdfReference.relativeDocumentId(
+                DocumentsContract.getDocumentId(target),
+                DocumentsContract.getDocumentId(Uri.parse(ref)),
+            )
+            // Both sides plain filesystem paths (a `file://` destination, a desktop-style reference).
+            !ref.contains("://") && target.scheme == "file" ->
+                target.path?.let { PdfReference.relativeReference(it, ref) }
+            else -> null
+        }
+    }.getOrNull()
 
     private companion object {
         /** Cache subfolder holding the local staging copies of documents in transit (see [UriStaging]). */

@@ -55,4 +55,38 @@ class PdfBackgroundRoundTripTest {
         assertTrue("second PDF page (internal 1) writes pageno=\"2\"", xml.contains("pageno=\"2\""))
         assertFalse("no 0-based pageno should be emitted", xml.contains("pageno=\"0\""))
     }
+
+    /**
+     * Desktop Xournal++ has no `relative` domain: a relative path rides under `domain="absolute"`
+     * and is resolved against the `.xopp`'s own folder. The parser must therefore carry the string
+     * through untouched — normalising it here would break the reference on the desktop side.
+     */
+    @Test fun relativeReferenceSurvivesUnderAbsoluteDomain() {
+        val doc = Document(
+            pages = listOf(
+                Page(595.0, 842.0, Background.Pdf("scans/bg.pdf", 0, "absolute"), listOf(Layer(emptyList()))),
+            ),
+        )
+        val xml = Xopp.toXml(doc)
+        assertTrue(xml.contains("filename=\"scans/bg.pdf\""))
+        assertTrue(xml.contains("domain=\"absolute\""))
+        assertEquals(doc, Xopp.parseXml(xml))
+    }
+
+    /**
+     * A non-zip `domain="attach"` reference names the `<xoppname>.<filename>` sibling. It has to
+     * round-trip verbatim so a document opened with an unreachable attachment is still saved with
+     * its reference intact rather than silently losing the background.
+     */
+    @Test fun attachReferenceSurvivesOnANonZipDocument() {
+        val doc = Document(
+            pages = listOf(
+                Page(595.0, 842.0, Background.Pdf("bg.pdf", 0, "attach"), listOf(Layer(emptyList()))),
+            ),
+        )
+        val parsed = Xopp.parseXml(Xopp.toXml(doc))
+        val bg = parsed.pages[0].background as Background.Pdf
+        assertEquals("attach", bg.domain)
+        assertEquals("bg.pdf", bg.filename)
+    }
 }

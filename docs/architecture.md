@@ -149,8 +149,10 @@ regenerate it on write (or omit it — desktop tolerates its absence).
   background of the doc. The `domain` follows from the chosen `SaveFormat` (see the container
   section above), applied by `documentWithPdfDomain` in `render/PdfBackgroundDomain.kt`:
   - `domain="absolute"` — `filename` is the PDF's path/URI; the .xopp links to it in place (what
-    the gzip `ORIGINAL` format writes). *(Desktop treats a relative `filename` as relative to the
-    .xopp's folder and an absolute one as-is; we record the picked PDF's `content://` URI here.)*
+    the gzip `ORIGINAL` format writes). There is **no `relative` domain**: desktop carries a
+    relative path under this same domain and resolves it against the .xopp's own folder
+    (`LoadHandler::getAbsoluteFilepath`), using an absolute one as-is. See *Relative PDF
+    references* below — a relative path is the portable form, so it is what we prefer to write.
   - `domain="attach"` — the PDF is bundled *inside* the `ZIPPED` container as the `bg.pdf` archive
     entry; `filename` is that in-archive name (`bg.pdf`), which desktop resolves via
     `readZipAttachment`. Self-contained and portable, and reopens with its background intact in this
@@ -449,6 +451,7 @@ app/
       ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
       PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index, byte-budget eviction
       TextImport.kt          # text file -> generated background PDF, cached by content hash
+      PdfReference.kt        # how a .xopp names its background PDF: relative <-> absolute paths and SAF document ids
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
@@ -1042,6 +1045,52 @@ and a `recentColors` MRU list (`withColorUsed`, capped at `MAX_RECENT_COLORS`, s
 comma-joined pref) shared by all three pickers; only the pen's own picks pass `asPen`, so colouring
 text or a selection fills recents without changing what the pen draws with next launch. The **Select** tool adds a rail entry and a floating action bar; its
 mechanics are in [Selecting objects](#selecting-objects-render) above.
+
+## Relative PDF references {#relative-pdf-references}
+
+A background reference is only useful if it still resolves on the machine that opens the file next.
+An absolute Linux path means nothing on Android, and a `content://` URI means nothing anywhere but
+the device that issued it — so **a path relative to the `.xopp` is the portable form, and the
+default this app writes whenever it can.** Desktop Xournal++ has no `relative` domain: a relative
+path is carried under `domain="absolute"` and resolved against the document's own folder
+(`LoadHandler::getAbsoluteFilepath`), so what we write is exactly what desktop already reads.
+
+The string logic lives in `io/PdfReference.kt` — pure and unit-tested (`PdfReferenceTest`), with no
+Android types, so the same helpers serve both filesystem paths and SAF **document ids**
+(`primary:Docs/notes.xopp`), which are `/`-joined paths behind a volume root.
+
+**Reading** (`DocumentIo.resolvePdfBackground`, which now takes the source URI of the `.xopp` being
+opened) handles four shapes, in order:
+
+| Reference | Resolved as |
+|---|---|
+| `content://…` | opened directly (what this app records for a picked PDF) |
+| `/abs/path.pdf` | opened as a file, if it exists on this device |
+| `bg.pdf`, `scans/bg.pdf`, `../bg.pdf` | **relative** to the `.xopp`'s own folder |
+| `domain="attach"` on a non-zip document | the `<name>.xopp.<filename>` sibling |
+
+The last two need a folder, which `openSibling` derives from the source URI: a `file://` URI
+relativises on the filesystem, a `content://` one on its SAF document id via
+`DocumentsContract.buildDocumentUriUsingTree`/`buildDocumentUri`. Providers with **opaque** ids
+(Downloads' `msf:1234`) have no path to relativise, so resolution returns null and the pages come up
+blank with the existing "Background PDF not found" note — the reference itself is still written back
+untouched on save, so nothing is silently dropped.
+
+**Writing** (`DocumentIo.portableReference`, applied on every `ORIGINAL` save) rewrites the
+reference to be relative to the save destination whenever the PDF sits in the same folder — matching
+SAF document-id volumes, or two filesystem paths. It is a heuristic, not a preference: a resolvable
+relative path is strictly better than a `content://` URI no desktop can read, and there is nothing
+for the user to get wrong. Three cases are deliberately left alone: an **already relative**
+reference (so a desktop-authored document round-trips byte-identically), an **attach** reference
+(the ZIP path owns that), and anything that **won't relativise** (different folder, different
+volume, opaque id) — those keep their absolute reference rather than becoming a broken relative one.
+
+**Round-trip status.** The parse/serialize halves are locked in by fixtures in
+`PdfBackgroundRoundTripTest` (a relative path under `domain="absolute"`, and an attach reference on
+a non-zip document) and the derivation by `PdfReferenceTest`. The end-to-end check against a real
+desktop Xournal++ on Linux — open a `.xopp` with a bare sibling filename, save it on Android, copy
+it back, and confirm the background survives — is **not yet done**; it needs the desktop app and is
+tracked in `TODO.toml`.
 
 ## Stylus & selection roadmap
 

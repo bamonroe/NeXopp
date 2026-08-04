@@ -90,8 +90,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   symbols; malformed formulae fall back to their source text). If the `.xopp` was made by
   annotating a PDF, its **PDF background is reloaded automatically** — the reference the file
   stores is resolved and the PDF pages render underneath your annotations again, so a saved
-  project reopens intact. If the referenced PDF can't be found (e.g. a desktop path that doesn't
-  exist on the device), those pages open blank and a notice is shown.
+  project reopens intact. Every way Xournal++ can name that PDF is understood: a plain file path,
+  a **path relative to the `.xopp` itself** (`bg.pdf` or `scans/bg.pdf` — how a portable,
+  desktop-authored document usually stores it), and an attached `yourfile.xopp.bg.pdf` sibling.
+  If the referenced PDF can't be found (e.g. a desktop path that doesn't exist on the device, or a
+  folder Xopp wasn't given access to), those pages open blank and a notice is shown — the
+  reference itself is kept, so saving the file doesn't throw the background away.
 - **Open a PDF from another app** — Xopp registers as a **PDF handler**, so it shows up in the
   **Open with** / **Share** sheet of file managers, browsers, and mail clients. Tap a PDF there,
   pick **Xopp**, and it opens straight into a **new tab** as a fresh annotatable document over the
@@ -182,9 +186,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   mode launches the picker filtered to PDFs; the import gives you **one page per PDF page**, each PDF
   page rasterised and shown as the page background (à la desktop Xournal++ PDF annotation). Draw on top as usual; the strokes are
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
-  The source PDF's reference is recorded in the saved file (as an absolute reference to the picked
-  PDF), so reopening the `.xopp` later **reloads that PDF** and shows the same backgrounds again —
-  no need to re-import.
+  The source PDF's reference is recorded in the saved file, so reopening the `.xopp` later
+  **reloads that PDF** and shows the same backgrounds again — no need to re-import.
+  **Xopp writes that reference as a relative path whenever it can:** if the PDF sits in the same
+  folder you save the `.xopp` into, the file records just `thepdf.pdf` rather than a device-specific
+  location. That's the portable form — copy the two files to a Linux box together and desktop
+  Xournal++ finds the background exactly as it does here. When the PDF lives somewhere else
+  entirely, the full reference is recorded instead, which still works on this device. Nothing to
+  configure; it just picks the more portable of the two.
 - **Select text (PDF)** — for an imported PDF that carries a real text layer (i.e. not a pure scan),
   the Tool pop-up's **Select text (PDF)** tool lets you **drag across the page to select the
   underlying text**; the selected words highlight, and a **Copy** button puts them on the system

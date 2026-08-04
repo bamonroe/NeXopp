@@ -120,57 +120,9 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "resolve-relative-pdf-background-paths-when-reading-a-xopp"
-title = "Resolve relative PDF background paths when reading a .xopp"
-description = """
-Finding (Xournal++ master, src/core/control/xojfile/LoadHandler.cpp:753 getAbsoluteFilepath and XmlParser.cpp parseBgPdf/parseBgPixmap): the only domain values are "absolute", "attach" and "clone" (clone is pixmap-only). There is no "relative" domain — a relative path is carried under domain="absolute", and the desktop reader resolves it against the .xopp file's own directory (xournalFilepath.remove_filename() / filename); an absolute path is used as-is. domain="attach" on a non-zip file resolves to the sibling "<xoppPath>.<filename>". If the resolved file is missing, desktop keeps the reference (setPdfAttributes) so the background is not silently dropped on save.
-
-Task: make DocumentIo.resolvePdfBackground (io/DocumentIo.kt:167) handle these cases instead of only content:// and absolute File paths — resolve a relative reference against the parent directory of the .xopp being opened, and resolve a non-zip attach reference to the "<name>.xopp.<filename>" sibling. SAF constraint: for a content:// .xopp we only have a sibling directory when the document id is decomposable (DocumentsContract ids like "primary:Docs/foo.xopp"), so implement resolution for File-backed and tree-derived URIs and fall back to the existing missingPdf toast otherwise. Update docs/architecture.md (background/domain table) and README.md in the same commit."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 91
-created = 2026-08-04
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
-id = "preserve-a-relative-pdf-background-reference-across-save"
-title = "Preserve a relative PDF background reference across save"
-description = """
-Desktop Xournal++ remembers how the path was stored (Document::setPathStorageMode, set in LoadHandler::getAbsoluteFilepath) and re-normalizes on save (SaveHandler.cpp, Util::normalizeAssetPath with the stored mode), so a relative reference stays relative and stays portable. Our ORIGINAL save path (io/DocumentIo.kt:227) writes back whatever string it read, which is already lossless for a relative reference — but only by accident, and PdfBackgroundDomain.documentWithPdfReference/documentWithPdfDomain can overwrite it with an absolute content:// URI on any relink or PDF merge.
-
-Task: carry the original reference string and its relative-ness on the document/save state so that a desktop-authored relative reference survives edit and save unchanged, and is not silently rewritten to a content:// absolute reference by a merge or a domain rewrite. Add the round-trip test alongside PdfBackgroundRoundTripTest, and update docs/architecture.md."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 92
-created = 2026-08-04
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
-id = "write-relative-pdf-background-paths-for-same-folder-saf-imports"
-title = "Write relative PDF background paths for same-folder SAF imports"
-description = "Optional writer-side improvement: when the imported PDF and the .xopp being saved live in the same SAF tree, emit domain=\"absolute\" with a path relative to the .xopp directory instead of a content:// URI, so the file is portable to desktop Linux. Requires deriving both DocumentsContract document ids, confirming a shared parent, and computing the relative segment; bail out to the current absolute reference whenever the ids are not decomposable (Downloads-style opaque ids, non-tree URIs). Consider whether this needs a Settings preference or should just be a heuristic — recommendation: heuristic, since a resolvable relative path is strictly more portable than a content:// URI that no desktop can read. Unit-test the id-to-relative-path derivation in isolation, and document the behavior in README.md and docs/architecture.md."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 93
-created = 2026-08-04
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "round-trip-relative-and-attach-pdf-references-against-desktop-xournal"
 title = "Round-trip relative and attach PDF references against desktop Xournal++"
-description = "Verify by experiment on desktop Linux Xournal++ that the references we now read and write actually round-trip: (1) a .xopp with domain=\"absolute\" and a bare relative filename next to it opens with the PDF background; (2) the same file, saved on Android and copied back, still opens; (3) a non-zip .xopp with domain=\"attach\" resolves the \"<name>.xopp.bg.pdf\" sibling; (4) a reference that does not resolve leaves the pages blank but is preserved on save rather than dropped. Record the results in docs/architecture.md and add fixture-based unit tests for the parse/serialize halves."
+description = "Fixture unit tests for the parse/serialize halves are DONE (PdfBackgroundRoundTripTest: relative path under domain=absolute, attach on a non-zip doc; PdfReferenceTest for the derivation). What remains is the manual experiment on desktop Linux Xournal++, which needs the desktop app: (1) a .xopp with domain=\"absolute\" and a bare relative filename next to it opens with the PDF background; (2) the same file, saved on Android and copied back, still opens; (3) a non-zip .xopp with domain=\"attach\" resolves the <name>.xopp.bg.pdf sibling; (4) an unresolvable reference leaves pages blank but is preserved on save. Record results in docs/architecture.md under 'Relative PDF references'."
 status = "active"
 level = "task"
 category = "test"
