@@ -72,6 +72,7 @@ fun SideToolbar(
     hasSelection: Boolean,
     onAddLayer: () -> Unit,
     onDeleteLayer: (Int) -> Unit,
+    onMergeLayerDown: (Int) -> Unit,
     onRenameLayer: (Int, String) -> Unit,
     onMoveLayer: (Int, Int) -> Unit,
     onActivateLayer: (Int) -> Unit,
@@ -126,7 +127,7 @@ fun SideToolbar(
                 "shapes" -> ShapeRecognitionButton(recognizeShapes, onRecognizeShapes)
                 "guides" -> GuidePopupButton(guideKind, onGuideKind)
                 "layers" -> LayersPopupButton(
-                    layers, hasSelection, onAddLayer, onDeleteLayer, onRenameLayer,
+                    layers, hasSelection, onAddLayer, onDeleteLayer, onMergeLayerDown, onRenameLayer,
                     onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
                 )
                 "zoom" -> ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)

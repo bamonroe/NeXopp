@@ -49,6 +49,21 @@ class LayerOpsTest {
         assertEquals(listOf("b", "c", "a"), out.layers.map { it.name })
     }
 
+    @Test fun mergeDownCombinesIntoTheLayerBelow() {
+        val p = page(Layer(listOf(dot(1.0)), "base"), Layer(listOf(dot(2.0)), "top"))
+        val out = LayerOps.mergeDown(p, 1)
+        assertEquals(1, out.layers.size)
+        assertEquals("base", out.layers[0].name) // the surviving layer keeps its own name
+        // Upper layer's elements land after the lower one's, preserving z-order.
+        assertEquals(listOf(1.0, 2.0), out.layers[0].elements.map { (it as Stroke).points[0].x })
+    }
+
+    @Test fun mergeDownRefusesBottomLayerAndBadIndex() {
+        val p = page(Layer(listOf(dot(1.0))), Layer(listOf(dot(2.0))))
+        assertEquals(p, LayerOps.mergeDown(p, 0))
+        assertEquals(p, LayerOps.mergeDown(p, 7))
+    }
+
     @Test fun moveElementsRelocatesAndReports() {
         val p = page(Layer(listOf(dot(1.0), dot(2.0))), Layer(emptyList()))
         val (out, refs) = LayerOps.moveElementsToLayer(p, setOf(ElementRef(0, 0)), target = 1)

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.HighlightAlt
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -40,8 +41,8 @@ import com.xopp.android.render.LayerInfo
 
 /**
  * The layer manager: a top-down list of the visible page's layers, each row toggling visibility,
- * selecting the active layer (where new ink lands), reordering (up/down z-order), renaming, and
- * deleting; plus "Add layer" and — when something is selected — "Move selection here".
+ * selecting the active layer (where new ink lands), reordering (up/down z-order), merging into the
+ * layer below, renaming, and deleting; plus "Add layer" and — when something is selected — "Move selection here".
  */
 @Composable
 internal fun LayersPopupButton(
@@ -49,6 +50,7 @@ internal fun LayersPopupButton(
     hasSelection: Boolean,
     onAddLayer: () -> Unit,
     onDeleteLayer: (Int) -> Unit,
+    onMergeLayerDown: (Int) -> Unit,
     onRenameLayer: (Int, String) -> Unit,
     onMoveLayer: (Int, Int) -> Unit,
     onActivateLayer: (Int) -> Unit,
@@ -71,6 +73,7 @@ internal fun LayersPopupButton(
                     canMoveUp = info.index < layers.lastIndex,
                     canMoveDown = info.index > 0,
                     canDelete = layers.size > 1,
+                    canMergeDown = info.index > 0,
                     hasSelection = hasSelection,
                     onActivate = { onActivateLayer(info.index) },
                     onToggleHidden = { onToggleLayerHidden(info.index, info.visible) },
@@ -78,6 +81,7 @@ internal fun LayersPopupButton(
                     onMoveDown = { onMoveLayer(info.index, info.index - 1) },
                     onRename = { renaming = info.index; renameLabel = info.label },
                     onDelete = { onDeleteLayer(info.index) },
+                    onMergeDown = { onMergeLayerDown(info.index) },
                     onMoveSelectionHere = { onMoveSelectionToLayer(info.index) },
                 )
             }
@@ -104,6 +108,7 @@ private fun LayerRow(
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     canDelete: Boolean,
+    canMergeDown: Boolean,
     hasSelection: Boolean,
     onActivate: () -> Unit,
     onToggleHidden: () -> Unit,
@@ -111,6 +116,7 @@ private fun LayerRow(
     onMoveDown: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
+    onMergeDown: () -> Unit,
     onMoveSelectionHere: () -> Unit,
 ) {
     Row(
@@ -139,6 +145,9 @@ private fun LayerRow(
         }
         IconButton(onClick = onMoveDown, enabled = canMoveDown, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Filled.ArrowDownward, contentDescription = "Move down")
+        }
+        IconButton(onClick = onMergeDown, enabled = canMergeDown, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Filled.Merge, contentDescription = "Merge layer down")
         }
         if (hasSelection) {
             IconButton(onClick = onMoveSelectionHere, modifier = Modifier.size(32.dp)) {

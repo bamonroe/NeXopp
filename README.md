@@ -272,8 +272,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the
   page). Each row can **make the layer active** (tap its name — new ink lands there, marked with a
   filled dot), **show/hide** it in the editor (the eye toggle — hiding is view-only and never changes
-  the file), **reorder** it up/down (z-order), **rename** it, or **delete** it (a page always keeps at
-  least one layer). **Add layer** puts a fresh empty layer on top. With something selected, each row
+  the file), **reorder** it up/down (z-order), **merge it down** into the layer below (the merge
+  button — the two layers' contents combine in z-order, the lower layer keeps its name, and the
+  emptied upper layer goes away; disabled on the bottom layer), **rename** it, or **delete** it (a
+  page always keeps at least one layer). **Add layer** puts a fresh empty layer on top. With something selected, each row
   also shows a **move-selection-here** button. Layer names round-trip via the `<layer name>` attribute;
   every structural change is undoable.
 - **Stylus** — the app is stylus-first. Rest your **palm** on the screen while you write: once the pen

@@ -19,3 +19,16 @@ add_proposed_work = "Add proposed work unchecked."
 remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "group-selected-objects"
+title = "Group selected objects"
+description = "When multiple objects are selected, offer a 'group' action so they can be moved/transformed as a unit. Note: .xopp has no group primitive, so check how (or whether) grouping can round-trip through the file format before implementing — it may need to be a selection-time-only convenience."
+status = "active"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-03
+tags = ["selection"]
+rebuild = true
+emulator_debug = true

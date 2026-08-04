@@ -495,7 +495,7 @@ app/
       ShapeBuilder.kt        # line/arrow(s)/rect/ellipse/axis drag -> stroke vertex list (pure)
       ShapeRecognizer.kt     # freehand stroke -> the primitive it resembles, or null (pure)
       SplineBuilder.kt       # spline control points -> cubic-Bezier stroke vertex list (pure)
-      LayerOps.kt            # add/delete/rename/reorder/move-selection layer edits (pure)
+      LayerOps.kt            # add/delete/rename/reorder/merge-down/move-selection layer edits (pure)
       ElementBounds.kt       # pt bounding box of any element + a Bounds value type (pure)
       Selection.kt           # ElementRef + SelectionTester: rect/tap picking, selection bounds (pure)
       SelectionOps.kt        # translate / delete selected elements on a page (pure)
@@ -726,7 +726,9 @@ a view flag on the surface (`eraserMode`), set by which member of the rail's era
 no scheme of its own: `DrawingSurfaceView.eraserRadiusPt` derives it from the pen's `baseWidthPt` via
 `eraserRadiusPt()` (`ERASER_RADIUS_FACTOR`, floored at `ERASER_RADIUS_MIN_PT`), in **document pt** so
 it is zoom-invariant, matching the desktop. **Layer management** (`LayerOps`, pure, tested) adds/
-deletes/renames/reorders layers and moves a selection between them (all undoable), while the *active*
+deletes/renames/reorders/merges-down layers and moves a selection between them (all undoable;
+`mergeDown` appends the upper layer's elements after the lower one's so z-order survives, keeps the
+lower layer's name, and drops the emptied upper layer), while the *active*
 layer (where new ink lands) and per-layer *visibility* are view-only editor state on the surface —
 visibility just skips a layer in `PageRenderer.drawElements`, so it never touches the file. The UI for
 all four lives in the rail's **Tool** (shapes, eraser mode), **Style** (line style / fill), and

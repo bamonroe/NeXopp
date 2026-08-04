@@ -33,6 +33,21 @@ object LayerOps {
         return page.copy(layers = layers)
     }
 
+    /**
+     * Merge layer [index] into the layer below it: the upper layer's elements are appended after
+     * the lower one's (so z-order within the page is preserved) and the now-empty upper layer is
+     * removed. The lower layer keeps its own name. No-op for the bottom layer or a bad index.
+     */
+    fun mergeDown(page: Page, index: Int): Page {
+        if (index !in page.layers.indices || index == 0) return page
+        val below = page.layers[index - 1]
+        val merged = Layer(below.elements + page.layers[index].elements, below.name)
+        val layers = page.layers.toMutableList()
+        layers[index - 1] = merged
+        layers.removeAt(index)
+        return page.copy(layers = layers)
+    }
+
     /** Move layer [from] to position [to], shifting the others (used to reorder z-order). */
     fun move(page: Page, from: Int, to: Int): Page {
         val n = page.layers.size

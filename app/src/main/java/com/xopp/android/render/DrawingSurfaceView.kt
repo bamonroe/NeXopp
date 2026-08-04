@@ -711,6 +711,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Delete layer [index] (never the last remaining layer). */
     fun deleteLayer(index: Int) = pages.deleteLayer(index)
 
+    /** Merge layer [index] into the layer below it (never the bottom layer). */
+    fun mergeLayerDown(index: Int) = pages.mergeLayerDown(index)
+
     /** Rename layer [index] ([name] blank clears the custom name). */
     fun renameLayer(index: Int, name: String) = pages.renameLayer(index, name)
 

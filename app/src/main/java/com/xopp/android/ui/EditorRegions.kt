@@ -152,6 +152,7 @@ fun EditorToolbar(
         hasSelection = pane.hasSelection,
         onAddLayer = { surface?.addLayer() },
         onDeleteLayer = { surface?.deleteLayer(it) },
+        onMergeLayerDown = { surface?.mergeLayerDown(it) },
         onRenameLayer = { i, name -> surface?.renameLayer(i, name) },
         onMoveLayer = { from, to -> surface?.moveLayer(from, to) },
         onActivateLayer = { surface?.setActiveLayer(it) },

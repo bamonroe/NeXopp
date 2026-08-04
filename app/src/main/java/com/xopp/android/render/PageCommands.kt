@@ -135,6 +135,10 @@ internal class PageCommands(
     /** Delete layer [index] (never the last remaining layer). */
     fun deleteLayer(index: Int) = editVisiblePage(resetViewState = true, op = { LayerOps.remove(it, index) })
 
+    /** Merge layer [index] into the layer below it (never the bottom layer). */
+    fun mergeLayerDown(index: Int) =
+        editVisiblePage(resetViewState = true, op = { LayerOps.mergeDown(it, index) })
+
     /** Rename layer [index] ([name] blank clears the custom name). */
     fun renameLayer(index: Int, name: String) =
         editVisiblePage(resetViewState = false, op = { LayerOps.rename(it, index, name) })
