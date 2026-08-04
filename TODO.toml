@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "typeset-a-large-text-import-incrementally-instead-of-all-at-once"
-title = "Typeset a large text import incrementally instead of all at once"
-description = "TextImport currently reads the whole text file and lays out every page before writing the PDF, which is why the import needs a hard size cap (Settings -> Storage). Investigate streaming the paginator: lay out and write one page at a time from a buffered reader in TextPdfGenerator.generate, so memory is bounded by a page rather than by the file, and a bigger cap becomes safe."
-status = "active"
-level = "scope"
-category = "refactor"
-urgency = "normal"
-order = 100
-created = 2026-08-04
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "detect-markdown-imports-and-route-them-to-a-markdown-path"
 title = "Detect markdown imports and route them to a markdown path"
 description = "Today FileKind.of() classifies a .md file as plain TEXT (content sniffing only, no extension) and DocumentIo.read() sends it to TextImport. Add a markdown verdict: since SAF gives a display name at DocumentIo.read()/TextImport.pdfFor(name), route on a .md/.markdown suffix on that name, with FileKind.TEXT still the content-level verdict. Introduce the seam (a MarkdownImport alongside TextImport, or a mode flag through TextPdfGenerator) so the later parser/layout tasks have somewhere to land, and cache under a distinct key prefix so the same bytes imported as text and as markdown do not collide in PdfStore. Tests in FileKindTest/TextImportTest; document the routing rule in docs/architecture.md and the user-visible behaviour in README.md."
@@ -132,3 +118,59 @@ created = 2026-08-04
 tags = []
 rebuild = false
 emulator_debug = false
+
+[[task]]
+id = "wrap-and-paginate-text-from-a-streaming-reader"
+title = "Wrap and paginate text from a streaming reader"
+description = "TextPaginator.wrap/paginate build a full List<String> of every wrapped line and then chunk it (TextPaginator.kt:61,106), so memory scales with the file. Add a streaming API alongside the existing one: take a Reader (or Sequence<String> of raw lines) and emit Sequence<List<String>> of pages, wrapping line-by-line and yielding a page as soon as linesPerPage is reached. Keep the current List-based layout() as a thin wrapper over it so existing TextPaginatorTest cases still pass, and add tests that a page is emitted before the whole input is consumed."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 180
+created = 2026-08-04
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "write-the-text-import-pdf-one-page-chunk-at-a-time"
+title = "Write the text-import PDF one page chunk at a time"
+description = "TextPdfGenerator.generate builds a single PDDocument holding every PDPage and only writes at doc.save (TextPdfGenerator.kt:26-33). PDFBox 2.x cannot append pages to an already-written file, so build the PDF in bounded chunks: for each N pages create a PDDocument, writePage into it, save to a temp file, close it, then merge the chunk files with the existing render/PdfMerger.kt into the output stream. Depends on the streaming paginator task. Verify with TextPdfGeneratorTest that page count, text extraction and the embedded non-Latin1 font all still round-trip."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 190
+created = 2026-08-04
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "key-the-text-import-cache-by-a-streamed-file-hash"
+title = "Key the text import cache by a streamed file hash"
+description = "TextImport.pdfFor does staged.readText() to hold the whole file as a String, both for the SHA-256 cache key and to hand to the generator (TextImport.kt:37-50). Compute the key by streaming the file through a DigestInputStream (name + bytes) instead, and pass the staged File to the generator rather than a String, so nothing above one page is resident. Keep the existing cache-hit/miss semantics covered by TextImportTest."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 200
+created = 2026-08-04
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "raise-the-text-import-cap-now-that-typesetting-is-bounded"
+title = "Raise the text import cap now that typesetting is bounded"
+description = "Once the import path is streaming end to end, the hard cap in TextImport.pdfFor exists only to bound output size and time, not memory. Re-measure peak memory on a large file, then raise AppSettings.TEXT_IMPORT_LIMIT_CHOICES / DEFAULT_TEXT_IMPORT_LIMIT_MB (AppSettings.kt:177,183) to the new safe ceiling and update the Storage section copy in README.md accordingly. Depends on the three streaming tasks."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 210
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
