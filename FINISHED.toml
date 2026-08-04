@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "round-trip-relative-and-attach-pdf-references-against-desktop-xournal"
+title = "Round-trip relative and attach PDF references against desktop Xournal++"
+description = "Fixture unit tests for the parse/serialize halves are DONE (PdfBackgroundRoundTripTest: relative path under domain=absolute, attach on a non-zip doc; PdfReferenceTest for the derivation). What remains is the manual experiment on desktop Linux Xournal++, which needs the desktop app: (1) a .xopp with domain=\"absolute\" and a bare relative filename next to it opens with the PDF background; (2) the same file, saved on Android and copied back, still opens; (3) a non-zip .xopp with domain=\"attach\" resolves the <name>.xopp.bg.pdf sibling; (4) an unresolvable reference leaves pages blank but is preserved on save. Record results in docs/architecture.md under 'Relative PDF references'."
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "write-relative-pdf-background-paths-for-same-folder-saf-imports"
 title = "Write relative PDF background paths for same-folder SAF imports"
 description = "Optional writer-side improvement: when the imported PDF and the .xopp being saved live in the same SAF tree, emit domain=\"absolute\" with a path relative to the .xopp directory instead of a content:// URI, so the file is portable to desktop Linux. Requires deriving both DocumentsContract document ids, confirming a shared parent, and computing the relative segment; bail out to the current absolute reference whenever the ids are not decomposable (Downloads-style opaque ids, non-tree URIs). Consider whether this needs a Settings preference or should just be a heuristic — recommendation: heuristic, since a resolvable relative path is strictly more portable than a content:// URI that no desktop can read. Unit-test the id-to-relative-path derivation in isolation, and document the behavior in README.md and docs/architecture.md."

@@ -1087,10 +1087,23 @@ volume, opaque id) — those keep their absolute reference rather than becoming 
 
 **Round-trip status.** The parse/serialize halves are locked in by fixtures in
 `PdfBackgroundRoundTripTest` (a relative path under `domain="absolute"`, and an attach reference on
-a non-zip document) and the derivation by `PdfReferenceTest`. The end-to-end check against a real
-desktop Xournal++ on Linux — open a `.xopp` with a bare sibling filename, save it on Android, copy
-it back, and confirm the background survives — is **not yet done**; it needs the desktop app and is
-tracked in `TODO.toml`.
+a non-zip document) and the derivation by `PdfReferenceTest`.
+
+The **desktop check** was run against **Xournal++ 1.3.6** on Linux, headlessly, via its export CLI
+(`xournalpp FILE.xopp -p out.pdf`, which renders the resolved background into the exported PDF — a
+blank page means the reference didn't resolve). Results:
+
+| Fixture | Desktop 1.3.6 |
+|---|---|
+| `domain="absolute"` + bare sibling filename (`bhm_prior.pdf`) | ✅ background renders |
+| The multi-page shape this app writes — first page carries `filename`+`domain`, later pages only `pageno` | ✅ all 3 pages render the right PDF page, strokes on top |
+| `domain="attach"` on a non-zip document, `<name>.xopp.bg.pdf` sibling | ✅ background renders |
+| Unresolvable reference (`nope.pdf`) | ⚠️ desktop reports *"The background file … could not be found"* and aborts the export (exit 2) |
+
+So the reference forms we read and write are exactly what desktop resolves, and the inheritance
+shape (`filename` only on the first page) is accepted. **Still unverified:** whether desktop
+*preserves* an unresolvable reference across a save — that needs an interactive save, and no display
+server (Xvfb/Wayland) is available on this box to drive the GUI.
 
 ## Stylus & selection roadmap
 

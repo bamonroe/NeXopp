@@ -120,14 +120,14 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "round-trip-relative-and-attach-pdf-references-against-desktop-xournal"
-title = "Round-trip relative and attach PDF references against desktop Xournal++"
-description = "Fixture unit tests for the parse/serialize halves are DONE (PdfBackgroundRoundTripTest: relative path under domain=absolute, attach on a non-zip doc; PdfReferenceTest for the derivation). What remains is the manual experiment on desktop Linux Xournal++, which needs the desktop app: (1) a .xopp with domain=\"absolute\" and a bare relative filename next to it opens with the PDF background; (2) the same file, saved on Android and copied back, still opens; (3) a non-zip .xopp with domain=\"attach\" resolves the <name>.xopp.bg.pdf sibling; (4) an unresolvable reference leaves pages blank but is preserved on save. Record results in docs/architecture.md under 'Relative PDF references'."
+id = "confirm-desktop-xournal-preserves-an-unresolvable-pdf-reference-on-save"
+title = "Confirm desktop Xournal++ preserves an unresolvable PDF reference on save"
+description = "Headless export CLI can't cover this: open a .xopp whose background PDF is missing in the desktop GUI, save it, and confirm the <background> filename/domain come back untouched rather than being rewritten or dropped. Needs an interactive Xournal++ session (no display server on the dev box at the time of the first pass). See docs/architecture.md 'Relative PDF references'."
 status = "active"
 level = "task"
 category = "test"
 urgency = "normal"
-order = 94
+order = 170
 created = 2026-08-04
 tags = []
 rebuild = false
