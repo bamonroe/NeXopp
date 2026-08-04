@@ -265,7 +265,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   the eraser touches entirely. Like every tool slot, the choice is remembered across restarts. The
   eraser has no size of its own — its tip follows the **Size** pop-up's three width slots (about six
   times the pen width, so the rubber is always wider than the ink it removes), measured in document
-  points, so it rubs out the same amount of ink whatever the zoom. Hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
+  points, so it rubs out the same amount of ink whatever the zoom. The eraser only affects the
+  **selected layer** — ink on other layers is left alone — and hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
   (configurable — see **Settings**).
 - **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the

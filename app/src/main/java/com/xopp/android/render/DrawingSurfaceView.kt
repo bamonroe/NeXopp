@@ -1787,13 +1787,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (activeLayerIndex in page.layers.indices) activeLayerIndex else page.layers.lastIndex
 
     /**
-     * Apply the eraser disc to page [pageIndex] in the current [eraserMode], skipping hidden
-     * layers ([PageEraser]). Returns true if anything on the page changed.
+     * Apply the eraser disc to page [pageIndex] in the current [eraserMode], on the selected layer
+     * only and skipping hidden layers ([PageEraser]). Returns true if anything on the page changed.
      */
     private fun eraseOnPage(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
         val page = doc.pages.getOrNull(pageIndex) ?: return false
         val hidden = page.layers.indices.filter { isLayerHidden(pageIndex, it) }.toSet()
-        val erased = PageEraser.erase(page, px, py, radius, eraserMode, hidden) ?: return false
+        val target = resolvedActiveLayer(page)
+        val erased = PageEraser.erase(page, px, py, radius, eraserMode, hidden, target)
+            ?: return false
         val pages = doc.pages.toMutableList()
         pages[pageIndex] = erased
         doc = doc.copy(pages = pages)

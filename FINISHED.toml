@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "eraser-only-erases-on-the-selected-layer"
+title = "Eraser only erases on the selected layer"
+description = "Erasing currently affects strokes on every layer of the page. It should only erase strokes that belong to the currently selected layer; strokes on other layers must be left untouched."
+status = "finished"
+category = "bug"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["eraser", "layers"]
+
+[[task]]
 id = "document-the-color-theme-module-in-ui-theme"
 title = "Document the color/theme module in ui/theme"
 description = "ui/theme/Color.kt is the only file under app/src/main with no KDoc at all — every other source file carries at least a doc comment. Add a header explaining what the palette is, how it relates to ChromeColors (which converts scheme colours to the ARGB ints DrawingSurfaceView consumes) and Theme.kt, and document the individual colour roles."

@@ -36,8 +36,10 @@ object PageEraser {
 
     /**
      * Erase at ([px], [py]) with tip [radius] on [page], skipping any layer index in [hiddenLayers].
-     * Returns the rewritten page, or `null` when nothing was touched (so the caller can skip the
-     * document rebuild and the undo snapshot).
+     * When [onlyLayer] is non-null the rubber bites on that layer alone — ink on the other layers is
+     * left alone, matching the desktop, where the eraser works on the selected layer. Returns the
+     * rewritten page, or `null` when nothing was touched (so the caller can skip the document
+     * rebuild and the undo snapshot).
      */
     fun erase(
         page: Page,
@@ -46,10 +48,12 @@ object PageEraser {
         radius: Double,
         mode: EraserMode,
         hiddenLayers: Set<Int> = emptySet(),
+        onlyLayer: Int? = null,
     ): Page? {
         var changed = false
         val layers = page.layers.mapIndexed { li, layer ->
             if (li in hiddenLayers) return@mapIndexed layer
+            if (onlyLayer != null && li != onlyLayer) return@mapIndexed layer
             val rebuilt = eraseLayer(layer, px, py, radius, mode) ?: return@mapIndexed layer
             changed = true
             rebuilt

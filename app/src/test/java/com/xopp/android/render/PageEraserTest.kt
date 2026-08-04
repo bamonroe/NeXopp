@@ -49,6 +49,18 @@ class PageEraserTest {
         assertNull(PageEraser.erase(p, 10.0, 0.0, 2.0, EraserMode.STANDARD, hiddenLayers = setOf(0)))
     }
 
+    @Test fun onlyTheSelectedLayerIsErased() {
+        val p = page(Layer(listOf(stroke(0.0, 10.0, 20.0))), Layer(listOf(stroke(0.0, 10.0, 20.0))))
+        val out = PageEraser.erase(p, 10.0, 0.0, 2.0, EraserMode.WHOLE_STROKE, onlyLayer = 1)!!
+        assertEquals(1, out.layers[0].elements.size)
+        assertEquals(0, out.layers[1].elements.size)
+    }
+
+    @Test fun aHitOnAnUnselectedLayerReportsNoChange() {
+        val p = page(Layer(listOf(stroke(0.0, 10.0, 20.0))), Layer(emptyList()))
+        assertNull(PageEraser.erase(p, 10.0, 0.0, 2.0, EraserMode.STANDARD, onlyLayer = 1))
+    }
+
     @Test fun untouchedLayersKeepTheirIdentity() {
         val keep = Layer(listOf(stroke(80.0, 90.0)), "ink")
         val p = page(keep, Layer(listOf(stroke(0.0, 10.0, 20.0))))
