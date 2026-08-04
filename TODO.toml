@@ -36,7 +36,9 @@ Investigate and break down into atomic tasks; the shape looks like:
 RESOLVED open questions (2026-08-04):
 - Persistence: the generated PDF lives in the app cache via the existing io/PdfStore.kt, which is already one-file-per-document and prunes against the tabs still open - so closing the tab drops it, and clearing app cache through Android drops it too. Extend it with a small manifest keyed by a content hash of the source text (plus title), so reopening the same file while its cache entry survives reuses the PDF instead of regenerating. On save to .xopp the generated PDF must be attached/zipped (ZIPPED/attach encode path in DocumentIo.kt) since there is no source PDF on disk.
 - Fonts: ship a permissively licensed open-source family (no license encumbrance), one proportional and one monospace; monospace is the sensible default for logs and source. Unicode coverage is settled by that same font choice - pick one with broad coverage and document the fallback for characters it lacks.
-- Very large files: cap it. Generate lazily / incrementally rather than converting a whole several-hundred-megabyte log up front, and enforce a per-file cache size cap with a clear message when a file exceeds it. Expose the cap as an Advanced setting."""
+- Very large files: cap it. Generate lazily / incrementally rather than converting a whole several-hundred-megabyte log up front, and enforce a per-file cache size cap with a clear message when a file exceeds it. Expose the cap as an Advanced setting.
+
+- Markdown is a separate rendering path from .txt. Plain .txt is set verbatim in monospace. A .md file is parsed and typeset the way Pandoc would render it to PDF: proportional body text, heading levels with their own font sizes and weights, bold/italic/inline-code spans, lists with indentation and bullets/numbers, block quotes, and horizontal rules. Monospace appears only in code blocks and inline code. This means the markdown path needs a small markdown parser and a styled-run layout model, not just line wrapping - scope it as its own child task or tasks, distinct from the plain-text one."""
 status = "active"
 level = "scope"
 category = "feature"
