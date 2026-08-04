@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "parse-markdown-inline-spans-into-styled-runs"
+title = "Parse markdown inline spans into styled runs"
+description = "Turn a block's raw inline text into a list of styled runs: (text, bold, italic, code) - the styled-run model the layout needs. Handles *em*, _em_, **strong**, __strong__, nested emphasis, backtick code spans (including double-backtick spans containing backticks), escaped punctuation, and link text (render the label; the URL has no home in a printed PDF so drop or append it - pick one and record the decision). Pure and unit-tested; no measurement."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["markdown"]
+
+[[task]]
 id = "write-a-dependency-free-markdown-block-parser"
 title = "Write a dependency-free markdown block parser"
 description = "A pure-Kotlin parser (no Android, no deps, sibling of TextPaginator) that turns markdown source into a list of blocks: ATX/setext headings with level, paragraphs, fenced and indented code blocks, ordered/unordered lists with nesting depth, block quotes with depth, horizontal rules, and blank-line separation. Output is a data model only - no measurement, no layout. Inline spans are NOT this task's job (they come next); a paragraph block carries its raw inline text. Full unit-test coverage of each block type plus the awkward cases (lazy continuation, list item containing a code block, quote containing a list, CRLF, tabs)."

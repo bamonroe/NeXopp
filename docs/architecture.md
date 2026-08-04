@@ -504,6 +504,10 @@ app/
         MarkdownBlock.kt     # the block tree a markdown import lays out from (pure data model)
         MarkdownLine.kt      # line-level "what does this line start?" recognisers (pure)
         MarkdownParser.kt    # markdown source -> block tree, line-based recursive descent (pure)
+        StyledRun.kt         # a stretch of text with one style combination (bold/italic/code)
+        MarkdownInlineParser.kt # raw inline source -> styled runs (pure); scanner + emphasis pass
+        InlineScanner.kt     # escapes, code spans and link labels; emits unresolved delimiter runs
+        InlineEmphasis.kt    # pairs the delimiter runs into bold/italic (delimiter-stack walk)
       GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
@@ -984,6 +988,27 @@ thematic breaks. Reference links, tables, HTML blocks and footnotes are out of s
 verbatim inside a paragraph rather than being mangled. `MarkdownParserTest` covers each block type
 plus the cases a hand-written line parser gets wrong: lazy continuation, loose lists, unclosed
 fences, `* * *` beating a bullet marker, CRLF and tabs.
+
+**Inline spans → styled runs.** The deferred second pass is `MarkdownInlineParser`: raw inline
+source in, a flat list of `StyledRun` (`text` + `bold`/`italic`/`code`) out — still pure, still
+unmeasured. Runs are **flat rather than a tree** because wrapping only ever asks "which font do I
+measure the next word in?", so nested `**bold *and* italic**` is just adjacent runs with different
+flags. It runs in two small stages: `InlineScanner` walks the source once and resolves everything
+decidable locally (backslash escapes, code spans including the double-backtick form and the
+symmetric pad-space rule, and link/image labels), emitting `*`/`_` as unresolved delimiter runs
+tagged with CommonMark's flanking rules; `InlineEmphasis` then pairs those runs with a
+delimiter-stack walk (including the rule of three), stamping styles onto the tokens between each
+match. Nesting needs no recursion because a token can be stamped twice, and any delimiter that never
+finds a partner prints literally — which is what keeps `2 * 3 * 4` and `snake_case_name` intact.
+
+Two decisions here:
+
+- **Link URLs are dropped; the label renders.** `[label](url)` becomes just `label` (and
+  `![alt](url)` just `alt`). The output is a printed PDF page where a URL is neither clickable nor
+  wanted mid-sentence.
+- **A label is frozen into finished runs before it is spliced in.** Parsing a label through the full
+  pipeline (rather than splicing its raw tokens) is what stops a leftover delimiter inside a label
+  from pairing with one outside it.
 
 Two consequences fall out of the generated PDF living only in the cache:
 
