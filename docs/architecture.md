@@ -249,6 +249,13 @@ native for stylus latency and platform fit).
   `getPressure()` / `getAxisValue(AXIS_PRESSURE)` and historical points
   (`getHistoricalX/Y/Pressure`) so fast strokes keep their samples. This is the load-bearing
   choice for "round-trip safety" — we capture pressure at the same fidelity the format stores.
+- **One width source for every tool.** *Decision (2026-08-04):* `DrawingSurfaceView.widthForPressure()`
+  is the single place a stroke width is derived from the size setting — the highlighter's constant
+  band, the pen's per-vertex pressure taper, and the shape/line/spline tools' constant width all go
+  through it. Shapes have no pressure stream of their own, so they sample the curve **once**, at the
+  gesture's first touch; a recognised freehand shape keeps the mean width of the stroke it replaces.
+  Without this a line drew at the raw base width while a pen stroke at the same setting drew at
+  `0.25–1.0×` of it, so the line looked visibly thicker.
 - **`.xopp` I/O — no third-party format libraries.** Both containers use only the JDK's
   `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`ORIGINAL`), and the
   ZIP-package via `ZipInputStream` / `ZipOutputStream` (`ZIPPED`, `format/XoppZip.kt`). XML goes

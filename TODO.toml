@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "line-tool-draws-1-5x-thicker-than-pen-at-same-size"
-title = "Line tool draws 1.5x thicker than pen at same size"
-description = "Drawing a line with the pen tool and a parallel line with the line tool at the same point size produces a visibly thicker stroke from the line tool (looks like ~1.5x width). The line tool should use the exact same stroke width as the pen for a given size setting. Find where the line/shape tool derives its width and make it share the pen's width resolution."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 10
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "show-eraser-circumference-outline-while-hovering-and-erasing"
 title = "Show eraser circumference outline while hovering and erasing"
 description = "The eraser tip is currently invisible, so there is no way to see its boundary. Draw a thin black circle outline at the eraser radius: (1) following the stylus while it hovers over the canvas, and (2) following the contact point while actively erasing, including finger touches. The outline is a transient overlay only — it must not be part of the document or written to the .xopp file."

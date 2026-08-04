@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "line-tool-draws-1-5x-thicker-than-pen-at-same-size"
+title = "Line tool draws 1.5x thicker than pen at same size"
+description = "Drawing a line with the pen tool and a parallel line with the line tool at the same point size produces a visibly thicker stroke from the line tool (looks like ~1.5x width). The line tool should use the exact same stroke width as the pen for a given size setting. Find where the line/shape tool derives its width and make it share the pen's width resolution."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "raise-the-text-import-cap-now-that-typesetting-is-bounded"
 title = "Raise the text import cap now that typesetting is bounded"
 description = "Once the import path is streaming end to end, the hard cap in TextImport.pdfFor exists only to bound output size and time, not memory. Re-measure peak memory on a large file, then raise AppSettings.TEXT_IMPORT_LIMIT_CHOICES / DEFAULT_TEXT_IMPORT_LIMIT_MB (AppSettings.kt:177,183) to the new safe ceiling and update the Storage section copy in README.md accordingly. Depends on the three streaming tasks."

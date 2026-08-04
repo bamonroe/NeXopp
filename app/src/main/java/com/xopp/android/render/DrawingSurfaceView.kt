@@ -107,6 +107,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var shaping = false
     private var shapeStartX = 0.0
     private var shapeStartY = 0.0
+    /**
+     * The width a shape/spline draws at, in pt. Fixed at the gesture's first touch from the same
+     * pressure curve the pen uses, so a line and a pen stroke at one size setting come out equally
+     * thick instead of the shape rendering at the un-scaled base width.
+     */
+    private var shapeWidthPt = 1.5
     /** The spline tool's control points so far (page-local pt); non-empty means one is being laid down. */
     private val splineNodes = ArrayList<SplineNode>()
     /** True between the down and up of a tap that is placing/curving the newest spline node. */
@@ -1569,7 +1575,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             )
             shapeStartX = sx
             shapeStartY = sy
-            current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, baseWidthPt.toDouble())))
+            shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
+            current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, shapeWidthPt)))
         } else {
             // Decimate against this page's real px/pt, so a stroke drawn zoomed out or in a
             // multi-column view keeps the same document-space detail as one drawn at 100%.
@@ -1589,7 +1596,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
                 snapY(box, ptY(box, event.getY(pointerIndex))),
             )
             current = ArrayList(
-                ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, baseWidthPt.toDouble()),
+                ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, shapeWidthPt),
             )
             render()
         } else {
@@ -1619,6 +1626,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             gestureStartDoc = doc
         }
         gesturePointerId = event.getPointerId(pointerIndex)
+        if (splineNodes.isEmpty()) shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
         splineAnchorX = ptX(box, x)
         splineAnchorY = ptY(box, y)
         splineNodes += SplineNode(splineAnchorX, splineAnchorY)
@@ -1656,7 +1664,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Show the curve-so-far as the in-progress stroke, so it paints exactly as it will commit. */
     private fun renderSplinePreview() {
-        current = ArrayList(SplineBuilder.build(splineNodes, baseWidthPt.toDouble()))
+        current = ArrayList(SplineBuilder.build(splineNodes, shapeWidthPt))
         render()
     }
 
@@ -1669,7 +1677,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      */
     fun finishSpline() {
         if (splineNodes.isEmpty()) return
-        val pts = SplineBuilder.build(splineNodes, baseWidthPt.toDouble())
+        val pts = SplineBuilder.build(splineNodes, shapeWidthPt)
         clearSpline()
         if (pts.size >= 2) {
             appendStroke(
@@ -1877,15 +1885,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
         )?.let { into += point(box, it.x, it.y, it.pressure) }
     }
 
+    /**
+     * The stroke width one sample of the current tool draws at, in pt. A highlighter lays down a
+     * broad, constant-width band and ignores pressure; every other tool tapers with pressure. Shapes
+     * and splines call this once per gesture so they match a pen stroke drawn at the same size.
+     */
+    private fun widthForPressure(pressure: Float): Double = if (tool == Tool.HIGHLIGHTER) {
+        (baseWidthPt * HIGHLIGHTER_WIDTH_FACTOR).toDouble()
+    } else {
+        val p = if (pressure <= 0f) 1f else pressure
+        (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
+    }
+
     private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
-        // A highlighter lays down a broad, constant-width band and ignores pressure; the pen
-        // tapers with pressure. (Both persist per-vertex, but the highlighter's values are equal.)
-        val width = if (tool == Tool.HIGHLIGHTER) {
-            (baseWidthPt * HIGHLIGHTER_WIDTH_FACTOR).toDouble()
-        } else {
-            val p = if (pressure <= 0f) 1f else pressure
-            (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
-        }
+        val width = widthForPressure(pressure)
         val (gx, gy) = guided(box, ptX(box, vx), ptY(box, vy))
         return StrokePoint(x = gx, y = gy, width = width)
     }
@@ -1906,8 +1919,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
             val thinned = StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(pxPerPt, strokePrecision))
             // With the recogniser on, a freehand stroke that clearly means a primitive is replaced by
             // clean geometry; anything it doesn't recognise comes through exactly as drawn.
-            val shape = if (recognizeShapes && tool == Tool.PEN) {
-                ShapeRecognizer.recognize(thinned, baseWidthPt.toDouble())
+            val shape = if (recognizeShapes && tool == Tool.PEN && thinned.isNotEmpty()) {
+                // Keep the thickness the stroke was actually drawn at, not the un-scaled base width,
+                // so snapping to a primitive doesn't fatten the line under the user's hand.
+                ShapeRecognizer.recognize(thinned, thinned.map { it.width }.average())
             } else {
                 null
             }
