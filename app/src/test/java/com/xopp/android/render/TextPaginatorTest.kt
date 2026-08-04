@@ -81,6 +81,32 @@ class TextPaginatorTest {
     }
 
     @Test
+    fun `streaming layout matches the list-based layout`() {
+        val spec = TextPaginator.PageSpec(widthPt = 172.0, heightPt = 168.0, marginPt = 36.0)
+        val text = "hello world\n\n" + "x".repeat(200) + "\nlast line"
+        val streamed = TextPaginator.layout(text.splitToSequence("\n"), spec, measure).toList()
+        assertEquals(TextPaginator.layout(text, spec, measure), streamed)
+    }
+
+    @Test
+    fun `streaming layout emits a page before consuming the whole input`() {
+        val spec = TextPaginator.PageSpec(heightPt = 144.0 + 36.0) // room for exactly 3 lines
+        var pulled = 0
+        val source = generateSequence { "line ${++pulled}" }.take(1000)
+        val firstPage = TextPaginator.layout(source, spec, measure).first()
+        assertEquals(listOf("line 1", "line 2", "line 3"), firstPage)
+        assertTrue("pulled $pulled source lines for one page", pulled <= 4)
+    }
+
+    @Test
+    fun `streaming layout reads from a Reader and still yields one page when empty`() {
+        val spec = TextPaginator.PageSpec(heightPt = 144.0 + 36.0)
+        val pages = TextPaginator.layout(java.io.StringReader("a\nb\nc\nd"), spec, measure).toList()
+        assertEquals(listOf(listOf("a", "b", "c"), listOf("d")), pages)
+        assertEquals(listOf(emptyList<String>()), TextPaginator.layout(java.io.StringReader(""), spec, measure).toList())
+    }
+
+    @Test
     fun `baselines advance by one line height below the top margin`() {
         val spec = TextPaginator.PageSpec()
         assertEquals(72.0 + 12.0, TextPaginator.baselineFromTop(0, spec), 1e-9)

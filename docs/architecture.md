@@ -943,6 +943,12 @@ Markdown needs the same guarantee across *five* faces at once, so `MarkdownPdfWr
 the draw-time font lookup — one table, so a line can never be wider on the page than the width it was
 wrapped to.
 
+`TextPaginator` exposes both a **list** form (`wrap`/`paginate`/`layout(String)`) and a **streaming**
+one (`wrapLines`/`paginate(Sequence)`/`layout(Sequence)`/`layout(Reader)`) that wraps line-by-line and
+yields each page the moment `linesPerPage` lines have accumulated — so memory scales with one page
+rather than with the file, and a page can be written out before the input is fully read. The list form
+is a thin wrapper over the streaming one, so both give byte-identical layout.
+
 **Generating the text-import PDF.** `TextPdfGenerator` turns a plain-text file into the PDF a text
 import is opened against. It owns only the authoring — layout is entirely `TextPaginator`'s — and
 emits **real, selectable text**: a white sheet per page, then one `beginText`/`setFont`/

@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "wrap-and-paginate-text-from-a-streaming-reader"
+title = "Wrap and paginate text from a streaming reader"
+description = "TextPaginator.wrap/paginate build a full List<String> of every wrapped line and then chunk it (TextPaginator.kt:61,106), so memory scales with the file. Add a streaming API alongside the existing one: take a Reader (or Sequence<String> of raw lines) and emit Sequence<List<String>> of pages, wrapping line-by-line and yielding a page as soon as linesPerPage is reached. Keep the current List-based layout() as a thin wrapper over it so existing TextPaginatorTest cases still pass, and add tests that a page is emitted before the whole input is consumed."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "text-import-fails-to-open-on-the-emulator-unrecognised-file-type"
 title = "Text import fails to open on the emulator: unrecognised file type"
 description = "Not reproducible as of 2026-08-04 on the /data/android emulator (Android 14). Verified with the current debug APK: demo.txt (36 B) and demo.md (440 B) in /sdcard/Download open through both the SAF picker and a VIEW intent. Temporary logging in DocumentIo.read confirmed FileKind.sniff returns TEXT for both (len/head as expected), the generated PDF renders, and demo.md shows styled markdown headings, lists, quote, code and rule. The earlier failure predated the text-import/markdown work now on master; closing as fixed by it."

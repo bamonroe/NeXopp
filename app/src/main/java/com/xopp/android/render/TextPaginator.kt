@@ -48,7 +48,19 @@ object TextPaginator {
      * at the last character that fits.
      */
     fun wrap(text: String, maxWidth: Double, measure: (String) -> Float): List<String> =
-        text.split("\n").flatMap { wrapLine(expandTabs(it), maxWidth, measure) }
+        wrapLines(text.splitToSequence("\n"), maxWidth, measure).toList()
+
+    /**
+     * Streaming counterpart of [wrap]: wrap each raw source line as it arrives, so nothing larger
+     * than one source line's worth of output is ever held at once. [rawLines] are lines *without*
+     * their terminators, as produced by [java.io.BufferedReader.lineSequence].
+     */
+    fun wrapLines(
+        rawLines: Sequence<String>,
+        maxWidth: Double,
+        measure: (String) -> Float,
+    ): Sequence<String> =
+        rawLines.flatMap { wrapLine(expandTabs(it), maxWidth, measure).asSequence() }
 
     private fun wrapLine(line: String, maxWidth: Double, measure: (String) -> Float): List<String> {
         if (line.isEmpty()) return listOf("")
@@ -81,11 +93,48 @@ object TextPaginator {
 
     /** Chunk already-wrapped [lines] into pages of [spec].linesPerPage lines each. */
     fun paginate(lines: List<String>, spec: PageSpec = PageSpec()): List<List<String>> =
-        if (lines.isEmpty()) listOf(emptyList()) else lines.chunked(spec.linesPerPage)
+        paginate(lines.asSequence(), spec).toList()
+
+    /**
+     * Streaming counterpart of [paginate]: yield each page as soon as [spec].linesPerPage lines have
+     * been pulled from [lines], so a page can be written out before the input is fully consumed.
+     * Empty input still yields one (empty) page, matching the list-based form.
+     */
+    fun paginate(lines: Sequence<String>, spec: PageSpec = PageSpec()): Sequence<List<String>> =
+        sequence {
+            var emitted = false
+            for (page in lines.chunked(spec.linesPerPage)) {
+                emitted = true
+                yield(page)
+            }
+            if (!emitted) yield(emptyList())
+        }
 
     /** Wrap then paginate [text] in one step — the entry point callers normally want. */
     fun layout(text: String, spec: PageSpec = PageSpec(), measure: (String) -> Float): List<List<String>> =
         paginate(wrap(text, spec.contentWidthPt, measure), spec)
+
+    /**
+     * Streaming counterpart of [layout]: wrap and paginate [rawLines] lazily, emitting each page as
+     * it fills. Memory scales with one page, not with the file.
+     */
+    fun layout(
+        rawLines: Sequence<String>,
+        spec: PageSpec = PageSpec(),
+        measure: (String) -> Float,
+    ): Sequence<List<String>> =
+        paginate(wrapLines(rawLines, spec.contentWidthPt, measure), spec)
+
+    /**
+     * Streaming [layout] over a [java.io.Reader] — the entry point for importing a text file without
+     * reading it into memory. The reader is *not* closed; the caller owns it.
+     */
+    fun layout(
+        reader: java.io.Reader,
+        spec: PageSpec = PageSpec(),
+        measure: (String) -> Float,
+    ): Sequence<List<String>> =
+        layout(reader.buffered().lineSequence(), spec, measure)
 
     /**
      * Baseline Y (points, from the page top) for the line at [index] on a page: the first baseline

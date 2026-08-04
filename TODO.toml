@@ -36,20 +36,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "wrap-and-paginate-text-from-a-streaming-reader"
-title = "Wrap and paginate text from a streaming reader"
-description = "TextPaginator.wrap/paginate build a full List<String> of every wrapped line and then chunk it (TextPaginator.kt:61,106), so memory scales with the file. Add a streaming API alongside the existing one: take a Reader (or Sequence<String> of raw lines) and emit Sequence<List<String>> of pages, wrapping line-by-line and yielding a page as soon as linesPerPage is reached. Keep the current List-based layout() as a thin wrapper over it so existing TextPaginatorTest cases still pass, and add tests that a page is emitted before the whole input is consumed."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 180
-created = 2026-08-04
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "write-the-text-import-pdf-one-page-chunk-at-a-time"
 title = "Write the text-import PDF one page chunk at a time"
 description = "TextPdfGenerator.generate builds a single PDDocument holding every PDPage and only writes at doc.save (TextPdfGenerator.kt:26-33). PDFBox 2.x cannot append pages to an already-written file, so build the PDF in bounded chunks: for each N pages create a PDDocument, writePage into it, save to a temp file, close it, then merge the chunk files with the existing render/PdfMerger.kt into the output stream. Depends on the streaming paginator task. Verify with TextPdfGeneratorTest that page count, text extraction and the embedded non-Latin1 font all still round-trip."
