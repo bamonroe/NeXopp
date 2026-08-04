@@ -20,3 +20,45 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "line-tool-draws-1-5x-thicker-than-pen-at-same-size"
+title = "Line tool draws 1.5x thicker than pen at same size"
+description = "Drawing a line with the pen tool and a parallel line with the line tool at the same point size produces a visibly thicker stroke from the line tool (looks like ~1.5x width). The line tool should use the exact same stroke width as the pen for a given size setting. Find where the line/shape tool derives its width and make it share the pen's width resolution."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 10
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "show-eraser-circumference-outline-while-hovering-and-erasing"
+title = "Show eraser circumference outline while hovering and erasing"
+description = "The eraser tip is currently invisible, so there is no way to see its boundary. Draw a thin black circle outline at the eraser radius: (1) following the stylus while it hovers over the canvas, and (2) following the contact point while actively erasing, including finger touches. The outline is a transient overlay only — it must not be part of the document or written to the .xopp file."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "finger-draw-toggle-off-should-disable-finger-input-for-all-tools"
+title = "Finger-draw toggle off should disable finger input for all tools"
+description = "Today the 'finger draws' toggle only stops the finger from drawing with the pen tool; other tools still respond to finger input. When the toggle is off, the finger should never actuate any tool (pen, line/shape, eraser, highlighter, text, selection) — it should always pan. Only the stylus operates tools in that mode. When the toggle is on, current behaviour stays."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 30
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
