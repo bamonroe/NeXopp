@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "epic-radial-palette-tool-at-the-pen-tip"
+title = "EPIC: radial palette tool at the pen tip"
+description = "Large multi-part feature. A radial palette that pops up right at the pen tip location, made of two concentric rings: an inner ring of 8 segments and an outer ring of 16 segments. Any segment may be empty. Each filled segment holds a tool/action the user selects by flicking or tapping toward it. Sub-work to flesh out: (1) rendering the two-ring radial menu anchored at the pen tip, (2) hit-testing angle+radius to a segment, (3) invocation gesture (likely tied to the barrel button double-click or hold), (4) the palette configuration UI - how the user assigns tools to inner/outer slots and leaves others empty, (5) persistence of palette configuration, (6) possibly multiple palettes and how to switch between them. Break this epic into concrete child tasks before implementing."
+status = "finished"
+level = "epic"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["epic", "ui", "palette"]
+
+[[task]]
 id = "keep-the-radial-palette-open-until-you-click-off-it"
 title = "Keep the radial palette open until you click off it"
 description = "The radial menu currently dismisses as soon as a slot is selected. Instead it should stay open after a selection so several settings can be picked in one summoning, and only dismiss when the user taps/clicks outside the ring (or otherwise explicitly closes it)."
