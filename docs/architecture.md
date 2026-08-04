@@ -74,7 +74,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 | `1f 8b` | `GZIP` | gzip `.xopp` (`Xopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
 | `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`Xopp.parseXml`); saved back compressed | `ORIGINAL` |
-| none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document | `ORIGINAL` |
+| none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `ZIPPED` |
 | anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
 - **`ORIGINAL`** — the legacy gzip `.xopp` (`format/Xopp.kt`, JDK `GZIPOutputStream`). A PDF
@@ -447,7 +447,8 @@ app/
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
-      PdfStore.kt            # one background-PDF file per open document; never rewritten
+      PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index
+      TextImport.kt          # text file -> generated background PDF, cached by content hash
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
@@ -928,6 +929,30 @@ exactly as on a born-digital PDF. The font is **injected** as a `(PDDocument) ->
 loader, keeping the generator free of `AssetManager` and unit-testable on the JVM; the app passes the
 monospace face, the sensible default for logs and source. An empty file still yields one blank sheet
 to annotate.
+
+**Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
+file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits
+`FileKind.TEXT` the same way it does `FileKind.PDF`: typeset the bytes, return
+`LoadedFile.Pdf(generated = true)`, and every path downstream (background rasterisation,
+`PdfImport.documentFor`, text selection, saving) runs unchanged with no text-specific branch. The
+generator is injected into `DocumentIo` (it needs the bundled fonts, and so an `AssetManager`), which
+keeps the rest of the class Android-free.
+
+Two consequences fall out of the generated PDF living only in the cache:
+
+- **It is cached by content, not copied.** `PdfStore.cached(key) { … }` keys the generated file on a
+  SHA-256 of the source text plus the file's display name (the staged copy's own name is per-open
+  scratch and would never hit), recording key → file name in an `index.tsv` sidecar the sweep skips.
+  Reopening the same file while the entry survives reuses the PDF instead of typesetting it again.
+  `MainActivity.adoptPdf(inStore = true)` then takes the store file **in place** rather than copying
+  it, so the cached file *is* the tab's `pdfPath` — which is what keeps liveness pruning from
+  sweeping it out from under its own cache entry. `prune` drops index entries whose file it deleted,
+  so a closed tab simply means the next open regenerates.
+- **It must be saved `ZIPPED`, not `ORIGINAL`.** There is no stable on-disk source to link: the
+  cache path would be swept and the document would reopen blank. So the text branch makes the sticky
+  save format `ZIPPED`, and `encode` embeds the bytes through the existing `domain="attach"` path.
+  `TextImportRoundTripTest` guards the whole journey — open text → annotate → save → reopen — and
+  `TextImportTest` the caching contract.
 
 Those JVM tests need one build-level accommodation: PDFBox reads its **CMap data** (`Identity-H`,
 needed by every `PDType0Font`) out of the AAR's `assets/` through Android's `AssetManager`, which

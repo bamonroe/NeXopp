@@ -27,9 +27,11 @@ import com.xopp.android.io.xoppNameFor
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImportPdfMode
+import com.xopp.android.render.PdfFonts
 import com.xopp.android.render.PdfImport
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
+import com.xopp.android.render.TextPdfGenerator
 import com.xopp.android.panes.EditorPane
 import com.xopp.android.panes.MirrorSync
 import com.xopp.android.tabs.DocColors
@@ -119,7 +121,13 @@ class MainActivity : ComponentActivity() {
      * All document I/O policy — staging, the background-PDF stores, and the read/encode/merge steps
      * (see [DocumentIo]). The activity keeps only the intent plumbing and the canvas wiring.
      */
-    private val io: DocumentIo by lazy { DocumentIo(contentResolver, cacheDir, filesDir) }
+    private val io: DocumentIo by lazy {
+        // Monospace is the sensible default for the logs and source a text import usually holds.
+        val fonts = PdfFonts(assets)
+        DocumentIo(contentResolver, cacheDir, filesDir, TextPdfGenerator { doc ->
+            fonts.load(doc, PdfFonts.Face.MONOSPACE)
+        })
+    }
 
     /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */
     private var busy = mutableStateOf<String?>(null)
@@ -329,11 +337,13 @@ class MainActivity : ComponentActivity() {
 
     /** Put a staged local copy of the document onto the canvas ([DocumentIo] decided what it is). */
     private fun loadDocument(staged: File, source: Uri) {
-        when (val loaded = io.read(staged)) {
+        when (val loaded = io.read(staged, displayName(source))) {
             // A raw PDF isn't a document to parse — it becomes a fresh annotatable one over its pages.
             is LoadedFile.Pdf -> {
-                saveFormat = SaveFormat.ORIGINAL
-                adoptPdf(loaded.file, ImportPdfMode.REPLACE, reference = source.toString())
+                // A PDF we typeset from a text file lives only in the prunable cache, so there is no
+                // stable path to link: save it as a ZIP package with the bytes embedded instead.
+                saveFormat = if (loaded.generated) SaveFormat.ZIPPED else SaveFormat.ORIGINAL
+                adoptPdf(loaded.file, ImportPdfMode.REPLACE, source.toString(), inStore = loaded.generated)
                 // The tab came from a PDF, so it has no `.xopp` on disk yet: drop the source URI so
                 // plain Save asks for a destination instead of writing document bytes over the PDF,
                 // and suggest the PDF's own name with the extension swapped. The PDF itself stays on
@@ -379,9 +389,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Turn an already-local [source] PDF into annotatable pages, per [mode]. */
-    private fun adoptPdf(source: File, mode: ImportPdfMode, reference: String) {
-        val file = io.adoptPdf(source)
+    /**
+     * Turn an already-local [source] PDF into annotatable pages, per [mode]. [inStore] says [source]
+     * *is* already the store's own never-rewritten copy (a text import's generated PDF), so it is
+     * used in place rather than duplicated — which also keeps its cache entry alive with the tab.
+     */
+    private fun adoptPdf(source: File, mode: ImportPdfMode, reference: String, inStore: Boolean = false) {
+        val file = if (inStore) source else io.adoptPdf(source)
         val view = surface
         val existing = view?.pdfSourceFile()
         if (mode == ImportPdfMode.APPEND && existing != null && view.hasPdfBackground()) {

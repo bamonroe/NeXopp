@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "wire-text-import-through-documentio-and-cache-the-generated-pdf"
-title = "Wire text import through DocumentIo and cache the generated PDF"
-description = "Join the pieces so a text file opens exactly like a PDF-backed document. In io/DocumentIo.read() (line 94) add a FileKind.TEXT branch next to the PDF short-circuit at line 96 that generates the PDF and returns LoadedFile.Pdf(generated) - MainActivity.loadDocument then needs no change, and Background.Pdf, PdfImport and PdfTextExtractor selection all fall out for free. Cache via the existing io/PdfStore.kt: add a small manifest keyed by a content hash of the source text plus title so reopening the same file while its cache entry survives reuses the PDF instead of regenerating; liveness pruning already drops it when the tab closes. On save to .xopp the generated PDF has no on-disk source, so it must be attached through the ZIPPED/attach encode path in DocumentIo. Cover the round-trip with a test: open text -> annotate -> save -> reopen."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 60
-created = 2026-08-04
-tags = ["text-import"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "cap-text-import-pdf-generation-size-and-expose-the-cap-in-settings"
 title = "Cap text-import PDF generation size and expose the cap in settings"
 description = "Bound the cost of importing a several-hundred-megabyte log. Enforce a per-file size cap on text import with a clear user-facing message when a file exceeds it, and generate lazily/incrementally rather than converting the whole file up front. Add a cache size cap enforced in io/PdfStore.kt (which today prunes only by liveness, see prune() line 40) and wired through DocumentIo.prune(live) (line 160), which MainActivity already calls on session persist. Expose both caps as an Advanced/Storage section in settings: there is no such section today, so add the AppSettings field plus KEY_ const and load/save lines in ui/AppSettings.kt, a SettingsSection enum entry in ui/SettingsScreen.kt, and the composable in ui/SettingsSections.kt (EditorSection line 137 is the simplest pattern)."

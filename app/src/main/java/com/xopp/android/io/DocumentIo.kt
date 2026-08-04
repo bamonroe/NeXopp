@@ -11,6 +11,7 @@ import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.render.ATTACH_DOMAIN
 import com.xopp.android.render.PdfMerger
+import com.xopp.android.render.TextPdfGenerator
 import com.xopp.android.render.documentWithPdfDomain
 import java.io.File
 
@@ -20,8 +21,12 @@ import java.io.File
  * so everything here stays free of Android view code and unit-testable.
  */
 sealed interface LoadedFile {
-    /** A raw PDF, which becomes a fresh annotatable document over its pages. */
-    data class Pdf(val file: File) : LoadedFile
+    /**
+     * A raw PDF, which becomes a fresh annotatable document over its pages. [generated] marks one we
+     * typeset ourselves from a text file: it exists only in the cache, so the saved `.xopp` has to
+     * carry the bytes with it ([SaveFormat.ZIPPED]) rather than link a path that will be swept.
+     */
+    data class Pdf(val file: File, val generated: Boolean = false) : LoadedFile
 
     /**
      * A parsed `.xopp`. [pdf] is the local copy of its background PDF, if it had one we could
@@ -44,7 +49,16 @@ sealed interface LoadedFile {
  * plumbing and the Compose host. Nothing here touches a view or the UI thread — callers run [read],
  * [encode] and [merge] on a worker (see `MainActivity.inBackground`) and apply the result themselves.
  */
-class DocumentIo(private val resolver: ContentResolver, cacheDir: File, filesDir: File) {
+class DocumentIo(
+    private val resolver: ContentResolver,
+    cacheDir: File,
+    filesDir: File,
+    /**
+     * Typesets a plain-text file into a background PDF ([TextImport]). Injected because it needs the
+     * bundled fonts (and so an `AssetManager`); when absent, text files are simply unreadable.
+     */
+    textPdf: TextPdfGenerator? = null,
+) {
 
     /** Staging for document bytes, so slow remote (SSHFS/FTP/cloud) URIs never block the canvas. */
     private val staging = UriStaging(resolver, File(cacheDir, STAGING_DIR))
@@ -61,6 +75,9 @@ class DocumentIo(private val resolver: ContentResolver, cacheDir: File, filesDir
      * a plain Save records this path in the document and it has to still resolve on reopen.
      */
     private val joinedPdfStore = PdfStore(File(filesDir, JOINED_PDF_DIR))
+
+    /** Text → PDF, cached in [pdfStore] by content. Null when no font-backed generator was supplied. */
+    private val textImport = textPdf?.let { TextImport(pdfStore, it) }
 
     // --- transfers ------------------------------------------------------------------------------
 
@@ -91,9 +108,16 @@ class DocumentIo(private val resolver: ContentResolver, cacheDir: File, filesDir
      * reliable suffix. The verdict also fixes the sticky save format, so a reopened ZIP keeps saving
      * ZIPPED and a gzip `.xopp` keeps saving gzip.
      */
-    fun read(staged: File): LoadedFile {
+    fun read(staged: File, name: String = staged.name): LoadedFile {
         val kind = staged.inputStream().use { FileKind.sniff(it.buffered()) }
         if (kind == FileKind.PDF) return LoadedFile.Pdf(staged)
+        // A text file has no `.xopp` representation of its own, so it is typeset into a PDF and then
+        // opened as one — every PDF path downstream (backgrounds, page building, text selection)
+        // works unchanged from here (see [TextImport]).
+        if (kind == FileKind.TEXT) {
+            val generator = textImport ?: error("no text generator configured")
+            return LoadedFile.Pdf(generator.pdfFor(staged, name), generated = true)
+        }
         return staged.inputStream().use { raw ->
             val input = raw.buffered()
             when (kind) {

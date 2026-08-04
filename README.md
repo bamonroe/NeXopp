@@ -75,8 +75,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   file picker; choose a file. It's read in place via the Storage Access Framework. **Open accepts
   four kinds of file and works out which is which from the file's contents, not its name**: a
   gzip-compressed `.xopp` (the usual desktop format), a single-file zipped `.xopp` package (its
-  bundled PDF travels inside), an uncompressed Xournal++ XML file, and a **plain PDF** — picking a
-  PDF opens it as a fresh annotatable document exactly as **Import PDF** below does. A file that
+  bundled PDF travels inside), an uncompressed Xournal++ XML file, a **plain PDF** — picking a
+  PDF opens it as a fresh annotatable document exactly as **Import PDF** below does — and a
+  **plain-text file** (see **Open a text file** below). A file that
   is none of these is refused with an "Open failed" notice. Whichever `.xopp` container it came
   from is remembered, so a later Save writes it back in the same one.
   **Files on remote shares work too** — anything the system picker lists, including SSHFS, FTP,
@@ -155,6 +156,15 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   exactly the tabs you had, with the same one showing. This is a convenience cache, **not a
   substitute for saving**: your `.xopp` file on disk is still only written when you **Save**, and
   that file is the only thing desktop Xournal++ ever sees.
+- **Open a text file** — picking a **plain-text** file (a `.txt`, a log, a source file, notes) opens
+  it as an annotatable document: the text is **typeset onto A4 pages** in a monospace face, wrapped
+  at the margin and split across as many pages as it needs, and those pages become the document you
+  draw on. The text is **real, selectable text**, not a picture of text, so the **Select text (PDF)**
+  tool works on it and you can copy passages straight out. Annotate it exactly like any other
+  document. **The first Save asks where to put the `.xopp`**, since a text file has no `.xopp` of
+  its own, and the typeset pages are **saved inside** the `.xopp` (the zipped single-file package) —
+  so the file reopens with its text intact on this device *and* in desktop Xournal++, with nothing
+  else to keep alongside it. Reopening the same text file again reuses the pages already typeset.
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
   **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —
