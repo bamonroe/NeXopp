@@ -220,7 +220,9 @@ round-trip. Older files without a `text` attribute put the LaTeX source in the b
       feature's coverage, fails the build (per `CLAUDE.md`'s code-derived-fact rule).
       `FormatDriftTest` covers only `Background.Solid` styles; the `pdf` background on-disk
       round-trip (filename+domain on page 1, `pageno`-only on later pages) is locked in
-      separately by `PdfBackgroundRoundTripTest`, and the stroke `style`/`fill` attributes plus the
+      separately by `PdfBackgroundRoundTripTest`, the `pixmap` background (linked references under
+      `domain="absolute"` and bundled ones under `attach`, through both save paths) by
+      `PixmapBackgroundRoundTripTest`, and the stroke `style`/`fill` attributes plus the
       `<layer name>` attribute by `StyleFillLayerNameRoundTripTest`.
 - [x] **XML-equality drift test.** `XmlEqualityRoundTripTest` compares the *emitted XML* against
       each fixture's source XML (normalized for formatting, attribute order, number precision and
@@ -1057,6 +1059,12 @@ background whose picture can't be reached keeps its original reference rather th
 name with no entry behind it. `XoppZip.open` extracts every non-bookkeeping, non-`bg.pdf` entry into
 the image store and returns them as `Loaded.images`, keyed by entry name — which is exactly what the
 attached background's `filename` says — so a package reopens self-contained.
+
+**Round-trip status.** `PixmapBackgroundRoundTripTest` locks in both halves: a linked reference
+(absolute path, relative path, or `content://` URI) is written verbatim and the picture's bytes never
+enter the file, and a bundled one survives the whole `documentWithPixmapAttachments` →
+`XoppZip.save` → `XoppZip.open` path with its entry bytes and the annotations over it intact —
+numbering one entry per image-backed page and leaving an unreachable picture's reference alone.
 
 **Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
 file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits
