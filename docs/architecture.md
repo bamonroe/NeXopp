@@ -729,9 +729,11 @@ about a guide reaches the document — only the resulting stroke does. A **line 
 on the stroke the tool draws next; `StrokePainter` paints a dashed/dotted style as a single
 constant-width dashed path and floods a fill under the outline, and `PdfVectorPainter` mirrors both for
 export (a `setLineDashPattern` stroke and a `fill()` polygon). The **partial eraser** (`StrokeEraser`,
-pure, tested) rubs out only the touched vertices and splits a stroke into its surviving pieces (each
+pure, tested) rubs out only the touched part of a stroke and splits it into the surviving pieces (each
 inheriting the original's colour/style/fill), alongside the original whole-stroke delete
-(`StrokeHitTester`). `PageEraser` (pure, tested) is the page-level driver both modes go through: it
+(`StrokeHitTester`). It hit-tests **segments**, not just vertices, and cuts where a segment crosses the
+tip's disc — so a sparse shape stroke (a two-point line, a five-point rectangle) rubs out mid-shaft
+just like densely-sampled freehand ink. `PageEraser` (pure, tested) is the page-level driver both modes go through: it
 walks the page's layers, **skips hidden ones** (you only rub out ink you can see) and returns `null`
 when nothing was touched, so the surface skips the document rebuild and the undo snapshot. The mode is
 a view flag on the surface (`eraserMode`), set by which member of the rail's eraser slot is picked —

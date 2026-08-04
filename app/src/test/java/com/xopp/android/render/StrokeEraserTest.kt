@@ -24,20 +24,59 @@ class StrokeEraserTest {
     }
 
     @Test fun touchingTheMiddleSplitsIntoTwoPieces() {
-        // Vertices at x = 0,1,2,3,4; erase around x=2 removes the middle vertex.
+        // Vertices at x = 0,1,2,3,4; erase around x=2. Reach is radius + half-width = 0.9, so the
+        // cut lands on the disc boundary at x = 1.1 and x = 2.9.
         val s = stroke(0.0, 1.0, 2.0, 3.0, 4.0)
         val pieces = StrokeEraser.erase(s, 2.0, 0.0, radius = 0.4)!!
         assertEquals(2, pieces.size)
-        assertEquals(listOf(0.0, 1.0), pieces[0].points.map { it.x })
-        assertEquals(listOf(3.0, 4.0), pieces[1].points.map { it.x })
+        assertEquals(listOf(0.0, 1.0, 1.1), pieces[0].points.map { round(it.x) })
+        assertEquals(listOf(2.9, 3.0, 4.0), pieces[1].points.map { round(it.x) })
     }
 
     @Test fun touchingAnEndTrimsTheStroke() {
         val s = stroke(0.0, 1.0, 2.0, 3.0)
         val pieces = StrokeEraser.erase(s, 0.0, 0.0, radius = 0.4)!!
         assertEquals(1, pieces.size)
-        assertEquals(listOf(1.0, 2.0, 3.0), pieces[0].points.map { it.x })
+        assertEquals(listOf(0.9, 1.0, 2.0, 3.0), pieces[0].points.map { round(it.x) })
     }
+
+    @Test fun rubbingTheShaftOfATwoPointLineSplitsIt() {
+        // A shape-tool line has only its two endpoints — the old vertex-only test missed it entirely.
+        val s = stroke(0.0, 300.0)
+        val pieces = StrokeEraser.erase(s, 150.0, 0.0, radius = 9.5)!!
+        assertEquals(2, pieces.size)
+        assertEquals(listOf(0.0, 140.0), pieces[0].points.map { round(it.x) })
+        assertEquals(listOf(160.0, 300.0), pieces[1].points.map { round(it.x) })
+    }
+
+    @Test fun rubbingBesideATwoPointLineLeavesItAlone() {
+        val s = stroke(0.0, 300.0)
+        assertNull(StrokeEraser.erase(s, 150.0, 50.0, radius = 9.5))
+    }
+
+    @Test fun rubbingPastAnEndpointLeavesTheLineAlone() {
+        // The disc sits beyond the far end: the infinite line through the segment passes through it,
+        // but the segment itself does not.
+        val s = stroke(0.0, 300.0)
+        assertNull(StrokeEraser.erase(s, 400.0, 0.0, radius = 9.5))
+    }
+
+    @Test fun rubbingAnEdgeOfASparseRectangleCutsOnlyThatEdge() {
+        // A shape-tool rectangle: 4 corners plus the closing point, erased mid-edge on the top side.
+        val corners = listOf(0.0 to 0.0, 100.0 to 0.0, 100.0 to 60.0, 0.0 to 60.0, 0.0 to 0.0)
+        val rect = Stroke(
+            Tool.PEN, 0xFF000000.toInt(), "round",
+            corners.map { StrokePoint(it.first, it.second, 1.0) }, uniformWidth = true,
+        )
+        val pieces = StrokeEraser.erase(rect, 50.0, 0.0, radius = 9.5)!!
+        assertEquals(2, pieces.size)
+        assertEquals(listOf(0.0, 40.0), pieces[0].points.map { round(it.x) })
+        // The rest of the outline survives as one run, starting just past the erased gap.
+        assertEquals(60.0, round(pieces[1].points.first().x), 0.001)
+        assertEquals(5, pieces[1].points.size)
+    }
+
+    private fun round(v: Double) = Math.round(v * 1000.0) / 1000.0
 
     @Test fun aLoneSurvivingVertexIsDropped() {
         // Erase around x=1 on a 3-vertex stroke: leaves single vertices at each end → nothing drawable.
