@@ -386,6 +386,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   quickly through a long document (a **page-number bubble** shows where you are as you drag). A small
   **grip** bulges out of its centre so it's easy to grab. It sits faint while idle and brightens as you
   scroll; only the thumb itself grabs touches, so the rest of the page's right margin still takes ink.
+  With a **mouse** connected, the **scroll wheel** scrolls the document vertically — wheel down moves
+  further down the pages, the same direction as dragging the scroll thumb down — and leaves the zoom
+  level alone.
 - **Zoom** — **pinch** with **two fingers** anywhere on the canvas to zoom in or out; the point
   between your fingers stays put as the page grows or shrinks, and you can pan at the same time in
   the one gesture. The **%** button on the rail also opens a zoom pop-up with **−** / **+** buttons;

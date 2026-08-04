@@ -1322,6 +1322,13 @@ toolbar":
    stylus-only. Palm-safe writing on non-stylus devices.
 4. Otherwise the on-screen tool's default intent.
 
+**Mouse wheel.** `ACTION_SCROLL` events from a mouse arrive in `onGenericMotionEvent` and are turned
+into a vertical viewport move (`handleWheelScroll` → `ViewportState.scrollBy`, `WHEEL_SCROLL_DP` per
+notch). Android reports wheel-down as a *negative* `AXIS_VSCROLL`, so the sign is flipped: wheel down
+goes further down the document, the scrollbar's direction rather than a grab-the-paper pan. Zoom is
+untouched and the same scroll clamps apply, so a wheel at a bound is left unconsumed
+(`MouseWheelInputTest`, on-device — `adb input` can't inject a wheel).
+
 **Palm rejection** is the stateful half, handled in the view around the classifier: the active
 draw/erase gesture is *owned by a pointer id* (`gesturePointerId`) and only that pointer is sampled
 (`addSamples` reads `pointerIndex`, never pointer 0), so a resting palm — a different pointer — can't

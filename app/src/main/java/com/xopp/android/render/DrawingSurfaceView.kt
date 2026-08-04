@@ -87,7 +87,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
     /** The scroll/zoom offsets and their clamps ([ViewportState] owns the numbers and the maths). */
     private val viewport = ViewportState()
-    private var scrollY: Float
+    /** Internal (not private) so on-device input tests can read where the viewport ended up. */
+    internal var scrollY: Float
         get() = viewport.scrollY
         set(value) { viewport.scrollY = value }
     private var scrollX: Float
@@ -1431,7 +1432,23 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Button-only events (press/release with the tip off the glass) arrive here, not in touch. */
     override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         trackBarrelClicks(event)
+        if (event.actionMasked == MotionEvent.ACTION_SCROLL && handleWheelScroll(event)) return true
         return super.onGenericMotionEvent(event)
+    }
+
+    /**
+     * A mouse wheel notch scrolls the document vertically. Android reports wheel-down as a negative
+     * [MotionEvent.AXIS_VSCROLL], so the sign flips: wheel down moves *further down* the document,
+     * matching a scrollbar drag rather than a grab-the-paper pan. Zoom is untouched, and the move is
+     * clamped by the same [ViewportState] bounds the pan gesture uses.
+     */
+    private fun handleWheelScroll(event: MotionEvent): Boolean {
+        val notches = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
+        if (notches == 0f) return false
+        val step = WHEEL_SCROLL_DP * resources.displayMetrics.density
+        if (!scrollViewportBy(0f, -notches * step)) return false
+        render()
+        return true
     }
 
     /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */
@@ -2437,6 +2454,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         const val PAGE_SIZE_MAX_PT = 14400.0  // 200 in — ceiling on a page dimension
         const val GAP_PX = 24f
         const val ERASER_RADIUS_PX = 18f
+        /** Document scroll per mouse-wheel notch, in dp (roughly three text lines). */
+        const val WHEEL_SCROLL_DP = 64f
         /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
         const val HIGHLIGHTER_WIDTH_FACTOR = 6f
         const val ZOOM_STEP = ViewportState.ZOOM_STEP
