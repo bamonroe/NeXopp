@@ -21,16 +21,30 @@ enum class FileKind {
     /** Uncompressed Xournal++ XML, which desktop can also write (`<?xml` / `<xournal`). */
     XML,
 
+    /** Plain text (`.txt`, `.md`, source…) — typeset into a generated PDF-backed document. */
+    TEXT,
+
     /** Nothing we recognise. */
     UNKNOWN,
     ;
 
     companion object {
 
-        /** Bytes we need to see to decide; also the mark/reset budget on the open stream. */
-        const val MAGIC_BYTES = 8
+        /**
+         * Bytes we need to see to decide; also the mark/reset budget on the open stream. Well past
+         * the few magic bytes the binary formats need, because text has no magic at all: it is
+         * recognised by a whole sample decoding as printable UTF-8, and a short sample would call
+         * far too much binary "text".
+         */
+        const val MAGIC_BYTES = 512
 
-        /** Classify by leading bytes. Short or empty input is [UNKNOWN]. */
+        /** A UTF-8 byte-order mark, which editors like to put in front of otherwise plain text. */
+        private val UTF8_BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
+
+        /**
+         * Classify by leading bytes. Anything without a known signature that still decodes as
+         * printable UTF-8 is [TEXT]; empty or binary input is [UNKNOWN].
+         */
         fun of(magic: ByteArray): FileKind {
             fun at(i: Int): Int = if (i < magic.size) magic[i].toInt() and 0xff else -1
             fun startsWith(s: String): Boolean = s.indices.all { at(it) == s[it].code }
@@ -39,8 +53,48 @@ enum class FileKind {
                 at(0) == 0x1f && at(1) == 0x8b -> GZIP
                 startsWith("%PDF-") -> PDF
                 startsWith("<?xml") || startsWith("<xournal") -> XML
+                isPrintableUtf8(magic) -> TEXT
                 else -> UNKNOWN
             }
+        }
+
+        /**
+         * Whether [sample] looks like human-readable UTF-8 text. Empty input is not text (there is
+         * nothing to typeset). The sample is a *prefix* of the file, so a multi-byte character may
+         * be cut in half at the end — trailing continuation bytes are tolerated rather than
+         * treated as corruption.
+         */
+        internal fun isPrintableUtf8(sample: ByteArray): Boolean {
+            val body = if (sample.size >= 3 && sample.copyOf(3).contentEquals(UTF8_BOM)) {
+                sample.copyOfRange(3, sample.size)
+            } else {
+                sample
+            }
+            if (body.isEmpty()) return false
+            var i = 0
+            while (i < body.size) {
+                val b = body[i].toInt() and 0xff
+                val extra = when {
+                    b < 0x80 -> 0
+                    b in 0xC2..0xDF -> 1
+                    b in 0xE0..0xEF -> 2
+                    b in 0xF0..0xF4 -> 3
+                    else -> return false // a stray continuation byte or an invalid lead byte
+                }
+                if (extra == 0) {
+                    // Control characters mean binary, bar the whitespace real text is made of.
+                    if (b < 0x20 && b != 0x09 && b != 0x0a && b != 0x0d) return false
+                    if (b == 0x7f) return false
+                } else {
+                    for (k in 1..extra) {
+                        // A character straddling the end of the sample proves nothing either way.
+                        if (i + k >= body.size) return true
+                        if ((body[i + k].toInt() and 0xc0) != 0x80) return false
+                    }
+                }
+                i += extra + 1
+            }
+            return true
         }
 
         /**

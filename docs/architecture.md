@@ -64,8 +64,9 @@ stored in, classified by `format/FileKind.kt` — see below).
 
 Open never trusts the file name: the picker is unfiltered (`*/*`, since `.xopp` has no registered
 MIME type) and SAF hands back `content://` URIs with no reliable suffix. `FileKind.sniff()` reads
-the first `MAGIC_BYTES` (8) off the buffered stream and rewinds it, so the same stream goes on to
-the loader its verdict picks:
+the first `MAGIC_BYTES` (512) off the buffered stream and rewinds it, so the same stream goes on to
+the loader its verdict picks. The sample is far larger than any magic number because plain text has
+no signature at all — it is recognised by the whole sample decoding as printable UTF-8:
 
 | Magic | `FileKind` | Loaded as | Sticky `SaveFormat` |
 |---|---|---|---|
@@ -73,7 +74,8 @@ the loader its verdict picks:
 | `1f 8b` | `GZIP` | gzip `.xopp` (`Xopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
 | `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`Xopp.parseXml`); saved back compressed | `ORIGINAL` |
-| anything else | `UNKNOWN` | rejected with an "Open failed" toast | — |
+| none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document | `ORIGINAL` |
+| anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
 - **`ORIGINAL`** — the legacy gzip `.xopp` (`format/Xopp.kt`, JDK `GZIPOutputStream`). A PDF
   background stays **linked by location** (`domain="absolute"`, its path/URI). The
@@ -273,7 +275,7 @@ The core loop:
 
 ```
 open (SAF Uri) → UriStaging.stageIn (worker thread) → local staging file
-   → FileKind.sniff (gzip / ZIP / PDF / XML) → GZIP|ZIP|plain InputStream → XmlPullParser → Document model
+   → FileKind.sniff (gzip / ZIP / PDF / XML / text) → GZIP|ZIP|plain InputStream → XmlPullParser → Document model
      (a raw PDF instead becomes a fresh document via PdfImport.adoptPdf/documentFor)
    → render on SurfaceView (Material 3 chrome around it)
    → stylus edits mutate the model → XmlSerializer → GZIP|ZIP OutputStream (sticky SaveFormat)
@@ -441,7 +443,7 @@ app/
       Xopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
-      FileKind.kt            # magic-byte sniffing for open: ZIP / GZIP / PDF / XML / UNKNOWN
+      FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / UNKNOWN
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
