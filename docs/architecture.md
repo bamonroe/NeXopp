@@ -1247,9 +1247,18 @@ blank page means the reference didn't resolve). Results:
 | Unresolvable reference (`nope.pdf`) | ⚠️ desktop reports *"The background file … could not be found"* and aborts the export (exit 2) |
 
 So the reference forms we read and write are exactly what desktop resolves, and the inheritance
-shape (`filename` only on the first page) is accepted. **Still unverified:** whether desktop
-*preserves* an unresolvable reference across a save — that needs an interactive save, and no display
-server (Xvfb/Wayland) is available on this box to drive the GUI.
+shape (`filename` only on the first page) is accepted.
+
+**An unresolvable reference survives a desktop save.** Verified interactively on the same 1.3.6
+build (X11/openbox GUI): opening a `.xopp` whose background PDF is missing pops a *"Missing PDF
+background file"* dialog offering **Select another PDF** / **Remove PDF Background** / **Cancel**.
+Dismissing it with *Cancel* leaves the reference in place — the page renders as a grey sheet reading
+"PDF background missing", strokes still draw on it, and after editing and saving, the `<background>`
+element comes back **byte-identical**, filename and `domain` untouched. Confirmed for both shapes:
+a bare relative sibling name (`missing-scan.pdf`) and a dead absolute path
+(`/nonexistent/dir/gone.pdf`). Desktop only rewrites or drops the reference if the user explicitly
+picks one of the other two buttons, so this app's "write the reference back untouched when it can't
+be resolved" behaviour matches desktop exactly and a missing PDF never silently loses its link.
 
 ## Stylus & selection roadmap
 

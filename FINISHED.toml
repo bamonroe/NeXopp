@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "confirm-desktop-xournal-preserves-an-unresolvable-pdf-reference-on-save"
+title = "Confirm desktop Xournal++ preserves an unresolvable PDF reference on save"
+description = "Headless export CLI can't cover this: open a .xopp whose background PDF is missing in the desktop GUI, save it, and confirm the <background> filename/domain come back untouched rather than being rewritten or dropped. Needs an interactive Xournal++ session (no display server on the dev box at the time of the first pass). See docs/architecture.md 'Relative PDF references'."
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "wrap-and-paginate-text-from-a-streaming-reader"
 title = "Wrap and paginate text from a streaming reader"
 description = "TextPaginator.wrap/paginate build a full List<String> of every wrapped line and then chunk it (TextPaginator.kt:61,106), so memory scales with the file. Add a streaming API alongside the existing one: take a Reader (or Sequence<String> of raw lines) and emit Sequence<List<String>> of pages, wrapping line-by-line and yielding a page as soon as linesPerPage is reached. Keep the current List-based layout() as a thin wrapper over it so existing TextPaginatorTest cases still pass, and add tests that a page is emitted before the whole input is consumed."

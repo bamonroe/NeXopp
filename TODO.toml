@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "confirm-desktop-xournal-preserves-an-unresolvable-pdf-reference-on-save"
-title = "Confirm desktop Xournal++ preserves an unresolvable PDF reference on save"
-description = "Headless export CLI can't cover this: open a .xopp whose background PDF is missing in the desktop GUI, save it, and confirm the <background> filename/domain come back untouched rather than being rewritten or dropped. Needs an interactive Xournal++ session (no display server on the dev box at the time of the first pass). See docs/architecture.md 'Relative PDF references'."
-status = "active"
-level = "task"
-category = "test"
-urgency = "normal"
-order = 170
-created = 2026-08-04
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "write-the-text-import-pdf-one-page-chunk-at-a-time"
 title = "Write the text-import PDF one page chunk at a time"
 description = "TextPdfGenerator.generate builds a single PDDocument holding every PDPage and only writes at doc.save (TextPdfGenerator.kt:26-33). PDFBox 2.x cannot append pages to an already-written file, so build the PDF in bounded chunks: for each N pages create a PDDocument, writePage into it, save to a temp file, close it, then merge the chunk files with the existing render/PdfMerger.kt into the output stream. Depends on the streaming paginator task. Verify with TextPdfGeneratorTest that page count, text extraction and the embedded non-Latin1 font all still round-trip."
