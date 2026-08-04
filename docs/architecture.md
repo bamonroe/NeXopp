@@ -510,6 +510,10 @@ app/
         InlineScanner.kt     # escapes, code spans and link labels; emits unresolved delimiter runs
         InlineEmphasis.kt    # pairs the delimiter runs into bold/italic (delimiter-stack walk)
         StyledWrapper.kt     # styled runs -> lines of positioned fragments, per-style metrics (pure)
+        MarkdownStyle.kt     # every markdown size in one place: page geometry, heading type, gaps, indents
+        MarkdownLayoutItem.kt # the drawable pieces of a page (line / rule / space) + placed items and pages
+        MarkdownComposer.kt  # block tree -> flat groups of wrapped lines, rules and collapsed gaps (pure)
+        MarkdownLayout.kt    # composed groups -> pages: block-aware page breaking, no orphaned headings
       GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
@@ -1028,6 +1032,27 @@ collapses to a single separator (markdown's own rule; verbatim spacing belongs t
 are never inline-wrapped). Like the parsers it is pure, so `StyledWrapperTest` drives it with
 synthetic metrics where bold is deliberately wider than regular and checks that a face change alone
 moves a break.
+
+**Blocks → pages.** `MarkdownLayout` is the top of the markdown path (`layout(source, style, measure)`
+→ pages), and it runs in two halves for one reason: page breaking wants to see whole blocks.
+
+- `MarkdownComposer` walks the block tree and emits a flat list of `MarkdownGroup`s — one per block,
+  each holding the drawable `MarkdownItem`s it produced (`Line` · `Rule` · `Space`). Headings are set
+  bold at their level's size, paragraphs at body size, code verbatim in monospace at its own fixed
+  size (hard-broken to fit, never re-flowed on words). Nesting is plain recursion at a larger indent,
+  so a list inside a quote inside a list needs no depth counter; a list marker (`•` or `3.`) is hung
+  on the item's first line, one indent step into the gutter. Gaps between blocks **collapse** — the
+  larger of the space below one block and above the next, never their sum.
+- `MarkdownLayout.paginate` then walks the groups with a pen offset, giving each line a baseline at
+  the foot of its box and each rule the centre of its own. A block longer than a page simply flows
+  onto the next; a `Space` at the top of a page disappears, so a page never opens with a gap; and a
+  group marked `keepWithNext` (only headings) moves to the next page when it plus the first line of
+  whatever follows won't fit, which is what stops an orphaned heading at the page foot.
+- Every size lives in `MarkdownStyle`, the markdown-flavoured `PageSpec`: sheet and margins, the six
+  heading sizes, heading and block gap ratios, list/quote/code indent steps, code type size, and rule
+  height and thickness. Like the rest of the path it is Android- and PDFBox-free, so
+  `MarkdownLayoutTest` lays documents out against synthetic monospaced metrics and asserts the breaks
+  arithmetically.
 
 Two consequences fall out of the generated PDF living only in the cache:
 
