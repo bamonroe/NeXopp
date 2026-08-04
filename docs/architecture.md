@@ -494,6 +494,7 @@ app/
       TextBlock.kt           # text line-split + baseline geometry (pure)
       TextPaginator.kt       # text-import word-wrap + A4 pagination, injected measurement (pure)
       PdfFonts.kt            # embeds the bundled Unicode fonts (DejaVu) into a PDDocument, cached per doc
+      TextPdfGenerator.kt    # authors the text-import PDF: selectable embedded text, injected font loader
       GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
@@ -916,6 +917,23 @@ unit-tested; encodability injected as a predicate) maps each unencodable codepoi
 or a space — memoising per codepoint, and iterates by codepoint so an astral character becomes one
 substitute rather than two surrogate halves. `PdfFonts.Embedded.measurer` is also what feeds
 `TextPaginator`'s injected measurement, so wrapping is measured against the exact font that draws.
+
+**Generating the text-import PDF.** `TextPdfGenerator` turns a plain-text file into the PDF a text
+import is opened against. It owns only the authoring — layout is entirely `TextPaginator`'s — and
+emits **real, selectable text**: a white sheet per page, then one `beginText`/`setFont`/
+`newLineAtOffset`/`showText` per laid-out line at `heightPt - baselineFromTop(i)` (PDF's origin is
+bottom-left, the paginator's is top-left). Nothing is rasterised and no OCR is involved, so
+`PdfTextExtractor` recovers the original characters and text selection works on an imported `.txt`
+exactly as on a born-digital PDF. The font is **injected** as a `(PDDocument) -> PdfFonts.Embedded`
+loader, keeping the generator free of `AssetManager` and unit-testable on the JVM; the app passes the
+monospace face, the sensible default for logs and source. An empty file still yields one blank sheet
+to annotate.
+
+Those JVM tests need one build-level accommodation: PDFBox reads its **CMap data** (`Identity-H`,
+needed by every `PDType0Font`) out of the AAR's `assets/` through Android's `AssetManager`, which
+unit tests don't have. `app/build.gradle.kts` therefore extracts the AAR assets into the unit-test
+resources (`extractPdfboxAssets`), where PDFBox's classpath fallback finds them, and sets
+`unitTests.isReturnDefaultValues` so FontBox's `android.util.Log` calls no-op instead of throwing.
 
 **PDF text selection.** An imported PDF's **text layer** is extracted on import (off the UI thread)
 by `PdfTextExtractor` — a `PDFTextStripper` subclass that turns each positioned glyph into a

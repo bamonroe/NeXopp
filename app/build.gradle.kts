@@ -4,6 +4,9 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/** Test-only handle on the raw pdfbox-android AAR, so its bundled assets can be extracted below. */
+val pdfboxAar: Configuration by configurations.creating { isTransitive = false }
+
 android {
     namespace = "com.xopp.android"
     compileSdk = 34
@@ -36,6 +39,16 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests {
+            // PDFBox's font parser logs through android.util.Log; without this, loading a TTF in a
+            // JVM unit test throws "not mocked" instead of returning a no-op.
+            isReturnDefaultValues = true
+        }
+    }
+    sourceSets.getByName("test") {
+        resources.srcDir(layout.buildDirectory.dir("generated/pdfboxTestResources"))
+    }
 }
 
 dependencies {
@@ -57,4 +70,24 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    pdfboxAar(libs.pdfbox.android)
+}
+
+// PDFBox ships its CMap/glyph-list data in the AAR's `assets/`, which it reaches through Android's
+// AssetManager at runtime. JVM unit tests have no AssetManager, so PDFBox falls back to loading the
+// same paths off the classpath — extract the AAR assets into the unit-test resources so font
+// embedding (PDType0Font, "Identity-H") works in `testDebugUnitTest` the way it does on device.
+val extractPdfboxAssets by tasks.registering(Copy::class) {
+    from(provider { zipTree(pdfboxAar.singleFile) }) {
+        include("assets/**")
+        eachFile { path = path.removePrefix("assets/") }
+    }
+    into(layout.buildDirectory.dir("generated/pdfboxTestResources"))
+    includeEmptyDirs = false
+}
+
+androidComponents.onVariants { variant ->
+    tasks.matching { it.name == "process${variant.name.replaceFirstChar(Char::uppercase)}UnitTestJavaRes" }
+        .configureEach { dependsOn(extractPdfboxAssets) }
 }

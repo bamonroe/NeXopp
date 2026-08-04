@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "generate-a-pdf-from-paginated-text-with-pdfbox"
+title = "Generate a PDF from paginated text with PDFBox"
+description = "Write the text-to-PDF generator: take the paginated lines and emit a real PDF with selectable, embedded text - no rasterising, no OCR. Follow the authoring template in render/PdfExporter.kt freshPage() (line 66): PDPage(PDRectangle) -> addPage -> PDPageContentStream -> beginText/setFont/newLineAtOffset/showText per line -> save. White background, monospace by default (the sensible choice for logs and source), using the embedded fonts. Measurement for the wrapper is PDFont.getStringWidth(s)/1000*size. Unit-test that the output opens, has the expected page count, and that PdfTextExtractor recovers the original text."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["text-import", "pdf"]
+
+[[task]]
 id = "embed-an-open-licence-font-pair-for-generated-pdfs"
 title = "Embed an open-licence font pair for generated PDFs"
 description = "render/PdfVectorPainter.kt uses base-14 PDType1Fonts and sanitize() (line 195) drops anything outside 0x20..0xFF, which would mangle arbitrary UTF-8 in an imported text file. Ship one permissively licensed proportional family and one monospace (e.g. an OFL pair with broad Unicode coverage) as app assets, load them with PDType0Font.load so they embed and subset into the generated PDF, and route the text-import path through them instead of the base-14 fonts. Document the chosen fonts and their licences, and define the fallback for codepoints the font lacks (substitution glyph rather than a crash). Keep the existing base-14 path for .xopp text elements unchanged unless it is trivially shareable."
