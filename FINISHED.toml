@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "radial-palette-hit-test-angle-and-radius-to-a-slot"
+title = "Radial palette: hit-test angle and radius to a slot"
+description = "Given the palette anchor point and a pointer position, map (angle, radius) to a slot: dead zone at the centre = cancel, inner annulus = one of 8, outer annulus = one of 16, beyond outer radius = clamp to outer. Angles start at 12 o'clock and go clockwise. Pure function next to the data model, fully unit-tested (boundaries, wraparound at 0/360, empty slots)."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "radial-palette-data-model-for-slots-and-actions"
 title = "Radial palette: data model for slots and actions"
 description = "Define the palette data model in ui/: a RadialPalette with an inner ring of 8 slots and an outer ring of 16, each slot either empty or holding a PaletteAction (tool switch, color, width, undo/redo, page ops). Reuse the EditorTool enum (ui/EditorTool.kt) and the existing toolbar actions so a slot maps onto something EditorUiState already knows how to do. Pure Kotlin + unit tests, no UI."
