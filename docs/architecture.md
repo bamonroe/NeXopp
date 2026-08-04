@@ -991,7 +991,11 @@ toolbar":
    overlay then **owns every pointer**: `onTouchEvent` returns before `beginPointer` while it is up,
    which is what makes "the menu can never leave a stroke behind" structural rather than a rule to
    remember. Hover moves re-hit-test the highlight (a hover *exit* is not a cancel — it's the tip
-   coming down), a lift or a second double-click commits, and the dead zone/empty slots cancel. The
+   coming down) and a lift commits — but **the menu stays up after a pick**, so several settings can
+   be chosen in one summoning. It closes only when the user clicks off it: a release past
+   `RadialPaletteGeometry.dismissRadius` (`RadialHit.Outside` — the slack between the outer ring and
+   that radius keeps an over-flick a selection) or in the centre dead zone, or a second barrel
+   double-click, which commits *and* closes as the eyes-free way out. The
    picked `PaletteAction` leaves the surface via `onPaletteAction` and is run by `applyPaletteAction`
    (`ui/PaletteActions.kt`), which is deliberately the *only* mapping from action to edit so the
    palette and the toolbar can't drift into two meanings of the same command.

@@ -17,7 +17,9 @@ import kotlin.math.hypot
  * - inside [RadialPaletteGeometry.deadZoneRadius] — no choice yet, releasing here cancels;
  * - out to [RadialPaletteGeometry.innerRingRadius] — the inner ring's 8 slots;
  * - out to [RadialPaletteGeometry.outerRingRadius] — the outer ring's 16;
- * - beyond that — clamped to the outer ring, so an over-enthusiastic flick still selects.
+ * - out to [RadialPaletteGeometry.dismissRadius] — clamped to the outer ring, so an
+ *   over-enthusiastic flick still selects;
+ * - beyond that — off the menu entirely: releasing there dismisses it.
  *
  * Angles are measured from 12 o'clock and increase clockwise, matching the order the slots are
  * stored in ([RadialPalette.ring]). Each slot is *centred* on its angle, so slot 0 straddles
@@ -29,17 +31,26 @@ data class RadialPaletteGeometry(
     val deadZoneRadius: Float = DEFAULT_DEAD_ZONE_RADIUS,
     val innerRingRadius: Float = DEFAULT_INNER_RING_RADIUS,
     val outerRingRadius: Float = DEFAULT_OUTER_RING_RADIUS,
+    val dismissRadius: Float = DEFAULT_DISMISS_RADIUS,
 ) {
     init {
         require(deadZoneRadius >= 0f) { "dead zone radius must not be negative" }
         require(innerRingRadius > deadZoneRadius) { "inner ring must lie outside the dead zone" }
         require(outerRingRadius > innerRingRadius) { "outer ring must lie outside the inner ring" }
+        require(dismissRadius > outerRingRadius) { "dismiss ring must lie outside the outer ring" }
     }
 
     companion object {
         const val DEFAULT_DEAD_ZONE_RADIUS = 48f
         const val DEFAULT_INNER_RING_RADIUS = 160f
         const val DEFAULT_OUTER_RING_RADIUS = 280f
+
+        /**
+         * How far past the outer ring still counts as aiming at it. The slack keeps an
+         * over-enthusiastic flick a selection; past it the user has clearly aimed *off* the menu,
+         * which is how the menu is dismissed now that picking a slot leaves it open.
+         */
+        const val DEFAULT_DISMISS_RADIUS = 420f
     }
 }
 
@@ -47,6 +58,9 @@ data class RadialPaletteGeometry(
 sealed interface RadialHit {
     /** In the dead zone: no slot is targeted and releasing dismisses the menu. */
     data object Cancel : RadialHit
+
+    /** Clear of the whole menu: releasing here is the "click off it" that closes it. */
+    data object Outside : RadialHit
 
     /** Over [slot]; [action] is what it holds, `null` when the slot is empty. */
     data class Slot(val slot: RadialSlot, val action: PaletteAction?) : RadialHit
@@ -67,6 +81,7 @@ fun RadialPalette.hitTest(
     val dy = y - anchorY
     val radius = hypot(dx, dy)
     if (radius <= geometry.deadZoneRadius) return RadialHit.Cancel
+    if (radius > geometry.dismissRadius) return RadialHit.Outside
 
     val ring = if (radius <= geometry.innerRingRadius) RadialRing.INNER else RadialRing.OUTER
     val index = slotIndexAt(clockwiseDegrees(dx, dy), ring)

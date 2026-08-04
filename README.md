@@ -416,8 +416,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Radial palette** — set the double-click to **Radial palette** and a two-ring menu pops up
     right at the pen tip. Flick outwards onto a slot (hovering is enough — the tip never has to
     touch the glass) and the slot lights up; the pick fires when you **lift the tip** on it, or when
-    you double-click the barrel again without coming down at all. Flicking back to the small dead
-    zone in the middle — or onto an empty slot — cancels. Nothing you do while the menu is open can
+    you double-click the barrel again without coming down at all. **The menu stays open after a
+    pick**, so you can set a tool, a colour and a width in one summoning; it closes when you click
+    off it — release well clear of the outer ring, or back in the small dead zone in the middle
+    (an empty slot simply does nothing). A second barrel double-click picks *and* closes.
+    Nothing you do while the menu is open can
     leave a stroke behind: the canvas ignores the pen until the menu closes. Slots run the same
     actions the toolbar does: pick or toggle a tool, set the pen colour or width, undo/redo, toggle
     full-page, and the page commands (new page before/after, duplicate, delete, next, previous).

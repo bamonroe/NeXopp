@@ -89,6 +89,37 @@ class PaletteInvocationInputTest {
         assertEquals("the stroke was not stolen", 1, strokesOf(view).size)
     }
 
+    /**
+     * The menu survives a pick — several settings in one summoning — and only a release clear of
+     * the whole ring ("click off it") puts it away.
+     */
+    @Test
+    fun aPickLeavesTheMenuUpAndOnlyAnOutsideTapClosesIt() = onView { view ->
+        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.TWO_FINGER_TAP)
+        twoFingerTap(view, holdMs = 40)
+        assertTrue("the tap opened the palette", view.paletteOpen)
+
+        // A pick on the inner ring, straight up from where the tap anchored it.
+        tapAt(view, 550f, 900f - 100f)
+        assertTrue("the pick left the menu up", view.paletteOpen)
+
+        // A second pick, proving the menu is still live rather than merely still painted.
+        tapAt(view, 550f + 100f, 900f)
+        assertTrue("the menu is still up after a second pick", view.paletteOpen)
+
+        // Well past the dismiss radius: this is the click-off that closes it.
+        tapAt(view, 550f, 900f + 450f)
+        assertFalse("a tap clear of the ring closed the menu", view.paletteOpen)
+        assertEquals("nothing the menu did left a stroke", 0, strokesOf(view).size)
+    }
+
+    /** One stylus down-and-up at ([x], [y]) — a pick when the menu is up. */
+    private fun tapAt(view: DrawingSurfaceView, x: Float, y: Float) {
+        val downTime = SystemClock.uptimeMillis()
+        send(view, downTime, downTime, MotionEvent.ACTION_DOWN, floatArrayOf(x), floatArrayOf(y))
+        send(view, downTime, now(), MotionEvent.ACTION_UP, floatArrayOf(x), floatArrayOf(y))
+    }
+
     // --- harness -------------------------------------------------------------------------------
 
     /** Two fingers down together, optionally dragged [travelPx], held [holdMs], then lifted. */

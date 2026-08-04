@@ -35,15 +35,15 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "keep-the-radial-palette-open-until-you-click-off-it"
-title = "Keep the radial palette open until you click off it"
-description = "The radial menu currently dismisses as soon as a slot is selected. Instead it should stay open after a selection so several settings can be picked in one summoning, and only dismiss when the user taps/clicks outside the ring (or otherwise explicitly closes it)."
+id = "register-the-app-as-a-default-opener-for-pdf-documents"
+title = "Register the app as a default opener for PDF documents"
+description = "Declare intent filters so Android offers xopp_android as a handler for application/pdf (VIEW/EDIT, content:// and file:// URIs), and open the incoming PDF as a PDF-background document that round-trips to .xopp."
 status = "active"
-level = "task"
+level = "scope"
 category = "feature"
 urgency = "normal"
-order = 30
+order = 40
 created = 2026-08-04
 tags = []
 rebuild = true
-emulator_debug = true
+emulator_debug = false

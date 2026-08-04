@@ -1405,7 +1405,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (!edge || !barrelClicks.press(event.eventTime)) return
         // A second double-click while the menu is up commits the highlighted slot — the eyes-free
         // way out for a pen that never comes down on the glass.
-        if (paletteOpen) { commitPalette(); return }
+        if (paletteOpen) { commitPalette(alwaysClose = true); return }
         when (val action = inputSettings.barrelDoubleAction) {
             BarrelDoubleAction.NONE -> Unit
             BarrelDoubleAction.UNDO -> undo()
@@ -2343,10 +2343,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return true
     }
 
-    /** Close the menu and run whatever the pen was over; the dead zone and empty slots do nothing. */
-    private fun commitPalette() {
-        val hit = closePalette()
+    /**
+     * Run whatever the pen was over and **leave the menu up**, so several settings can be picked in
+     * one summoning. Only an explicit "click off it" closes the ring: releasing clear of the menu
+     * ([RadialHit.Outside]) or in the centre dead zone ([RadialHit.Cancel]) — as does [alwaysClose],
+     * which the barrel button's eyes-free commit passes.
+     */
+    private fun commitPalette(alwaysClose: Boolean = false) {
+        val hit = paletteOverlay?.hit ?: return
+        if (hit is RadialHit.Outside || hit is RadialHit.Cancel) { closePalette(); return }
         if (PaletteHaptics.shouldConfirm(hit)) tick(HapticFeedbackConstants.CONFIRM)
+        if (alwaysClose) closePalette()
         val action = (hit as? RadialHit.Slot)?.action ?: return
         onPaletteAction?.invoke(action)
     }

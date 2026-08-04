@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "keep-the-radial-palette-open-until-you-click-off-it"
+title = "Keep the radial palette open until you click off it"
+description = "The radial menu currently dismisses as soon as a slot is selected. Instead it should stay open after a selection so several settings can be picked in one summoning, and only dismiss when the user taps/clicks outside the ring (or otherwise explicitly closes it)."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "eraser-does-not-respond-to-synthetic-touch-on-the-emulator"
 title = "Eraser does not respond to synthetic touch on the emulator"
 description = "With the partial eraser selected, adb 'input swipe' across ink (freehand or shape) erases nothing on the emulator, while the pen and shape tools draw fine with the same synthetic touch. Either the eraser gesture is gated somewhere for non-stylus/UNKNOWN tool-type pointers, or the tip radius is too small to catch batched move samples. Blocks emulator verification of eraser changes."
