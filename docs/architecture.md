@@ -820,7 +820,16 @@ alongside the rectangle. **Cut / copy / paste / duplicate** run through a view-h
 (`SelectionOps.elementsAt` + `addToTopLayer`, which reports the pasted refs so the copies are
 selected); paste lands on the visible page. Dropping a move over a **different page** re-homes the
 elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' pt frames). The
-floating action bar also **recolours / re-widths** the selection (`SelectionOps.restyle`). The scope
+floating action bar also **recolours / re-widths** the selection (`SelectionOps.restyle`).
+
+**Grouping is selection-time only.** The action bar's **Group** chip flips
+`SelectionGestureController.additive` (surfaced as `DrawingSurfaceView.groupMode`): `beginBand` then
+skips the clear *and* the handle hit-test, and `commitBand` folds the fresh pick into the live
+selection with the pure `SelectionTester.merge` (marquee adds; a tap on a member removes it). Because
+a selection is already a `Set<ElementRef>` on one page, everything downstream — move/resize/rotate,
+restyle, cut/copy/delete — treats the group as one unit for free. There is **no group primitive in
+`.xopp`**, so a group is deliberately never persisted: it dies with the selection (`clearSelection`
+resets the flag), which keeps the feature inside the format-is-the-boundary scope rule. The scope
 and round-trip reasoning for what rotate/resize can touch lives in
 [Stylus & selection roadmap](#stylus--selection-roadmap).
 

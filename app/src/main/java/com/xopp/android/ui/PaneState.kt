@@ -38,6 +38,8 @@ class PaneState {
     var canUndo by mutableStateOf(false)
     var canRedo by mutableStateOf(false)
     var hasSelection by mutableStateOf(false)
+    /** "Group" mode: further marquees/taps add to the selection instead of replacing it. */
+    var groupMode by mutableStateOf(false)
     var hasTextSelection by mutableStateOf(false)
     var hasClipboard by mutableStateOf(false)
     var layers by mutableStateOf<List<LayerInfo>>(emptyList())

@@ -92,8 +92,23 @@ internal class SelectionGestureController(
     /** True while any of the three transforms is mid-drag. */
     val transforming: Boolean get() = moving || resizing || rotating
 
+    /**
+     * "Group" mode: the next marquee/tap **adds** to the live selection instead of replacing it,
+     * so several elements can be gathered into one unit and then moved/resized/rotated together.
+     * This is a selection-time convenience only — `.xopp` has no group primitive, so nothing about
+     * a group is written to the file; it lives only for as long as the selection does.
+     */
+    var additive = false
+        private set
+
+    /** Turn "add to selection" on/off (the action bar's group toggle). */
+    fun setAdditive(on: Boolean) {
+        additive = on
+    }
+
     /** Drop the selection without recording anything (a view-only change). */
     fun clearSelection() {
+        additive = false
         if (selection == null) return
         selection = null
         onSelectionChanged(false)
@@ -120,7 +135,9 @@ internal class SelectionGestureController(
      */
     fun beginSelect(event: MotionEvent) {
         val sel = selection
-        if (sel != null && dispatchHandle(event, sel)) return
+        // In additive mode every down starts a marquee: the handles would otherwise swallow taps
+        // aimed at elements sitting inside the current outline.
+        if (!additive && sel != null && dispatchHandle(event, sel)) return
         beginBand(event)
     }
 
@@ -257,7 +274,7 @@ internal class SelectionGestureController(
     }
 
     fun beginBand(event: MotionEvent) {
-        clearSelection()
+        if (!additive) clearSelection()
         banding = true
         bandPage = layout().pageAt(event.x + viewport.scrollX, event.y + viewport.scrollY)?.index ?: 0
         bandX0 = event.x; bandY0 = event.y
@@ -298,7 +315,15 @@ internal class SelectionGestureController(
                 SelectionTester.inRect(page, rect)
             }
         }
-        selection = if (refs.isEmpty()) null else ActiveSelection(bandPage, refs)
+        // In additive mode fold the new refs into the live selection (same page only — a selection
+        // can't span pages); a tap on an already-selected element toggles it back out.
+        val prev = if (additive) selection else null
+        if (prev != null && refs.isEmpty()) { render(); return }  // caught nothing: keep the group
+        val merged =
+            if (prev == null || prev.pageIndex != bandPage) refs
+            else SelectionTester.merge(prev.refs, refs, isTap)
+        selection = if (merged.isEmpty()) null else ActiveSelection(bandPage, merged)
+        if (selection == null) additive = false
         onSelectionChanged(selection != null)
         render()
     }

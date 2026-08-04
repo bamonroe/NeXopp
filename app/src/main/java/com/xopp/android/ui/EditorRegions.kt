@@ -242,7 +242,7 @@ fun EditorPaneView(
                         it.onPageClipboardChanged = { n -> state.copiedPages = n }
                         it.onCurrentPageChanged = { page -> state.currentPage = page; state.backgroundStyle = it.visiblePageBackgroundStyle(); state.pageSize = it.visiblePageSize() }
                         it.onScrollChanged = { y, total, vp -> state.scrollY = y; state.contentHeight = total; state.viewportHeight = vp }
-                        it.onSelectionChanged = { s -> state.hasSelection = s }
+                        it.onSelectionChanged = { s -> state.hasSelection = s; if (!s) state.groupMode = false }
                         it.onTextSelectionChanged = { s -> state.hasTextSelection = s }
                         it.onClipboardChanged = { c -> state.hasClipboard = c }
                         it.onToggleFullPage = { ui.fullPage = !ui.fullPage }

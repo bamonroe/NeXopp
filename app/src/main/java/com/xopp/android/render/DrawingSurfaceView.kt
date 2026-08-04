@@ -896,6 +896,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
+    /**
+     * "Group" mode: while on, the next marquee/tap adds to the selection (and a tap on an already
+     * selected element removes it), so several elements can be gathered and then transformed as a
+     * unit. Nothing is written to the file — `.xopp` has no group primitive — so the grouping lasts
+     * only as long as the selection.
+     */
+    var groupMode: Boolean
+        get() = gestures.additive
+        set(on) {
+            if (gestures.additive == on) return
+            gestures.setAdditive(on)
+            render()
+        }
+
     /** Recolour and/or re-width the selected elements as one undoable edit (selection stays). */
     fun restyleSelection(color: Int?, widthPt: Double?) {
         val sel = selection ?: return
@@ -2051,6 +2065,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + SELECT_PAD_PX
         canvas.drawRect(l, t, r, bot, chrome.selectionFill)
         canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
+        // In group mode every down starts a marquee, so the transform handles are inert — don't draw
+        // them, or they'd advertise a gesture that isn't listening.
+        if (gestures.additive) return
         // Corner resize handles.
         for (hx in floatArrayOf(l, r)) for (hy in floatArrayOf(t, bot)) {
             canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, chrome.handle)
