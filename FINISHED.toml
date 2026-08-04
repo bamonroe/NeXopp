@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "document-opening-pdfs-from-other-apps-in-readme"
+title = "Document opening PDFs from other apps in README"
+description = "Document the new flow in README.md: the app appears in Android's share/open-with list for PDFs, what happens on open (fresh annotatable document over the PDF pages), and how the first save writes a .xopp alongside. Note the PDF-background round-trip guarantee."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["pdf"]
+
+[[task]]
 id = "save-an-intent-opened-pdf-back-out-as-a-xopp-document"
 title = "Save an intent-opened PDF back out as a .xopp document"
 description = "A PDF arriving by intent has no .xopp target on disk. Make the first save prompt for a .xopp destination via CreateDocument, defaulting the name to the PDF's display name with a .xopp suffix, and keep the PDF as the page background so it round-trips to desktop Xournal++. Unit-test the default-name derivation."

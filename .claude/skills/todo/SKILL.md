@@ -114,6 +114,10 @@ newest-`completed`-first.
 
 - When you finish a task (built, tested, documented), run **`done <id>`** in the
   same commit that completes the work — don't leave shipped items in `TODO.toml`.
+- **Documentation belongs to the task that wrote the code — never to a task of its
+  own.** Whenever a task changes code, it updates `README.md` and the owning spoke doc
+  in the same task and the same commit. Don't `add` a "document X" follow-up for work a
+  task already did, and don't `done` a task whose docs are still stale.
 - When you notice the next thing to build, **`add`** it rather than losing it.
 - **Picking up a `scope` or `epic` item means breaking it down, not building it.**
   Investigate, then `add` the child items at the next level down; only `task`-level

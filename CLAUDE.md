@@ -202,6 +202,10 @@ work, or immediately after — never defer it to "later," and never ship code wi
   message, config var, etc. goes in its owning doc per the map above).
 - Docs land in the **same commit** as the feature (or an immediately-following commit) — a
   feature commit with no accompanying documentation is incomplete.
+- **Documenting is part of the coding task, never a task of its own.** Every time you write
+  code, you update its documentation *within that same task*. Don't split the docs out into a
+  separate `TODO.toml` item to be picked up later, and don't mark a coding task `done` while
+  its docs are stale — the task isn't finished until they're written.
 - Any script or command needed to build, deploy, run, back up, or operate this project
   **must be written down** — put reusable steps in a checked-in script, and reference every
   such script from both `README.md` (how an operator runs it) and this file (how it fits).

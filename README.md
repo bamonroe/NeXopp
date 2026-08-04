@@ -91,6 +91,20 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   stores is resolved and the PDF pages render underneath your annotations again, so a saved
   project reopens intact. If the referenced PDF can't be found (e.g. a desktop path that doesn't
   exist on the device), those pages open blank and a notice is shown.
+- **Open a PDF from another app** — Xopp registers as a **PDF handler**, so it shows up in the
+  **Open with** / **Share** sheet of file managers, browsers, and mail clients. Tap a PDF there,
+  pick **Xopp**, and it opens straight into a **new tab** as a fresh annotatable document over the
+  PDF's pages — the same result as opening that PDF through the menu's **Open**. This works whether
+  the app was closed or already running; a PDF handed over while it's running is added as another
+  tab, leaving the documents you already had open untouched. The tab is named after the PDF.
+  **The first Save asks where to put the `.xopp`.** A PDF handed over this way has no `.xopp` file
+  behind it, and Xopp never writes document bytes over your original PDF — so the first **Save**
+  opens the destination picker, pre-filled with the PDF's own name and a `.xopp` extension
+  (`bhm_prior.pdf` → `bhm_prior.xopp`), which normally puts the annotations beside the original.
+  After that first save the tab belongs to the `.xopp` it was written to, and later Saves write
+  straight back to it. The PDF stays on as the **page background** and is referenced by the saved
+  file, so the document reopens over those same pages in desktop Xournal++ (**Save As… → zipped
+  package** embeds the PDF inside the file instead, if you'd rather carry it around as one file).
 - **Tabs — several documents open at once** — every document you open lives in its own **tab**, and
   the **tab strip** under the top bar is always shown — even with a single document open — so the
   same tab controls are always in the same place. Tap a tab to switch to that document;
