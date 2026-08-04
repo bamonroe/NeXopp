@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "palette-editor-docs"
+title = "Radial palette: document the palette editor in README"
+description = "Document how a user opens Settings > Palette, taps a ring slot, assigns or clears an action, and how the configuration persists and takes effect immediately at the pen tip. Keep the data model detail in docs/architecture.md, not README."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["palette", "docs"]
+
+[[task]]
 id = "palette-action-picker"
 title = "Radial palette: action picker sheet to assign or clear a slot"
 description = "When a slot is tapped in the PALETTE settings section, open a bottom sheet listing the assignable PaletteAction variants from ui/RadialPalette.kt:35 - SelectTool/ToggleTool (one row per EditorTool), SetColor (reuse ui/ColorPalette.kt swatches), SetWidth (slider bounded by PEN_WIDTH_MIN..MAX), Undo, Redo, ToggleFullPage, and Page(op) for each PalettePageOp. Include a Clear slot action mapping to RadialPalette.without(slot). Commit via onChange(settings.copy(radialPalette = palette.with(slot, action))) so SettingsStore persistence and the EditorScreen applySettings push work with no extra plumbing."

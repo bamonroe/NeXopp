@@ -103,17 +103,3 @@ created = 2026-08-04
 tags = ["palette", "ui"]
 rebuild = true
 emulator_debug = false
-
-[[task]]
-id = "palette-editor-docs"
-title = "Radial palette: document the palette editor in README"
-description = "Document how a user opens Settings > Palette, taps a ring slot, assigns or clears an action, and how the configuration persists and takes effect immediately at the pen tip. Keep the data model detail in docs/architecture.md, not README."
-status = "active"
-level = "task"
-category = "docs"
-urgency = "normal"
-order = 88
-created = 2026-08-04
-tags = ["palette", "docs"]
-rebuild = false
-emulator_debug = false

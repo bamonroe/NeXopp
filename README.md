@@ -391,7 +391,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
-- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Editor**,
+- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Palette**, **Editor**,
   **Toolbar**, **Navigation** and **Appearance**. Tap a section to open it as its own page; back returns to the list, and back from
   the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and can never leave ink
@@ -411,9 +411,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     leave a stroke behind: the canvas ignores the pen until the menu closes. Slots run the same
     actions the toolbar does: pick or toggle a tool, set the pen colour or width, undo/redo, toggle
     full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
-    The palette's layout is remembered across restarts along with the rest of your settings; until
-    the configuration UI lands it starts from the built-in layout (tools and undo/redo on the inner
-    ring, the standard pen colours on the outer one).
+    It starts from the built-in layout — tools and undo/redo on the inner ring, the standard pen
+    colours on the outer one — and you can re-arrange it under **Settings > Palette** (below).
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**
@@ -425,6 +424,22 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     overview stores the same detail as one drawn at 100% — zooming out never costs you precision.
   - **Shape recognition** — off by default; when on, a finished freehand pen stroke snaps to the
     primitive it resembles (see **Shape recognition** above).
+
+  Under **Palette** — the editor for the radial palette described above:
+  - The page opens with a **diagram of the two rings**, drawn from the same geometry the pen sees,
+    so what you arrange here is exactly what pops up at the tip. An assigned slot shows its colour
+    swatch or a small glyph; an empty one is a dashed outline.
+  - **Tap a slot** to select it (a highlight ring marks it, and the **Selected slot** line below
+    spells out which ring, which position, and what it currently holds). The tap also opens the
+    **action picker** — a bottom sheet listing everything a slot can do: **Select tool** and
+    **Toggle tool** for each tool, the shared **colour** swatches, a **width** slider with a
+    *Set width* button, **Undo**, **Redo**, **Toggle full page**, and the page operations (new page
+    after/before, duplicate, delete, next, previous). Pick one and the sheet closes.
+  - **Clear slot** — the first row of the sheet empties the slot; an empty slot cancels the menu
+    when flicked onto, so it's the way to make a gap.
+  - Every change is saved as you make it and pushed straight to the editor: the next barrel
+    double-click already shows the new layout, and it survives a restart with the rest of your
+    settings.
 
   Under **Editor**:
   - **Snap to grid** — off by default; when on, the endpoints of a shape you drag out land on the
