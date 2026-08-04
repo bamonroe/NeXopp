@@ -460,6 +460,7 @@ app/
       PageCommands.kt        # the page/layer edit commands and the two undoable commit pipelines
       SelectionGestureController.kt # the marquee/lasso pick and the move/resize/rotate drags
       VerticalSpaceDrag.kt   # the vertical-space tool's live grab-line drag
+      GuideDrag.kt           # the setsquare/compass pose and the finger that moves it
       TextEditController.kt  # placing/editing text boxes, images and LaTeX images from a tap
       ElementEdits.kt        # the document edits behind those placements (pure, tested)
       PageStacker.kt         # lays pages out in rows of N columns, fit to column (pure geometry)
