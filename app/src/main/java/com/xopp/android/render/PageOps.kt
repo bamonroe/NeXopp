@@ -25,6 +25,25 @@ object PageOps {
         return pages.toMutableList().apply { add(i + 1, fresh) }
     }
 
+    /** A copy of [pages] with a fresh blank page inserted *before* [index]. Empty input is returned as-is. */
+    fun addBefore(pages: List<Page>, index: Int): List<Page> {
+        if (pages.isEmpty()) return pages
+        val i = index.coerceIn(0, pages.lastIndex)
+        val src = pages[i]
+        val fresh = src.copy(background = blankBackground(src.background), layers = listOf(Layer(emptyList())))
+        return pages.toMutableList().apply { add(i, fresh) }
+    }
+
+    /**
+     * A copy of [pages] with page [index] duplicated straight after itself — content and all, unlike
+     * [addAfter]. The background is kept verbatim, so a duplicated PDF page still shows its source.
+     */
+    fun duplicateAt(pages: List<Page>, index: Int): List<Page> {
+        if (pages.isEmpty()) return pages
+        val i = index.coerceIn(0, pages.lastIndex)
+        return pages.toMutableList().apply { add(i + 1, pages[i].copy()) }
+    }
+
     /**
      * The background for a freshly-inserted blank page. A [Background.Solid] carries only paper ruling
      * (no content), so it's kept as-is for continuity; a `pdf`/`pixmap` background would re-show the

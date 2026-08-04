@@ -85,6 +85,9 @@ enum class BarrelDoubleAction {
 
     /** Show/hide the chrome (full-page view). */
     TOGGLE_FULL_PAGE,
+
+    /** Open the radial palette at the pen tip; a flick onto a slot fires that slot's action. */
+    RADIAL_PALETTE,
 }
 
 /**

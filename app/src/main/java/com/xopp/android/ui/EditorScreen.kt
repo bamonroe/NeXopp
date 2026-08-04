@@ -234,6 +234,7 @@ private fun EditorBody(
             index = index,
             ui = ui,
             settings = settings,
+            onSettingsChange = onSettingsChange,
             tabs = tabs,
             onActivePane = onActivePane,
             onSurfaceCreated = onSurfaceCreated,

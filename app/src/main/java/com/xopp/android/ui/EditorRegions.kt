@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -199,6 +200,7 @@ fun EditorPaneView(
     index: Int,
     ui: EditorUiState,
     settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
     tabs: List<TabsUiState>,
     onActivePane: (Int) -> Unit,
     onSurfaceCreated: (Int, DrawingSurfaceView) -> Unit,
@@ -208,6 +210,10 @@ fun EditorPaneView(
     val state = ui.panes[index]
     // The canvas lives outside the Compose tree, so its chrome colours are pushed in.
     val chrome = rememberCanvasChromeColors()
+    // The surface factory runs once, so its long-lived callbacks would capture the first settings
+    // forever; these keep the palette applier reading whatever is current when a slot fires.
+    val latestSettings = rememberUpdatedState(settings)
+    val latestSettingsChange = rememberUpdatedState(onSettingsChange)
     Column(
         modifier = modifier.pointerInput(index) {
             awaitEachGesture {
@@ -257,6 +263,10 @@ fun EditorPaneView(
                                 else -> Unit
                             }
                             it.applyTool(ui.tool)
+                        }
+                        // The palette opens itself on the surface; the editor only runs what it picked.
+                        it.onPaletteAction = { action ->
+                            applyPaletteAction(action, ui, it, latestSettings.value, latestSettingsChange.value)
                         }
                         it.onPlace = { kind, placement ->
                             onActivePane(index)

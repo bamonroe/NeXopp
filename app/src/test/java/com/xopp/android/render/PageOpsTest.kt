@@ -169,4 +169,40 @@ class PageOpsTest {
         val pages = listOf(page(100.0, "a"))
         assertSame(pages, PageOps.insertAfter(pages, 0, emptyList()))
     }
+
+    @Test fun addBeforeInsertsBlankPageAheadOfTheIndex() {
+        val pages = listOf(page(100.0, "graph", withStroke = true), page(300.0, "lined"))
+        val out = PageOps.addBefore(pages, 1)
+        assertEquals(3, out.size)
+        assertSame("originals kept by reference", pages[0], out[0])
+        assertSame("the indexed page moves down one", pages[1], out[2])
+        val fresh = out[1]
+        assertEquals("inherits width from the page it precedes", 300.0, fresh.width, 1e-9)
+        assertEquals("inherits solid ruling", "lined", (fresh.background as Background.Solid).style)
+        assertTrue("new page is empty", fresh.layers.single().elements.isEmpty())
+    }
+
+    @Test fun addBeforeAtZeroPrependsAndEmptyInputIsUnchanged() {
+        val pages = listOf(page(100.0, "plain"))
+        assertEquals(2, PageOps.addBefore(pages, 0).size)
+        assertSame(pages[0], PageOps.addBefore(pages, 0)[1])
+        assertTrue(PageOps.addBefore(emptyList(), 0).isEmpty())
+    }
+
+    @Test fun duplicateAtCopiesContentAndBackgroundStraightAfterItself() {
+        val pdf = Page(400.0, 600.0, Background.Pdf(filename = "doc.pdf", pageNo = 3, domain = "absolute"),
+            listOf(Layer(listOf(Stroke(Tool.PEN, 0, "round", listOf(StrokePoint(1.0, 1.0, 1.0), StrokePoint(2.0, 2.0, 1.0)), uniformWidth = false)))))
+        val out = PageOps.duplicateAt(listOf(page(100.0, "plain"), pdf), 1)
+        assertEquals(3, out.size)
+        val copy = out[2]
+        assertEquals("keeps the strokes", pdf.layers, copy.layers)
+        assertEquals("keeps the PDF background verbatim", pdf.background, copy.background)
+        assertEquals("keeps the page size", 600.0, copy.height, 1e-9)
+    }
+
+    @Test fun duplicateAtClampsTheIndexAndLeavesEmptyInputAlone() {
+        val pages = listOf(page(100.0, "plain"))
+        assertEquals(2, PageOps.duplicateAt(pages, 99).size)
+        assertTrue(PageOps.duplicateAt(emptyList(), 0).isEmpty())
+    }
 }

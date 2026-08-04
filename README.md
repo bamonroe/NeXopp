@@ -401,8 +401,16 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     or **None**.
   - **Barrel double-click** — what a *rapid double-click* of that same button does, recognised only
     with the tip **off** the glass (so it never interrupts a stroke): **Undo** (default), **Redo**,
-    **Toggle eraser**, **Toggle select**, **Toggle full page**, or **None**. The two toggles flip
-    back to the previous tool when double-clicked again.
+    **Toggle eraser**, **Toggle select**, **Toggle full page**, **Radial palette**, or **None**. The
+    two toggles flip back to the previous tool when double-clicked again.
+  - **Radial palette** — set the double-click to **Radial palette** and a two-ring menu pops up
+    right at the pen tip. Flick outwards onto a slot (hovering is enough — the tip never has to
+    touch the glass) and the slot lights up; the pick fires when you **lift the tip** on it, or when
+    you double-click the barrel again without coming down at all. Flicking back to the small dead
+    zone in the middle — or onto an empty slot — cancels. Nothing you do while the menu is open can
+    leave a stroke behind: the canvas ignores the pen until the menu closes. Slots run the same
+    actions the toolbar does: pick or toggle a tool, set the pen colour or width, undo/redo, toggle
+    full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**

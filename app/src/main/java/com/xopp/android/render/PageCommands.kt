@@ -47,6 +47,12 @@ internal class PageCommands(
      *  drops a PDF/pixmap background to a plain sheet so it isn't a duplicate). */
     fun addPage() = editPages(PageOps.addAfter(document().pages, currentPage()))
 
+    /** Insert a blank page before the page in view (see [PageOps.addBefore]). */
+    fun addPageBefore() = editPages(PageOps.addBefore(document().pages, currentPage()))
+
+    /** Copy the page in view, content and all, in straight after itself (see [PageOps.duplicateAt]). */
+    fun duplicatePage() = editPages(PageOps.duplicateAt(document().pages, currentPage()))
+
     /**
      * Append [pages] after the document's existing pages as one undoable edit — the "Append" half of
      * PDF import (see [PageOps.appendPages]). Unlike a load this keeps the current annotations and

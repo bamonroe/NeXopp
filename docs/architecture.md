@@ -533,6 +533,7 @@ app/
       RadialPaletteHitTest.kt # maps a flick's (angle, radius) from the anchor onto a slot, or cancel (pure)
       RadialPaletteLayout.kt # where the menu draws: anchor clamped on screen, slot mark centres (pure)
       RadialPaletteLabel.kt  # a slot's face: short glyph, or the swatch a colour slot fills with (pure)
+      PaletteActions.kt      # runs a picked PaletteAction against the editor state + surface (the toolbar's edits)
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
@@ -977,6 +978,14 @@ toolbar":
    the hover/generic event stream — never while the tip is down, so it can't interrupt a stroke —
    and runs the configured `BarrelDoubleAction` (undo/redo on the surface; the tool and full-page
    toggles are handed to `EditorScreen` through `onBarrelDoubleClick`).
+   The `RADIAL_PALETTE` action instead opens the pen-tip menu at the event's own `(x, y)` and the
+   overlay then **owns every pointer**: `onTouchEvent` returns before `beginPointer` while it is up,
+   which is what makes "the menu can never leave a stroke behind" structural rather than a rule to
+   remember. Hover moves re-hit-test the highlight (a hover *exit* is not a cancel — it's the tip
+   coming down), a lift or a second double-click commits, and the dead zone/empty slots cancel. The
+   picked `PaletteAction` leaves the surface via `onPaletteAction` and is run by `applyPaletteAction`
+   (`ui/PaletteActions.kt`), which is deliberately the *only* mapping from action to edit so the
+   palette and the toolbar can't drift into two meanings of the same command.
 3. **Finger-draw gate.** With the Settings **"finger draws"** toggle off, a finger on a *drawing* tool
    only pans (select/place/hand still work with a finger) — palm-safe writing on non-stylus devices.
 4. Otherwise the on-screen tool's default intent.

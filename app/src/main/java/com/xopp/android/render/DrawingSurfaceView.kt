@@ -29,6 +29,7 @@ import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
+import com.xopp.android.ui.PaletteAction
 import com.xopp.android.ui.RadialHit
 import com.xopp.android.ui.RadialPalette
 import com.xopp.android.ui.hitTest
@@ -123,6 +124,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var hoverY = 0f
     /** The radial palette while it is open, or null when it isn't — see [openPalette]. */
     private var paletteOverlay: RadialPaletteRenderer.Overlay? = null
+    /** The palette a [BarrelDoubleAction.RADIAL_PALETTE] double-click opens at the pen tip. */
+    var palette: RadialPalette = RadialPalette.default()
+    /** Fired with the action of the slot a palette flick landed on; the editor applies it. */
+    var onPaletteAction: ((PaletteAction) -> Unit)? = null
     private var scrolling = false
     private var erasing = false
     private var placing = false
@@ -623,6 +628,18 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Insert a blank page after the page in view. */
     fun addPage() = pages.addPage()
 
+    /** Insert a blank page before the page in view. */
+    fun addPageBefore() = pages.addPageBefore()
+
+    /** Duplicate the page in view (content included) straight after itself. */
+    fun duplicatePage() = pages.duplicatePage()
+
+    /** Scroll to the page after the one in view; no-op at the end of the document. */
+    fun goToNextPage() = goToPage(currentPageIndex() + 1)
+
+    /** Scroll to the page before the one in view; no-op at the start of the document. */
+    fun goToPreviousPage() = goToPage(currentPageIndex() - 1)
+
     /** Append [newPages] after the document's existing pages as one undoable edit (PDF import). */
     fun appendPages(newPages: List<Page>) = pages.appendPages(newPages)
 
@@ -1068,6 +1085,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // The open palette swallows the whole gesture before anything can begin — no stroke, no pan.
+        if (paletteOpen) return paletteTouch(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 momentum.stop(); beginPointer(event, 0); beginHandTap(event); armPageDrag(event)
@@ -1266,10 +1285,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val edge = down && !barrelWasDown
         barrelWasDown = down
         if (!edge || !barrelClicks.press(event.eventTime)) return
+        // A second double-click while the menu is up commits the highlighted slot — the eyes-free
+        // way out for a pen that never comes down on the glass.
+        if (paletteOpen) { commitPalette(); return }
         when (val action = inputSettings.barrelDoubleAction) {
             BarrelDoubleAction.NONE -> Unit
             BarrelDoubleAction.UNDO -> undo()
             BarrelDoubleAction.REDO -> redo()
+            BarrelDoubleAction.RADIAL_PALETTE -> openPalette(palette, event.x, event.y)
             else -> onBarrelDoubleClick?.invoke(action)
         }
     }
@@ -1283,6 +1306,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */
     override fun onHoverEvent(event: MotionEvent): Boolean {
         trackBarrelClicks(event)
+        // Hovering *is* the flick: the pen picks a slot without ever touching the glass. A hover exit
+        // is not a cancel — it's what the tip coming down looks like, and the touch commits instead.
+        if (paletteOpen) movePaletteTo(event.x, event.y)
         if (event.actionMasked == MotionEvent.ACTION_HOVER_EXIT) { barrelClicks.reset(); barrelWasDown = false }
         val kind = pointerKindOf(event, 0)
         if (!showHover || (kind != PointerKind.STYLUS && kind != PointerKind.ERASER_TIP)) {
@@ -2109,7 +2135,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
-    /** Draw the hover preview: a ring in the pen colour at the stylus's current hover point. */
     /**
      * Open [palette] anchored at ([x], [y]) in view pixels — where the gesture that summoned it was.
      * The anchor is clamped at paint time so a menu opened near an edge stays wholly on screen.
@@ -2135,6 +2160,30 @@ class DrawingSurfaceView @JvmOverloads constructor(
         paletteOverlay = null
         render()
         return open.hit
+    }
+
+    /** True while the radial palette is open and owns every pointer — no stroke can start under it. */
+    private val paletteOpen: Boolean get() = paletteOverlay != null
+
+    /**
+     * Drive the open palette from a touch: dragging re-highlights, lifting fires the highlighted
+     * slot. Returning true from [onTouchEvent] before any gesture begins is what guarantees the
+     * menu never leaves a stroke behind it.
+     */
+    private fun paletteTouch(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_POINTER_DOWN ->
+                movePaletteTo(event.x, event.y)
+            MotionEvent.ACTION_UP -> { movePaletteTo(event.x, event.y); commitPalette() }
+            MotionEvent.ACTION_CANCEL -> closePalette()
+        }
+        return true
+    }
+
+    /** Close the menu and run whatever the pen was over; the dead zone and empty slots do nothing. */
+    private fun commitPalette() {
+        val action = (closePalette() as? RadialHit.Slot)?.action ?: return
+        onPaletteAction?.invoke(action)
     }
 
     private fun drawHover(canvas: Canvas) {

@@ -49,20 +49,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "radial-palette-invoke-via-barrel-double-click-and-select-by-flick"
-title = "Radial palette: invoke via barrel double-click and select by flick"
-description = "Add a RADIAL_PALETTE option to BarrelDoubleAction (render/InputClassifier.kt) and wire it in ui/SettingsSections.kt and ui/EditorRegions.kt so a barrel double-click opens the palette at the pen tip. While open, hover/drag updates the highlighted slot via the hit-test; releasing or tapping a slot fires its action; flicking back to the centre or lifting outside cancels. Must not emit a stroke while the palette is open."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 70
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "radial-palette-configuration-ui-for-assigning-slots"
 title = "Radial palette: configuration UI for assigning slots"
 description = "Investigate how the settings screens (ui/SettingsScreen.kt, ui/SettingsSections.kt) should host a palette editor: a picker showing the two rings where the user taps a slot and chooses an action or clears it. Decide whether it is a settings subscreen or a dedicated editor, then add the concrete tasks."

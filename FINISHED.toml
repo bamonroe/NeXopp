@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "radial-palette-invoke-via-barrel-double-click-and-select-by-flick"
+title = "Radial palette: invoke via barrel double-click and select by flick"
+description = "Add a RADIAL_PALETTE option to BarrelDoubleAction (render/InputClassifier.kt) and wire it in ui/SettingsSections.kt and ui/EditorRegions.kt so a barrel double-click opens the palette at the pen tip. While open, hover/drag updates the highlighted slot via the hit-test; releasing or tapping a slot fires its action; flicking back to the centre or lifting outside cancels. Must not emit a stroke while the palette is open."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "radial-palette-render-the-two-ring-menu-at-the-pen-tip"
 title = "Radial palette: render the two-ring menu at the pen tip"
 description = "Draw the palette in DrawingSurfaceView's frame loop (render/DrawingSurfaceView.kt paint()), anchored at the pen tip where it was invoked, with paints living in render/CanvasChrome.kt like the rest of the chrome. Two concentric rings (8 inner, 16 outer), empty slots drawn faint, the hovered slot highlighted. Clamp the anchor so the palette stays on screen near an edge."
