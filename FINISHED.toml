@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "declare-view-edit-intent-filters-for-application-pdf"
+title = "Declare VIEW/EDIT intent filters for application/pdf"
+description = "Add intent-filter blocks to MainActivity in AndroidManifest.xml so Android offers the app as a PDF handler: ACTION_VIEW and ACTION_EDIT, categories DEFAULT and BROWSABLE, mimeType application/pdf over content:// and file:// schemes, plus a path-pattern fallback for .pdf on file URIs. Keep the existing MAIN/LAUNCHER filter in its own block. No document-loading changes here."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["pdf", "intent"]
+
+[[task]]
 id = "register-the-app-as-a-default-opener-for-pdf-documents"
 title = "Register the app as a default opener for PDF documents"
 description = "Declare intent filters so Android offers xopp_android as a handler for application/pdf (VIEW/EDIT, content:// and file:// URIs), and open the incoming PDF as a PDF-background document that round-trips to .xopp."
