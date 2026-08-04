@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "wrap-and-paginate-plain-text-against-a-page-size"
-title = "Wrap and paginate plain text against a page size"
-description = "Add an Android-free layout unit that turns a string into pages of laid-out lines. Extend render/TextBlock.kt (or a sibling in the same style) with a wrap(text, maxWidth, measure: (String) -> Float) that breaks on whitespace, hard-breaks over-long runs (long log lines, no spaces), expands tabs, and preserves existing newlines verbatim. Then paginate: given page width/height and margins, fill lines at LINE_HEIGHT_RATIO spacing until the page is full and start the next. Page size comes from the A4 constants in render/DrawingSurfaceView.kt (A4_WIDTH_PT/A4_HEIGHT_PT) - there is no user default paper pref today, so hardcode A4 for now and note it. Measurement is injected so the unit stays free of PDFBox and Android; unit-test wrapping, hard breaks, tab expansion and page boundaries."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 30
-created = 2026-08-04
-tags = ["text-import", "layout"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "embed-an-open-licence-font-pair-for-generated-pdfs"
 title = "Embed an open-licence font pair for generated PDFs"
 description = "render/PdfVectorPainter.kt uses base-14 PDType1Fonts and sanitize() (line 195) drops anything outside 0x20..0xFF, which would mangle arbitrary UTF-8 in an imported text file. Ship one permissively licensed proportional family and one monospace (e.g. an OFL pair with broad Unicode coverage) as app assets, load them with PDType0Font.load so they embed and subset into the generated PDF, and route the text-import path through them instead of the base-14 fonts. Document the chosen fonts and their licences, and define the fallback for codepoints the font lacks (substitution glyph rather than a crash). Keep the existing base-14 path for .xopp text elements unchanged unless it is trivially shareable."

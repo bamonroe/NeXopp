@@ -492,6 +492,7 @@ app/
       PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
       PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
+      TextPaginator.kt       # text-import word-wrap + A4 pagination, injected measurement (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
       PageEraser.kt          # eraser applied to a page: mode, tip size, hidden-layer skip (pure)
