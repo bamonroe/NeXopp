@@ -24,6 +24,16 @@ CATEGORIES = ("feature", "bug", "docs", "refactor", "test", "chore")
 URGENCIES = ("low", "normal", "high", "critical")
 _URGENCY_RANK = {name: i for i, name in enumerate(URGENCIES)}
 
+# How big a task is, and therefore what "working" it means:
+#   task  — atomic and implementable as-is; just build it.
+#   scope — investigate the code, decide what needs doing, then `add` the
+#           concrete atomic tasks it breaks into. Produces tasks, not code.
+#   epic  — a large spanning feature. Working it means scoping out the next
+#           steps and adding `scope`/`task` children — never implementing the
+#           whole thing in one go.
+LEVELS = ("task", "scope", "epic")
+DEFAULT_LEVEL = "task"
+
 # Field write-order within a [[task]] block. `completed` only appears in the
 # archive; absent fields are simply skipped. `rebuild`/`emulator_debug` are
 # TODO-only build hints (like `urgency`/`order`) dropped when a task is archived.
@@ -32,6 +42,7 @@ _TASK_FIELDS = (
     "title",
     "description",
     "status",
+    "level",
     "category",
     "urgency",
     "order",

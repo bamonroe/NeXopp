@@ -38,6 +38,7 @@ array of `[[task]]` tables. A task carries **more** metadata rather than less:
 | `title`       | both             | short one-line summary                              |
 | `description` | both             | the detail                                          |
 | `status`      | both             | active · in-progress · blocked (TODO) / finished (archive) |
+| `level`       | both             | task · scope · epic — how big it is, and how to work it |
 | `category`    | both             | feature · bug · docs · refactor · test · chore     |
 | `urgency`     | TODO             | low · normal · high · critical                     |
 | `order`       | TODO             | manual sort key (10, 20, 30…); lower = sooner       |
@@ -46,6 +47,30 @@ array of `[[task]]` tables. A task carries **more** metadata rather than less:
 | `tags`        | TODO             | freeform string list                                |
 | `rebuild`     | TODO             | rebuild the Android app for this task? (default `true`) |
 | `emulator_debug` | TODO          | run the full emulator verify loop for this task? (default `false`) |
+
+## Levels — task, scope, epic
+
+`level` says **how big the item is and therefore what "working" it means**. It is
+three-tiered, smallest first:
+
+- **`task`** (default) — atomic and implementable as written. Just build it.
+- **`scope`** — not yet implementable. Working it means **investigating the code**
+  to find out what actually needs to happen, then running `add` for the concrete
+  atomic `task`s it breaks into. A scope item produces **todos, not code**; close
+  it with `done` once its children exist.
+- **`epic`** — a large, spanning feature (the radial palette, say). It will never
+  have hyper-defined atomic steps up front. When you encounter an epic, **do not
+  try to implement the whole thing**: scope out the next steps and `add` child
+  items — `scope` items where more investigation is needed, `task` items where the
+  work is already clear. An epic usually stays active across several rounds of
+  this, shrinking as its children ship.
+
+The rule of thumb: **an epic spawns scopes, a scope spawns tasks, a task spawns
+code.** When the user says "add this epic," they are asking for the big
+definition to be recorded — the breakdown happens later, when it's picked up.
+
+Set it with `add --level scope|epic` or `edit <id> --level …`; filter with
+`list --level epic` and tally with `count --by level`.
 
 `rebuild` and `emulator_debug` are **build hints** for whoever works the task.
 `rebuild` defaults to **`true`** and `emulator_debug` to **`false`** — the normal
@@ -61,19 +86,19 @@ newest-`completed`-first.
 
 ## Commands
 
-- **`list`** `[--finished] [--status S] [--category C] [--json]` — list tasks.
+- **`list`** `[--finished] [--status S] [--category C] [--level L] [--json]` — list tasks.
 - **`show <id>`** `[--json]` — print one task with its full description.
 - **`stats`** `[--json]` — totals plus counts by status, category, and urgency
   (active) and by category (finished). This is the "how many …" answer.
-- **`count`** `[--finished] [--by status|category|urgency]` — a raw count, or
+- **`count`** `[--finished] [--by status|category|urgency|level]` — a raw count, or
   a grouped tally.
 - **`add --title T --description D`** `[--category C] [--urgency U]
-  [--status S] [--tag t …] [--id ID] [--no-rebuild] [--emulator-debug]` —
+  [--level L] [--status S] [--tag t …] [--id ID] [--no-rebuild] [--emulator-debug]` —
   append an active task. The `id` is a slug of the title (made unique) and
   `order` auto-increments unless given. `urgency` defaults to normal.
-  `rebuild` defaults to yes (`--no-rebuild` turns it off); `emulator_debug`
+  `level` defaults to `task`. `rebuild` defaults to yes (`--no-rebuild` turns it off); `emulator_debug`
   defaults to no (`--emulator-debug` turns it on).
-- **`edit <id>`** `[--title|--description|--status|--category|--urgency|--order
+- **`edit <id>`** `[--title|--description|--status|--level|--category|--urgency|--order
   …] [--add-tag t] [--rebuild|--no-rebuild] [--emulator-debug|--no-emulator-debug]`
   — change fields on an active task.
 - **`done <id>`** `[--date YYYY-MM-DD]` — move an active task into
@@ -90,5 +115,8 @@ newest-`completed`-first.
 - When you finish a task (built, tested, documented), run **`done <id>`** in the
   same commit that completes the work — don't leave shipped items in `TODO.toml`.
 - When you notice the next thing to build, **`add`** it rather than losing it.
+- **Picking up a `scope` or `epic` item means breaking it down, not building it.**
+  Investigate, then `add` the child items at the next level down; only `task`-level
+  items get implemented directly.
 - Prefer the CLI over hand-editing so metadata and ordering stay consistent; if
   you do hand-edit, run **`validate`** afterward.

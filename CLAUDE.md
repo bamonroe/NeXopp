@@ -229,6 +229,11 @@ of question (`scripts/todo.sh stats`).
   `scripts/todo.sh done <id>` to move it out of `TODO.toml` and into `FINISHED.toml`,
   newest-first and dated. Don't leave completed items sitting in `TODO.toml`, and don't
   delete the history; `FINISHED.toml` only grows.
+- **Respect a task's `level`** (`task` · `scope` · `epic`, owned by the `todo` skill):
+  only `task`-level items get implemented directly. Picking up a `scope` means
+  investigating the code and `add`ing the atomic tasks it breaks into; picking up an
+  `epic` means scoping the next steps and adding `scope`/`task` children — never
+  implementing the whole epic in one pass.
 - Use `TODO.toml` to journal next steps: when you finish something and notice the next
   feature, `add` it rather than losing it. A future session reads `TODO.toml` first to know
   where to pick up, and `FINISHED.toml` to see what already shipped.
