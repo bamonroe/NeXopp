@@ -103,6 +103,8 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /** The two-ring menu the barrel double-click opens at the pen tip (see [RadialPalette]). */
     val radialPalette: RadialPalette = RadialPalette.default(),
+    /** The user's saved tool snapshots, in display order (see [ToolPreset]). */
+    val presets: List<ToolPreset> = emptyList(),
 ) {
     /** The fill alpha to draw with, or null when fill is off — the two fill fields as one value. */
     val currentFill: Int? get() = if (fillEnabled) fillAlpha else null
@@ -169,6 +171,7 @@ class SettingsStore(context: Context) {
             audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
             themeMode = enumOr(prefs.getString(KEY_THEME_MODE, null), d.themeMode),
             radialPalette = decodeRadialPalette(prefs.getString(KEY_RADIAL_PALETTE, null)) ?: d.radialPalette,
+            presets = decodeToolPresets(prefs.getString(KEY_PRESETS, null)),
         )
     }
 
@@ -203,6 +206,7 @@ class SettingsStore(context: Context) {
         e.putString(KEY_AUDIO_FOLDER, s.audioFolderUri)
         e.putString(KEY_THEME_MODE, s.themeMode.name)
         e.putString(KEY_RADIAL_PALETTE, encodeRadialPalette(s.radialPalette))
+        e.putString(KEY_PRESETS, encodeToolPresets(s.presets))
         e.apply()
     }
 
@@ -237,6 +241,7 @@ class SettingsStore(context: Context) {
         const val KEY_AUDIO_FOLDER = "audio_folder_uri"
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_RADIAL_PALETTE = "radial_palette"
+        const val KEY_PRESETS = "tool_presets"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a
