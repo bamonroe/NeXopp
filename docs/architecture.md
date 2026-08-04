@@ -456,7 +456,7 @@ app/
       TabStore.kt            # filesDir/tabs: index + one .xopp snapshot per tab
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
-      CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover
+      CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
       ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested)
       MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
       PageOverview.kt        # the overview grid's view state: edit mode, selection, clipboard, lift
@@ -475,6 +475,7 @@ app/
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
       ElementRenderer.kt     # draws text boxes, images, and LaTeX images (real math)
+      RadialPaletteRenderer.kt # paints the open radial palette (two rings + hovered slot) over the canvas
       LatexParser.kt         # LaTeX source -> node tree (pure, no Android deps)
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
@@ -530,6 +531,8 @@ app/
       ColorPicker.kt         # the arbitrary-colour HSV/hex dialog behind the palette's custom slot
       RadialPalette.kt       # the pen-tip radial menu's model: two rings of slots holding PaletteActions (pure)
       RadialPaletteHitTest.kt # maps a flick's (angle, radius) from the anchor onto a slot, or cancel (pure)
+      RadialPaletteLayout.kt # where the menu draws: anchor clamped on screen, slot mark centres (pure)
+      RadialPaletteLabel.kt  # a slot's face: short glyph, or the swatch a colour slot fills with (pure)
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble

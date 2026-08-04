@@ -29,6 +29,9 @@ import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
+import com.xopp.android.ui.RadialHit
+import com.xopp.android.ui.RadialPalette
+import com.xopp.android.ui.hitTest
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.max
@@ -118,6 +121,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var hovering = false
     private var hoverX = 0f
     private var hoverY = 0f
+    /** The radial palette while it is open, or null when it isn't — see [openPalette]. */
+    private var paletteOverlay: RadialPaletteRenderer.Overlay? = null
     private var scrolling = false
     private var erasing = false
     private var placing = false
@@ -1951,6 +1956,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
             if (vspace.active) drawVerticalSpaceGuide(canvas)
             drawGuide(canvas)
             if (hovering && showHover && current == null) drawHover(canvas)
+            paletteOverlay?.let {
+                RadialPaletteRenderer.draw(canvas, chrome, it, width.toFloat(), height.toFloat())
+            }
         } finally {
             holder.unlockCanvasAndPost(canvas)
         }
@@ -2102,6 +2110,33 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Draw the hover preview: a ring in the pen colour at the stylus's current hover point. */
+    /**
+     * Open [palette] anchored at ([x], [y]) in view pixels — where the gesture that summoned it was.
+     * The anchor is clamped at paint time so a menu opened near an edge stays wholly on screen.
+     */
+    fun openPalette(palette: RadialPalette, x: Float, y: Float) {
+        paletteOverlay = RadialPaletteRenderer.Overlay(palette, x, y)
+        render()
+    }
+
+    /** Move the pen over the open menu, re-hit-testing which slot is highlighted. No-op if closed. */
+    fun movePaletteTo(x: Float, y: Float) {
+        val open = paletteOverlay ?: return
+        val hit = open.palette.hitTest(open.anchorX, open.anchorY, x, y, open.geometry)
+        if (hit != open.hit) {
+            paletteOverlay = open.copy(hit = hit)
+            render()
+        }
+    }
+
+    /** Close the menu and return what the pen was over — [RadialHit.Cancel] if it wasn't open. */
+    fun closePalette(): RadialHit {
+        val open = paletteOverlay ?: return RadialHit.Cancel
+        paletteOverlay = null
+        render()
+        return open.hit
+    }
+
     private fun drawHover(canvas: Canvas) {
         val r = (baseWidthPt * 3f).coerceIn(6f, 28f)
         chrome.tintHover(colorArgb)

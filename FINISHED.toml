@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "radial-palette-render-the-two-ring-menu-at-the-pen-tip"
+title = "Radial palette: render the two-ring menu at the pen tip"
+description = "Draw the palette in DrawingSurfaceView's frame loop (render/DrawingSurfaceView.kt paint()), anchored at the pen tip where it was invoked, with paints living in render/CanvasChrome.kt like the rest of the chrome. Two concentric rings (8 inner, 16 outer), empty slots drawn faint, the hovered slot highlighted. Clamp the anchor so the palette stays on screen near an edge."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "radial-palette-hit-test-angle-and-radius-to-a-slot"
 title = "Radial palette: hit-test angle and radius to a slot"
 description = "Given the palette anchor point and a pointer position, map (angle, radius) to a slot: dead zone at the centre = cancel, inner annulus = one of 8, outer annulus = one of 16, beyond outer radius = clamp to outer. Angles start at 12 o'clock and go clockwise. Pure function next to the data model, fully unit-tested (boundaries, wraparound at 0/360, empty slots)."

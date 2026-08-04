@@ -93,6 +93,37 @@ internal class CanvasChrome {
         color = TEXT_SELECT_FILL
     }
 
+    // The radial palette: a dimmed disc under two rings of slot marks. Filled slots read solidly,
+    // empty ones stay faint, and the slot the pen is over is ringed in the selection colour.
+    val paletteScrim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = PALETTE_SCRIM
+    }
+    val paletteRing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+        color = PALETTE_RING
+    }
+    val paletteSlot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = PALETTE_SLOT
+    }
+    val paletteSlotEmpty = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = PALETTE_SLOT_EMPTY
+    }
+    val paletteHighlight = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+        color = SELECTION_COLOR
+    }
+    val paletteGlyph = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0xFFFFFFFF.toInt()
+        textAlign = Paint.Align.CENTER
+        textSize = PALETTE_GLYPH_PX
+    }
+
     /** Scratch paths reused each frame so drawing the lasso/guide allocates nothing. */
     val lassoPath = Path()
     val guidePath = Path()
@@ -111,6 +142,7 @@ internal class CanvasChrome {
         guideStroke.color = guide
         guideHandle.color = guide
         guideFill.color = guide.withAlpha(GUIDE_FILL_ALPHA)
+        paletteHighlight.color = selection
     }
 
     /** Tint the hover dot to match the pen colour, at the fixed hover alpha. */
@@ -141,5 +173,16 @@ internal class CanvasChrome {
         const val HOVER_ALPHA = 0xB0
         /** Drawn radius of a selection/guide handle dot. */
         const val HANDLE_DRAW_PX = 7f
+
+        /** Wash darkening the page under the open palette, so the ring marks read over any ink. */
+        const val PALETTE_SCRIM = 0x66101010
+        const val PALETTE_RING = 0x40FFFFFF
+        const val PALETTE_SLOT = 0xE0303030.toInt()
+        /** An unassigned slot: present enough to show the ring's shape, faint enough to ignore. */
+        const val PALETTE_SLOT_EMPTY = 0x33FFFFFF
+        const val PALETTE_GLYPH_PX = 20f
+        /** Drawn radius of a slot mark, inner ring and outer. */
+        const val PALETTE_SLOT_PX = 20f
+        const val PALETTE_SLOT_OUTER_PX = 15f
     }
 }
