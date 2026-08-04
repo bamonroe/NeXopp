@@ -967,6 +967,11 @@ toolbar":
 1. **Eraser tip.** A `TOOL_TYPE_ERASER` pointer (the flipped-over tip) erases whatever the tool.
 2. **Barrel button.** `BUTTON_STYLUS_PRIMARY` held on a stylus invokes a configurable action while
    held — default **erase**, or **select** / **none** (`BarrelAction`), whatever the on-screen tool.
+   A *double-click* of the same button is a separate, button-only gesture: `BarrelClickDetector`
+   (pure, time-injected, `BarrelClickDetectorTest`) recognises two press edges within 350 ms from
+   the hover/generic event stream — never while the tip is down, so it can't interrupt a stroke —
+   and runs the configured `BarrelDoubleAction` (undo/redo on the surface; the tool and full-page
+   toggles are handed to `EditorScreen` through `onBarrelDoubleClick`).
 3. **Finger-draw gate.** With the Settings **"finger draws"** toggle off, a finger on a *drawing* tool
    only pans (select/place/hand still work with a finger) — palm-safe writing on non-stylus devices.
 4. Otherwise the on-screen tool's default intent.
@@ -1017,7 +1022,7 @@ Both are covered by `StrokeSmootherTest`. **Hover** (`ACTION_HOVER_MOVE` from a
 stylus, via `onHoverEvent`) draws a preview ring where the tip will land. All of these are settings in
 `AppSettings`, persisted by `SettingsStore` (SharedPreferences) and pushed live onto the surface by
 `EditorScreen.applySettings`; the on-device `StylusInputTest` drives synthetic tool-typed
-`MotionEvent`s to prove the wiring (eraser tip, barrel erase, finger-draw gate, palm rejection, and
+`MotionEvent`s to prove the wiring (eraser tip, barrel erase, barrel double-click, finger-draw gate, palm rejection, and
 that the same page-space gesture keeps its detail at 100% and zoomed out).
 `AppSettings` also carries the **default tool** (`DEFAULT_TOOL_CHOICES` — pen/highlighter/eraser/hand),
 which seeds `EditorScreen`'s active-tool state so a document opens in the user's chosen mode.

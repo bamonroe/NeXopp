@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import com.xopp.android.render.BarrelAction
+import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PanSensitivity
@@ -70,6 +71,16 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         selected = settings.barrelAction,
         label = { it.name.lowercase().replaceFirstChar(Char::uppercase) },
         onSelect = { onChange(settings.copy(barrelAction = it)) },
+    )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    OptionGroup(
+        title = "Barrel double-click",
+        subtitle = "Action for a rapid double-click of the side-button, with the tip off the glass.",
+        options = BarrelDoubleAction.values().toList(),
+        selected = settings.barrelDoubleAction,
+        label = { it.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase) },
+        onSelect = { onChange(settings.copy(barrelDoubleAction = it)) },
     )
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))

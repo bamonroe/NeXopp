@@ -13,6 +13,8 @@ import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.BarrelAction
+import com.xopp.android.render.BarrelClickDetector
+import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.InputSettings
 import org.junit.Assert.assertEquals
@@ -53,6 +55,31 @@ class StylusInputTest {
 
         drawLine(view, MotionEvent.TOOL_TYPE_STYLUS, buttonState = MotionEvent.BUTTON_STYLUS_PRIMARY)
         assertEquals("barrel-held stylus erased the stroke", 0, strokesOf(view).size)
+    }
+
+    /** Two barrel clicks in quick succession, tip off the glass, run the bound action (undo). */
+    @Test
+    fun barrelDoubleClickWhileHoveringUndoes() = onView { view ->
+        view.tool = Tool.PEN
+        view.inputSettings = InputSettings(barrelDoubleAction = BarrelDoubleAction.UNDO)
+        drawLine(view, MotionEvent.TOOL_TYPE_STYLUS)
+        assertEquals(1, strokesOf(view).size)
+
+        hoverClick(view); hoverClick(view)
+        assertEquals("the double-click undid the stroke", 0, strokesOf(view).size)
+    }
+
+    /** Two clicks *slower* than the double-click window are two singles, and do nothing. */
+    @Test
+    fun slowBarrelClicksDoNotUndo() = onView { view ->
+        view.tool = Tool.PEN
+        view.inputSettings = InputSettings(barrelDoubleAction = BarrelDoubleAction.UNDO)
+        drawLine(view, MotionEvent.TOOL_TYPE_STYLUS)
+
+        hoverClick(view)
+        SystemClock.sleep(BarrelClickDetector.DEFAULT_WINDOW_MS + 100)
+        hoverClick(view)
+        assertEquals("the stroke survived two slow clicks", 1, strokesOf(view).size)
     }
 
     /** With finger-draw off, a finger only pans — it must not lay ink; a stylus still draws. */
@@ -216,6 +243,32 @@ class StylusInputTest {
             send(view, downTime, now(), MotionEvent.ACTION_MOVE, floatArrayOf(x), floatArrayOf(y), intArrayOf(toolType), buttonState)
         }
         send(view, downTime, now(), MotionEvent.ACTION_UP, floatArrayOf(x), floatArrayOf(y), intArrayOf(toolType), buttonState)
+    }
+
+    /** One press-and-release of the barrel button while the stylus hovers above the glass. */
+    private fun hoverClick(view: DrawingSurfaceView) {
+        val t = SystemClock.uptimeMillis()
+        hover(view, t, MotionEvent.ACTION_HOVER_MOVE, MotionEvent.BUTTON_STYLUS_PRIMARY)
+        hover(view, t, MotionEvent.ACTION_HOVER_MOVE, 0)
+    }
+
+    /** Dispatch a single-pointer stylus hover event carrying [buttonState]. */
+    private fun hover(view: View, downTime: Long, action: Int, buttonState: Int) {
+        val props = arrayOf(
+            MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_STYLUS },
+        )
+        val coords = arrayOf(
+            MotionEvent.PointerCoords().apply { x = 200f; y = 300f; pressure = 0f; size = 1f },
+        )
+        val event = MotionEvent.obtain(
+            downTime, now(), action, 1, props, coords,
+            0, buttonState, 1f, 1f, 0, 0, 0x00004002 /* SOURCE_STYLUS */, 0,
+        )
+        try {
+            view.dispatchGenericMotionEvent(event)
+        } finally {
+            event.recycle()
+        }
     }
 
     /** Build and dispatch a multi-pointer [MotionEvent] with explicit tool types and button state. */

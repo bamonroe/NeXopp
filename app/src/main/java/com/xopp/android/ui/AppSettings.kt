@@ -2,6 +2,7 @@ package com.xopp.android.ui
 
 import android.content.Context
 import com.xopp.android.render.BarrelAction
+import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.GuideKind
 import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
@@ -38,6 +39,8 @@ data class AppSettings(
     val fingerDraws: Boolean = true,
     /** What the stylus primary barrel-button does while held. */
     val barrelAction: BarrelAction = BarrelAction.ERASE,
+    /** What a rapid double-click of that button does (recognised only with the tip off the glass). */
+    val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
     /** Show a preview ring where a hovering stylus will land. */
     val showHover: Boolean = true,
     /** How pen pressure maps to stroke width. */
@@ -137,6 +140,7 @@ class SettingsStore(context: Context) {
         return AppSettings(
             fingerDraws = prefs.getBoolean(KEY_FINGER_DRAWS, d.fingerDraws),
             barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
+            barrelDoubleAction = enumOr(prefs.getString(KEY_BARREL_DOUBLE, null), d.barrelDoubleAction),
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
@@ -169,6 +173,7 @@ class SettingsStore(context: Context) {
         val e = prefs.edit()
             .putBoolean(KEY_FINGER_DRAWS, s.fingerDraws)
             .putString(KEY_BARREL, s.barrelAction.name)
+            .putString(KEY_BARREL_DOUBLE, s.barrelDoubleAction.name)
             .putBoolean(KEY_HOVER, s.showHover)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
             .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
@@ -200,6 +205,7 @@ class SettingsStore(context: Context) {
     private companion object {
         const val KEY_FINGER_DRAWS = "finger_draws"
         const val KEY_BARREL = "barrel_action"
+        const val KEY_BARREL_DOUBLE = "barrel_double_action"
         const val KEY_HOVER = "show_hover"
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_STROKE_PRECISION = "stroke_precision"

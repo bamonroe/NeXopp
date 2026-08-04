@@ -62,6 +62,22 @@ class EditorUiState(tool: EditorTool, color: Int, width: Float) {
     /** One mirror of canvas state per pane; the chrome reads whichever pane has focus. */
     val panes = List(PANE_COUNT) { PaneState() }
 
+    /**
+     * Switch to [target], or back to the tool that was live before if [target] is already selected.
+     * Used by the barrel double-click bindings, where the same gesture has to toggle both ways.
+     */
+    fun toggleTool(target: EditorTool) {
+        if (tool == target) {
+            tool = toolBeforeToggle ?: EditorTool.PEN
+            toolBeforeToggle = null
+        } else {
+            toolBeforeToggle = tool
+            tool = target
+        }
+    }
+
+    private var toolBeforeToggle: EditorTool? = null
+
     /** The pane the toolbar and overlays drive. */
     fun pane(active: Int): PaneState = panes[active.coerceIn(panes.indices)]
 }

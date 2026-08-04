@@ -35,6 +35,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
@@ -246,6 +247,17 @@ fun EditorPaneView(
                         it.onTextSelectionChanged = { s -> state.hasTextSelection = s }
                         it.onClipboardChanged = { c -> state.hasClipboard = c }
                         it.onToggleFullPage = { ui.fullPage = !ui.fullPage }
+                        // Undo/redo are handled on the surface itself; these need the editor's tool
+                        // state, and each flips back to the previous tool on a second double-click.
+                        it.onBarrelDoubleClick = { action ->
+                            when (action) {
+                                BarrelDoubleAction.TOGGLE_ERASER -> ui.toggleTool(EditorTool.ERASER)
+                                BarrelDoubleAction.TOGGLE_SELECT -> ui.toggleTool(EditorTool.SELECT)
+                                BarrelDoubleAction.TOGGLE_FULL_PAGE -> ui.fullPage = !ui.fullPage
+                                else -> Unit
+                            }
+                            it.applyTool(ui.tool)
+                        }
                         it.onPlace = { kind, placement ->
                             onActivePane(index)
                             when (kind) {

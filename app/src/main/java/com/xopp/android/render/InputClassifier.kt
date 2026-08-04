@@ -62,6 +62,58 @@ enum class BarrelAction {
     SELECT,
 }
 
+/**
+ * What a *rapid double-click* of the stylus barrel button invokes — a user setting distinct from the
+ * held [BarrelAction]. The two never collide: the held action is decided at pointer-down (the tip is
+ * on the glass), while a double-click is a button-only gesture recognised by [BarrelClickDetector].
+ */
+enum class BarrelDoubleAction {
+    /** Ignore double-clicks entirely. */
+    NONE,
+
+    /** Undo the last edit (the default — the most-wanted eyes-free action). */
+    UNDO,
+
+    /** Redo the last undone edit. */
+    REDO,
+
+    /** Flip between the eraser and the previous drawing tool. */
+    TOGGLE_ERASER,
+
+    /** Flip between the Select tool and the previous drawing tool. */
+    TOGGLE_SELECT,
+
+    /** Show/hide the chrome (full-page view). */
+    TOGGLE_FULL_PAGE,
+}
+
+/**
+ * Recognises a double *click* of the barrel button from the stream of press edges. Pure and
+ * time-injected (callers pass `MotionEvent.eventTime`) so it is fully unit-testable on the JVM.
+ *
+ * A click pair counts only when the second press lands within [windowMs] of the first; once it
+ * fires, the state resets so a third press starts a fresh pair rather than triggering again.
+ */
+class BarrelClickDetector(private val windowMs: Long = DEFAULT_WINDOW_MS) {
+
+    private var lastPressMs = Long.MIN_VALUE
+
+    /** Feed one button-press edge at [timeMs]; returns true when it completes a double-click. */
+    fun press(timeMs: Long): Boolean {
+        val doubled = lastPressMs != Long.MIN_VALUE && timeMs - lastPressMs in 0..windowMs
+        lastPressMs = if (doubled) Long.MIN_VALUE else timeMs
+        return doubled
+    }
+
+    /** Forget any pending first click (e.g. the stylus left hover range). */
+    fun reset() { lastPressMs = Long.MIN_VALUE }
+
+    companion object {
+        /** Matches Android's own multi-tap window closely enough to feel native. */
+        const val DEFAULT_WINDOW_MS = 350L
+    }
+}
+
 /** The gesture a pointer-down should begin. */
 enum class GestureIntent { DRAW, ERASE, PAN, SELECT, SELECT_TEXT, PLACE, VERTICAL_SPACE, IGNORE }
 
@@ -71,6 +123,8 @@ data class InputSettings(
     val fingerDraws: Boolean = true,
     /** What the stylus primary barrel-button invokes while held. */
     val barrelAction: BarrelAction = BarrelAction.ERASE,
+    /** What a rapid double-click of that same button invokes. */
+    val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
 )
 
 /**

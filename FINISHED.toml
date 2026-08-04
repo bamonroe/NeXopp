@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "double-barrel-button-click-action"
+title = "Double barrel-button click action"
+description = "The stylus barrel button currently has a hold action. Add a distinct action for a rapid double-click of the barrel button (two presses in quick succession), which triggers a different action/tool from the hold. Needs a double-click detection window and a configurable action binding."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["stylus", "input"]
+
+[[task]]
 id = "merge-layer-down"
 title = "Merge layer down"
 description = "Add a layer action to merge the selected layer into the layer below it, combining their strokes/elements into one layer and removing the now-empty upper layer. Should round-trip cleanly to .xopp on save."

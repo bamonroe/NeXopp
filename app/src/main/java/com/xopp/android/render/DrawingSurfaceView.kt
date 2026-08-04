@@ -261,6 +261,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onPlace: ((PlaceKind, Placement) -> Unit)? = null
     /** Notified when the Hand tool receives a centre double-tap, so the editor can toggle full-page (chrome-hidden) view. */
     var onToggleFullPage: (() -> Unit)? = null
+    /**
+     * Notified with the configured [BarrelDoubleAction] when the stylus barrel button is
+     * double-clicked. Undo/redo are applied here on the surface; the tool/chrome flips need the
+     * editor's state, so they are handed out through this callback.
+     */
+    var onBarrelDoubleClick: ((BarrelDoubleAction) -> Unit)? = null
 
     var tool: Tool = Tool.PEN
     var colorArgb: Int = AndroidColor.BLACK
@@ -1240,8 +1246,39 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
+    // --- barrel double-click ---------------------------------------------------------------------
+    // Recognised only while the tip is *off* the glass (hover / button-only events): with the tip
+    // down the button is the held modifier ([BarrelAction]), and firing an undo mid-stroke would be
+    // exactly wrong. Edges are derived from `buttonState` rather than ACTION_BUTTON_PRESS so devices
+    // that never send the button actions still work.
+
+    private val barrelClicks = BarrelClickDetector()
+    private var barrelWasDown = false
+
+    /** Feed one off-glass event's button state to [barrelClicks] and run the action it completes. */
+    private fun trackBarrelClicks(event: MotionEvent) {
+        val down = barrelPressed(event)
+        val edge = down && !barrelWasDown
+        barrelWasDown = down
+        if (!edge || !barrelClicks.press(event.eventTime)) return
+        when (val action = inputSettings.barrelDoubleAction) {
+            BarrelDoubleAction.NONE -> Unit
+            BarrelDoubleAction.UNDO -> undo()
+            BarrelDoubleAction.REDO -> redo()
+            else -> onBarrelDoubleClick?.invoke(action)
+        }
+    }
+
+    /** Button-only events (press/release with the tip off the glass) arrive here, not in touch. */
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        trackBarrelClicks(event)
+        return super.onGenericMotionEvent(event)
+    }
+
     /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */
     override fun onHoverEvent(event: MotionEvent): Boolean {
+        trackBarrelClicks(event)
+        if (event.actionMasked == MotionEvent.ACTION_HOVER_EXIT) { barrelClicks.reset(); barrelWasDown = false }
         val kind = pointerKindOf(event, 0)
         if (!showHover || (kind != PointerKind.STYLUS && kind != PointerKind.ERASER_TIP)) {
             if (hovering) { hovering = false; render() }

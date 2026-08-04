@@ -74,7 +74,11 @@ fun DrawingSurfaceView.applyTool(tool: EditorTool) {
 
 /** Push the stylus/input [AppSettings] onto the surface (classifier settings, hover, pressure feel). */
 fun DrawingSurfaceView.applySettings(s: AppSettings) {
-    inputSettings = InputSettings(fingerDraws = s.fingerDraws, barrelAction = s.barrelAction)
+    inputSettings = InputSettings(
+        fingerDraws = s.fingerDraws,
+        barrelAction = s.barrelAction,
+        barrelDoubleAction = s.barrelDoubleAction,
+    )
     showHover = s.showHover
     pressureGamma = s.sensitivity.gamma
     strokePrecision = s.strokePrecision

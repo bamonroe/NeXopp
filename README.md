@@ -268,7 +268,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   points, so it rubs out the same amount of ink whatever the zoom. The eraser only affects the
   **selected layer** — ink on other layers is left alone — and hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
-  (configurable — see **Settings**).
+  (configurable — see **Settings**). Double-clicking the barrel button with the pen lifted off the
+  glass runs its own action — undo by default (see **Settings**).
 - **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the
   page). Each row can **make the layer active** (tap its name — new ink lands there, marked with a
   filled dot), **show/hide** it in the editor (the eye toggle — hiding is view-only and never changes
@@ -398,6 +399,10 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Hover preview** — show a ring where a hovering stylus will land.
   - **Barrel button** — what the stylus side-button does while held: **Erase** (default), **Select**,
     or **None**.
+  - **Barrel double-click** — what a *rapid double-click* of that same button does, recognised only
+    with the tip **off** the glass (so it never interrupts a stroke): **Undo** (default), **Redo**,
+    **Toggle eraser**, **Toggle select**, **Toggle full page**, or **None**. The two toggles flip
+    back to the previous tool when double-clicked again.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**
