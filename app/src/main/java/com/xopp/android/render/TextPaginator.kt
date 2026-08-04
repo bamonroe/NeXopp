@@ -14,7 +14,7 @@ package com.xopp.android.render
 object TextPaginator {
 
     /** Columns a tab advances to, when expanding tabs to spaces. */
-    const val TAB_WIDTH = 4
+    const val TAB_WIDTH = TextWrapping.TAB_WIDTH
 
     /** Page geometry in points: the sheet plus its margins. Defaults to A4 with 1 inch margins. */
     data class PageSpec(
@@ -38,19 +38,8 @@ object TextPaginator {
      * Replace tabs with spaces so measurement is well defined. Tabs advance to the next multiple of
      * [TAB_WIDTH] columns, counted from the start of the line.
      */
-    fun expandTabs(line: String, tabWidth: Int = TAB_WIDTH): String {
-        if ('\t' !in line) return line
-        val out = StringBuilder()
-        for (ch in line) {
-            if (ch == '\t') {
-                val pad = tabWidth - (out.length % tabWidth)
-                repeat(pad) { out.append(' ') }
-            } else {
-                out.append(ch)
-            }
-        }
-        return out.toString()
-    }
+    fun expandTabs(line: String, tabWidth: Int = TAB_WIDTH): String =
+        TextWrapping.expandTabs(line, tabWidth)
 
     /**
      * Wrap [text] to [maxWidth] points. Existing newlines are preserved verbatim (an empty source
@@ -87,20 +76,8 @@ object TextPaginator {
     }
 
     /** Split an unbreakable run into chunks that each fit [maxWidth]; always returns ≥1 chunk. */
-    private fun hardBreak(word: String, maxWidth: Double, measure: (String) -> Float): List<String> {
-        if (measure(word) <= maxWidth) return listOf(word)
-        val out = mutableListOf<String>()
-        var current = StringBuilder()
-        for (ch in word) {
-            if (current.isNotEmpty() && measure("$current$ch") > maxWidth) {
-                out.add(current.toString())
-                current = StringBuilder()
-            }
-            current.append(ch)
-        }
-        out.add(current.toString())
-        return out
-    }
+    private fun hardBreak(word: String, maxWidth: Double, measure: (String) -> Float): List<String> =
+        TextWrapping.hardBreak(word, maxWidth, maxWidth, measure)
 
     /** Chunk already-wrapped [lines] into pages of [spec].linesPerPage lines each. */
     fun paginate(lines: List<String>, spec: PageSpec = PageSpec()): List<List<String>> =

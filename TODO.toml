@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "wrap-styled-runs-against-per-style-font-metrics"
-title = "Wrap styled runs against per-style font metrics"
-description = "TextPaginator wraps a single font per line via one (String) -> Float measurer. Markdown needs multiple faces and sizes on one line, so add a styled wrapper that takes a measurer per style key (proportional regular/bold/italic/bold-italic, monospace for code) and greedily fills a line by run fragments, splitting a run mid-word only on the same hard-break rule as today. Emits laid-out lines as positioned run fragments with an x offset and a style. Keep TextPaginator's plain path intact and factor the shared wrapping logic rather than duplicating it. Pure and unit-tested with synthetic metrics."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 140
-created = 2026-08-04
-tags = ["markdown"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "lay-out-markdown-blocks-into-pages-with-block-styling"
 title = "Lay out markdown blocks into pages with block styling"
 description = "Compose parsed blocks into pages: per-heading-level font size and weight, space-before/space-after between blocks, list indentation with bullet or number markers, block-quote indent (and a rule if wanted), horizontal rules, and code blocks set in monospace at a fixed size with their own indent. Owns page breaking - a block spans pages, and a heading should not be orphaned at the page foot. Extends the PageSpec idea into a markdown style spec so sizes live in one place. Pure Kotlin over the styled wrapper; unit-tested for block spacing, indent arithmetic, and page-break behaviour."

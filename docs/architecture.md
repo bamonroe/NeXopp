@@ -497,6 +497,7 @@ app/
       PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       TextPaginator.kt       # text-import word-wrap + A4 pagination, injected measurement (pure)
+      TextWrapping.kt        # tab expansion + mid-word hard break shared by both wrappers (pure)
       PdfFonts.kt            # embeds the bundled Unicode fonts (DejaVu) into a PDDocument, cached per doc
       TextPdfGenerator.kt    # authors the text-import PDF: selectable embedded text, injected font loader
       TextFlavor.kt          # plain vs markdown typesetting flavour + its PdfStore cache prefix
@@ -508,6 +509,7 @@ app/
         MarkdownInlineParser.kt # raw inline source -> styled runs (pure); scanner + emphasis pass
         InlineScanner.kt     # escapes, code spans and link labels; emits unresolved delimiter runs
         InlineEmphasis.kt    # pairs the delimiter runs into bold/italic (delimiter-stack walk)
+        StyledWrapper.kt     # styled runs -> lines of positioned fragments, per-style metrics (pure)
       GlyphSanitizer.kt      # maps codepoints a font can't encode onto a substitution glyph (pure)
       StrokeHitTester.kt     # whole-stroke eraser point-to-stroke hit geometry (pure)
       StrokeEraser.kt        # partial eraser: split a stroke into surviving pieces (pure)
@@ -1009,6 +1011,23 @@ Two decisions here:
 - **A label is frozen into finished runs before it is spliced in.** Parsing a label through the full
   pipeline (rather than splicing its raw tokens) is what stops a leftover delimiter inside a label
   from pairing with one outside it.
+
+**Styled runs → laid-out lines.** `StyledWrapper` is the markdown counterpart of `TextPaginator`'s
+wrapping half: it takes styled runs plus a `(RunStyle, String) -> Float` measurer — one metric per
+face (`REGULAR` · `BOLD` · `ITALIC` · `BOLD_ITALIC` · `CODE`, with `code` beating emphasis) — and
+returns lines of `RunFragment`s, each a stretch of one face with an x offset and width. Baselines
+stay pagination's job, so a fragment carries no Y.
+
+The break rules are deliberately the plain path's: greedy word fill, and a mid-word hard break only
+when a word can't fit a line alone. The shared character-level pieces (tab expansion, hard break)
+live in `TextWrapping`, which both wrappers call, rather than being copied. What genuinely differs is
+that a *word* can span runs — `**bold**tail` is one unbreakable word in two faces — so words are
+tokenized as (style, text) segment lists and measured segment by segment, and adjacent same-face text
+merges into one fragment, re-measured rather than summed so kerning stays honest. Inline whitespace
+collapses to a single separator (markdown's own rule; verbatim spacing belongs to code blocks, which
+are never inline-wrapped). Like the parsers it is pure, so `StyledWrapperTest` drives it with
+synthetic metrics where bold is deliberately wider than regular and checks that a face change alone
+moves a break.
 
 Two consequences fall out of the generated PDF living only in the cache:
 
