@@ -17,6 +17,19 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "unify-the-three-colour-pickers-behind-one-component"
+title = "Unify the three colour pickers behind one component"
+description = """
+Colour selection is offered by at least three different UIs with different affordances. (1) The pen palette in SideToolbar.kt:366 — the fixed PEN_COLORS swatch row plus an editable custom slot, recent colours, and a long-press that opens CustomColorPickerDialog (ui/ColorPicker.kt:58, the HSV saturation/value square with a hex field). (2) The text-box dialog's colour control, reached from EditorScreen.kt:534 via TextBoxDialog's initialColor, which keeps its own separate 'textColor' state seeded from PEN_COLORS.first() rather than from the pen's lastColor. (3) The selection recolour control wired at EditorScreen.kt:501 to restyleSelection. They look and behave differently and don't share recents or the custom slot.
+
+Build one reusable ColorField/ColorPickerSheet composable — swatch row plus recents plus the custom HSV dialog — and use it in all three places. Back it with the AppSettings state that already exists (recentColors, customColor, lastColor at ui/AppSettings.kt:59-74) so a colour chosen for text or for a selection lands in recents the same way a pen colour does, and so the custom slot is genuinely one custom slot. This overlaps with the queued 'centralise the ARGB alpha-blend helper' and 'hoist EditorScreen state' tasks but is independent of both. Worth an emulator pass since it is a visible UI change in three places."""
+status = "finished"
+category = "refactor"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["ui", "color"]
+
+[[task]]
 id = "unify-the-ink-and-pdf-bitmap-caches-under-one-memory-budget"
 title = "Unify the ink and PDF bitmap caches under one memory budget"
 description = "There are two independent bitmap caches with unrelated eviction policies and separate budgets: InkCache (render/InkCache.kt) uses a plain HashMap keyed by page index, evicting only via retain(keep) on viewport change with a per-entry BUDGET_PX ceiling, while PdfPageCache (render/PdfPageCache.kt:57) uses an access-ordered LinkedHashMap LRU with its own byte budget. On a PDF-backed document both fill simultaneously and neither knows the other's footprint, so total bitmap memory is the sum of two guesses rather than one bound. Extract a shared BitmapBudget (bytes accounted centrally, LRU eviction, recycle on evict) that both caches allocate through, sized from the app's actual heap via ActivityManager.memoryClass instead of hard-coded constants."
