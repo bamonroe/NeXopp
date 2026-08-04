@@ -38,14 +38,28 @@ import androidx.compose.ui.unit.sp
 fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     var selected by remember { mutableStateOf<RadialSlot?>(null) }
     var picking by remember { mutableStateOf<RadialSlot?>(null) }
+    var editing by remember { mutableStateOf(settings.activePaletteIndex) }
     val colors = rememberColorPaletteState(settings, onChange)
-    Text("Radial palette", style = MaterialTheme.typography.titleMedium)
+    val set = settings.paletteSet
+    // The chip the user last picked can outlive the palette it named (a delete shifts everything
+    // down), so the index is clamped here rather than trusted.
+    val index = editing.coerceIn(0, set.palettes.lastIndex)
+    val palette = set.palettes[index]
+    // Slot edits land on the palette being *edited*, which is not always the active one.
+    val onPalette: (RadialPalette) -> Unit = { onChange(settings.withPalettes(set.withPaletteAt(index, it))) }
+    Text("Radial palettes", style = MaterialTheme.typography.titleMedium)
     Text(
-        "The menu a barrel double-click opens at the pen tip. Tap a slot to assign it.",
+        "The menu a barrel double-click opens at the pen tip. Pick a palette, then tap a slot to assign it.",
         style = MaterialTheme.typography.bodySmall,
     )
+    PaletteManagerRow(
+        set = set,
+        editing = index,
+        onEdit = { editing = it; selected = null },
+        onSet = { onChange(settings.withPalettes(it)) },
+    )
     PaletteDiagram(
-        palette = settings.radialPalette,
+        palette = palette,
         selected = selected,
         onSelect = { selected = it; picking = it },
         modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -53,21 +67,21 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     Column {
         Text("Selected slot", style = MaterialTheme.typography.bodyLarge)
-        Text(selected.describe(settings.radialPalette, settings.presets), style = MaterialTheme.typography.bodySmall)
+        Text(selected.describe(palette, settings.presets), style = MaterialTheme.typography.bodySmall)
     }
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
-    PaletteResetControls(settings.radialPalette) { updated ->
+    PaletteResetControls(palette) { updated ->
         selected = null
-        onChange(settings.copy(radialPalette = updated))
+        onPalette(updated)
     }
     picking?.let { slot ->
         PaletteActionPickerSheet(
             slot = slot,
-            current = settings.radialPalette[slot],
+            current = palette[slot],
             palette = colors,
             presets = settings.presets,
             onPick = { action ->
-                onChange(settings.copy(radialPalette = settings.radialPalette.with(slot, action)))
+                onPalette(palette.with(slot, action))
                 picking = null
             },
             onDismiss = { picking = null },

@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "palette-manager-ui-add-rename-reorder-and-delete-palettes"
+title = "Palette manager UI: add, rename, reorder and delete palettes"
+description = "In PaletteSection/PaletteEditorLayout, add a manager row above the ring editor to create a palette, rename it, reorder it, delete it (never below one), and choose which palette the editor edits and which is active. Follow the presets rail pattern already used for tool presets. Document in README."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
+id = "store-a-named-list-of-radial-palettes-with-an-active-one"
+title = "Store a named list of radial palettes with an active one"
+description = "Widen AppSettings/SettingsStore from a single radialPalette to an ordered list of named RadialPalettes plus an active index. Extend RadialPaletteCodec with a list encoding (record-separated palettes, forgiving decode as today) and migrate the existing single-palette pref into a one-entry list so no user loses their setup. Unit-test the codec round-trip and the migration."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "radial-palette-alternate-invocation-for-styluses-without-a-barrel-button"
 title = "Radial palette: alternate invocation for styluses without a barrel button"
 description = "Today the two-ring palette can only be opened by a barrel double-click (EditorRegions.onBarrelDoubleClick), so a stylus with no side button cannot reach it at all. Investigate the options - a pen tip long-press, a two-finger tap, a toolbar button, or an eraser-end tap - decide which fit the existing InputClassifier gesture set without stealing an in-use gesture, and add the concrete tasks. Produces todos, not code."

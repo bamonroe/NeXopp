@@ -534,7 +534,9 @@ app/
       RadialPaletteHitTest.kt # maps a flick's (angle, radius) from the anchor onto a slot, or cancel (pure)
       RadialPaletteLayout.kt # where the menu draws: anchor clamped on screen, slot mark centres (pure)
       RadialPaletteLabel.kt  # a slot's face: short glyph, or the swatch a colour slot fills with (pure)
-      RadialPaletteCodec.kt  # the palette's one-line SharedPreferences form; forgiving decode (pure)
+      RadialPaletteCodec.kt  # one palette (and the whole list) as one SharedPreferences line; forgiving decode (pure)
+      PaletteList.kt         # PaletteSet: add/rename/reorder/delete a palette + the active index, and the pre-list migration (pure)
+      PaletteManagerRow.kt   # settings UI: the palette chips + add/rename/reorder/delete/activate buttons
       PaletteActions.kt      # runs a picked PaletteAction against the editor state + surface (the toolbar's edits)
       ToolPreset.kt          # a named snapshot of the whole tool config (tool/colour/width/style/fill); capture + apply
       ToolPresetList.kt      # save/overwrite, reorder and delete on the saved preset list (pure)

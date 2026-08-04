@@ -35,34 +35,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "store-a-named-list-of-radial-palettes-with-an-active-one"
-title = "Store a named list of radial palettes with an active one"
-description = "Widen AppSettings/SettingsStore from a single radialPalette to an ordered list of named RadialPalettes plus an active index. Extend RadialPaletteCodec with a list encoding (record-separated palettes, forgiving decode as today) and migrate the existing single-palette pref into a one-entry list so no user loses their setup. Unit-test the codec round-trip and the migration."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 30
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
-id = "palette-manager-ui-add-rename-reorder-and-delete-palettes"
-title = "Palette manager UI: add, rename, reorder and delete palettes"
-description = "In PaletteSection/PaletteEditorLayout, add a manager row above the ring editor to create a palette, rename it, reorder it, delete it (never below one), and choose which palette the editor edits and which is active. Follow the presets rail pattern already used for tool presets. Document in README."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 40
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "add-a-switch-palette-slot-action-to-the-radial-palette"
 title = "Add a switch-palette slot action to the radial palette"
 description = "Add a SWITCH_PALETTE action to PaletteActionCatalog/PaletteActions carrying a target palette id, so a flick to that slot makes another palette active (and optionally reopens the ring in place at the pen tip). Cover the codec token and the hit-test dispatch with unit tests; document in README."

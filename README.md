@@ -436,7 +436,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     primitive it resembles (see **Shape recognition** above).
 
   Under **Palette** — the editor for the radial palette described above:
-  - The page opens with a **diagram of the two rings**, drawn from the same geometry the pen sees,
+  - **The palette list** sits at the top: one chip per saved palette, the selected chip being the
+    one the editor below is editing, and a **●** marking the one the pen actually opens. The buttons
+    under the row **add** a palette (a new empty one, which also becomes active), **rename** the
+    selected one, move it **earlier**/**later**, and **delete** it — you always keep at least one, so
+    the delete button is greyed out on the last palette. **Use this palette on the pen** makes the
+    selected palette the active one. Editing and activating are separate on purpose: you can arrange
+    a second palette without disturbing the one your pen is currently using.
+  - The page then shows a **diagram of the two rings** for the selected palette, drawn from the same geometry the pen sees,
     so what you arrange here is exactly what pops up at the tip. An assigned slot shows its colour
     swatch or a small glyph; an empty one is a dashed outline.
   - **Tap a slot** to select it (a highlight ring marks it, and the **Selected slot** line below
