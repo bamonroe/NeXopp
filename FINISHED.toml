@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "create-an-image-backed-document-via-imageimport"
+title = "Create an image-backed Document via ImageImport"
+description = "Add render/ImageImport.kt mirroring render/PdfImport.kt:20-46: one Page sized from the image's pixel dimensions converted to points (72 dpi baseline), with Background.Pixmap(domain=absolute, filename=source URI) and a single empty Layer. Wire MainActivity.loadDocument (:352-368) with an adoptImage path modelled on adoptPdf (:410-427)."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["image-background"]
+
+[[task]]
 id = "sniff-image-files-and-route-them-through-documentio"
 title = "Sniff image files and route them through DocumentIo"
 description = "Add PNG/JPEG (and WebP) magic-byte detection to FileKind.of (format/FileKind.kt:52-68) as a new FileKind.IMAGE, a LoadedFile.Image variant in io/DocumentIo.kt:33, and the read branch in DocumentIo.read (:135-165) so an image no longer errors as 'unrecognised file type'. Include unit tests for the sniffer."

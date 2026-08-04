@@ -74,7 +74,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 | `1f 8b` | `GZIP` | gzip `.xopp` (`Xopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
 | `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`Xopp.parseXml`); saved back compressed | `ORIGINAL` |
-| `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, returned as `LoadedFile.Image` for the caller to hang on a page as a pixmap background | `ORIGINAL` |
+| `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, one page the size of the image with it as the page's pixmap background (`render/ImageImport.kt`) | `ORIGINAL` |
 | none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `ZIPPED` |
 | anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
@@ -494,6 +494,7 @@ app/
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
+      ImageImport.kt         # builds a one-page Document with an image as its pixmap background
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
       PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
@@ -1000,6 +1001,17 @@ A source that yields no blocks still gets one blank sheet, matching the plain pa
 `MarkdownPdfWriterTest` closes the loop end-to-end: markdown in, real PDF out, `PDFTextStripper` back
 out again — asserting the words survive, the markup characters do not, and more than one face is
 embedded on the page.
+
+**Wiring an image into the open path (`render/ImageImport.kt`).** The `.xopp` format has exactly one
+home for a picture behind a page — `<background type="pixmap">` — so an opened PNG/JPEG/WebP becomes a
+**single page** carrying `Background.Pixmap(domain="absolute", filename=<source content:// URI>)` and
+one empty layer. The page is sized straight from the image's pixels at the 72-dpi baseline `.xopp`
+user space already uses (one pixel → one point), which keeps its aspect ratio without inventing a
+physical size the file never stated. Unlike a PDF the bytes are **not** copied into a store: a pixmap
+background is linked by location, so the open path's persisted read grant on that URI is what makes a
+saved `.xopp` reopen with its picture. `ImageImport.pixelSize` reads the dimensions bounds-only
+(`inJustDecodeBounds`), so a phone-camera photo never has to be decoded in full just to size a page;
+a file that doesn't decode leaves the canvas untouched and toasts instead.
 
 **Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
 file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits

@@ -73,11 +73,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 
 - **Open** — the top-bar **menu** (the ☰ button, top right) has **Open**; it launches the system
   file picker; choose a file. It's read in place via the Storage Access Framework. **Open accepts
-  four kinds of file and works out which is which from the file's contents, not its name**: a
+  several kinds of file and works out which is which from the file's contents, not its name**: a
   gzip-compressed `.xopp` (the usual desktop format), a single-file zipped `.xopp` package (its
   bundled PDF travels inside), an uncompressed Xournal++ XML file, a **plain PDF** — picking a
   PDF opens it as a fresh annotatable document exactly as **Import PDF** below does — and a
-  **plain-text file** (see **Open a text file** below). A file that
+  **plain-text file** (see **Open a text file** below), and an **image** (see **Open an image**
+  below). A file that
   is none of these is refused with an "Open failed" notice. Whichever `.xopp` container it came
   from is remembered, so a later Save writes it back in the same one.
   **Files on remote shares work too** — anything the system picker lists, including SSHFS, FTP,
@@ -179,6 +180,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   the cache, so a file over the **text import limit** (64 MB by default) comes back as *"Text file is
   N MB, over the 64 MB import limit"* instead of stalling the app. Raise or lower that limit under
   **Settings → Storage**.
+- **Open an image** — picking a **PNG, JPEG or WebP** opens it as a **one-page document with the
+  picture as the page background**, at the picture's own proportions, with an empty layer on top to
+  draw on. Annotate it like any other document. The image itself is **linked, not copied** — the
+  saved `.xopp` points at the picture where it already lives, so keep it in place — and, as with a
+  PDF, **the first Save asks where to put the `.xopp`**, since an image has no `.xopp` of its own.
+  A truncated or corrupt image is refused with a *"Couldn't read that image"* notice.
 - **Import PDF** — the menu's **Import PDF** first asks **how the PDF should join the document**:
   **Replace** (the PDF's pages *become* the document, discarding the pages currently open) or
   **Append** (the PDF's pages are added *after* the pages already open, keeping their annotations —

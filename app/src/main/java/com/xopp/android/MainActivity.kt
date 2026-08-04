@@ -27,6 +27,7 @@ import com.xopp.android.io.StorageLimits
 import com.xopp.android.io.xoppNameFor
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.ImageImport
 import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.PdfFonts
 import com.xopp.android.render.PdfImport
@@ -366,10 +367,19 @@ class MainActivity : ComponentActivity() {
                 tabsTick.value++
                 return
             }
-            // Recognised, but the image-backed document it becomes isn't built yet: say so rather
-            // than leaving the tab silently empty.
+            // An image likewise isn't a document to parse — it becomes a one-page document with the
+            // picture as that page's pixmap background.
             is LoadedFile.Image -> {
-                toast("Image files can't be opened yet")
+                saveFormat = SaveFormat.ORIGINAL
+                if (!adoptImage(loaded.file, source.toString())) {
+                    toast("Couldn't read that image")
+                    return
+                }
+                // Like a PDF import, the tab has no `.xopp` behind it yet: drop the source URI so a
+                // plain Save asks where to put one instead of writing document bytes over the image.
+                pendingSaveName = xoppNameFor(loaded.name)
+                tabs.updateActive { it.copy(title = pendingSaveName, uri = null) }
+                tabsTick.value++
                 return
             }
             is LoadedFile.Doc -> {
@@ -429,6 +439,24 @@ class MainActivity : ComponentActivity() {
             ImportPdfMode.APPEND -> view?.appendPages(PdfImport.pagesFor(cache, reference))
         }
         extractPdfTextInBackground(file)
+    }
+
+    /**
+     * Turn an already-local [source] image into a one-page document whose background is the picture
+     * ([ImageImport]). [reference] is what the background records as its `filename` — the source
+     * `content://` URI, whose read grant the open path has already persisted, so a saved `.xopp`
+     * still resolves the image when reopened.
+     *
+     * Unlike a PDF the bytes are *not* copied into a store: a pixmap background is linked by
+     * location, so the picture stays where the user keeps it. Returns false when the file doesn't
+     * decode, leaving the canvas untouched.
+     */
+    private fun adoptImage(source: File, reference: String): Boolean {
+        val (widthPx, heightPx) = ImageImport.pixelSize(source) ?: return false
+        surface?.setPdfSource(null)
+        surface?.setPdfTextIndex(null)
+        surface?.load(ImageImport.documentFor(widthPx, heightPx, reference))
+        return true
     }
 
     /**
