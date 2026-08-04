@@ -55,6 +55,11 @@ fun PaletteSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         Text("Selected slot", style = MaterialTheme.typography.bodyLarge)
         Text(selected.describe(settings.radialPalette), style = MaterialTheme.typography.bodySmall)
     }
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    PaletteResetControls(settings.radialPalette) { updated ->
+        selected = null
+        onChange(settings.copy(radialPalette = updated))
+    }
     picking?.let { slot ->
         PaletteActionPickerSheet(
             slot = slot,

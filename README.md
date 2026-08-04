@@ -437,6 +437,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     after/before, duplicate, delete, next, previous). Pick one and the sheet closes.
   - **Clear slot** — the first row of the sheet empties the slot; an empty slot cancels the menu
     when flicked onto, so it's the way to make a gap.
+  - Below the diagram a summary line reports how full the palette is (**"12 of 24 slots assigned."**,
+    or a warning that it would open empty), followed by two bulk actions: **Reset to default**
+    restores the stock arrangement — tools on the inner ring, pen colours on the outer — and
+    **Clear all slots** empties all 24. Both throw away your current assignments, so both ask for
+    confirmation first; **Clear all slots** is greyed out when the palette is already empty.
   - Every change is saved as you make it and pushed straight to the editor: the next barrel
     double-click already shows the new layout, and it survives a restart with the rest of your
     settings.

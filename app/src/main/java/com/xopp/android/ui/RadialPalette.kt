@@ -98,6 +98,9 @@ data class RadialPalette(
     /** A copy with [slot] emptied. */
     fun without(slot: RadialSlot): RadialPalette = with(slot, null)
 
+    /** A copy with every slot emptied, keeping the palette's name. */
+    fun cleared(): RadialPalette = RadialPalette(name = name)
+
     /** How many slots carry an action — what the renderer uses to skip an entirely empty ring. */
     val filledCount: Int get() = inner.count { it != null } + outer.count { it != null }
 

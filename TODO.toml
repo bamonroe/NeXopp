@@ -89,17 +89,3 @@ created = 2026-08-04
 tags = ["presets"]
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "palette-reset-controls"
-title = "Radial palette: reset-to-default and clear-all controls in the palette editor"
-description = "Add buttons to the PALETTE settings section for 'Reset to default' (RadialPalette.default()) and 'Clear all slots', plus a filled-count summary line using RadialPalette.filledCount. Confirm destructive clears with a dialog."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "low"
-order = 86
-created = 2026-08-04
-tags = ["palette", "ui"]
-rebuild = true
-emulator_debug = false
