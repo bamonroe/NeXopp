@@ -62,3 +62,17 @@ created = 2026-08-04
 tags = []
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "mouse-scroll-wheel-scrolls-the-document-vertically"
+title = "Mouse scroll wheel scrolls the document vertically"
+description = "With a Bluetooth mouse connected, the scroll wheel currently does nothing on the canvas. Handle the hover/scroll axis events (MotionEvent ACTION_SCROLL / AXIS_VSCROLL from a SOURCE_MOUSE device) and translate them into vertical document scrolling — wheel down moves further down the page, the same direction as dragging a scrollbar downward, not an inverted 'grab the paper and pull' pan. Clamp to the same document bounds the existing pan uses, and keep the current zoom level unchanged."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 40
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
