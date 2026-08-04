@@ -49,9 +49,9 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "let-the-eraser-partially-erase-shape-strokes"
-title = "Let the eraser partially erase shape strokes"
-description = "Strokes drawn with the shape tools (line, rectangle, ellipse, arrow) can't be erased at all right now — the eraser won't even delete them, let alone split them. The eraser should treat shape strokes like freehand strokes: delete-stroke should remove them, and the partial/split eraser should be able to cut a drawn line in two."
+id = "eraser-does-not-respond-to-synthetic-touch-on-the-emulator"
+title = "Eraser does not respond to synthetic touch on the emulator"
+description = "With the partial eraser selected, adb 'input swipe' across ink (freehand or shape) erases nothing on the emulator, while the pen and shape tools draw fine with the same synthetic touch. Either the eraser gesture is gated somewhere for non-stylus/UNKNOWN tool-type pointers, or the tip radius is too small to catch batched move samples. Blocks emulator verification of eraser changes."
 status = "active"
 level = "task"
 category = "bug"

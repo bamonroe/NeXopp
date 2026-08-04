@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "let-the-eraser-partially-erase-shape-strokes"
+title = "Let the eraser partially erase shape strokes"
+description = "Strokes drawn with the shape tools (line, rectangle, ellipse, arrow) can't be erased at all right now — the eraser won't even delete them, let alone split them. The eraser should treat shape strokes like freehand strokes: delete-stroke should remove them, and the partial/split eraser should be able to cut a drawn line in two."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "fix-radial-palette-hit-testing-when-summoned-near-a-screen-edge"
 title = "Fix radial palette hit-testing when summoned near a screen edge"
 description = "When the radial palette is summoned near a screen edge, the ring is correctly clamped so it draws on-screen, but the hit-test coordinates appear to still be computed from the original off-screen center. The result is that the slots draw in one place and respond in another, so selections don't work near edges. Make the selection geometry use the same clamped center the ring is drawn at."
