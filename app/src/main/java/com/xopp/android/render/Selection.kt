@@ -84,14 +84,6 @@ object SelectionTester {
         return null
     }
 
-    /**
-     * Fold a fresh pick [added] into the live selection [prev] in group mode: a marquee adds, and a
-     * **tap** on elements already in the group removes them again, so one gesture both grows and
-     * trims the group. Grouping is selection-time only — nothing here reaches the file.
-     */
-    fun merge(prev: Set<ElementRef>, added: Set<ElementRef>, isTap: Boolean): Set<ElementRef> =
-        if (isTap && added.isNotEmpty() && prev.containsAll(added)) prev - added else prev + added
-
     /** The union of the bounds of every element in [refs] on [page], or null if the set is empty. */
     fun boundsOf(page: Page, refs: Set<ElementRef>): Bounds? {
         var acc: Bounds? = null

@@ -88,8 +88,6 @@ fun BoxScope.EditorOverlays(
             onReWidth = { w -> surface?.restyleSelection(null, w.toDouble()) },
             widthSlots = settings.penWidths,
             onDeselect = { surface?.clearSelection() },
-            grouping = pane.groupMode,
-            onToggleGroup = { on -> pane.groupMode = on; surface?.groupMode = on },
             modifier = barModifier,
         )
     } else if (ui.tool == EditorTool.SELECT || ui.tool == EditorTool.LASSO_SELECT) {
@@ -163,8 +161,7 @@ fun BoxScope.EditorOverlays(
 
 /**
  * The Select tool's contextual action bar, shown while a selection is active: cut / copy /
- * duplicate / delete, recolour and re-width the selected strokes, group (keep adding to the
- * selection so several elements transform as one unit), and deselect. Horizontally
+ * duplicate / delete, recolour and re-width the selected strokes, and deselect. Horizontally
  * scrollable so it fits narrow screens. (Resize and rotate are on-canvas handles, not buttons.)
  */
 @Composable
@@ -178,8 +175,6 @@ private fun SelectionActionBar(
     onReWidth: (Float) -> Unit,
     widthSlots: List<Float>,
     onDeselect: () -> Unit,
-    grouping: Boolean,
-    onToggleGroup: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -194,12 +189,6 @@ private fun SelectionActionBar(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilterChip(
-                selected = grouping,
-                onClick = { onToggleGroup(!grouping) },
-                label = { Text("Group") },
-            )
-            Spacer(Modifier.width(6.dp))
             IconButton(onClick = onCut) { Icon(Icons.Filled.ContentCut, contentDescription = "Cut") }
             IconButton(onClick = onCopy) { Icon(Icons.Filled.ContentCopy, contentDescription = "Copy") }
             IconButton(onClick = onDuplicate) { Icon(Icons.Filled.LibraryAdd, contentDescription = "Duplicate") }

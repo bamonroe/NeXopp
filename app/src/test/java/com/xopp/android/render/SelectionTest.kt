@@ -213,31 +213,4 @@ class SelectionTest {
     @Test fun inPolygonDegenerateSelectsNothing() {
         assertTrue(SelectionTester.inPolygon(p, listOf(Vec2(0.0, 0.0), Vec2(1.0, 1.0))).isEmpty())
     }
-
-    // --- group mode (additive selection) ----------------------------------------------------------
-
-    private val a = ElementRef(0, 0)
-    private val b = ElementRef(0, 1)
-    private val c = ElementRef(0, 2)
-
-    @Test fun mergeAddsMarqueePicksToTheGroup() {
-        assertEquals(setOf(a, b, c), SelectionTester.merge(setOf(a), setOf(b, c), isTap = false))
-    }
-
-    @Test fun mergeAddsATapOnAnUnselectedElement() {
-        assertEquals(setOf(a, b), SelectionTester.merge(setOf(a), setOf(b), isTap = true))
-    }
-
-    @Test fun mergeTapOnAGroupedElementRemovesIt() {
-        assertEquals(setOf(a, c), SelectionTester.merge(setOf(a, b, c), setOf(b), isTap = true))
-    }
-
-    @Test fun mergeMarqueeOverAGroupedElementKeepsIt() {
-        // Only a tap toggles; re-banding over the group must not silently drop members.
-        assertEquals(setOf(a, b), SelectionTester.merge(setOf(a, b), setOf(b), isTap = false))
-    }
-
-    @Test fun mergeOfNothingIsAnIdentity() {
-        assertEquals(setOf(a), SelectionTester.merge(setOf(a), emptySet(), isTap = true))
-    }
 }

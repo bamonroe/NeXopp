@@ -298,12 +298,6 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - The floating action bar offers **Cut**, **Copy**, **Duplicate**, a **palette** to recolour (the
     same swatches, custom slot and Recent row as the pen's colour pop-up) and
     a **line-weight** menu to re-width the selection, **Delete**, and **Done** (deselect).
-  - **Group** — the action bar's **Group** chip keeps the current selection and *adds* whatever you
-    marquee or tap next, so you can gather objects that no single box or loop can catch and then
-    move, resize, rotate or restyle them as one unit. Tap an already-grouped object to drop it back
-    out; the transform handles are hidden while Group is on (every touch is a new pick), so turn it
-    off to move the group. Grouping is a **selection-time convenience only** — the `.xopp` format has
-    no group primitive, so nothing is written to the file and the group ends with the selection.
   - **Paste** appears in the bottom bar (when nothing is selected) and drops the copied objects onto
     the page you're viewing.
 
