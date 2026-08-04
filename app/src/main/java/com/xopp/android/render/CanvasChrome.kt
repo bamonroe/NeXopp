@@ -88,6 +88,15 @@ internal class CanvasChrome {
         style = Paint.Style.STROKE
         strokeWidth = 2f
     }
+    /**
+     * The eraser tip outline — a thin black ring at the rubber's true radius, so its boundary is
+     * visible while hovering and while erasing. Fixed black: it marks a hole, not a colour.
+     */
+    val eraserOutline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 1.5f
+        color = 0xFF000000.toInt()
+    }
     val textSelect = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = TEXT_SELECT_FILL

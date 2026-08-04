@@ -132,6 +132,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var hovering = false
     private var hoverX = 0f
     private var hoverY = 0f
+    /** Tool type of the hovering pointer — an inverted pen's eraser tip previews the rubber, not the nib. */
+    private var hoverKind = PointerKind.UNKNOWN
+    // Last eraser contact point (view px), so the tip outline follows the rub — finger touches included.
+    private var eraseX = 0f
+    private var eraseY = 0f
     /** The radial palette while it is open, or null when it isn't — see [openPalette]. */
     private var paletteOverlay: RadialPaletteRenderer.Overlay? = null
     /** The palette a [BarrelDoubleAction.RADIAL_PALETTE] double-click opens at the pen tip. */
@@ -1443,7 +1448,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
         when (event.actionMasked) {
             MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
-                hovering = true; hoverX = event.x; hoverY = event.y; render()
+                hovering = true; hoverX = event.x; hoverY = event.y; hoverKind = kind; render()
             }
             MotionEvent.ACTION_HOVER_EXIT -> { hovering = false; render() }
         }
@@ -1730,7 +1735,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
         val px = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
         val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
-        if (eraseOnPage(currentPage, px, py, eraserRadiusPt)) render()
+        eraseX = vx; eraseY = vy
+        eraseOnPage(currentPage, px, py, eraserRadiusPt)
+        // Always repaint: even a rub over blank paper has to move the tip outline with the pointer.
+        render()
     }
 
     /** A tap in a placement tool: remember where it went down; a small drag cancels it. */
@@ -2116,7 +2124,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
             if (gestures.banding) drawBand(canvas)
             if (vspace.active) drawVerticalSpaceGuide(canvas)
             drawGuide(canvas)
-            if (hovering && showHover && current == null) drawHover(canvas)
+            if (erasing) drawEraserTip(canvas, eraseX, eraseY)
+            if (hovering && showHover && current == null && !erasing) {
+                if (erasesNow()) drawEraserTip(canvas, hoverX, hoverY) else drawHover(canvas)
+            }
             paletteOverlay?.let {
                 RadialPaletteRenderer.draw(canvas, chrome, it, width.toFloat(), height.toFloat())
             }
@@ -2368,6 +2379,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (alwaysClose) closePalette()
         val action = (hit as? RadialHit.Slot)?.action ?: return
         onPaletteAction?.invoke(action)
+    }
+
+    /** True when the pointer in hand rubs out: the Eraser tool, or a pen flipped onto its eraser tip. */
+    private fun erasesNow(): Boolean =
+        activeTool() == ActiveTool.ERASER || hoverKind == PointerKind.ERASER_TIP
+
+    /**
+     * The eraser tip outline (view px): a thin circle at exactly the radius [PageEraser] will clear,
+     * so the boundary is visible. Pure chrome — it is never part of the document or the saved file.
+     */
+    private fun drawEraserTip(canvas: Canvas, vx: Float, vy: Float) {
+        val box = layout.pageAt(vx + scrollX, vy + scrollY) ?: layout.boxes.getOrNull(currentPage)
+        val scale = box?.scale ?: 1f
+        canvas.drawCircle(vx, vy, (eraserRadiusPt * scale).toFloat(), chrome.eraserOutline)
     }
 
     private fun drawHover(canvas: Canvas) {
