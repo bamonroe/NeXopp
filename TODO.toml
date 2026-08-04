@@ -36,7 +36,7 @@ emulator_debug = false
 [[task]]
 id = "split-drawingsurfaceview-into-focused-collaborators"
 title = "Split DrawingSurfaceView into focused collaborators"
-description = "DrawingSurfaceView is down from 2756 to ~2495 lines; four collaborators are out (CanvasChrome for the chrome brushes, TextEditController + ElementEdits for element placement, PageOverview for the grid's view state, MomentumDriver for the fling loop). Still to extract, each as its own small commit keeping unit tests green: a ViewportState for zoom/scroll/clamps, a PageCommands facade over PageOps/LayerOps, a SelectionGestureController for the move/resize/rotate/band handlers, and the vertical-space and guide drags. The goal remains the view as event routing plus draw."
+description = "DrawingSurfaceView is down from 2756 to ~2480 lines; five collaborators are out (CanvasChrome for the chrome brushes, TextEditController + ElementEdits for element placement, PageOverview for the grid's view state, MomentumDriver for the fling loop, ViewportState for zoom/scroll/clamps). Still to extract, each as its own small commit keeping unit tests green: a PageCommands facade over PageOps/LayerOps, a SelectionGestureController for the move/resize/rotate/band handlers, and the vertical-space and guide drags. The goal remains the view as event routing plus draw."
 status = "active"
 category = "refactor"
 urgency = "high"
