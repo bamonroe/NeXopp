@@ -101,6 +101,8 @@ data class AppSettings(
     val audioFolderUri: String = "",
     /** Light, dark, or follow the system — applied to the whole app's Material 3 scheme. */
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    /** The two-ring menu the barrel double-click opens at the pen tip (see [RadialPalette]). */
+    val radialPalette: RadialPalette = RadialPalette.default(),
 ) {
     /** The fill alpha to draw with, or null when fill is off — the two fill fields as one value. */
     val currentFill: Int? get() = if (fillEnabled) fillAlpha else null
@@ -166,6 +168,7 @@ class SettingsStore(context: Context) {
             railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
             audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
             themeMode = enumOr(prefs.getString(KEY_THEME_MODE, null), d.themeMode),
+            radialPalette = decodeRadialPalette(prefs.getString(KEY_RADIAL_PALETTE, null)) ?: d.radialPalette,
         )
     }
 
@@ -199,6 +202,7 @@ class SettingsStore(context: Context) {
         e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
         e.putString(KEY_AUDIO_FOLDER, s.audioFolderUri)
         e.putString(KEY_THEME_MODE, s.themeMode.name)
+        e.putString(KEY_RADIAL_PALETTE, encodeRadialPalette(s.radialPalette))
         e.apply()
     }
 
@@ -232,6 +236,7 @@ class SettingsStore(context: Context) {
         const val KEY_RAIL_HIDDEN = "rail_hidden"
         const val KEY_AUDIO_FOLDER = "audio_folder_uri"
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_RADIAL_PALETTE = "radial_palette"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

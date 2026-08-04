@@ -411,6 +411,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     leave a stroke behind: the canvas ignores the pen until the menu closes. Slots run the same
     actions the toolbar does: pick or toggle a tool, set the pen colour or width, undo/redo, toggle
     full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
+    The palette's layout is remembered across restarts along with the rest of your settings; until
+    the configuration UI lands it starts from the built-in layout (tools and undo/redo on the inner
+    ring, the standard pen colours on the outer one).
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**

@@ -96,6 +96,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
     flingStrength = s.momentum
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity
+    palette = s.radialPalette
 }
 
 /**

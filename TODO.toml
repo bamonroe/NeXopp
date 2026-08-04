@@ -49,20 +49,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "radial-palette-persist-the-palette-configuration"
-title = "Radial palette: persist the palette configuration"
-description = "Persist the palette in AppSettings/SettingsStore (ui/AppSettings.kt) as an encoded string, following the encode/decode pattern in ui/ToolGroups.kt. Round-trip tested, tolerant of unknown/missing slots so older and newer builds both load."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 90
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "radial-palette-multiple-palettes-and-switching"
 title = "Radial palette: multiple palettes and switching"
 description = "Once a single palette works and persists, investigate supporting several named palettes and how the user switches between them (a slot action that swaps palette, a long-press, or a settings choice). Produces tasks, not code."

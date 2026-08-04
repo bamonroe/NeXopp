@@ -533,6 +533,7 @@ app/
       RadialPaletteHitTest.kt # maps a flick's (angle, radius) from the anchor onto a slot, or cancel (pure)
       RadialPaletteLayout.kt # where the menu draws: anchor clamped on screen, slot mark centres (pure)
       RadialPaletteLabel.kt  # a slot's face: short glyph, or the swatch a colour slot fills with (pure)
+      RadialPaletteCodec.kt  # the palette's one-line SharedPreferences form; forgiving decode (pure)
       PaletteActions.kt      # runs a picked PaletteAction against the editor state + surface (the toolbar's edits)
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
