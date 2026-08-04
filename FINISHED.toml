@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "emit-styled-markdown-runs-to-pdf"
+title = "Emit styled markdown runs to PDF"
+description = "Extend the PDF emitter so a laid-out line can draw several runs at different x offsets in different fonts. Requires PdfFonts to embed the bold/italic/bold-italic DejaVu faces alongside the existing Sans and Sans Mono (add the TTFs to app/src/main/assets/fonts plus the LICENSE note), load them per document with the same per-doc cache, and expose a measurer per face so wrap widths match drawn widths exactly. Also draw horizontal rules as filled rects. Verify end-to-end with a round-trip test that extracts the text back out of a generated markdown PDF, and update README.md and docs/architecture.md in the same commit."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["markdown", "pdf"]
+
+[[task]]
 id = "lay-out-markdown-blocks-into-pages-with-block-styling"
 title = "Lay out markdown blocks into pages with block styling"
 description = "Compose parsed blocks into pages: per-heading-level font size and weight, space-before/space-after between blocks, list indentation with bullet or number markers, block-quote indent (and a rule if wanted), horizontal rules, and code blocks set in monospace at a fixed size with their own indent. Owns page breaking - a block spans pages, and a heading should not be orphaned at the page foot. Extends the PageSpec idea into a markdown style spec so sizes live in one place. Pure Kotlin over the styled wrapper; unit-tested for block spacing, indent arithmetic, and page-break behaviour."

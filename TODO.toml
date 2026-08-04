@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "emit-styled-markdown-runs-to-pdf"
-title = "Emit styled markdown runs to PDF"
-description = "Extend the PDF emitter so a laid-out line can draw several runs at different x offsets in different fonts. Requires PdfFonts to embed the bold/italic/bold-italic DejaVu faces alongside the existing Sans and Sans Mono (add the TTFs to app/src/main/assets/fonts plus the LICENSE note), load them per document with the same per-doc cache, and expose a measurer per face so wrap widths match drawn widths exactly. Also draw horizontal rules as filled rects. Verify end-to-end with a round-trip test that extracts the text back out of a generated markdown PDF, and update README.md and docs/architecture.md in the same commit."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 160
-created = 2026-08-04
-tags = ["markdown", "pdf"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "confirm-desktop-xournal-preserves-an-unresolvable-pdf-reference-on-save"
 title = "Confirm desktop Xournal++ preserves an unresolvable PDF reference on save"
 description = "Headless export CLI can't cover this: open a .xopp whose background PDF is missing in the desktop GUI, save it, and confirm the <background> filename/domain come back untouched rather than being rewritten or dropped. Needs an interactive Xournal++ session (no display server on the dev box at the time of the first pass). See docs/architecture.md 'Relative PDF references'."
@@ -100,6 +86,20 @@ level = "task"
 category = "feature"
 urgency = "normal"
 order = 210
+created = 2026-08-04
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "text-import-fails-to-open-on-the-emulator-unrecognised-file-type"
+title = "Text import fails to open on the emulator: unrecognised file type"
+description = "On the /data/android emulator (Android 14), opening a plain .txt or .md from the SAF picker fails with the toast 'Open failed: unrecognised file type' — DocumentIo.read() line 155, i.e. FileKind.sniff returned UNKNOWN. A PDF from the same Downloads folder opens fine, so staging itself works, and FileKind unit tests pass on printable ASCII. Reproduced with a 36-byte ASCII demo.txt and a 440-byte demo.md pushed to /sdcard/Download. Predates the markdown emitter work (both flavours fail identically, before any generator runs). Find out what the staged copy actually contains — add temporary logging of the staged file's size and first bytes, or a connected test that stages a known text file and asserts the verdict."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 220
 created = 2026-08-04
 tags = []
 rebuild = true
