@@ -162,8 +162,8 @@ fun EditorSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
 fun StorageSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     OptionGroup(
         title = "Text import limit",
-        subtitle = "Opening a text file typesets all of it into a PDF, so a huge log would stall " +
-            "the app. Files over this size are refused with a message instead.",
+        subtitle = "Opening a text file typesets all of it into a PDF, so a huge log takes minutes " +
+            "and thousands of pages. Files over this size are refused with a message instead.",
         options = AppSettings.TEXT_IMPORT_LIMIT_CHOICES,
         selected = settings.textImportLimitMb,
         label = { "$it MB" },
