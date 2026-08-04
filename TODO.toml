@@ -63,20 +63,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "preset-model-capture"
-title = "Tool presets: add the ToolPreset data model and capture-current-state"
-description = "Add ui/ToolPreset.kt: an immutable data class ToolPreset(id, name, tool, colorArgb, widthPt, lineStyle, fillEnabled, fillAlpha) capturing the whole tool configuration, plus ToolPreset.capture(ui: EditorUiState) to snapshot the live EditorUiState and an apply() that restores it through the same paths ui/PaletteActions.kt uses, so tool/color/width all reach DrawingSurfaceView. Pure-Kotlin unit tests for the capture/apply round-trip."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 110
-created = 2026-08-04
-tags = ["presets"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "preset-persistence"
 title = "Tool presets: persist the preset list in SettingsStore"
 description = "Extend ui/AppSettings.kt with 'presets: List<ToolPreset>' and hand-rolled encode/decode in SettingsStore (same style as decodeColors / toolGroupSelections) so presets survive a restart in the xopp_settings SharedPreferences file. Round-trip unit test through SettingsStore."

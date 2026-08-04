@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "preset-model-capture"
+title = "Tool presets: add the ToolPreset data model and capture-current-state"
+description = "Add ui/ToolPreset.kt: an immutable data class ToolPreset(id, name, tool, colorArgb, widthPt, lineStyle, fillEnabled, fillAlpha) capturing the whole tool configuration, plus ToolPreset.capture(ui: EditorUiState) to snapshot the live EditorUiState and an apply() that restores it through the same paths ui/PaletteActions.kt uses, so tool/color/width all reach DrawingSurfaceView. Pure-Kotlin unit tests for the capture/apply round-trip."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["presets"]
+
+[[task]]
 id = "radial-palette-persist-the-palette-configuration"
 title = "Radial palette: persist the palette configuration"
 description = "Persist the palette in AppSettings/SettingsStore (ui/AppSettings.kt) as an encoded string, following the encode/decode pattern in ui/ToolGroups.kt. Round-trip tested, tolerant of unknown/missing slots so older and newer builds both load."

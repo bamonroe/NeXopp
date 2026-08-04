@@ -535,6 +535,7 @@ app/
       RadialPaletteLabel.kt  # a slot's face: short glyph, or the swatch a colour slot fills with (pure)
       RadialPaletteCodec.kt  # the palette's one-line SharedPreferences form; forgiving decode (pure)
       PaletteActions.kt      # runs a picked PaletteAction against the editor state + surface (the toolbar's edits)
+      ToolPreset.kt          # a named snapshot of the whole tool config (tool/colour/width/style/fill); capture + apply
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
