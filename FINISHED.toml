@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-drawingsurfaceview-into-focused-collaborators"
+title = "Split DrawingSurfaceView into focused collaborators"
+description = "DrawingSurfaceView is down from 2756 to ~2400 lines; six collaborators are out (CanvasChrome for the chrome brushes, TextEditController + ElementEdits for element placement, PageOverview for the grid's view state, MomentumDriver for the fling loop, ViewportState for zoom/scroll/clamps, PageCommands for the page/layer edit commands and their commit pipelines). Still to extract, each as its own small commit keeping unit tests green: a SelectionGestureController for the move/resize/rotate/band handlers, and the vertical-space and guide drags. The goal remains the view as event routing plus draw."
+status = "finished"
+category = "refactor"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["mono-file", "drawing"]
+
+[[task]]
 id = "make-pdfpagecache-tolerate-a-replaced-source-file"
 title = "Make PdfPageCache tolerate a replaced source file"
 description = "Defence in depth for the blanked-pages bug: PdfPageCache holds a read-only ParcelFileDescriptor (render/PdfPageCache.kt:46) and silently yields blank pages if the underlying file is rewritten. Detect the change (size/mtime or an explicit invalidate hook) and either re-open the renderer or surface an error instead of rendering white pages."

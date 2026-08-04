@@ -34,19 +34,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "split-drawingsurfaceview-into-focused-collaborators"
-title = "Split DrawingSurfaceView into focused collaborators"
-description = "DrawingSurfaceView is down from 2756 to ~2400 lines; six collaborators are out (CanvasChrome for the chrome brushes, TextEditController + ElementEdits for element placement, PageOverview for the grid's view state, MomentumDriver for the fling loop, ViewportState for zoom/scroll/clamps, PageCommands for the page/layer edit commands and their commit pipelines). Still to extract, each as its own small commit keeping unit tests green: a SelectionGestureController for the move/resize/rotate/band handlers, and the vertical-space and guide drags. The goal remains the view as event routing plus draw."
-status = "active"
-category = "refactor"
-urgency = "high"
-order = 20
-created = 2026-08-03
-tags = ["mono-file", "drawing"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "hoist-editorscreen-s-loose-state-into-a-single-state-holder"
 title = "Hoist EditorScreen's loose state into a single state holder"
 description = "EditorScreen.kt's top-level composable is ~400 lines and the file carries 31 separate mutableStateOf declarations (SideToolbar has another 25). That many independent remembered values in one scope makes recomposition scope hard to reason about and the composable untestable. Introduce an EditorUiState holder class (remembered once) grouping the related flags — dialog visibility, active tool, popup open-state, pending insert placement — and break the 400-line composable into named sub-composables per region. Reduces recomposition churn and brings the function under the ~100-line guideline."
