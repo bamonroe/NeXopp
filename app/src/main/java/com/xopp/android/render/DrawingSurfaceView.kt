@@ -101,6 +101,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Rasteriser for the PDF that backs this document's `pdf` pages (set on import), or null. */
     private var pdfSource: PdfPageCache? = null
 
+    /**
+     * Decoder for the pictures behind `pixmap` pages. Unlike [pdfSource] this isn't handed in on
+     * import: a pixmap background is *linked by name*, so the view can resolve one whenever a page
+     * carries it — an opened image, or a `.xopp` that references one. Built on first use so a
+     * document with no pixmap page never starts a decode thread.
+     */
+    private val imageSource: ImageBackgroundCache by lazy {
+        ImageBackgroundCache(::openBackgroundImage).apply { onImageReady = { requestRender() } }
+    }
+
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
     private var current: ArrayList<StrokePoint>? = null
     private var currentPage = 0
@@ -2125,7 +2135,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
             val visible = layout.visible(scrollY, height.toFloat())
             for (box in visible) {
                 BackgroundRenderer.draw(
-                    canvas, box, scrollX, scrollY, pdfBitmapFor(box), pdfTilesFor(box),
+                    canvas, box, scrollX, scrollY, pageBitmapFor(box), pdfTilesFor(box),
                     width.toFloat(), height.toFloat(),
                 )
                 drawPageElements(canvas, box)
@@ -2156,14 +2166,28 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /**
-     * The rasterised background for a `pdf`-backed page at its on-screen width, or null. Never
-     * rasterises inline — a miss returns whatever resolution is already cached (or nothing) and the
-     * sharp version arrives via [PdfPageCache.onPageReady], so a frame is never stalled by the PDF.
+     * The picture to blit behind [box] — the rasterised PDF page for a `pdf` background, the decoded
+     * image for a `pixmap` one, null for anything else (the renderer then draws sheet and ruling).
+     * Both caches fill asynchronously, so this never stalls a frame.
      */
-    private fun pdfBitmapFor(box: PageBox): Bitmap? {
-        val bg = box.page.background as? Background.Pdf ?: return null
-        return pdfSource?.request(bg.pageNo, box.widthPx.toInt())
+    private fun pageBitmapFor(box: PageBox): Bitmap? = when (val bg = box.page.background) {
+        is Background.Pdf -> pdfSource?.request(bg.pageNo, box.widthPx.toInt())
+        is Background.Pixmap -> imageSource.request(bg.filename, box.widthPx.toInt())
+        else -> null
     }
+
+    /**
+     * Open the bytes a `pixmap` background's `filename` points at. On Android that is normally the
+     * source picture's `content://` URI (`domain="absolute"`, recorded by the image open path); a
+     * plain path is read straight off disk, which is what a `.xopp` written on the desktop carries.
+     */
+    private fun openBackgroundImage(reference: String): java.io.InputStream? = runCatching {
+        if (reference.contains("://")) {
+            context.contentResolver.openInputStream(android.net.Uri.parse(reference))
+        } else {
+            java.io.File(reference).takeIf { it.isFile }?.inputStream()
+        }
+    }.getOrNull()
 
     /**
      * The full-resolution tiles for the visible part of a `pdf`-backed page, drawn over the

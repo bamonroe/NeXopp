@@ -10,9 +10,10 @@ import com.xopp.android.format.model.Background
 /**
  * Draws a page background — the base sheet colour plus its ruling (plain / lined / ruled / graph /
  * dotted) — into a [PageBox]'s rectangle. Line/dot positions come from [BackgroundGrid]; this
- * class only maps them to canvas coordinates. A `pdf` background is drawn as its rasterised page
- * ([pageImage], supplied by [PdfPageCache]); when no image is available (e.g. a `.xopp` whose PDF
- * isn't present) it, like `pixmap`, falls back to a plain sheet.
+ * class only maps them to canvas coordinates. A `pdf` background is drawn as its rasterised page and
+ * a `pixmap` one as its decoded picture — both arrive through the same [pageImage] slot, supplied by
+ * [PdfPageCache] and [ImageBackgroundCache] respectively. When no image is available (a `.xopp`
+ * whose PDF or picture isn't present, or a decode still in flight) it falls back to a plain sheet.
  */
 object BackgroundRenderer {
 

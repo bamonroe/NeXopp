@@ -495,6 +495,7 @@ app/
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
       ImageImport.kt         # builds a one-page Document with an image as its pixmap background
+      ImageBackgroundCache.kt # decodes+scales pixmap background pictures (LRU, off the frame)
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
       PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
@@ -1012,6 +1013,23 @@ background is linked by location, so the open path's persisted read grant on tha
 saved `.xopp` reopen with its picture. `ImageImport.pixelSize` reads the dimensions bounds-only
 (`inJustDecodeBounds`), so a phone-camera photo never has to be decoded in full just to size a page;
 a file that doesn't decode leaves the canvas untouched and toasts instead.
+
+**Painting a pixmap background (`render/ImageBackgroundCache.kt`).** The picture itself is decoded by
+the raster counterpart of `PdfPageCache`, charged to the same shared `BitmapBudget` so an image-backed
+document and a PDF-backed one compete for one bound rather than two. Entries are keyed by reference
+and 64 px target-width bucket and evicted **LRU**; a picture is one image per page rather than a
+rasterisable page count, so there is no tiling and no prefetch ring. `request` never decodes on the
+drawing thread — a miss returns the nearest cached width (or nothing) and queues the exact size on a
+worker, which announces it through `onImageReady` and gets a redraw, exactly like
+`PdfPageCache.onPageReady`. Decoding is two-pass: bounds first, then `inSampleSize` chosen so the
+decode never lands *below* the target width (`ImageBackgroundCache.sampleSize`), then an exact scale —
+so a 12-megapixel photo shown at tablet width is never materialised in full. A reference whose bytes
+won't open or decode is retired, so a frame doesn't re-queue it forever.
+`DrawingSurfaceView.pageBitmapFor` is the one place both caches meet: a `pdf` page asks `PdfPageCache`
+and a `pixmap` page asks `ImageBackgroundCache`, and either answer rides the same `pageImage` slot
+into `BackgroundRenderer.draw`. Resolving the reference is deliberately thin for now — a `content://`
+URI goes through the resolver, anything else is read as a path — with `domain`-aware resolution and
+`attach` storage still to come.
 
 **Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
 file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits

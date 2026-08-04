@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "render-pixmap-page-backgrounds"
+title = "Render pixmap page backgrounds"
+description = "BackgroundRenderer.kt:36-77 currently falls back to a white sheet for Background.Pixmap. Add an ImageBackgroundCache (decode + scale by box.widthPx, async fill like PdfPageCache.request/onPageReady) and feed the existing pageImage blit slot from DrawingSurfaceView.paint (:2119-2155)."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = ["image-background"]
+
+[[task]]
 id = "create-an-image-backed-document-via-imageimport"
 title = "Create an image-backed Document via ImageImport"
 description = "Add render/ImageImport.kt mirroring render/PdfImport.kt:20-46: one Page sized from the image's pixel dimensions converted to points (72 dpi baseline), with Background.Pixmap(domain=absolute, filename=source URI) and a single empty Layer. Wire MainActivity.loadDocument (:352-368) with an adoptImage path modelled on adoptPdf (:410-427)."
