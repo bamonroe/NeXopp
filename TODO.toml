@@ -90,17 +90,3 @@ created = 2026-08-04
 tags = []
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "text-import-fails-to-open-on-the-emulator-unrecognised-file-type"
-title = "Text import fails to open on the emulator: unrecognised file type"
-description = "On the /data/android emulator (Android 14), opening a plain .txt or .md from the SAF picker fails with the toast 'Open failed: unrecognised file type' — DocumentIo.read() line 155, i.e. FileKind.sniff returned UNKNOWN. A PDF from the same Downloads folder opens fine, so staging itself works, and FileKind unit tests pass on printable ASCII. Reproduced with a 36-byte ASCII demo.txt and a 440-byte demo.md pushed to /sdcard/Download. Predates the markdown emitter work (both flavours fail identically, before any generator runs). Find out what the staged copy actually contains — add temporary logging of the staged file's size and first bytes, or a connected test that stages a known text file and asserts the verdict."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 220
-created = 2026-08-04
-tags = []
-rebuild = true
-emulator_debug = true

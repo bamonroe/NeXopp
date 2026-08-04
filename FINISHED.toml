@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "text-import-fails-to-open-on-the-emulator-unrecognised-file-type"
+title = "Text import fails to open on the emulator: unrecognised file type"
+description = "Not reproducible as of 2026-08-04 on the /data/android emulator (Android 14). Verified with the current debug APK: demo.txt (36 B) and demo.md (440 B) in /sdcard/Download open through both the SAF picker and a VIEW intent. Temporary logging in DocumentIo.read confirmed FileKind.sniff returns TEXT for both (len/head as expected), the generated PDF renders, and demo.md shows styled markdown headings, lists, quote, code and rule. The earlier failure predated the text-import/markdown work now on master; closing as fixed by it."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "emit-styled-markdown-runs-to-pdf"
 title = "Emit styled markdown runs to PDF"
 description = "Extend the PDF emitter so a laid-out line can draw several runs at different x offsets in different fonts. Requires PdfFonts to embed the bold/italic/bold-italic DejaVu faces alongside the existing Sans and Sans Mono (add the TTFs to app/src/main/assets/fonts plus the LICENSE note), load them per document with the same per-doc cache, and expose a measurer per face so wrap widths match drawn widths exactly. Also draw horizontal rules as filled rects. Verify end-to-end with a round-trip test that extracts the text back out of a generated markdown PDF, and update README.md and docs/architecture.md in the same commit."
