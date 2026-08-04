@@ -40,6 +40,15 @@ object XoppColor {
         }
     }
 
+    /**
+     * The alpha desktop Xournal++ gives a highlighter stroke whose stored colour is opaque —
+     * half-transparent, so overlapping ink still reads through.
+     */
+    const val HIGHLIGHTER_ALPHA = 0x80
+
+    /** Replace the alpha channel of an ARGB int, keeping its RGB. [alpha] is 0..255. */
+    fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or ((alpha and 0xFF) shl 24)
+
     /** Serialise an ARGB int to the on-disk `#RRGGBBAA` form (alpha last), lowercase. */
     fun format(argb: Int): String {
         val a = (argb ushr 24) and 0xFF

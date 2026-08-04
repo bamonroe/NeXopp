@@ -1,6 +1,7 @@
 package com.xopp.android.render
 
 import android.graphics.DashPathEffect
+import com.xopp.android.format.XoppColor.withAlpha
 import android.graphics.Paint
 import android.graphics.Path
 
@@ -54,7 +55,7 @@ internal class CanvasChrome {
     }
     val guideFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = (GUIDE_COLOR and 0x00FFFFFF) or (GUIDE_FILL_ALPHA shl 24)
+        color = GUIDE_COLOR.withAlpha(GUIDE_FILL_ALPHA)
     }
     val guideHandle = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -74,7 +75,7 @@ internal class CanvasChrome {
     // Page-overview multi-select: a picked page is tinted and outlined so the selection reads at a glance.
     val pageSelectFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = (GUIDE_COLOR and 0x00FFFFFF) or (0x33 shl 24)
+        color = GUIDE_COLOR.withAlpha(PAGE_SELECT_FILL_ALPHA)
     }
     val pageSelect = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -114,10 +115,8 @@ internal class CanvasChrome {
 
     /** Tint the hover dot to match the pen colour, at the fixed hover alpha. */
     fun tintHover(penArgb: Int) {
-        hover.color = (penArgb and 0x00FFFFFF) or HOVER_ALPHA
+        hover.color = penArgb.withAlpha(HOVER_ALPHA)
     }
-
-    private fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or (alpha shl 24)
 
     internal companion object {
         const val BACKDROP = 0xFF3A3A3A.toInt()
@@ -129,6 +128,7 @@ internal class CanvasChrome {
 
         /** Alpha of the wash filling the setsquare's body — enough to see, faint enough to draw over. */
         const val GUIDE_FILL_ALPHA = 0x22
+        const val PAGE_SELECT_FILL_ALPHA = 0x33
         /** Alpha of the wash inside a selection outline. */
         const val SELECTION_FILL_ALPHA = 0x14
         /** Alpha of the wash inside the drag-select band. */
@@ -138,7 +138,7 @@ internal class CanvasChrome {
         const val BAND_FILL = 0x222060E0
         /** Translucent blue wash over selected PDF-text word boxes (like a text highlight). */
         const val TEXT_SELECT_FILL = 0x552196F3
-        const val HOVER_ALPHA = 0xB0000000.toInt()
+        const val HOVER_ALPHA = 0xB0
         /** Drawn radius of a selection/guide handle dot. */
         const val HANDLE_DRAW_PX = 7f
     }

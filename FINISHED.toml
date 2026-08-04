@@ -17,6 +17,16 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "centralise-the-argb-alpha-blend-helper-into-xoppcolor"
+title = "Centralise the ARGB alpha-blend helper into XoppColor"
+description = "The '(color and 0x00FFFFFF) or (alpha shl 24)' idiom is open-coded in at least six places: StrokePainter.kt:60 and :133, DrawingSurfaceView.kt:450, :459, :498 (a private withAlpha extension), :2345, :2669. Move a single 'Int.withAlpha(alpha: Int)' (plus a named half-alpha/highlighter constant) into format/XoppColor.kt, which already owns ARGB packing at line 37, and have every call site use it. Kills the magic masks and gives the highlighter's 0x80 alpha one documented home."
+status = "finished"
+category = "refactor"
+created = 2026-08-03
+completed = 2026-08-03
+tags = ["cleanup", "color"]
+
+[[task]]
 id = "split-drawingsurfaceview-into-focused-collaborators"
 title = "Split DrawingSurfaceView into focused collaborators"
 description = "DrawingSurfaceView is down from 2756 to ~2400 lines; six collaborators are out (CanvasChrome for the chrome brushes, TextEditController + ElementEdits for element placement, PageOverview for the grid's view state, MomentumDriver for the fling loop, ViewportState for zoom/scroll/clamps, PageCommands for the page/layer edit commands and their commit pipelines). Still to extract, each as its own small commit keeping unit tests green: a SelectionGestureController for the move/resize/rotate/band handlers, and the vertical-space and guide drags. The goal remains the view as event routing plus draw."

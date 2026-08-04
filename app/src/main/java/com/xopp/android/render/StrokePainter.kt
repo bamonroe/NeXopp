@@ -4,6 +4,8 @@ import android.graphics.Canvas
 import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.Path
+import com.xopp.android.format.XoppColor
+import com.xopp.android.format.XoppColor.withAlpha
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.Tool
@@ -57,7 +59,7 @@ class StrokePainter {
         canvas: Canvas, pts: List<StrokePoint>, color: Int, fill: Int,
         scale: Float, offsetX: Float, offsetY: Float,
     ) {
-        fillPaint.color = (color and 0x00FFFFFF) or ((fill and 0xFF) shl 24)
+        fillPaint.color = color.withAlpha(fill)
         path.rewind()
         path.moveTo(offsetX + (pts[0].x * scale).toFloat(), offsetY + (pts[0].y * scale).toFloat())
         for (i in 1 until pts.size) {
@@ -130,7 +132,7 @@ class StrokePainter {
         /** Highlighter always paints translucent even if the stored colour is opaque. */
         fun renderColor(tool: Tool, color: Int): Int =
             if (tool == Tool.HIGHLIGHTER && (color ushr 24) == 0xFF) {
-                (color and 0x00FFFFFF) or 0x80000000.toInt()
+                color.withAlpha(XoppColor.HIGHLIGHTER_ALPHA)
             } else {
                 color
             }

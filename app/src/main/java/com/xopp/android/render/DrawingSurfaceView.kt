@@ -17,6 +17,8 @@ import com.xopp.android.render.CanvasChrome.Companion.HANDLE_DRAW_PX
 import com.xopp.android.audio.AudioRef
 import com.xopp.android.audio.audioRef
 import com.xopp.android.audio.withAudio
+import com.xopp.android.format.XoppColor
+import com.xopp.android.format.XoppColor.withAlpha
 import com.xopp.android.format.model.Background
 import com.xopp.android.format.model.Document
 import com.xopp.android.format.model.Element
@@ -1737,7 +1739,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Highlighter is stored semi-transparent so it round-trips (and renders) translucent. */
     private fun strokeColor(): Int =
         if (tool == Tool.HIGHLIGHTER && (colorArgb ushr 24) == 0xFF) {
-            (colorArgb and 0x00FFFFFF) or 0x80000000.toInt()
+            colorArgb.withAlpha(XoppColor.HIGHLIGHTER_ALPHA)
         } else {
             colorArgb
         }
