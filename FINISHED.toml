@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "require-direct-hits-on-palette-icons-to-select"
+title = "Require direct hits on palette icons to select"
+description = "Selection currently uses nearest-match, so a tap far from an icon still selects it. Require the tap to land inside the icon's own bounds. More precision is fine — it makes dismissing the palette easier without accidental selection."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "remove-dead-space-outside-palette-border-for-dismissal"
 title = "Remove dead space outside palette border for dismissal"
 description = "Clicking just outside the palette's drawn border currently does not dismiss it — there's an invisible margin beyond the visible border that still counts as inside. The dismiss region should follow the marked border exactly: tapping anywhere outside the visible palette dismisses it."

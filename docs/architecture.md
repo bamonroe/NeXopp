@@ -1401,7 +1401,12 @@ toolbar":
    `RadialPaletteGeometry.dismissRadius` (`RadialHit.Outside` — that radius sits *on* the drawn
    outer border, so there is no invisible margin outside the menu that fails to dismiss it) or in
    the centre dead zone, or a second barrel
-   double-click, which commits *and* closes as the eyes-free way out. The
+   double-click. Picking a slot takes a **direct hit on its drawn mark**: ring and angle only name
+   the candidate, and the point must then fall within `slotMarkRadius(ring, geometry)` of the mark's
+   `drawCenter` or the hit reads as `Outside`. That is what keeps the gaps between icons available
+   for dismissing instead of selecting whatever wedge happened to be nearest. The same rule serves
+   the settings editor's tap test (`editorSlotAt`), scaled with the diagram. The barrel
+   double-click commits *and* closes as the eyes-free way out. The
    picked `PaletteAction` leaves the surface via `onPaletteAction` and is run by `applyPaletteAction`
    (`ui/PaletteActions.kt`), which is deliberately the *only* mapping from action to edit so the
    palette and the toolbar can't drift into two meanings of the same command.

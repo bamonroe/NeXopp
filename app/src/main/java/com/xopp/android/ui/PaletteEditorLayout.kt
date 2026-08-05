@@ -90,6 +90,14 @@ private fun RadialPaletteGeometry.scaledBy(scale: Float) = RadialPaletteGeometry
     dismissRadius = dismissRadius * scale,
 )
 
+/**
+ * The mark radius for [ring] at [geometry]'s size — the base radius scaled by however much the
+ * geometry itself has been scaled away from the canvas default. This is what makes a hit test on a
+ * shrunken diagram (the settings editor) demand the same *relative* precision as the full-size menu.
+ */
+fun slotMarkRadius(ring: RadialRing, geometry: RadialPaletteGeometry): Float =
+    slotMarkRadius(ring) * (geometry.outerRingRadius / RadialPaletteGeometry.DEFAULT_OUTER_RING_RADIUS)
+
 /** Mirrors `CanvasChrome.PALETTE_SLOT_PX` — the inner ring's marks are the larger ones. */
 const val INNER_SLOT_MARK_RADIUS = 20f
 

@@ -21,6 +21,10 @@ import kotlin.math.hypot
  *   dismisses it. The dismiss radius sits on the drawn outer border by default, so there is no
  *   invisible margin that still counts as "on the menu".
  *
+ * Ring and angle only name the *candidate* slot: the pointer must then land inside that slot's
+ * drawn mark ([slotMarkRadius]) for it to count as a hit. Anywhere else on the menu reads as
+ * [RadialHit.Outside], so selection always takes a direct hit and the gaps between icons dismiss.
+ *
  * Angles are measured from 12 o'clock and increase clockwise, matching the order the slots are
  * stored in ([RadialPalette.ring]). Each slot is *centred* on its angle, so slot 0 straddles
  * straight up and its wedge wraps across 0°/360°.
@@ -86,7 +90,25 @@ fun RadialPalette.hitTest(
     val ring = if (radius <= geometry.innerRingRadius) RadialRing.INNER else RadialRing.OUTER
     val index = slotIndexAt(clockwiseDegrees(dx, dy), ring)
     val slot = RadialSlot(ring, index)
+    if (!slot.covers(anchorX, anchorY, x, y, geometry)) return RadialHit.Outside
     return RadialHit.Slot(slot, this[slot])
+}
+
+/**
+ * Whether ([x], [y]) lands on [this] slot's drawn mark rather than merely in its wedge. The ring
+ * bands are far wider than the icons that sit in them, so a nearest-wedge match alone selected a
+ * slot from well away from anything visible; requiring the point to fall inside the mark itself
+ * makes every selection a direct hit and leaves the rest of the ring free to dismiss the menu.
+ */
+internal fun RadialSlot.covers(
+    anchorX: Float,
+    anchorY: Float,
+    x: Float,
+    y: Float,
+    geometry: RadialPaletteGeometry,
+): Boolean {
+    val c = drawCenter(anchorX, anchorY, geometry)
+    return hypot(x - c.x, y - c.y) <= slotMarkRadius(ring, geometry)
 }
 
 /**

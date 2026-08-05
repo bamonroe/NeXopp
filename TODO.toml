@@ -48,17 +48,3 @@ created = 2026-08-05
 tags = []
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "require-direct-hits-on-palette-icons-to-select"
-title = "Require direct hits on palette icons to select"
-description = "Selection currently uses nearest-match, so a tap far from an icon still selects it. Require the tap to land inside the icon's own bounds. More precision is fine — it makes dismissing the palette easier without accidental selection."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 40
-created = 2026-08-05
-tags = []
-rebuild = true
-emulator_debug = true
