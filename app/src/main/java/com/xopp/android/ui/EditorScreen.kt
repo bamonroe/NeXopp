@@ -138,9 +138,14 @@ fun EditorScreen(
     onActivePane: (Int) -> Unit = {},
     /** A document transfer in flight (label shown), or null. Remote files can take a while. */
     busy: String? = null,
+    /** Back was pressed with nothing left to dismiss: leave the app. */
+    onExit: () -> Unit = {},
 ) {
     val ui = rememberEditorUiState(settings)
     val pane = ui.pane(activePane)
+
+    // Back peels the editor's transient layers off one at a time before it ever exits.
+    EditorBackHandler(ui = ui, pane = pane, busy = busy != null, onExit = onExit)
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(

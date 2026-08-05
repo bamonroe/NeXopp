@@ -1,5 +1,6 @@
 package com.xopp.android.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -59,6 +60,11 @@ fun SettingsScreen(
 ) {
     var section by remember { mutableStateOf<SettingsSection?>(null) }
     val open = section
+
+    // Settings is composed after the editor, so this handler outranks the editor's: the system back
+    // mirrors the title-bar arrow — pop the open section first, then leave settings entirely.
+    BackHandler(enabled = true) { if (section != null) section = null else onBack() }
+
     if (open == null) {
         SettingsPage(title = "Settings", onBack = onBack) {
             SettingsSection.values().forEach { entry ->

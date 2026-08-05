@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "make-the-android-back-button-navigate"
+title = "Make the Android back button navigate"
+description = "Handle the Android system back gesture/button so it navigates within the app (e.g. closing popups/overlays, then backing out of the document to the file list) instead of immediately exiting the activity."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "let-the-user-reorder-presets-from-the-presets-popup"
 title = "Let the user reorder presets from the presets popup"
 description = "moveToolPreset (ToolPresetList.kt:124) exists but no UI calls it, so slot order can never be changed once presets are saved. Add move-up/move-down (or drag) affordances in ToolbarPresetsPopup.kt wired to moveToolPreset, persisting through onPresets."

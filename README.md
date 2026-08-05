@@ -427,6 +427,15 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   With a **mouse** connected, the **scroll wheel** scrolls the document vertically — wheel down moves
   further down the pages, the same direction as dragging the scroll thumb down — and leaves the zoom
   level alone.
+- **Back button** — the Android **back button (or back gesture)** navigates instead of quitting.
+  Each press steps **one layer out** of wherever you are, and only the last press leaves the app.
+  Dialogs and pop-up menus close on back as you'd expect; beyond those, back closes the **radial
+  palette**, then cancels an **unfinished spline**, then leaves a **text edit** or drops a
+  **selection**, then clears **picked pages** and leaves the page-overview **edit mode**, then
+  restores the chrome from **full-page view** — and finally exits. In **Settings**, back returns
+  from a section to the settings index, exactly like the on-screen back arrow, and a second press
+  closes Settings back to your document. Back is ignored while a document is opening or saving, so
+  a slow transfer can't be interrupted half-way.
 - **Zoom** — **pinch** with **two fingers** anywhere on the canvas to zoom in or out; the point
   between your fingers stays put as the page grows or shrinks, and you can pan at the same time in
   the one gesture. The **%** button on the rail also opens a zoom pop-up with **−** / **+** buttons;

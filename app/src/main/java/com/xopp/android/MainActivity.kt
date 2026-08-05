@@ -227,6 +227,8 @@ class MainActivity : ComponentActivity() {
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
                     onSave = ::saveActiveTab,
                     busy = busy.value,
+                    // Nothing left for back to peel off in the editor: leave the app for real.
+                    onExit = { finish() },
                     onSaveAs = ::beginSaveAs,
                     currentSaveFormat = { saveFormat },
                     onImportPdf = { mode ->
