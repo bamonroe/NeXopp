@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "match-palette-icons-to-toolbar-rail-icons"
+title = "Match palette icons to toolbar rail icons"
+description = "Replace the palette's icons with the same icon set used in the toolbar rail so the two are visually consistent."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "shrink-palette-padding-around-icons"
 title = "Shrink palette padding around icons"
 description = "The radial palette has a lot of dead space around its icons. Reduce the padding/margins around each icon substantially so the overall palette shrinks noticeably."
