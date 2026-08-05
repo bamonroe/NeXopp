@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "let-the-user-reorder-presets-from-the-presets-popup"
+title = "Let the user reorder presets from the presets popup"
+description = "moveToolPreset (ToolPresetList.kt:124) exists but no UI calls it, so slot order can never be changed once presets are saved. Add move-up/move-down (or drag) affordances in ToolbarPresetsPopup.kt wired to moveToolPreset, persisting through onPresets."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "show-preset-slot-numbers-in-the-presets-popup-and-picker"
 title = "Show preset slot numbers in the presets popup and picker"
 description = "Nothing in the UI tells the user which preset is 1, 2, 3. Prefix the entries in ToolbarPresetsPopup.kt with their 1-based index, and do the same in PaletteActionCatalog.kt labels ('Preset 2: Fine liner'), so the slot-number binding is visible where presets are chosen."

@@ -3,7 +3,7 @@ package com.xopp.android.ui
 /**
  * The pure list edits behind the presets popup — saving, reordering and deleting a [ToolPreset].
  *
- * The UI ([ToolbarPresetsPopup]) does nothing but call these and hand the result to
+ * The UI ([PresetsPopupButton]) does nothing but call these and hand the result to
  * `onSettingsChange`, which keeps every rule about ids and ordering unit-testable off-device.
  */
 
