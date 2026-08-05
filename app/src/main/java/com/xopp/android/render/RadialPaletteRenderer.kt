@@ -1,6 +1,8 @@
 package com.xopp.android.render
 
 import android.graphics.Canvas
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.xopp.android.ui.PaletteAction
 import com.xopp.android.ui.RadialHit
 import com.xopp.android.ui.RadialPalette
@@ -10,7 +12,10 @@ import com.xopp.android.ui.RadialSlot
 import com.xopp.android.ui.clampAnchor
 import com.xopp.android.ui.drawCenter
 import com.xopp.android.ui.face
+import com.xopp.android.ui.icon
 import com.xopp.android.ui.slots
+import com.xopp.android.ui.unitOutline
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Painting the radial palette over the canvas.
@@ -74,11 +79,39 @@ internal object RadialPaletteRenderer {
                 chrome.paletteSlot.color = CanvasChrome.PALETTE_SLOT
             } else {
                 canvas.drawCircle(c.x, c.y, radius, chrome.paletteSlot)
-                canvas.drawText(faceOf.glyph, c.x, c.y + GLYPH_BASELINE_OFFSET, chrome.paletteGlyph)
+                val icon = action.icon()
+                if (icon != null) {
+                    drawIcon(canvas, chrome, icon, c.x, c.y, radius * ICON_SCALE)
+                } else {
+                    canvas.drawText(faceOf.glyph, c.x, c.y + GLYPH_BASELINE_OFFSET, chrome.paletteGlyph)
+                }
             }
         }
         if (hovered) canvas.drawCircle(c.x, c.y, radius + HOVER_RING_PX, chrome.paletteHighlight)
     }
+
+    /** Fill the rail's icon on the mark, [size] px across, centred on ([cx], [cy]). */
+    private fun drawIcon(
+        canvas: Canvas,
+        chrome: CanvasChrome,
+        icon: ImageVector,
+        cx: Float,
+        cy: Float,
+        size: Float,
+    ) {
+        val path = androidPaths.getOrPut(icon) { icon.unitOutline().asAndroidPath() }
+        canvas.save()
+        canvas.translate(cx, cy)
+        canvas.scale(size, size)
+        canvas.drawPath(path, chrome.paletteIcon)
+        canvas.restore()
+    }
+
+    /** Unit outlines, cached so a frame draws icons without re-flattening any vector. */
+    private val androidPaths = ConcurrentHashMap<ImageVector, android.graphics.Path>()
+
+    /** An icon's extent as a fraction of the mark's radius — inset enough to leave a rim of disc. */
+    private const val ICON_SCALE = 1.4f
 
     /** An empty slot draws as a smaller dot — it marks the position without inviting a flick. */
     private const val EMPTY_SLOT_SCALE = 0.35f

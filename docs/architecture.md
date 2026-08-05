@@ -594,6 +594,8 @@ app/
       RadialPaletteHitTest.kt # maps a flick's (angle, radius) from the anchor onto a slot, or cancel (pure)
       RadialPaletteLayout.kt # where the menu draws: anchor clamped on screen, slot mark centres (pure)
       RadialPaletteLabel.kt  # a slot's face: short glyph, or the swatch a colour slot fills with (pure)
+      PaletteIcons.kt        # a slot's icon — the rail's Material icon for the same action (pure)
+      VectorIconPath.kt      # flattens an ImageVector into a cached unit Path both painters draw (pure)
       RadialPaletteCodec.kt  # one palette (and the whole list) as one SharedPreferences line; forgiving decode (pure)
       PaletteList.kt         # PaletteSet: add/rename/reorder/delete a palette + the active index, and the pre-list migration (pure)
       PaletteManagerRow.kt   # settings UI: the palette chips + add/rename/reorder/delete/activate buttons

@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -129,6 +130,9 @@ private fun PaletteDiagram(
     }
 }
 
+/** An icon's extent as a fraction of the slot mark's radius — matches the canvas renderer. */
+private const val PALETTE_ICON_SCALE = 1.4f
+
 /** The three guide circles — dead zone, inner ring, outer ring — that frame the slots. */
 private fun DrawScope.drawRings(edge: Float, outline: Color) {
     val scale = paletteEditorScale(edge)
@@ -161,7 +165,16 @@ private fun DrawScope.drawSlotMark(
     } else {
         val swatch = face.swatchArgb
         drawCircle(swatch?.let { Color(it) } ?: filled, radius = mark.radius, center = center)
-        if (swatch == null && face.glyph.isNotEmpty()) {
+        val icon = mark.action?.icon()
+        if (swatch == null && icon != null) {
+            val size = mark.radius * PALETTE_ICON_SCALE
+            withTransform({
+                translate(center.x, center.y)
+                scale(size, size, pivot = Offset.Zero)
+            }) {
+                drawPath(icon.unitOutline(), glyphColor)
+            }
+        } else if (swatch == null && face.glyph.isNotEmpty()) {
             val layout = measurer.measure(face.glyph, TextStyle(color = glyphColor, fontSize = 12.sp))
             drawText(
                 layout,

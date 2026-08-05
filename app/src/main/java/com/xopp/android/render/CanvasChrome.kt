@@ -126,6 +126,11 @@ internal class CanvasChrome {
         strokeWidth = 3f
         color = SELECTION_COLOR
     }
+    /** Fills a slot's rail icon; the glyph paint below still draws the width numbers. */
+    val paletteIcon = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = 0xFFFFFFFF.toInt()
+    }
     val paletteGlyph = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = 0xFFFFFFFF.toInt()

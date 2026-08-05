@@ -549,7 +549,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     a second palette without disturbing the one your pen is currently using.
   - The page then shows a **diagram of the two rings** for the selected palette, drawn from the same geometry the pen sees,
     so what you arrange here is exactly what pops up at the tip. An assigned slot shows its colour
-    swatch or a small glyph; an empty one is a dashed outline.
+    swatch or **the same icon the toolbar rail uses** for that action — a pen slot wears the rail's
+    pen — with the width slots reading as a number; an empty one is a dashed outline.
   - **Tap a slot** to select it (a highlight ring marks it, and the **Selected slot** line below
     spells out which ring, which position, and what it currently holds). The tap also opens the
     **action picker** — a bottom sheet listing everything a slot can do: **Select tool** and
@@ -557,11 +558,11 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     *Set width* button, **Undo**, **Redo**, **Toggle full page**, the page operations (new page
     after/before, duplicate, delete, next, previous), and — once you have saved any — a **Preset**
     group listing your saved tool presets, so one flick restores a whole tool configuration (the
-    slot draws a **★**). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
+    slot draws a **bookmark**). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
     that preset updates the slot too; if you delete the preset, the slot reads "Preset (deleted)"
     and flicking onto it does nothing.
   - **Switch palette** — once you have more than one palette, the sheet also lists a **Switch
-    palette** group with one row per palette (the slot draws a **◎**). Flicking onto it makes that
+    palette** group with one row per palette (the slot draws a **target ring**). Flicking onto it makes that
     palette the active one *and* pops it straight back up in the same place, so you can step from a
     pen palette to a shapes palette and make your pick without re-summoning the ring. The slot stores
     the palette's *name*, so reordering the list is safe; renaming or deleting the target leaves the
