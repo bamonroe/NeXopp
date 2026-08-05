@@ -424,8 +424,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   quickly through a long document (a **page-number bubble** shows where you are as you drag). A small
   **grip** bulges out of its centre so it's easy to grab. It sits faint while idle and brightens as you
   scroll; only the thumb itself grabs touches, so the rest of the page's right margin still takes ink.
-  A **page counter** ("3 / 12") sits permanently in the canvas's **bottom-left corner**, so you always
-  know which page of how many you're on — it stays put in full-page view, where the bars are hidden.
+  A **page counter** ("3 / 12") sits permanently in a corner of the canvas — the **bottom-right** by
+  default, and movable from **Settings ▸ Appearance** — so you always know which page of how many
+  you're on; it stays put in full-page view, where the bars are hidden.
   With a **mouse** connected, the **scroll wheel** scrolls the document vertically — wheel down moves
   further down the pages, the same direction as dragging the scroll thumb down — and leaves the zoom
   level alone.
@@ -641,6 +642,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     **Dark**. The choice repaints the whole app from one Material 3 scheme: the top bar, the tool
     rail and its swatch rings, the settings pages, and the canvas backdrop, selection and guide
     colours. Page and ink colours are document data and never change with the theme.
+  - **Page counter position** — two drop-downs placing the always-visible "page X of Y" badge:
+    **Vertical** (Top / Center / **Bottom**) and **Horizontal** (Left / Center / **Right**). The
+    default is the bottom-right corner.
 
   Under **Storage** — two budgets that bound what opening documents costs on disk and in memory:
   - **Text import limit** — the largest plain-text file that may be typeset into a document

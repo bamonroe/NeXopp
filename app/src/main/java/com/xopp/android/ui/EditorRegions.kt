@@ -301,11 +301,13 @@ fun EditorPaneView(
                 onScrollTo = { state.surface?.scrollToY(it) },
                 modifier = Modifier.matchParentSize(),
             )
-            // Bottom-left, clear of the scroll thumb's band on the right.
+            // Corner is user-configurable (Appearance settings); the default is bottom-right.
             PageCounter(
                 currentPage = state.currentPage,
                 pageCount = state.pageCount,
-                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+                modifier = Modifier
+                    .align(pageCounterAlignment(settings.pageCounterVertical, settings.pageCounterHorizontal))
+                    .padding(8.dp),
             )
         }
     }

@@ -5,8 +5,33 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+
+/**
+ * The badge's corner as a Compose [Alignment], from the two configured axes (Appearance settings).
+ */
+fun pageCounterAlignment(
+    vertical: PageCounterVertical,
+    horizontal: PageCounterHorizontal,
+): Alignment = when (vertical) {
+    PageCounterVertical.TOP -> when (horizontal) {
+        PageCounterHorizontal.LEFT -> Alignment.TopStart
+        PageCounterHorizontal.CENTER -> Alignment.TopCenter
+        PageCounterHorizontal.RIGHT -> Alignment.TopEnd
+    }
+    PageCounterVertical.CENTER -> when (horizontal) {
+        PageCounterHorizontal.LEFT -> Alignment.CenterStart
+        PageCounterHorizontal.CENTER -> Alignment.Center
+        PageCounterHorizontal.RIGHT -> Alignment.CenterEnd
+    }
+    PageCounterVertical.BOTTOM -> when (horizontal) {
+        PageCounterHorizontal.LEFT -> Alignment.BottomStart
+        PageCounterHorizontal.CENTER -> Alignment.BottomCenter
+        PageCounterHorizontal.RIGHT -> Alignment.BottomEnd
+    }
+}
 
 /**
  * The always-visible "page X of Y" badge.

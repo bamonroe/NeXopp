@@ -41,7 +41,7 @@ enum class SettingsSection(val title: String, val summary: String) {
     TOOLBAR("Toolbar", "Which rail buttons appear, and in what order."),
     PALETTE("Palette", "The radial palette's rings — what each slot does at the pen tip."),
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
-    APPEARANCE("Appearance", "Light, dark, or follow the system theme."),
+    APPEARANCE("Appearance", "Theme, and where the page counter sits on the canvas."),
     STORAGE("Storage", "How big a text file may be imported, and how much cache to keep."),
     ABOUT("About", "Version, licence, source code, and how to support the work."),
 }

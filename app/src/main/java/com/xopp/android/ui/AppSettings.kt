@@ -23,6 +23,20 @@ enum class ToolbarPosition(val label: String) {
     val isHorizontal: Boolean get() = this == TOP || this == BOTTOM
 }
 
+/** Which row of the canvas the "page X of Y" badge sits in. */
+enum class PageCounterVertical(val label: String) {
+    TOP("Top"),
+    CENTER("Center"),
+    BOTTOM("Bottom"),
+}
+
+/** Which column of the canvas the "page X of Y" badge sits in. */
+enum class PageCounterHorizontal(val label: String) {
+    LEFT("Left"),
+    CENTER("Center"),
+    RIGHT("Right"),
+}
+
 /** Which Material 3 colour scheme the app's chrome uses. */
 enum class ThemeMode(val label: String) {
     SYSTEM("System"),
@@ -106,6 +120,10 @@ data class AppSettings(
      * folder we can both read and write — see [com.xopp.android.audio.AudioStore].
      */
     val audioFolderUri: String = "",
+    /** Which row of the canvas the always-visible page counter sits in. */
+    val pageCounterVertical: PageCounterVertical = PageCounterVertical.BOTTOM,
+    /** Which column of the canvas the always-visible page counter sits in. */
+    val pageCounterHorizontal: PageCounterHorizontal = PageCounterHorizontal.RIGHT,
     /** Light, dark, or follow the system — applied to the whole app's Material 3 scheme. */
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     /**
@@ -234,6 +252,9 @@ class SettingsStore(context: Context) {
             railOrder = decodeRailIds(prefs.getString(KEY_RAIL_ORDER, null)),
             railHidden = decodeRailIds(prefs.getString(KEY_RAIL_HIDDEN, null)).toSet(),
             audioFolderUri = prefs.getString(KEY_AUDIO_FOLDER, d.audioFolderUri) ?: d.audioFolderUri,
+            pageCounterVertical = enumOr(prefs.getString(KEY_PAGE_COUNTER_V, null), d.pageCounterVertical),
+            pageCounterHorizontal =
+                enumOr(prefs.getString(KEY_PAGE_COUNTER_H, null), d.pageCounterHorizontal),
             themeMode = enumOr(prefs.getString(KEY_THEME_MODE, null), d.themeMode),
             presets = decodeToolPresets(prefs.getString(KEY_PRESETS, null)),
             textImportLimitMb = prefs.getInt(KEY_TEXT_IMPORT_LIMIT, d.textImportLimitMb).coerceAtLeast(1),
@@ -283,6 +304,8 @@ class SettingsStore(context: Context) {
         e.putString(KEY_RAIL_ORDER, encodeRailIds(s.railOrder))
         e.putString(KEY_RAIL_HIDDEN, encodeRailIds(s.railHidden))
         e.putString(KEY_AUDIO_FOLDER, s.audioFolderUri)
+        e.putString(KEY_PAGE_COUNTER_V, s.pageCounterVertical.name)
+        e.putString(KEY_PAGE_COUNTER_H, s.pageCounterHorizontal.name)
         e.putString(KEY_THEME_MODE, s.themeMode.name)
         e.putString(KEY_PALETTES, encodeRadialPalettes(s.palettes))
         e.putInt(KEY_ACTIVE_PALETTE, s.activePaletteIndex)
@@ -326,6 +349,8 @@ class SettingsStore(context: Context) {
         const val KEY_RAIL_ORDER = "rail_order"
         const val KEY_RAIL_HIDDEN = "rail_hidden"
         const val KEY_AUDIO_FOLDER = "audio_folder_uri"
+        const val KEY_PAGE_COUNTER_V = "page_counter_vertical"
+        const val KEY_PAGE_COUNTER_H = "page_counter_horizontal"
         const val KEY_THEME_MODE = "theme_mode"
         /** Pre-list key: one palette. Still read (and then cleared) so old installs migrate. */
         const val KEY_RADIAL_PALETTE = "radial_palette"

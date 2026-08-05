@@ -1,6 +1,7 @@
 package com.xopp.android.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,7 +13,10 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -363,6 +367,58 @@ fun AppearanceSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         label = { it.label },
         onSelect = { onChange(settings.copy(themeMode = it)) },
     )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    Text("Page counter position", style = MaterialTheme.typography.bodyLarge)
+    Text(
+        "Which corner of the canvas the always-visible \"page X of Y\" badge sits in.",
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
+    DropdownRow(
+        label = "Vertical",
+        options = PageCounterVertical.values().toList(),
+        selected = settings.pageCounterVertical,
+        optionLabel = { it.label },
+        onSelect = { onChange(settings.copy(pageCounterVertical = it)) },
+    )
+    DropdownRow(
+        label = "Horizontal",
+        options = PageCounterHorizontal.values().toList(),
+        selected = settings.pageCounterHorizontal,
+        optionLabel = { it.label },
+        onSelect = { onChange(settings.copy(pageCounterHorizontal = it)) },
+    )
+}
+
+/** A labelled drop-down menu over an enum's values. */
+@Composable
+private fun <T> DropdownRow(
+    label: String,
+    options: List<T>,
+    selected: T,
+    optionLabel: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+        Box {
+            OutlinedButton(onClick = { open = true }) { Text(optionLabel(selected)) }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(optionLabel(option)) },
+                        onClick = { open = false; onSelect(option) },
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
