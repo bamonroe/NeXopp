@@ -17,6 +17,39 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-xml-truncated-input"
+title = "XmlPullReader: fail cleanly on truncated input"
+description = "format/xml/XmlPullReader.kt readStartTag: ~line 88 reads val quote = s[i] with no bounds check (StringIndexOutOfBoundsException on truncated input), and ~line 95 the search for the closing angle bracket can return -1, which resets pos to 0 and loops forever. A truncated .xopp (interrupted write, partial download) should fail with a clean parse error, not hang or crash. Fix: break out when i >= s.length before reading quote; when indexOf returns -1, set pos = s.length and end parsing with a controlled error. Unit tests: several truncated .xopp XML strings must fail fast with no hang. This closes the batch of four format-parser fixes: run the full scripts/build.sh here."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "fix-xml-entity-crash"
+title = "XmlPullReader: no crash on malformed numeric entities"
+description = "format/xml/XmlPullReader.kt decodeEntities (~lines 128-131): numeric character entities are parsed with toInt / toInt(16), so an empty numeric entity, a non-hex value, or an overflowing number throws, and appendCodePoint throws on out-of-range codes. Every other malformed-entity case in this function already falls back to appending the raw text. Fix: toIntOrNull / toIntOrNull(16), validate the code point is in 0..0x10FFFF and not a surrogate (0xD800-0xDFFF), and on any failure append the raw entity text verbatim as the unknown-named-entity branch already does. Unit tests for each malformed form. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "fix-image-base64-decoder"
+title = "XoppReader: tolerate line-wrapped base64 in image elements"
+description = "format/XoppReader.kt readImage (~line 143) decodes the image body with Base64.getDecoder(), which rejects embedded whitespace, and readTextContent only trims the ends — so a desktop-written .xopp whose base64 body is line-wrapped throws IllegalArgumentException and the whole file fails to open. The sibling readTexImage (~line 158) already does it right: Base64.getMimeDecoder() inside runCatching. Make readImage match: mime decoder, runCatching, fall back to ByteArray(0) on failure. Unit test: an image element whose base64 body contains newlines loads and round-trips. Run scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
 id = "fix-xoppcolor-parse-crash"
 title = "XoppColor.parse: stop crashing on malformed colour attributes"
 description = "format/XoppColor.kt (~lines 35-37): the 6- and 8-digit branches call hex.toLong(16), which throws NumberFormatException on any non-hex value (#zzzzzz, #12 34 56). The exception escapes XoppReader.read -> Xopp.open -> DocumentIo.read, so one bad colour attribute makes the whole document unopenable, while the KDoc on parse promises opaque black on garbage. Fix: hex.toLongOrNull(16) in both branches, returning 0xFF000000.toInt() when null. Add unit tests (app/src/test) for malformed 6- and 8-char inputs asserting opaque black. Verify with scripts/build.sh testDebugUnitTest. Part of a batch of four small format-parser fixes; the fix-xml-truncated-input task closes the batch with a full build."

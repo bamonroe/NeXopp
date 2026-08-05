@@ -22,48 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "fix-image-base64-decoder"
-title = "XoppReader: tolerate line-wrapped base64 in image elements"
-description = "format/XoppReader.kt readImage (~line 143) decodes the image body with Base64.getDecoder(), which rejects embedded whitespace, and readTextContent only trims the ends — so a desktop-written .xopp whose base64 body is line-wrapped throws IllegalArgumentException and the whole file fails to open. The sibling readTexImage (~line 158) already does it right: Base64.getMimeDecoder() inside runCatching. Make readImage match: mime decoder, runCatching, fall back to ByteArray(0) on failure. Unit test: an image element whose base64 body contains newlines loads and round-trips. Run scripts/build.sh testDebugUnitTest."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 20
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
-id = "fix-xml-entity-crash"
-title = "XmlPullReader: no crash on malformed numeric entities"
-description = "format/xml/XmlPullReader.kt decodeEntities (~lines 128-131): numeric character entities are parsed with toInt / toInt(16), so an empty numeric entity, a non-hex value, or an overflowing number throws, and appendCodePoint throws on out-of-range codes. Every other malformed-entity case in this function already falls back to appending the raw text. Fix: toIntOrNull / toIntOrNull(16), validate the code point is in 0..0x10FFFF and not a surrogate (0xD800-0xDFFF), and on any failure append the raw entity text verbatim as the unknown-named-entity branch already does. Unit tests for each malformed form. scripts/build.sh testDebugUnitTest."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 30
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
-id = "fix-xml-truncated-input"
-title = "XmlPullReader: fail cleanly on truncated input"
-description = "format/xml/XmlPullReader.kt readStartTag: ~line 88 reads val quote = s[i] with no bounds check (StringIndexOutOfBoundsException on truncated input), and ~line 95 the search for the closing angle bracket can return -1, which resets pos to 0 and loops forever. A truncated .xopp (interrupted write, partial download) should fail with a clean parse error, not hang or crash. Fix: break out when i >= s.length before reading quote; when indexOf returns -1, set pos = s.length and end parsing with a controlled error. Unit tests: several truncated .xopp XML strings must fail fast with no hang. This closes the batch of four format-parser fixes: run the full scripts/build.sh here."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 40
-created = 2026-08-05
-tags = ["audit"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "fix-pdf-export-truncate-mode"
 title = "PDF export: open output stream with truncate mode wt"
 description = "MainActivity.kt exportPdf (~line 521) opens the destination with contentResolver.openOutputStream(uri, \"w\") — mode \"w\" does not truncate, so exporting a shorter PDF over an existing longer file leaves trailing bytes from the old file and yields a corrupt PDF. Change the mode to \"wt\", matching io/UriStaging.kt stageOut (~line 37). One-line fix, verify by inspection; a later task (consolidate-uri-copy) routes this call through UriStaging — land this fix first regardless."

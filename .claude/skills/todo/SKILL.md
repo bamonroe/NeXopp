@@ -114,6 +114,8 @@ newest-`completed`-first.
 
 - When you finish a task (built, tested, documented), run **`done <id>`** in the
   same commit that completes the work — don't leave shipped items in `TODO.toml`.
+- **After every `done <id>`, run `stats` and report how many open items remain in
+  `TODO.toml`** to the user, as part of the same reply.
 - **Documentation belongs to the task that wrote the code — never to a task of its
   own.** Whenever a task changes code, it updates `README.md` and the owning spoke doc
   in the same task and the same commit. Don't `add` a "document X" follow-up for work a
