@@ -38,6 +38,23 @@ class ToolPresetListTest {
     }
 
     @Test
+    fun `overwrite rewrites the tool but keeps the id, name and position`() {
+        val captured = ToolPreset("live", "Live", EditorTool.HIGHLIGHTER, 0xFFFF0000.toInt(), 8f)
+        val out = overwriteToolPreset(list, "b", captured)
+        assertEquals(3, out.size)
+        assertEquals("b", out[1].id)
+        assertEquals("b", out[1].name)
+        assertEquals(EditorTool.HIGHLIGHTER, out[1].tool)
+        assertEquals(8f, out[1].widthPt, 0f)
+        assertEquals(listOf(preset("a"), preset("c")), listOf(out[0], out[2]))
+    }
+
+    @Test
+    fun `overwriting an unknown id is a no-op`() {
+        assertEquals(list, overwriteToolPreset(list, "nope", preset("x")))
+    }
+
+    @Test
     fun `rename keeps the id and the position`() {
         val out = renameToolPreset(list, "a", "Fine")
         assertEquals("a", out[0].id)

@@ -342,7 +342,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   name in **Save current tool as…** and tap **+** (leave the name blank for "Preset 1", "Preset 2",
   …); saving under a name you already used overwrites that preset. Each saved preset shows a swatch
   in its colour, sized to its width. **Tap a preset to make it the live tool** — one tap restores
-  every knob at once. The **▲/▼** arrows reorder the list and the bin deletes a preset. Presets are
+  every knob at once, and **long-press a preset to overwrite it** with the live tool — the slot keeps
+  its name, position and id, so a radial-palette slot bound to it keeps working. The **▲/▼** arrows reorder the list and the bin deletes a preset. Presets are
   remembered across launches, and are an app-side convenience only: nothing about them is written
   into the `.xopp` file.
 - **Erase** — tap the rail's **Eraser** slot and drag over strokes. **Long-press** the slot to pick

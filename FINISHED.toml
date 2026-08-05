@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "long-press-a-preset-slot-to-overwrite-it"
+title = "Long-press a preset slot to overwrite it"
+description = "Long-pressing an existing saved preset should overwrite it with the currently active tool settings, so presets can be cleaned up in place instead of only being appended."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "remove-the-palette-s-dead-center-dismiss-target"
 title = "Remove the palette's dead center dismiss target"
 description = "The center circle of the radial palette has no button but dismisses the palette when tapped. Remove that hit target so the palette reads as a donut with a hollow, inert center."

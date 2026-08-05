@@ -1,8 +1,9 @@
 package com.xopp.android.ui
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -67,6 +68,9 @@ internal fun PresetsPopupButton(
                     canMoveUp = i > 0,
                     canMoveDown = i < presets.lastIndex,
                     onActivate = { onActivate(preset); open = false },
+                    onOverwrite = {
+                        onPresets(overwriteToolPreset(presets, preset.id, onCapture(preset.name)))
+                    },
                     onMove = { delta -> onPresets(moveToolPreset(presets, i, delta)) },
                     onDelete = { onPresets(removeToolPreset(presets, preset.id)) },
                 )
@@ -84,13 +88,19 @@ internal fun PresetsPopupButton(
     }
 }
 
-/** One saved preset: swatch, name, reorder arrows, delete. Tapping the row activates the preset. */
+/**
+ * One saved preset: swatch, name, reorder arrows, delete. Tapping the row activates the preset;
+ * long-pressing it overwrites the slot with the live tool, so presets can be tuned in place instead
+ * of only being appended under a new name.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PresetRow(
     preset: ToolPreset,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onActivate: () -> Unit,
+    onOverwrite: () -> Unit,
     onMove: (Int) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -99,7 +109,10 @@ private fun PresetRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            modifier = Modifier.clickable(onClick = onActivate).padding(vertical = 8.dp).width(180.dp),
+            modifier = Modifier
+                .combinedClickable(onClick = onActivate, onLongClick = onOverwrite)
+                .padding(vertical = 8.dp)
+                .width(180.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PresetSwatch(preset)

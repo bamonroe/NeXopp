@@ -17,6 +17,14 @@ fun addToolPreset(presets: List<ToolPreset>, preset: ToolPreset): List<ToolPrese
     return presets.toMutableList().also { it[at] = preset }
 }
 
+/**
+ * [presets] with the entry at [id] rewritten from [captured] — the live tool's colour, width, style
+ * and fill — while keeping that slot's own id, name and position. This is the long-press "overwrite
+ * this preset" edit: the handle stays valid, so a palette slot bound to it keeps working.
+ */
+fun overwriteToolPreset(presets: List<ToolPreset>, id: String, captured: ToolPreset): List<ToolPreset> =
+    presets.map { if (it.id == id) captured.copy(id = it.id, name = it.name) else it }
+
 /** [presets] without the one identified by [id] (a no-op when no such preset is saved). */
 fun removeToolPreset(presets: List<ToolPreset>, id: String): List<ToolPreset> =
     presets.filterNot { it.id == id }
