@@ -195,7 +195,9 @@ format attribute — it's a view-only editor state (a hidden layer still round-t
 (`&amp; &lt; &gt;`). The description has no underline token, so underline is not representable.
 
 **`<image>`** — attributes `left`, `top`, `right`, `bottom` (pt bounding box). **Inner text**
-is base64-encoded raw image bytes (PNG/JPEG as stored).
+is base64-encoded raw image bytes (PNG/JPEG as stored). Desktop line-wraps that body, so both
+`<image>` and `<teximage>` decode with the MIME decoder (whitespace-tolerant); an undecodable
+body yields an empty image rather than failing the whole file.
 
 **`<teximage>`** — a LaTeX-rendered image. Attributes `text` (LaTeX source), `color`, and
 `left/top/right/bottom` bounding box (pt). **Inner text** is the base64-encoded PNG desktop
@@ -470,6 +472,8 @@ app/
     format/                  # THE CORE — lossless .xopp read/write (pure Kotlin, no device deps)
       model/                 # Document, Page, Layer, Background, Element/Stroke/Text/Image/TexImage
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
+                             #   malformed entities decode to raw text; truncated input throws
+                             #   XmlPullReader.TruncatedXmlException instead of hanging/crashing
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
       XoppWriter.kt          # Document -> XML

@@ -139,7 +139,13 @@ class XoppReader(xml: String) {
         val right = r.attr("right")?.toDoubleOrNull() ?: 0.0
         val bottom = r.attr("bottom")?.toDoubleOrNull() ?: 0.0
         val b64 = readTextContent().trim()
-        val bytes = if (b64.isEmpty()) ByteArray(0) else Base64.getDecoder().decode(b64)
+        // Desktop Xournal++ line-wraps the base64 body, so use the MIME decoder (which skips
+        // whitespace) and fall back to an empty image rather than failing the whole file.
+        val bytes = if (b64.isEmpty()) {
+            ByteArray(0)
+        } else {
+            runCatching { Base64.getMimeDecoder().decode(b64) }.getOrNull() ?: ByteArray(0)
+        }
         return ImageElement(left, top, right, bottom, bytes)
     }
 

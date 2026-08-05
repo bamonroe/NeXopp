@@ -8,6 +8,9 @@ package com.xopp.android.format.xml
  */
 class XmlPullReader(private val s: String) {
 
+    /** Thrown when the input ends mid-tag (interrupted write, partial download). */
+    class TruncatedXmlException(message: String) : IllegalArgumentException(message)
+
     enum class Event { START, END, TEXT, EOF }
 
     var event: Event = Event.EOF
@@ -65,6 +68,7 @@ class XmlPullReader(private val s: String) {
 
     private fun readEndTag(): Event {
         val gt = s.indexOf('>', pos)
+        if (gt < 0) truncated("unterminated end tag")
         name = s.substring(pos + 2, gt).trim()
         pos = gt + 1
         event = Event.END
@@ -87,20 +91,30 @@ class XmlPullReader(private val s: String) {
             while (i < s.length && s[i] != '=' && !s[i].isWhitespace()) i++
             val attrName = s.substring(attrNameStart, i)
             while (i < s.length && (s[i].isWhitespace() || s[i] == '=')) i++
+            if (i >= s.length) truncated("unterminated attribute '$attrName'")
             val quote = s[i]
             i++
             val valStart = i
             while (i < s.length && s[i] != quote) i++
+            if (i >= s.length) truncated("unterminated attribute value for '$attrName'")
             val value = s.substring(valStart, i)
             i++ // consume closing quote
             attrs[attrName] = decodeEntities(value)
         }
         val selfClosing = i < s.length && s[i] == '/'
         val gt = s.indexOf('>', i)
+        if (gt < 0) truncated("unterminated start tag '$name'")
         pos = gt + 1
         if (selfClosing) pendingEndName = name
         event = Event.START
         return event
+    }
+
+    /** End parsing with a controlled error; leaves the reader at EOF so nothing loops. */
+    private fun truncated(what: String): Nothing {
+        pos = s.length
+        event = Event.EOF
+        throw TruncatedXmlException("Truncated XML: $what")
     }
 
     private fun skipUntil(marker: String) {
@@ -126,14 +140,22 @@ class XmlPullReader(private val s: String) {
                             "gt" -> sb.append('>')
                             "quot" -> sb.append('"')
                             "apos" -> sb.append('\'')
-                            else -> if (ent.startsWith("#")) {
-                                val code =
+                            else -> {
+                                // Malformed numeric entities (empty, non-numeric, overflowing,
+                                // out-of-range, surrogate) fall back to the raw text, as the
+                                // unknown-named-entity branch does.
+                                val code = if (ent.startsWith("#")) {
                                     if (ent.startsWith("#x") || ent.startsWith("#X"))
-                                        ent.substring(2).toInt(16)
-                                    else ent.substring(1).toInt()
-                                sb.appendCodePoint(code)
-                            } else {
-                                sb.append(s, i, semi + 1)
+                                        ent.substring(2).toIntOrNull(16)
+                                    else ent.substring(1).toIntOrNull()
+                                } else {
+                                    null
+                                }
+                                if (code != null && code in 0..0x10FFFF && code !in 0xD800..0xDFFF) {
+                                    sb.appendCodePoint(code)
+                                } else {
+                                    sb.append(s, i, semi + 1)
+                                }
                             }
                         }
                         i = semi + 1
