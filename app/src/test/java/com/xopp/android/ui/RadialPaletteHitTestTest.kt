@@ -80,9 +80,9 @@ class RadialPaletteHitTestTest {
     }
 
     @Test
-    fun `an overshooting flick clamps to the outer ring`() {
-        // Short of the dismiss radius — past that the reach means "close the menu" instead.
-        val far = slot(90f, geometry.dismissRadius - 10f)
+    fun `a flick out to the border stays on the outer ring`() {
+        // On the drawn border — past it the reach means "close the menu" instead.
+        val far = slot(90f, geometry.dismissRadius)
         assertEquals(RadialRing.OUTER, far.ring)
         assertEquals(slot(90f, 200f), far)
     }
@@ -120,12 +120,13 @@ class RadialPaletteHitTestTest {
     }
 
     @Test
-    fun `an over-flick still selects, but a reach past the dismiss radius is outside`() {
-        // Just past the outer ring: the slack keeps an enthusiastic flick a pick.
-        assertTrue(hit(0f, geometry.outerRingRadius + 20f) is RadialHit.Slot)
-        assertTrue(hit(0f, geometry.dismissRadius - 1f) is RadialHit.Slot)
-        // Clear of the whole menu: this is the "click off it" that closes it.
+    fun `the dismiss edge sits on the drawn border, with no dead space beyond it`() {
+        // The visible border itself is still a pick…
+        assertEquals(geometry.outerRingRadius, geometry.dismissRadius)
+        assertTrue(hit(0f, geometry.dismissRadius) is RadialHit.Slot)
+        // …but a hair outside it dismisses: this is the "click off it" that closes it.
         assertEquals(RadialHit.Outside, hit(0f, geometry.dismissRadius + 1f))
+        assertEquals(RadialHit.Outside, hit(0f, geometry.outerRingRadius + 20f))
         assertEquals(RadialHit.Outside, hit(135f, 5_000f))
     }
 }

@@ -17,9 +17,9 @@ import kotlin.math.hypot
  * - inside [RadialPaletteGeometry.deadZoneRadius] — no choice yet, releasing here cancels;
  * - out to [RadialPaletteGeometry.innerRingRadius] — the inner ring's 8 slots;
  * - out to [RadialPaletteGeometry.outerRingRadius] — the outer ring's 16;
- * - out to [RadialPaletteGeometry.dismissRadius] — clamped to the outer ring, so an
- *   over-enthusiastic flick still selects;
- * - beyond that — off the menu entirely: releasing there dismisses it.
+ * - beyond [RadialPaletteGeometry.dismissRadius] — off the menu entirely: releasing there
+ *   dismisses it. The dismiss radius sits on the drawn outer border by default, so there is no
+ *   invisible margin that still counts as "on the menu".
  *
  * Angles are measured from 12 o'clock and increase clockwise, matching the order the slots are
  * stored in ([RadialPalette.ring]). Each slot is *centred* on its angle, so slot 0 straddles
@@ -37,7 +37,7 @@ data class RadialPaletteGeometry(
         require(deadZoneRadius >= 0f) { "dead zone radius must not be negative" }
         require(innerRingRadius > deadZoneRadius) { "inner ring must lie outside the dead zone" }
         require(outerRingRadius > innerRingRadius) { "outer ring must lie outside the inner ring" }
-        require(dismissRadius > outerRingRadius) { "dismiss ring must lie outside the outer ring" }
+        require(dismissRadius >= outerRingRadius) { "dismiss ring must not lie inside the outer ring" }
     }
 
     companion object {
@@ -46,11 +46,11 @@ data class RadialPaletteGeometry(
         const val DEFAULT_OUTER_RING_RADIUS = 280f
 
         /**
-         * How far past the outer ring still counts as aiming at it. The slack keeps an
-         * over-enthusiastic flick a selection; past it the user has clearly aimed *off* the menu,
-         * which is how the menu is dismissed now that picking a slot leaves it open.
+         * How far out still counts as being on the menu. It sits exactly on the drawn outer
+         * border: anything past the visible edge is *off* the menu, which is how the menu is
+         * dismissed now that picking a slot leaves it open.
          */
-        const val DEFAULT_DISMISS_RADIUS = 420f
+        const val DEFAULT_DISMISS_RADIUS = DEFAULT_OUTER_RING_RADIUS
     }
 }
 

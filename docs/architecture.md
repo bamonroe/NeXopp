@@ -1398,8 +1398,9 @@ toolbar":
    remember. Hover moves re-hit-test the highlight (a hover *exit* is not a cancel — it's the tip
    coming down) and a lift commits — but **the menu stays up after a pick**, so several settings can
    be chosen in one summoning. It closes only when the user clicks off it: a release past
-   `RadialPaletteGeometry.dismissRadius` (`RadialHit.Outside` — the slack between the outer ring and
-   that radius keeps an over-flick a selection) or in the centre dead zone, or a second barrel
+   `RadialPaletteGeometry.dismissRadius` (`RadialHit.Outside` — that radius sits *on* the drawn
+   outer border, so there is no invisible margin outside the menu that fails to dismiss it) or in
+   the centre dead zone, or a second barrel
    double-click, which commits *and* closes as the eyes-free way out. The
    picked `PaletteAction` leaves the surface via `onPaletteAction` and is run by `applyPaletteAction`
    (`ui/PaletteActions.kt`), which is deliberately the *only* mapping from action to edit so the
