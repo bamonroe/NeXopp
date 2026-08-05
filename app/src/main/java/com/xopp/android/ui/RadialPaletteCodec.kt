@@ -86,6 +86,7 @@ private fun encodeAction(action: PaletteAction): String = when (action) {
     PaletteAction.ToggleFullPage -> "fullpage"
     is PaletteAction.Page -> "page:${action.op.name}"
     is PaletteAction.ApplyPreset -> "preset:${action.presetId}"
+    is PaletteAction.ApplyPresetSlot -> "presetslot:${action.index}"
     // Safe unescaped: [encodeRadialPalette] already strips every separator out of a palette name.
     is PaletteAction.SwitchPalette -> "palette:${action.paletteName}"
 }
@@ -106,6 +107,8 @@ private fun decodeAction(token: String): PaletteAction? {
         "fullpage" -> PaletteAction.ToggleFullPage
         "page" -> enumOrNull<PalettePageOp>(arg)?.let(PaletteAction::Page)
         "preset" -> arg.takeIf { it.isNotEmpty() }?.let(PaletteAction::ApplyPreset)
+        // A negative position could never resolve, so it is dropped rather than kept as a dead slot.
+        "presetslot" -> arg.toIntOrNull()?.takeIf { it >= 0 }?.let(PaletteAction::ApplyPresetSlot)
         "palette" -> arg.takeIf { it.isNotEmpty() }?.let(PaletteAction::SwitchPalette)
         else -> null
     }

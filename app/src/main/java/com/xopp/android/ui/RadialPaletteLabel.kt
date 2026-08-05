@@ -20,6 +20,8 @@ fun PaletteAction.face(): PaletteFace = when (this) {
     PaletteAction.ToggleFullPage -> PaletteFace("⛶")
     is PaletteAction.Page -> PaletteFace(op.glyph())
     is PaletteAction.ApplyPreset -> PaletteFace("★")
+    // The number is the whole point of a slot action: the ring reads "★1", "★2"…
+    is PaletteAction.ApplyPresetSlot -> PaletteFace("★${index + 1}")
     is PaletteAction.SwitchPalette -> PaletteFace("◎")
 }
 

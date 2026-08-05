@@ -37,6 +37,9 @@ fun applyPaletteAction(
         // A slot naming a preset that has since been deleted is a no-op rather than an error.
         is PaletteAction.ApplyPreset -> settings.presets.firstOrNull { it.id == action.presetId }
             ?.let { applyToolPreset(it, ui, surface, settings, onSettingsChange) }
+        // Likewise for a position no preset occupies (yet).
+        is PaletteAction.ApplyPresetSlot -> settings.presets.getOrNull(action.index)
+            ?.let { applyToolPreset(it, ui, surface, settings, onSettingsChange) }
         is PaletteAction.SwitchPalette -> switchPalette(action.paletteName, surface, settings, onSettingsChange)
     }
 }

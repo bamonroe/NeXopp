@@ -24,6 +24,14 @@ fun paletteActionGroups(
             saved.map { PaletteActionChoice(it.name, PaletteAction.ApplyPreset(it.id)) },
         )
     },
+    // The position-based twin: as many slots as there are presets to fill them, so the picker never
+    // offers a number that can't fire anything today.
+    presets.takeIf { it.isNotEmpty() }?.let { saved ->
+        PaletteActionGroup(
+            "Preset slot",
+            saved.indices.map { PaletteActionChoice("Preset ${it + 1}", PaletteAction.ApplyPresetSlot(it)) },
+        )
+    },
     // Only worth offering once there is somewhere to switch *to* — a lone palette has no targets.
     palettes.takeIf { it.size > 1 }?.let { saved ->
         PaletteActionGroup(
@@ -77,5 +85,8 @@ fun PaletteAction.describeAction(presets: List<ToolPreset> = emptyList()): Strin
     // Named where the preset still exists; a slot pointing at a deleted preset says so plainly.
     is PaletteAction.ApplyPreset ->
         presets.firstOrNull { it.id == presetId }?.let { "Preset ${it.name}" } ?: "Preset (deleted)"
+    // Named where the position is filled, so the picker shows what it fires *right now*.
+    is PaletteAction.ApplyPresetSlot ->
+        presets.getOrNull(index)?.let { "Preset ${index + 1} (${it.name})" } ?: "Preset ${index + 1} (empty)"
     is PaletteAction.SwitchPalette -> "Switch to $paletteName"
 }

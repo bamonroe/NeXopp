@@ -70,6 +70,29 @@ class ToolPresetCodecTest {
     }
 
     @Test
+    fun `a preset-slot palette action round-trips through the palette codec`() {
+        val palette = RadialPalette()
+            .with(RadialSlot(RadialRing.INNER, 0), PaletteAction.ApplyPresetSlot(0))
+            .with(RadialSlot(RadialRing.OUTER, 1), PaletteAction.ApplyPresetSlot(2))
+        assertEquals(palette, decodeRadialPalette(encodeRadialPalette(palette)))
+    }
+
+    @Test
+    fun `a preset-slot action names whatever preset sits at that position`() {
+        assertEquals("Preset 1 (Fine black)", PaletteAction.ApplyPresetSlot(0).describeAction(presets))
+        assertEquals("Preset 2 (Marker)", PaletteAction.ApplyPresetSlot(1).describeAction(presets))
+        assertEquals("Preset 9 (empty)", PaletteAction.ApplyPresetSlot(8).describeAction(presets))
+        assertEquals("★1", PaletteAction.ApplyPresetSlot(0).face().glyph)
+    }
+
+    @Test
+    fun `preset positions become picker choices`() {
+        val group = paletteActionGroups(presets).first { it.title == "Preset slot" }
+        assertEquals(presets.indices.map { PaletteAction.ApplyPresetSlot(it) }, group.choices.map { it.action })
+        assertTrue(paletteActionGroups().none { it.title == "Preset slot" })
+    }
+
+    @Test
     fun `saved presets become picker choices`() {
         val group = paletteActionGroups(presets).first { it.title == "Preset" }
         assertEquals(presets.map { PaletteAction.ApplyPreset(it.id) }, group.choices.map { it.action })

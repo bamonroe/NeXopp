@@ -33,6 +33,8 @@ fun PaletteAction.icon(): ImageVector? = when (this) {
     PaletteAction.ToggleFullPage -> Icons.Filled.Fullscreen
     is PaletteAction.Page -> op.icon()
     is PaletteAction.ApplyPreset -> Icons.Filled.Bookmark
+    // No icon: a slot action's number *is* its identity, so it falls back to the "★1" glyph.
+    is PaletteAction.ApplyPresetSlot -> null
     is PaletteAction.SwitchPalette -> Icons.Filled.Adjust
 }
 

@@ -568,6 +568,12 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     disc). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
     that preset updates the slot too; if you delete the preset, the slot reads "Preset (deleted)"
     and flicking onto it does nothing.
+  - **Preset slot** — the position-based twin of the group above, listed as **Preset 1**,
+    **Preset 2**… (one row per preset you have saved). A slot bound this way follows the
+    *position* rather than the preset: it always fires whatever preset currently sits first,
+    second, and so on, so reordering the presets list re-points the slot to match. The slot draws
+    its number (**★1**, **★2**…) instead of a bookmark, and a position no preset occupies (you
+    deleted one, say) reads "Preset 3 (empty)" and does nothing when flicked.
   - **Switch palette** — once you have more than one palette, the sheet also lists a **Switch
     palette** group with one row per palette (the slot draws a **target ring**). Flicking onto it makes that
     palette the active one *and* pops it straight back up in the same place, so you can step from a

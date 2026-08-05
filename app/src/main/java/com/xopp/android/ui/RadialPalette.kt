@@ -69,6 +69,14 @@ sealed interface PaletteAction {
     data class ApplyPreset(val presetId: String) : PaletteAction
 
     /**
+     * Activate whichever saved [ToolPreset] currently sits at position [index] (0-based) in the
+     * preset list — the *position* half of [ApplyPreset]. A slot bound this way is "preset 1" for
+     * good: reordering the presets changes what it fires, which is exactly the point when the ring
+     * is muscle memory. A position past the end of the list simply does nothing.
+     */
+    data class ApplyPresetSlot(val index: Int) : PaletteAction
+
+    /**
      * Make the palette named [paletteName] the active one and reopen the ring in place, so a second
      * flick picks from it without the pen leaving the glass. The palette is named rather than
      * indexed because reordering the list must not silently repoint the slot at a different menu; a
