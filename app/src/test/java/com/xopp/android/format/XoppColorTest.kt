@@ -26,6 +26,14 @@ class XoppColorTest {
         assertEquals("#ff000080", XoppColor.format(0x80FF0000.toInt()))
     }
 
+    @Test fun malformedHexFallsBackToOpaqueBlack() {
+        assertEquals(0xFF000000.toInt(), XoppColor.parse("#zzzzzz"))
+        assertEquals(0xFF000000.toInt(), XoppColor.parse("#12 34 56"))
+        assertEquals(0xFF000000.toInt(), XoppColor.parse("#zzzzzzzz"))
+        assertEquals(0xFF000000.toInt(), XoppColor.parse("#12345 78"))
+        assertEquals(0xFF000000.toInt(), XoppColor.parse("#-12345"))
+    }
+
     @Test fun roundTripsThroughFormatAndParse() {
         for (argb in listOf(0xFF000000.toInt(), 0x8012AB34.toInt(), 0xFFABCDEF.toInt())) {
             assertEquals(argb, XoppColor.parse(XoppColor.format(argb)))

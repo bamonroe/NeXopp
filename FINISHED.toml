@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-xoppcolor-parse-crash"
+title = "XoppColor.parse: stop crashing on malformed colour attributes"
+description = "format/XoppColor.kt (~lines 35-37): the 6- and 8-digit branches call hex.toLong(16), which throws NumberFormatException on any non-hex value (#zzzzzz, #12 34 56). The exception escapes XoppReader.read -> Xopp.open -> DocumentIo.read, so one bad colour attribute makes the whole document unopenable, while the KDoc on parse promises opaque black on garbage. Fix: hex.toLongOrNull(16) in both branches, returning 0xFF000000.toInt() when null. Add unit tests (app/src/test) for malformed 6- and 8-char inputs asserting opaque black. Verify with scripts/build.sh testDebugUnitTest. Part of a batch of four small format-parser fixes; the fix-xml-truncated-input task closes the batch with a full build."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
 id = "make-the-android-back-button-navigate"
 title = "Make the Android back button navigate"
 description = "Handle the Android system back gesture/button so it navigates within the app (e.g. closing popups/overlays, then backing out of the document to the file list) instead of immediately exiting the activity."

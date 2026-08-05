@@ -28,10 +28,14 @@ object XoppColor {
         val v = value.trim()
         NAMED[v.lowercase()]?.let { return it }
         val hex = v.removePrefix("#")
+        if (hex.startsWith("-") || hex.startsWith("+")) return 0xFF000000.toInt()
         return when (hex.length) {
-            6 -> 0xFF000000.toInt() or hex.toLong(16).toInt()
+            6 -> {
+                val rgb = hex.toLongOrNull(16) ?: return 0xFF000000.toInt()
+                0xFF000000.toInt() or rgb.toInt()
+            }
             8 -> {
-                val rgba = hex.toLong(16)
+                val rgba = hex.toLongOrNull(16) ?: return 0xFF000000.toInt()
                 val a = (rgba and 0xFF).toInt()
                 val rgb = (rgba ushr 8).toInt() and 0xFFFFFF
                 (a shl 24) or rgb
