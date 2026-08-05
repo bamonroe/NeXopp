@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "always-show-the-tab-close-x-button"
+title = "Always show the tab close (x) button"
+description = "The 'x' close affordance on each tab should be visible at all times, so a tab can be closed without first opening/selecting it."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "make-the-tab-bar-horizontally-scrollable"
 title = "Make the tab bar horizontally scrollable"
 description = "When enough tabs are open to fill the tab bar, the list must scroll horizontally instead of pushing tabs off screen where they become unreachable."

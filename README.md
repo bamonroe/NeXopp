@@ -114,7 +114,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Tabs — several documents open at once** — every document you open lives in its own **tab**, and
   the **tab strip** under the top bar is always shown — even with a single document open — so the
   same tab controls are always in the same place. Tap a tab to switch to that document;
-  tap the **✕** on the tab you're looking at to close it; tap **+** at the end of the strip — or
+  every tab carries its own **✕**, so you can close any document without switching to it first; tap **+** at the end of the strip — or
   **New document** in the ☰ menu — to start a fresh blank document in a new tab. The tabs, the
   **✕** and the **+** are all full finger-sized targets (Material's 48dp minimum), so switching or
   closing a document works with a fingertip and doesn't need a stylus. **Open** always

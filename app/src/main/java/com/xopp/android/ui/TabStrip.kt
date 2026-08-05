@@ -151,7 +151,7 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
 }
 
 /**
- * One tab: its (elided) title, and a close button that is only offered on the selected tab.
+ * One tab: its (elided) title, and a close button offered on every tab, selected or not.
  *
  * A long press opens the pane menu — move this document to the other half of a split, or mirror a
  * second view of it there — so both live where the tab does rather than in the app bar. Dragging it
@@ -207,7 +207,7 @@ private fun TabChip(
                     drag.value.second(dx, chipWidth)
                 }
             }
-            .padding(start = 16.dp, end = if (selected) 0.dp else 16.dp),
+            .padding(start = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -239,19 +239,19 @@ private fun TabChip(
             color = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
             modifier = Modifier.widthIn(min = 64.dp, max = 180.dp),
         )
-        if (selected) {
-            // A full 48dp target of its own, so closing the tab never lands on "select" by mistake.
-            Box(
-                modifier = Modifier.size(TAB_TOUCH_TARGET).clickable(onClick = onClose),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Close $title",
-                    modifier = Modifier.size(20.dp),
-                    tint = colors.onSecondaryContainer,
-                )
-            }
+        // Shown on every tab, not just the selected one, so a background tab can be closed without
+        // first switching to it. A full 48dp target of its own, so closing the tab never lands on
+        // "select" by mistake.
+        Box(
+            modifier = Modifier.size(TAB_TOUCH_TARGET).clickable(onClick = onClose),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.Close,
+                contentDescription = "Close $title",
+                modifier = Modifier.size(20.dp),
+                tint = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
+            )
         }
     }
 }
