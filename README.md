@@ -116,8 +116,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   same tab controls are always in the same place. Tap a tab to switch to that document;
   every tab carries its own **✕**, so you can close any document without switching to it first; tap **+** at the end of the strip — or
   **New document** in the ☰ menu — to start a fresh blank document in a new tab. The tabs, the
-  **✕** and the **+** are all full finger-sized targets (Material's 48dp minimum), so switching or
-  closing a document works with a fingertip and doesn't need a stylus. **Open** always
+  **✕** and the **+** are all finger-sized targets, so switching or
+  closing a document works with a fingertip and doesn't need a stylus. The strip is kept
+  deliberately compact (a slim 42dp band) so it gives up as little of the canvas as it can. **Open** always
   opens into a new tab rather than replacing what you're working on. Each tab carries its own save
   format, its own background PDF and the page you were on, so switching back lands you where you
   left off. Closing the last tab leaves you on a fresh blank document. One thing to note: **undo

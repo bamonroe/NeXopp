@@ -145,7 +145,7 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
             )
         }
         IconButton(onClick = state.onNew, modifier = Modifier.size(TAB_TOUCH_TARGET)) {
-            Icon(Icons.Filled.Add, contentDescription = "New document", modifier = Modifier.size(24.dp))
+            Icon(Icons.Filled.Add, contentDescription = "New document", modifier = Modifier.size(TAB_NEW_ICON))
         }
     }
 }
@@ -182,14 +182,14 @@ private fun TabChip(
     var chipWidth by remember { mutableFloatStateOf(1f) }
     Row(
         modifier = Modifier
-            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .padding(horizontal = 4.dp, vertical = TAB_CHIP_VERTICAL_PADDING)
             .heightIn(min = TAB_TOUCH_TARGET)
             .graphicsLayer { translationX = dragOffset }
             .onSizeChanged { chipWidth = it.width.toFloat().coerceAtLeast(1f) }
             .onGloballyPositioned {
                 if (selected) onBounds(it.positionInParent().x, it.size.width.toFloat())
             }
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(if (selected) colors.secondaryContainer else colors.surfaceVariant)
             .combinedClickable(onClick = onSelect, onLongClick = { menuOpen = true })
             // Sideways drag reorders, but only on the *selected* tab: the drag consumes the gesture, so
@@ -207,7 +207,7 @@ private fun TabChip(
                     drag.value.second(dx, chipWidth)
                 }
             }
-            .padding(start = 16.dp),
+            .padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
@@ -235,12 +235,12 @@ private fun TabChip(
             text = title,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             color = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
             modifier = Modifier.widthIn(min = 64.dp, max = 180.dp),
         )
         // Shown on every tab, not just the selected one, so a background tab can be closed without
-        // first switching to it. A full 48dp target of its own, so closing the tab never lands on
+        // first switching to it. A full touch target of its own, so closing the tab never lands on
         // "select" by mistake.
         Box(
             modifier = Modifier.size(TAB_TOUCH_TARGET).clickable(onClick = onClose),
@@ -249,7 +249,7 @@ private fun TabChip(
             Icon(
                 Icons.Filled.Close,
                 contentDescription = "Close $title",
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(TAB_CLOSE_ICON),
                 tint = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
             )
         }
@@ -257,10 +257,21 @@ private fun TabChip(
 }
 
 /** The mirrored-document dot: big enough to read as a colour, small enough not to crowd the title. */
-private val TAB_DOT_SIZE = 8.dp
+private val TAB_DOT_SIZE = 6.dp
 
-/** Material's minimum comfortable touch target; every tap area in the strip is at least this big. */
-private val TAB_TOUCH_TARGET = 48.dp
+/**
+ * The strip's tap-target size. Below Material's 48dp minimum on purpose: the strip is deliberately
+ * compact so it steals as little canvas as it can, and every target here is a wide chip or an icon
+ * with clear space around it rather than a dense cluster.
+ */
+private val TAB_TOUCH_TARGET = 36.dp
 
-/** Strip height: one touch target plus the 4dp breathing room above and below each chip. */
-private val TAB_STRIP_HEIGHT = TAB_TOUCH_TARGET + 8.dp
+/** The close/new icon glyphs, scaled to sit inside the compact [TAB_TOUCH_TARGET]. */
+private val TAB_CLOSE_ICON = 16.dp
+private val TAB_NEW_ICON = 18.dp
+
+/** Vertical breathing room above and below each chip. */
+private val TAB_CHIP_VERTICAL_PADDING = 3.dp
+
+/** Strip height: one touch target plus the breathing room above and below each chip. */
+private val TAB_STRIP_HEIGHT = TAB_TOUCH_TARGET + TAB_CHIP_VERTICAL_PADDING * 2

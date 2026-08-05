@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "reduce-tab-bar-height-by-25"
+title = "Reduce tab bar height by 25%"
+description = "Shrink the tab strip's height by 25% so it takes less vertical space from the canvas. Scale tab label/close-button sizing to match."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "always-show-the-tab-close-x-button"
 title = "Always show the tab close (x) button"
 description = "The 'x' close affordance on each tab should be visible at all times, so a tab can be closed without first opening/selecting it."
