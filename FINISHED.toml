@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "shrink-palette-padding-around-icons"
+title = "Shrink palette padding around icons"
+description = "The radial palette has a lot of dead space around its icons. Reduce the padding/margins around each icon substantially so the overall palette shrinks noticeably."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "require-direct-hits-on-palette-icons-to-select"
 title = "Require direct hits on palette icons to select"
 description = "Selection currently uses nearest-match, so a tap far from an icon still selects it. Require the tap to land inside the icon's own bounds. More precision is fine — it makes dismissing the palette easier without accidental selection."

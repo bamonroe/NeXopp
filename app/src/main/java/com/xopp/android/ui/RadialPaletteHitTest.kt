@@ -45,9 +45,16 @@ data class RadialPaletteGeometry(
     }
 
     companion object {
-        const val DEFAULT_DEAD_ZONE_RADIUS = 48f
-        const val DEFAULT_INNER_RING_RADIUS = 160f
-        const val DEFAULT_OUTER_RING_RADIUS = 280f
+        /**
+         * The rings hug their icons: each band is only as wide as the marks it carries plus a
+         * small breathing gap, so the menu covers roughly a third of the area it used to. The
+         * floor is the *angular* packing — 16 outer slots of radius
+         * [OUTER_SLOT_MARK_RADIUS] need a mid-band radius past ~76px before they touch — so
+         * these can't shrink much further without dropping slots.
+         */
+        const val DEFAULT_DEAD_ZONE_RADIUS = 32f
+        const val DEFAULT_INNER_RING_RADIUS = 100f
+        const val DEFAULT_OUTER_RING_RADIUS = 160f
 
         /**
          * How far out still counts as being on the menu. It sits exactly on the drawn outer

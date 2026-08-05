@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "shrink-palette-padding-around-icons"
-title = "Shrink palette padding around icons"
-description = "The radial palette has a lot of dead space around its icons. Reduce the padding/margins around each icon substantially so the overall palette shrinks noticeably."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 10
-created = 2026-08-05
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "match-palette-icons-to-toolbar-rail-icons"
 title = "Match palette icons to toolbar rail icons"
 description = "Replace the palette's icons with the same icon set used in the toolbar rail so the two are visually consistent."
