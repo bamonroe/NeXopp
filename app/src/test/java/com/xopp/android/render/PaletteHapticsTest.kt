@@ -16,14 +16,14 @@ class PaletteHapticsTest {
     @Test
     fun `crossing into a different slot ticks`() {
         assertTrue(PaletteHaptics.shouldTick(slot(0), slot(1)))
-        assertTrue(PaletteHaptics.shouldTick(RadialHit.Cancel, slot(0)))
+        assertTrue(PaletteHaptics.shouldTick(RadialHit.Inert, slot(0)))
     }
 
     @Test
-    fun `staying on the same slot or falling into the dead zone stays silent`() {
+    fun `staying on the same slot or falling into the hollow centre stays silent`() {
         assertFalse(PaletteHaptics.shouldTick(slot(0), slot(0)))
-        assertFalse(PaletteHaptics.shouldTick(slot(0), RadialHit.Cancel))
-        assertFalse(PaletteHaptics.shouldTick(RadialHit.Cancel, RadialHit.Cancel))
+        assertFalse(PaletteHaptics.shouldTick(slot(0), RadialHit.Inert))
+        assertFalse(PaletteHaptics.shouldTick(RadialHit.Inert, RadialHit.Inert))
     }
 
     @Test
@@ -35,6 +35,6 @@ class PaletteHapticsTest {
     fun `only a commit that runs an action confirms`() {
         assertTrue(PaletteHaptics.shouldConfirm(slot(0)))
         assertFalse(PaletteHaptics.shouldConfirm(slot(0, action = null)))
-        assertFalse(PaletteHaptics.shouldConfirm(RadialHit.Cancel))
+        assertFalse(PaletteHaptics.shouldConfirm(RadialHit.Inert))
     }
 }

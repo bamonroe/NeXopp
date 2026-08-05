@@ -14,7 +14,8 @@ import kotlin.math.hypot
  *
  * Distance picks the ring, angle picks the slot within it:
  *
- * - inside [RadialPaletteGeometry.deadZoneRadius] — no choice yet, releasing here cancels;
+ * - inside [RadialPaletteGeometry.deadZoneRadius] — the hollow centre: no choice, and releasing
+ *   here does nothing;
  * - out to [RadialPaletteGeometry.innerRingRadius] — the inner ring's 8 slots;
  * - out to [RadialPaletteGeometry.outerRingRadius] — the outer ring's 16;
  * - beyond [RadialPaletteGeometry.dismissRadius] — off the menu entirely: releasing there
@@ -67,8 +68,11 @@ data class RadialPaletteGeometry(
 
 /** Where a pointer currently sits over the menu. */
 sealed interface RadialHit {
-    /** In the dead zone: no slot is targeted and releasing dismisses the menu. */
-    data object Cancel : RadialHit
+    /**
+     * In the hollow centre: no slot is targeted and releasing there does nothing at all. The menu
+     * reads as a donut, so its inert middle is not a hidden dismiss button.
+     */
+    data object Inert : RadialHit
 
     /** Clear of the whole menu: releasing here is the "click off it" that closes it. */
     data object Outside : RadialHit
@@ -91,7 +95,7 @@ fun RadialPalette.hitTest(
     val dx = x - anchorX
     val dy = y - anchorY
     val radius = hypot(dx, dy)
-    if (radius <= geometry.deadZoneRadius) return RadialHit.Cancel
+    if (radius <= geometry.deadZoneRadius) return RadialHit.Inert
     if (radius > geometry.dismissRadius) return RadialHit.Outside
 
     val ring = if (radius <= geometry.innerRingRadius) RadialRing.INNER else RadialRing.OUTER

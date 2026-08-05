@@ -2394,9 +2394,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (paletteHaptics) performHapticFeedback(constant)
     }
 
-    /** Close the menu and return what the pen was over — [RadialHit.Cancel] if it wasn't open. */
+    /** Close the menu and return what the pen was over — [RadialHit.Inert] if it wasn't open. */
     fun closePalette(): RadialHit {
-        val open = paletteOverlay ?: return RadialHit.Cancel
+        val open = paletteOverlay ?: return RadialHit.Inert
         paletteOverlay = null
         render()
         return open.hit
@@ -2436,12 +2436,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /**
      * Run whatever the pen was over and **leave the menu up**, so several settings can be picked in
      * one summoning. Only an explicit "click off it" closes the ring: releasing clear of the menu
-     * ([RadialHit.Outside]) or in the centre dead zone ([RadialHit.Cancel]) — as does [alwaysClose],
-     * which the barrel button's eyes-free commit passes.
+     * ([RadialHit.Outside]) — as does [alwaysClose], which the barrel button's eyes-free commit
+     * passes. The hollow centre ([RadialHit.Inert]) is not a hit target: releasing there leaves the
+     * menu exactly as it was.
      */
     private fun commitPalette(alwaysClose: Boolean = false) {
         val hit = paletteOverlay?.hit ?: return
-        if (hit is RadialHit.Outside || hit is RadialHit.Cancel) { closePalette(); return }
+        if (hit is RadialHit.Inert) { if (alwaysClose) closePalette(); return }
+        if (hit is RadialHit.Outside) { closePalette(); return }
         if (PaletteHaptics.shouldConfirm(hit)) tick(HapticFeedbackConstants.CONFIRM)
         if (alwaysClose || paletteCloseOnSelect) closePalette()
         val action = (hit as? RadialHit.Slot)?.action ?: return

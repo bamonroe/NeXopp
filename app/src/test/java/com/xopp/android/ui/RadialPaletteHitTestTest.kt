@@ -31,10 +31,10 @@ class RadialPaletteHitTestTest {
     private val OUTER_MARK = slotDrawRadius(RadialRing.OUTER, geometry)
 
     @Test
-    fun `the dead zone cancels, up to and including its edge`() {
-        assertEquals(RadialHit.Cancel, palette.hitTest(100f, 100f, 100f, 100f, geometry))
-        assertEquals(RadialHit.Cancel, hit(37f, geometry.deadZoneRadius - 1f))
-        assertEquals(RadialHit.Cancel, hit(37f, geometry.deadZoneRadius))
+    fun `the hollow centre is inert, up to and including its edge`() {
+        assertEquals(RadialHit.Inert, palette.hitTest(100f, 100f, 100f, 100f, geometry))
+        assertEquals(RadialHit.Inert, hit(37f, geometry.deadZoneRadius - 1f))
+        assertEquals(RadialHit.Inert, hit(37f, geometry.deadZoneRadius))
     }
 
     @Test

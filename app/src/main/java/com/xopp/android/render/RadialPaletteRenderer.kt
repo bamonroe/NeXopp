@@ -34,7 +34,7 @@ internal object RadialPaletteRenderer {
         val palette: RadialPalette,
         val anchorX: Float,
         val anchorY: Float,
-        val hit: RadialHit = RadialHit.Cancel,
+        val hit: RadialHit = RadialHit.Inert,
         val geometry: RadialPaletteGeometry = RadialPaletteGeometry(),
     )
 

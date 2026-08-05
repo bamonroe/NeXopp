@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "remove-the-palette-s-dead-center-dismiss-target"
-title = "Remove the palette's dead center dismiss target"
-description = "The center circle of the radial palette has no button but dismisses the palette when tapped. Remove that hit target so the palette reads as a donut with a hollow, inert center."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "normal"
-order = 20
-created = 2026-08-05
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "long-press-a-preset-slot-to-overwrite-it"
 title = "Long-press a preset slot to overwrite it"
 description = "Long-pressing an existing saved preset should overwrite it with the currently active tool settings, so presets can be cleaned up in place instead of only being appended."

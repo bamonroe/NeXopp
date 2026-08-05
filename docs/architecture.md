@@ -1401,9 +1401,9 @@ toolbar":
    coming down) and a lift commits — but **the menu stays up after a pick**, so several settings can
    be chosen in one summoning. It closes only when the user clicks off it: a release past
    `RadialPaletteGeometry.dismissRadius` (`RadialHit.Outside` — that radius sits *on* the drawn
-   outer border, so there is no invisible margin outside the menu that fails to dismiss it) or in
-   the centre dead zone, or a second barrel
-   double-click. Picking a slot takes a **direct hit on its drawn mark**: ring and angle only name
+   outer border, so there is no invisible margin outside the menu that fails to dismiss it) or a
+   second barrel double-click. The hollow centre is **inert** (`RadialHit.Inert`): the menu reads as
+   a donut, so releasing in the middle neither picks nor dismisses. Picking a slot takes a **direct hit on its drawn mark**: ring and angle only name
    the candidate, and the point must then fall within `slotMarkRadius(ring, geometry)` of the mark's
    `drawCenter` or the hit reads as `Outside`. That is what keeps the gaps between icons available
    for dismissing instead of selecting whatever wedge happened to be nearest. The same rule serves
