@@ -20,3 +20,843 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "fix-xoppcolor-parse-crash"
+title = "XoppColor.parse: stop crashing on malformed colour attributes"
+description = "format/XoppColor.kt (~lines 35-37): the 6- and 8-digit branches call hex.toLong(16), which throws NumberFormatException on any non-hex value (#zzzzzz, #12 34 56). The exception escapes XoppReader.read -> Xopp.open -> DocumentIo.read, so one bad colour attribute makes the whole document unopenable, while the KDoc on parse promises opaque black on garbage. Fix: hex.toLongOrNull(16) in both branches, returning 0xFF000000.toInt() when null. Add unit tests (app/src/test) for malformed 6- and 8-char inputs asserting opaque black. Verify with scripts/build.sh testDebugUnitTest. Part of a batch of four small format-parser fixes; the fix-xml-truncated-input task closes the batch with a full build."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 10
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "fix-image-base64-decoder"
+title = "XoppReader: tolerate line-wrapped base64 in image elements"
+description = "format/XoppReader.kt readImage (~line 143) decodes the image body with Base64.getDecoder(), which rejects embedded whitespace, and readTextContent only trims the ends — so a desktop-written .xopp whose base64 body is line-wrapped throws IllegalArgumentException and the whole file fails to open. The sibling readTexImage (~line 158) already does it right: Base64.getMimeDecoder() inside runCatching. Make readImage match: mime decoder, runCatching, fall back to ByteArray(0) on failure. Unit test: an image element whose base64 body contains newlines loads and round-trips. Run scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 20
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "fix-xml-entity-crash"
+title = "XmlPullReader: no crash on malformed numeric entities"
+description = "format/xml/XmlPullReader.kt decodeEntities (~lines 128-131): numeric character entities are parsed with toInt / toInt(16), so an empty numeric entity, a non-hex value, or an overflowing number throws, and appendCodePoint throws on out-of-range codes. Every other malformed-entity case in this function already falls back to appending the raw text. Fix: toIntOrNull / toIntOrNull(16), validate the code point is in 0..0x10FFFF and not a surrogate (0xD800-0xDFFF), and on any failure append the raw entity text verbatim as the unknown-named-entity branch already does. Unit tests for each malformed form. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 30
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "fix-xml-truncated-input"
+title = "XmlPullReader: fail cleanly on truncated input"
+description = "format/xml/XmlPullReader.kt readStartTag: ~line 88 reads val quote = s[i] with no bounds check (StringIndexOutOfBoundsException on truncated input), and ~line 95 the search for the closing angle bracket can return -1, which resets pos to 0 and loops forever. A truncated .xopp (interrupted write, partial download) should fail with a clean parse error, not hang or crash. Fix: break out when i >= s.length before reading quote; when indexOf returns -1, set pos = s.length and end parsing with a controlled error. Unit tests: several truncated .xopp XML strings must fail fast with no hang. This closes the batch of four format-parser fixes: run the full scripts/build.sh here."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 40
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "fix-pdf-export-truncate-mode"
+title = "PDF export: open output stream with truncate mode wt"
+description = "MainActivity.kt exportPdf (~line 521) opens the destination with contentResolver.openOutputStream(uri, \"w\") — mode \"w\" does not truncate, so exporting a shorter PDF over an existing longer file leaves trailing bytes from the old file and yields a corrupt PDF. Change the mode to \"wt\", matching io/UriStaging.kt stageOut (~line 37). One-line fix, verify by inspection; a later task (consolidate-uri-copy) routes this call through UriStaging — land this fix first regardless."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 50
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "clamp-settings-on-load"
+title = "Clamp pen widths, last width and page columns at settings load"
+description = "ui/AppSettings.kt SettingsStore.load: penWidths (~line 238) and lastWidth (~line 249) come out of SharedPreferences unclamped, but ui/RadialPalette.kt:48 has require(widthPt in PEN_WIDTH_MIN..PEN_WIDTH_MAX) — a corrupt or legacy pref value crashes the app when it reaches a palette slot. Every other consumer clamps: ToolPresetCodec.kt:55, RadialPaletteCodec.kt:104, ToolbarSizePopup.kt:156, PaletteActionPicker.kt:126. pageColumns (~line 240) is also unclamped: DrawingSurfaceView.setColumns clamps to 1..PageStacker.COLUMN_CHOICES.last() but EditorScreen.kt:89 and ToolbarPagesPopup.kt:345/352 use the raw value, so a stored 0 makes the popup mode rows unreachable. Fix in SettingsStore.load, following the fillAlpha pattern at ~line 250: coerce each penWidths entry and lastWidth into PEN_WIDTH_MIN..PEN_WIDTH_MAX, and pageColumns into 1..PageStacker.COLUMN_CHOICES.last(). Unit-test load with out-of-range prefs."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 60
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "preserve-unknown-attributes"
+title = "Round-trip: preserve unknown attributes on all elements, not just strokes"
+description = "Core-rule fidelity gap. format/XoppReader.kt preserves unknown attributes only on stroke elements (extraAttrs, ~lines 99-104). readText (~126), readImage (~136), readTexImage (~145), readLayer (~80), readPage (~45) and readBackground (~62) each read a fixed attribute set and drop the rest. Most consequential: desktop Xournal++ text elements can carry the same audio fn/ts pair strokes do (see audio/AudioAnnotation.kt:22-25), so audio links on text boxes are silently lost on save; solid-background config attributes (custom ruling spacing on newer desktop builds) are dropped too. Fix: add extraAttrs: Map<String,String> to TextElement, ImageElement, TexImageElement (format/model/Element.kt), and to Layer, Page and the Background variants, populated with the same filterKeys pattern used for strokes at XoppReader.kt:100, and re-emit them first in each XoppWriter.write* the way writeStroke does (XoppWriter.kt ~75). Round-trip unit tests: parse XML with an unknown attribute on each element kind, save, assert it survives byte-identically. Update the schema-mapping notes in docs/architecture.md in the same commit."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 70
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "escape-control-chars-in-attrs"
+title = "XmlWriter: escape newline, CR and tab in attribute values"
+description = "format/xml/XmlWriter.kt escapeInto (~lines 76-84) escapes ampersand, angle brackets and double quote but not newline, carriage return or tab in attribute values. Preserved extraAttrs values containing a newline are read back verbatim by our own parser but normalised to a space by any conforming XML parser (attribute-value normalisation), silently breaking round-trip with desktop Xournal++. Fix: when writing attribute values, emit &#10; &#13; &#9; for those characters. Unit test: an attribute value containing newline and tab survives XmlWriter -> XmlPullReader unchanged. Do together with or immediately after preserve-unknown-attributes, which widens the surface this bug applies to. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 80
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "preserve-unknown-elements"
+title = "Round-trip: preserve unknown elements inside layers"
+description = "format/XoppReader.kt ~lines 83-88: the when over layer children handles stroke/text/image/teximage and silently skips anything else, so a future or vendor element in a desktop-written file vanishes on the next save with no warning. Fix: add a RawElement(name, attrs, body) variant to the Element sealed interface in format/model/Element.kt that captures the unrecognised tag verbatim (attributes plus raw inner content) and have XoppWriter re-emit it untouched, in document order. Round-trip unit test with a made-up element inside a layer, asserting byte-level survival. Mention the behaviour in the format section of docs/architecture.md in the same commit."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 90
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "teximage-preserve-source-shape"
+title = "Round-trip: keep teximage latex in attribute or body as authored"
+description = "format/XoppReader.kt readTexImage (~lines 152-160): when the text attribute is absent, the LaTeX source is taken from the element body; on save XoppWriter (~110-115) unconditionally emits a text attribute, so an old-format file gains an attribute it never had and its body changes shape. Fix: record which form the file used with a latexInAttribute: Boolean on TexImageElement — exactly the pattern Stroke.uniformWidth already uses (format/model/Element.kt:47) — and re-emit the original shape. Round-trip unit tests for both forms. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 100
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "preserve-document-title"
+title = "Round-trip: read and re-emit the document title element"
+description = "format/XoppReader.kt read (~lines 32-40) never handles the title element, and XoppWriter.write (~line 26) always emits the constant TITLE, so a document authored with a custom title loses it on save. Fix: read title into a nullable Document.title field (format/model/Document.kt), write it back when present, defaulting to the existing constant. Round-trip unit test. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 110
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "elementrenderer-identity-cache-keys"
+title = "ElementRenderer: key bitmap and tex caches by identity, not content hash"
+description = "render/ElementRenderer.kt:80 uses bitmapCache.getOrPut(img) where img is an ImageElement whose equals/hashCode (format/model/Element.kt:76) run contentEquals/contentHashCode over the entire byte array — O(megabytes) of hashing plus comparison per image per painted frame at up to 120 Hz. texCache (~line 91) has the identical problem, and its own KDoc already says the tree should be cached by element identity. Fix: rekey both caches by reference identity — java.util.IdentityHashMap, or a small wrapper key using System.identityHashCode plus reference equality. Pure performance fix, no behaviour change; verify by build and existing tests."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 120
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "elementrenderer-bitmap-budget"
+title = "ElementRenderer: bound and recycle the decoded-image bitmap cache"
+description = "render/ElementRenderer.kt (~lines 80-82): bitmaps decoded from embedded image bytes are cached forever and never recycled, unlike render/InkCache.kt (BitmapBudget registration ~line 81, recycle on eviction ~line 131) and render/ImageBackgroundCache.kt (~lines 122/128) — a document with many embedded images grows the heap without bound. Fix: register the cache as a BitmapBudget.Client and evict plus recycle LRU-style, mirroring InkCache. While in the file, add Log.w to the two silent catch blocks at ~lines 92 and 100 (a LaTeX element that never renders is currently undiagnosable), matching the style of ImageBackgroundCache.give (~135-139). Depends on elementrenderer-identity-cache-keys landing first. Full scripts/build.sh."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 130
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "imagestore-byte-budget"
+title = "ImageStore: enforce a byte budget in prune like PdfStore"
+description = "io/ImageStore.kt prune (~line 41) only deletes unreferenced files; its KDoc claims the folder is bounded, but there is no byte cap — unlike its documented twin PdfStore.prune(keep, maxBytes) (io/PdfStore.kt ~66-83), and DocumentIo.prune (io/DocumentIo.kt ~337) passes limits.pdfCacheBytes to the PDF store but nothing to the image store. Fix: add a maxBytes parameter to ImageStore.prune with the same oldest-first trim logic, pass a cap from DocumentIo.prune (reuse limits.pdfCacheBytes or add an imageCacheBytes field to StorageLimits), correct the KDoc, and unit-test the trim. Coordinate with consolidate-store-newfile, which touches the same functions."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 140
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "consolidate-store-newfile"
+title = "Consolidate unique-filename allocation; fix thread-unsafe counters"
+description = "Three copies of the unique-filename allocator, two thread-unsafe: io/ScratchDir.kt:19-33 uses an AtomicInteger (correct, with a comment explaining why), but io/PdfStore.kt:30-36 and io/ImageStore.kt:25-31 use a plain var counter (in ImageStore not even private) while being called from worker threads (via DocumentIo.copyIntoStore ~line 307 and ImageStore.copyIn ~34-38) — two threads can race on the same counter value. Fix: generalise ScratchDir.newFile(prefix, suffix = \".tmp\"), have PdfStore and ImageStore each hold a private ScratchDir and delegate (io/UriStaging.kt:51 already does exactly this), keeping current file extensions. Also extract the duplicated liveness sweep (ImageStore.kt:41-46 is a strict subset of PdfStore.kt:66-80) into an internal File.pruneUnreferenced(live, except) helper in a new io/StoreFiles.kt. Unit-test concurrent newFile allocation. Update the io/ list in docs/architecture.md for the new file. Full scripts/build.sh."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 150
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "pageops-insertafter-return-index"
+title = "PageOps.insertAfter: return the real insertion index"
+description = "render/PageOps.kt:102 insertAfter clamps the insertion point ((after + 1).coerceIn(0, pages.size)) while render/PageCommands.kt:109 pasteCopiedPages pre-clamps the source index to lastIndex and then independently derives its return value (~line 111) as at + 1 — the \"index of the first pasted page\" is only correct because the two clamps happen to agree. If either changes, the return silently desynchronises from where pages actually landed. Fix: have PageOps.insertAfter return the actual insertion index and make pasteCopiedPages use that return for both the edit and its own return value, deleting the redundant clamp. Unit tests in app/src/test/.../PageOpsTest.kt covering paste at start, middle and past-end. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 160
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "consolidate-page-transforms"
+title = "Put page/view coordinate transforms on PageBox, once"
+description = "The page-to-view coordinate transform is copied at least six times: identical private ptX/ptY pairs in render/DrawingSurfaceView.kt:1048, render/SelectionGestureController.kt:307 and render/GuideDrag.kt:125 (differing only in scroll source), the same expression re-inlined at DrawingSurfaceView.kt ~1788, ~1815 and ~2024, and the inverse hand-rolled at DrawingSurfaceView.kt:1115, InkCache.kt:68 and BackgroundRenderer.kt:47. Fix: add to PageBox in render/PageStacker.kt (next to the existing contains at ~line 22): toPtX(viewX, scrollX), toPtY(viewY, scrollY), toViewX(ptX, scrollX), toViewY(ptY, scrollY), each with KDoc stating units (view px vs page pt). Replace every copy and delete the three private pairs. Pure refactor, no behaviour change; SelectionTest and PageOpsTest cover some paths. Do this BEFORE the DrawingSurfaceView file-split tasks so the code being moved is already clean. Full scripts/build.sh."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 170
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "fix-architecture-layout-drift"
+title = "architecture.md: fix repository-layout drift (25+ missing files, one dupe)"
+description = "docs/architecture.md repository-layout section (~lines 452-618) has drifted from the tree. (1) DrawingGuide.kt is listed twice (~lines 509-510) with two different descriptions — delete one. (2) Missing entries: io/ImageStore.kt, io/IncomingDocument.kt, io/SaveTarget.kt; format/FontDescription.kt; panes/MirrorSync.kt; tabs/DocColors.kt; render/InkCache.kt (described in prose but absent from the list), render/ImportPdfMode.kt, render/PageThumbnail.kt, render/PaletteHaptics.kt, render/PaletteTapDetector.kt, render/PdfBackgroundDomain.kt, render/StrokeSmoother.kt; ui/EditorBackHandler.kt, ui/PaletteActionCatalog.kt, ui/PaletteActionPicker.kt, ui/PaletteEditorLayout.kt, ui/PaletteResetControls.kt, ui/PaletteSection.kt, ui/PaneState.kt, ui/SplitLayout.kt, ui/TabOverviewPopup.kt, ui/TabStrip.kt, ui/AboutSection.kt. Read each file header briefly and add a one-line description matching the style of existing entries. (3) ~Line 611 says SettingsSections.kt holds Stylus/Editor/Toolbar/Navigation/Storage — it also has AppearanceSection; align with the full list README states at ~line 502."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 180
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "dedupe-build-docs"
+title = "Dedupe build instructions between README and docs/tools.md"
+description = "Hub-and-spoke violation: README.md ~lines 29-50 duplicates the docs/tools.md Android-build section nearly verbatim (build.sh variants, APK output path, test-report path), and the .gradle-cache behaviour is stated in both (README ~37 and the tools.md gotchas). Fix: slim README to the single canonical build command plus a link to docs/tools.md as the authoritative home — README already does exactly this for the emulator, so follow that pattern. Ensure nothing is lost: anything stated only in README moves into tools.md."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 190
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "dedupe-device-install-docs"
+title = "Reconcile device-install docs: README contradicts docs/tools.md"
+description = "README.md ~lines 62-67 documents raw adb install -r plus am start as the way to run the app on a device, while docs/tools.md (Android emulator section) says the standard path is emulator.sh install / emulator.sh launch and that routine adb install is not part of the standard flow. The two disagree. Fix: decide the authoritative flow in docs/tools.md — including when raw adb is appropriate (physical devices) — and reduce the README passage to a pointer, per the hub-and-spoke rule."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 200
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "dedupe-test-inventory-docs"
+title = "Unit-test inventory and udiff.xopp rule stated in three places"
+description = "The unit-test inventory and the udiff.xopp self-skip rule are stated in README.md ~lines 52-58, docs/tools.md (RealFileRoundTripTest gotcha) and docs/architecture.md ~lines 614-617. Per the single-source rule, pick one owner (the architecture.md test-tree section is the natural home), reconcile any divergence between the three copies first, then replace the other two with links."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 210
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "readme-project-layout-defer"
+title = "README project layout: incomplete duplicate of architecture.md"
+description = "README.md Project layout (~lines 733-743) omits io/ and audio/ (README itself documents audio recording at ~line 686) and duplicates the authoritative layout in docs/architecture.md — the exact drift the hub-and-spoke rule exists to prevent, and README even declares architecture.md authoritative. Fix: cut the block to a one-line pointer at docs/architecture.md, or if a thumbnail list stays, make it complete (format/ io/ audio/ render/ tabs/ panes/ ui/ MainActivity.kt) and keep it to package names only so it cannot drift at file level."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 220
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "readme-feature-gaps"
+title = "README: document eraser tip preview/sizing and palette centre cancel"
+description = "Three shipped behaviours lack README coverage. (1) The eraser tip outline shown while the stylus barrel button is held (commit 48e860d) and (2) the eraser tip radius matching the pen full width (commit 42ccd83): extend the Erase bullet at ~line 350. (3) The radial palette hollow-centre cancel (commit 928a613) is only obliquely covered at ~line 524 — add an explicit sentence that releasing over the hollow centre cancels without picking."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 230
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-drawingsurface-constants"
+title = "Split DrawingSurfaceView 1/6: extract constants and blank-doc helpers"
+description = "render/DrawingSurfaceView.kt is 2549 lines — the one true mono-file in the repo and the largest violation of the CLAUDE.md size rules. The split strategy (steps 1-6, separate tasks tagged split-dsv) keeps DrawingSurfaceView one class and moves method groups into extension files in the same package; private members that moved code touches become internal. Step 1: move the internal companion object body (~lines 2509-2548: ~25 constants plus blankDocument/blankPage) into a new render/DrawingSurfaceConstants.kt as a top-level internal object DrawingSurfaceDefaults plus internal fun blankDocument()/blankPage(); update the ~30 call sites. Verify with scripts/build.sh testDebugUnitTest. Update the render/ list in docs/architecture.md in the same commit (each split step does this). The final step (split-drawingsurface-selection) does the full build and emulator verify for the whole split."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 240
+created = 2026-08-05
+tags = ["audit", "split-dsv"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-drawingsurface-paint"
+title = "Split DrawingSurfaceView 2/6: extract the render/paint loop"
+description = "Step 2 of the DrawingSurfaceView split: create render/DrawingSurfacePaint.kt with extension functions for the render loop and all drawing (~450 lines from ranges ~1109, ~1261-1292 and ~2092-2508): relayout, requestRender, render, lockCanvasForFrame, paint, pageBitmapFor, openBackgroundImage, pdfTilesFor, retainPdfPins, prefetchAround, drawPageElements, visibleBounds, drawCurrent, drawTextSelection, drawSelectionBox, drawGuide, drawPageDrag, drawPageSelection, drawEraserTip, drawHover, drawVerticalSpaceGuide, drawBand, erasesNow. While moving, fix the stale KDoc link at ~line 2224: pdfBitmapFor was renamed to pageBitmapFor. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 250
+created = 2026-08-05
+tags = ["audit", "split-dsv"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-drawingsurface-input"
+title = "Split DrawingSurfaceView 3/6: extract the touch state machine"
+description = "Step 3: create render/DrawingSurfaceInput.kt (~450 lines from ~1139-1198, ~1384-1534 and ~1822-1932): beginPointer, onPointerDown, onPointerUp, abandonInProgress, cancelGesture, handleWheelScroll, pointerKindOf, barrelPressed, activeTool, trackBarrelClicks, beginScroll, doScroll, endGesture, finishGesture, focusY, focusX, spanOf, plus the hand double-tap block (~1384-1441). IMPORTANT: onTouchEvent, onHoverEvent and onGenericMotionEvent are overrides and cannot live in an extension file — keep thin overrides in the class body that delegate to internal handleTouch/handleHover/handleGenericMotion functions, which do move. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 260
+created = 2026-08-05
+tags = ["audit", "split-dsv"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-drawingsurface-strokes"
+title = "Split DrawingSurfaceView 4/6: extract stroke/spline/erase/place capture"
+description = "Step 4: create render/DrawingSurfaceStrokes.kt (~400 lines from ~1617-2073): startStroke, extendStroke, splineDown, splineMove, splineUp, pairsWithPreviousSplineTap, renderSplinePreview, finishSpline, cancelSpline, clearSpline, startErase, eraseMove, eraseAt, beginPlace, placeMove, commitPlace, addSamples, widthForPressure, point, commitCurrent, strokeColor, audioTap, withAudioStamp, appendStroke, resolvedActiveLayer, eraseOnPage. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 270
+created = 2026-08-05
+tags = ["audit", "split-dsv"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-drawingsurface-palette"
+title = "Split DrawingSurfaceView 5/6: extract palette invocation and overlay"
+description = "Step 5: create render/DrawingSurfacePalette.kt (~250 lines): the palette long-press arm/track/cancel block (~1309-1348), the two-finger-tap block (~1349-1383), and the palette overlay block (~2358-2459): openPalette, reopenPalette, movePaletteTo, closePalette, paletteTouch, commitPalette, tick. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 280
+created = 2026-08-05
+tags = ["audit", "split-dsv"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-drawingsurface-selection"
+title = "Split DrawingSurfaceView 6/6: extract selection API; verify whole split"
+description = "Final step: create render/DrawingSurfaceSelection.kt (~150 lines from ~891-1043): beginSelect, beginTextSelect, textSelectMove, copyTextSelection, deleteSelection, restyleSelection, copySelection, cutSelection, pasteClipboard, duplicateSelection. Residual DrawingSurfaceView.kt should now be roughly 700 lines: the property block, document/zoom/page/layer facades, and the thin overrides. Give every new DrawingSurface*.kt file a class-level KDoc header stating what lives there, and rewrite the DrawingSurfaceView entry in docs/architecture.md to describe the split family. This task closes the whole split: run the full scripts/build.sh, install on the /data/android emulator and exercise the moved surfaces — draw pen strokes with pressure, erase, lasso-select then move/copy/paste, open the radial palette by long-press and by two-finger tap, scroll and pinch-zoom, drag a page in the overview — screenshot each and check adb logcat for errors."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 290
+created = 2026-08-05
+tags = ["audit", "split-dsv"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "split-mainactivity-documents"
+title = "Split MainActivity 1/3: extract document I/O extensions"
+description = "MainActivity.kt is 994 lines. Same extension-file technique as the DrawingSurfaceView split; private members that moved code touches become internal. Step 1: create MainActivityDocuments.kt (same package, ~300 lines from ~311-617): openDocument, loadDocument, importPdf, adoptPdf, adoptImage, appendMergedPdf, extractPdfTextInBackground, exportPdf, insertPickedImage, saveDocument, afterSaved, saveActiveTab, documentHasAudio, beginSaveAs, applyStorageLimits. scripts/build.sh testDebugUnitTest; add the file to docs/architecture.md. Final step (split-mainactivity-audio) does the full build and emulator verify."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 300
+created = 2026-08-05
+tags = ["audit", "split-main"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-mainactivity-tabs"
+title = "Split MainActivity 2/3: extract tab/session management"
+description = "Step 2: create MainActivityTabs.kt (~260 lines from ~618-879): tabsUiState, sendTabToOtherPane, hydrate, snapshotActiveTab, show, showTab, previewTabPage, selectTab, reorderTab, closeTab, newTab, blankTab, restoreTabs, persistTabs, prunePdfCache, toggleSplitView, displayName. scripts/build.sh testDebugUnitTest; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 310
+created = 2026-08-05
+tags = ["audit", "split-main"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-mainactivity-audio"
+title = "Split MainActivity 3/3: extract audio; verify whole split"
+description = "Final step: create MainActivityAudio.kt (~75 lines from ~885-957): attachAudio, audioUiState, toggleRecording, beginRecording, adoptAudioFolder, pullAudioSidecars, pushAudioSidecars. Residual MainActivity.kt ~340 lines (fields, activity-result launchers, OpenDocumentForEditing, dispatchKeyEvent, onCreate, intent handling, inBackground, onPause/onDestroy, toast, companion). KDoc headers on all three new files; docs/architecture.md entry describes the family. Closes the MainActivity split: full scripts/build.sh, then emulator — open an existing .xopp, edit and save it, reopen to confirm the round-trip, open a second tab, reorder and close tabs, toggle split view; screenshots plus adb logcat."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 320
+created = 2026-08-05
+tags = ["audit", "split-main"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "extract-bitmap-lru-base"
+title = "Extract shared BitmapLruCache base for PDF and image caches"
+description = "render/PdfPageCache.kt and render/ImageBackgroundCache.kt duplicate an LRU bitmap-cache core, in places character-for-character: bucket() (PdfPageCache:580 vs ImageBackgroundCache:237), nearest() (:456-467 vs :143-154), put() (:473-485 vs :157-168), trim() (:494-513 vs :174-188), enqueue() (:401-410 vs :89-98), unindex() (:522-527 vs :191-195), plus the access-ordered LinkedHashMap / pending set / protectedKey / cachedBytes fields, and MAX_RASTER_WIDTH=4096 exists under two names. Create render/BitmapLruCache.kt: internal abstract class BitmapLruCache<K : Any>(budget: BitmapBudget) : BitmapBudget.Client with the lock, cache map, put, enqueue, trim (with an open spared(key) hook so PdfPageCache keeps its two-pass pinned sweep and generation bump), discardAll, and companion members MAX_RASTER_WIDTH, bucket(), nearest(). Port both caches onto it; keep the PdfPageCache OOM handling; collapse the duplicated ImageBackgroundCache teardown (:203-210 vs :215-222). Do NOT fold InkCache in (different keying and recycling), but co-locate the shared 0.25 page-share constant (PdfPageCache:555 vs InkCache:175). CAREFUL: the lock ordering documented at PdfPageCache.kt:308 (outer lock never held inside renderLock) must be preserved. Full scripts/build.sh; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 330
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "split-pdfpagecache"
+title = "Split PdfPageCache: extract tile geometry and raster source"
+description = "After extract-bitmap-lru-base lands, render/PdfPageCache.kt (582 lines) still fuses tile geometry with the PdfRenderer lifecycle. Extract: (1) render/PdfTileGeometry.kt — the PdfTile data class (~16-22), rasterWidth (~380), tileScale (~395), the tile-grid math from the head of requestTiles (~150-208), and TileMemo (~359-378), as top-level internal functions taking explicit page size and target width; (2) render/PdfRasterSource.kt — the descriptor/renderer/stamp fields, reopenLock, renderLock, checkSource (~311), discard (~337), newBitmap (~446), rasterise (~416), close (~529), pageSizePt (~112). Residual PdfPageCache orchestrates (~200 lines). This is the highest-risk split in the batch: preserve the documented lock ordering (~line 308) exactly. KDoc headers on new files; scripts/build.sh testDebugUnitTest; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 340
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-settings-sections"
+title = "Split SettingsSections.kt into sections plus a widget kit"
+description = "ui/SettingsSections.kt (519 lines) is six settings pages plus a shared widget kit — a textbook mono-file, and the cleanest, lowest-risk split (good warm-up before the bigger ones). Split into: ui/SettingsWidgets.kt (DropdownRow ~396, SwitchRow ~425, OptionGroup ~497, MomentumSlider ~447, PanSensitivitySlider ~475); ui/SettingsToolbarSection.kt (ToolbarSection ~198-260 with its drag state, dragTargetIndex ~267, RailItemRow ~279); ui/SettingsStylusSection.kt (StylusSection ~57-144); residual SettingsSections.kt keeps EditorSection, StorageSection, NavigationSection, AppearanceSection (~130 lines). Mechanical move, no signature changes. KDoc header on each new file. scripts/build.sh testDebugUnitTest; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 350
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "shared-dialogs"
+title = "Consolidate rename/confirm dialogs into ui/Dialogs.kt"
+description = "Three copies of the one-text-field dialog and three of the destructive-confirm dialog, all drifted (different labels, widths, confirm text). Create ui/Dialogs.kt. (1) Generalise TextInputDialog (currently ui/EditorOverlays.kt ~303-327) with label: String? = null and singleLine: Boolean = true parameters, move it there, then delete LayerRenameDialog (ToolbarLayersPopup.kt:167-184) and PaletteRenameDialog (PaletteManagerRow.kt:253-270), updating call sites via the confirmLabel parameter (Set / Rename). (2) Add ConfirmDialog(title, body, confirmLabel, onConfirm, onDismiss) replacing the inline delete-palette dialog (PaletteManagerRow.kt:232-244) and the PaletteBulkEditDialog scaffold (PaletteResetControls.kt:326-337). (3) Add CancelButton(onDismiss) and use it at the 11 byte-identical dismissButton sites: ColorPicker.kt:114, EditorOverlays.kt:325/371/411/509, ToolbarSizePopup.kt:201, ToolbarPagesPopup.kt:306, ToolbarLayersPopup.kt:182, PaletteManagerRow.kt:134, PaletteResetControls.kt:335. Coordinate with split-editor-overlays, which moves the remaining editor dialogs. scripts/build.sh testDebugUnitTest; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 360
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "split-editor-overlays"
+title = "Split EditorOverlays.kt; shrink its 98-line dispatcher"
+description = "ui/EditorOverlays.kt (553 lines) mixes contextual action bars with modal dialogs. Split into: ui/EditorActionBars.kt (SelectionActionBar ~168, RecolorMenu ~209, ReWidthMenu ~228, SelectModeBar ~249, TextSelectionBar ~277); ui/EditorDialogs.kt (SaveAsDialog ~336, ImportPdfDialog ~383, FormatOption ~417, TextBoxDialog ~449, FontFamilyPicker ~542, plus the TEXT_FAMILIES and text-size constants ~440 — note TextInputDialog moves to ui/Dialogs.kt in the shared-dialogs task, coordinate); residual EditorOverlays.kt keeps the dispatcher plus TransferOverlay (~130 lines). Also break up the 98-line BoxScope.EditorOverlays dispatcher (~63-160): extract BoxScope.SelectionOverlays for the bars block (~80-108) and TextPlacementDialog for the text-box wiring including the defaults write-back (~110-136). KDoc headers on new files. scripts/build.sh testDebugUnitTest; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 370
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "toolbar-popup-scaffold"
+title = "One ToolbarPopupButton scaffold for all ten toolbar popups"
+description = "Ten toolbar popups repeat the identical open-state + IconButton + DropdownMenu shell, with behavioural drift. Create ui/ToolbarPopup.kt with @Composable internal fun ToolbarPopupButton(icon, contentDescription, heading = null, active = false, tint = null, onLongClick = null, content: @Composable (dismiss: () -> Unit) -> Unit), plus an overload taking face: @Composable () -> Unit for the two non-icon faces (the Zoom percentage TextButton and the Size TipDot). Port all ten shells: ToolbarPagesPopup.kt:71-111, ToolbarSizePopup.kt:98-133, ToolbarViewPopups.kt Zoom :37-52 / Background :75-92 / Guide :102-122 / Audio :133-176, ToolbarPresetsPopup.kt:54-90, ToolbarLayersPopup.kt:60-94, ToolbarStylePopup.kt:59-76, ToolbarColorPopup.kt:39-53, and ToolGroupButton in SideToolbar.kt:194-227. Standardise the drift while porting: off-tint is onSurfaceVariant everywhere (Guide and Audio currently use LocalContentColor); every popup opens with MenuHeading — move MenuHeading from SideToolbar.kt:230-239 into ToolbarPopup.kt and delete the hand-rolled near-copy at ToolbarSizePopup.kt:107-112; dismiss-on-pick everywhere (fixes StylePopup line-style rows and PagesPopup add/remove rows staying open; remove the threaded open=false workaround at ToolbarPagesPopup.kt:94-97). Full scripts/build.sh, then emulator: open every toolbar popup, screenshot each, pick an item in each and confirm the menu closes and the action applies; check adb logcat."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 380
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "split-documentio"
+title = "DocumentIo: extract reference resolution into DocumentReferences.kt"
+description = "io/DocumentIo.kt (457 lines, marginally over the limit; no function exceeds 45 lines). Extract io/DocumentReferences.kt: an internal class DocumentReferenceResolver(resolver, pdfStore, imageStore) owning both sides of the same Uri/relative-path arithmetic — reference resolution on load (~217-306: pixmapReferences, resolvePixmapBackgrounds, resolvePdfBackground, openReference, openSibling, siblingUri) and portable-reference rewriting on save (~399-443: portableReference, portablePdfReference, portablePixmapReferences, relativeTo). Residual DocumentIo ~280 lines (stores, staging facade, read/linked, encode, adopt/merge/prune). Round-trip unit tests already cover this area: scripts/build.sh testDebugUnitTest. KDoc on the new class; docs/architecture.md."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 390
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "consolidate-stroke-paths"
+title = "Consolidate polyline path building between screen and PDF painters"
+description = "The moveTo/lineTo polyline loop is written six times: render/StrokePainter.kt :63-68 (fill), :101-105 (styled), :119-123 (band) and render/PdfVectorPainter.kt :71-73, :82-83, :104-105. The two classes also mirror the same fill -> styled/highlighter/pressure decision tree (StrokePainter.draw :46-55 vs PdfVectorPainter.stroke :44-63) and the same pressureLine per-segment walk. Consolidate: StrokePainter gets private buildPath(pts, scale, offsetX, offsetY, close = false) used by all three sites; PdfVectorPainter gets private polyline(cs, pts, t); move the decision tree into a StrokeRenderMode.of(stroke) helper in the StrokePainter companion used by both classes so on-screen rendering and PDF export cannot diverge. Fix the existing drift: PdfVectorPainter calls bandWidth twice (:54 and :81) for line width vs dash pattern — compute once and reuse, as StrokePainter already does (:98-100). Full scripts/build.sh (both the screen path and export are affected); if practical, export a test document to PDF before and after and compare visually."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 400
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "consolidate-uri-copy"
+title = "Route all URI byte-copies through UriStaging"
+description = "The URI-to-file byte-copy is repeated: read side in io/UriStaging.kt:27-34 (stageIn), audio/AudioStore.kt:51-55 and MainActivity.kt:531-534 (to ByteArray); write side in UriStaging.kt:37-42 (stageOut), AudioStore.kt:75-79 and MainActivity.kt:521-524. Add UriStaging.readBytes(uri): ByteArray and UriStaging.writeTo(uri, write: (OutputStream) -> Unit); have AudioStore take a UriStaging (it already has a ContentResolver) and MainActivity use it for insertPickedImage and exportPdf. The \"w\" vs \"wt\" truncation bug is fixed by the earlier fix-pdf-export-truncate-mode task — keep \"wt\". Also dedupe the identical stream-to-File one-liners at ImageStore.kt:36 and DocumentIo.kt:307-310. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 410
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "refactor-scrollthumb"
+title = "Break up the 119-line ScrollThumb composable"
+description = "ui/ScrollThumb.kt ScrollThumb (~68-186, 119 lines) mixes four concerns: geometry, fade animation, drag mapping, and drawing. Extract: private data class ThumbGeometry(heightPx, travelPx, topPx, maxScroll) plus private fun thumbGeometry(scrollY, totalHeightPx, viewportPx, minThumbPx): ThumbGeometry? owning ~77-87 (return null when the document fits, replacing the early return); @Composable private fun rememberThumbAlpha(scrollY, totalHeightPx, dragging): Float owning the LaunchedEffect and when at ~90-103; @Composable private fun ThumbBand(geometry, onScrollTo, onDraggingChange, content) owning the grab-band Box and detectDragGestures at ~118-145 including the grip bookkeeping; @Composable private fun ThumbBar(alpha) owning the Canvas at ~150-164; @Composable private fun BoxScope.PageBubble(currentPage, pageCount, centerYPx) owning ~168-184. Residual ScrollThumb ~25 lines of wiring. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 420
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "refactor-editorpaneview"
+title = "Break up the 107-line EditorPaneView; extract surface binding"
+description = "ui/EditorRegions.kt EditorPaneView (~208-314, 107 lines) — its AndroidView factory lambda alone is 53 lines wiring ~18 DrawingSurfaceView callbacks. Extract three private helpers in the same file: fun DrawingSurfaceView.bindTo(state: PaneState) owning ~246-263 (the on* callbacks onLayersChanged/onHistoryChanged/onZoomChanged/onPageCountChanged/onPageSelectionChanged/onPageClipboardChanged/onCurrentPageChanged/onScrollChanged/onSelectionChanged/onTextSelectionChanged/onClipboardChanged plus the initial layers/backgroundStyle/pageSize seeds at ~251-253); fun DrawingSurfaceView.bindEditorActions(ui, index, onActivePane, onPickImage, latestSettings, latestSettingsChange) owning ~264-287 (onToggleFullPage/onBarrelDoubleClick/onPaletteAction/onPlace); fun DrawingSurfaceView.applyInitialStyle(ui, settings) owning ~240-245. Residual EditorPaneView ~45 lines. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 430
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "toolbar-parameter-objects"
+title = "Parameter objects for SideToolbar (48 params) and EditorToolbar"
+description = "ui/SideToolbar.kt SideToolbar has 48 parameters (a 63-line signature at ~49-111 over a clean 38-line body), and ui/EditorRegions.kt EditorToolbar (~96-199, 104 lines) exists only to forward them. One change fixes both. Introduce data classes: ToolbarLayerCallbacks (replaces the 10 layer params: layers, hasSelection, onAddLayer, onDeleteLayer, onMergeLayerDown, onRenameLayer, onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer), ToolbarPagesCallbacks (the 17 page params: pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize, pageColumns, onPageColumns, pagesEditMode, onPagesEditMode, selectedPages, onDeleteSelectedPages, onClearPageSelection, copiedPages, onCopySelectedPages, onPastePages), ToolbarStyleCallbacks (the 12 style params: color, onColor, palette, onRedefineCustom, width, onWidth, widthSlots, onRedefineSlot, lineStyle, onLineStyle, fill, onFill). In EditorRegions add builder helpers toolbarPagesCallbacks(pane, settings, onSettingsChange) and toolbarLayerCallbacks(surface), and extract the non-trivial inline lambdas as private funs: redefineCustomColor (~116-125), redefineWidthSlot (~129-138), applyFill (~142-147). SideToolbar drops to ~12 params and ~45 lines; EditorToolbar to ~40 lines. Adjust the Toolbar*Popup signatures that consume the grouped params where it simplifies them. Full scripts/build.sh."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 440
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "consolidate-width-swatches"
+title = "One WidthDot swatch; fix drifted sizing rules"
+description = "Three width-dot swatches have drifted: TipDot (ToolbarSizePopup.kt:71-78 — 28dp box, dot scaled relative to the largest slot present, no border), PresetSwatch (ToolbarPresetsPopup.kt:148-160 — 24dp box, scaled absolute against PEN_WIDTH_MAX, 1dp outline border; its KDoc claim of matching TipDot is stale), and ColorSwatch (ColorPalette.kt:160-192 — 32dp, bordered, selection ring). Create ui/Swatches.kt with @Composable internal fun WidthDot(pt, maxPt, tint, boxSize = 28.dp, bordered = true) using relative-to-maxPt scaling (ToolbarSizePopup.kt:100-101 documents why absolute scaling overflows the box); port TipDot and PresetSwatch onto it and fix the stale KDoc; move ColorSwatch into the same file. scripts/build.sh testDebugUnitTest at the end of the low-priority UI batch."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "low"
+order = 450
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "consolidate-reorder-controls"
+title = "One ReorderControls row for presets, layers and palettes"
+description = "The up/down/delete IconButton triplet is copied with three different icon pairs and two sizes: ToolbarPresetsPopup.kt:132-140 (ArrowDropUp/Down), ToolbarLayersPopup.kt:143-162 (ArrowUpward/Downward, 32.dp), PaletteManagerRow.kt:205-216 (ArrowBack/Forward). Create ui/ListRowControls.kt with @Composable internal fun ReorderControls(canMoveUp, canMoveDown, canDelete = true, vertical = true, itemName, onMove: (delta: Int) -> Unit, onDelete). Normalise the move convention on delta: presets already pass a delta (ToolbarPresetsPopup.kt:76) while layers pass an absolute target index (ToolbarLayersPopup.kt:80-81) — adapt the layers call site. Pick one icon pair per orientation and one size."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "low"
+order = 460
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "consolidate-argb-helpers"
+title = "Centralise ARGB channel helpers and background rule colours"
+description = "ARGB channel extraction is written out six times: render/PdfVectorPainter.kt:189-192 (named alpha/red/green/blue helpers), render/PdfBackgroundPainter.kt:39, :68 and :78 (the same shifts inline, three times), format/XoppColor.kt:54. Move alpha/red/green/blue into format/XoppColor.kt as Int extension properties next to the existing withAlpha (:50), and add render/PdfColor.kt with PDPageContentStream.setStrokingArgb(argb) / setNonStrokingArgb(argb), collapsing the PdfBackgroundPainter stroking() helper (:77-80) and inline calls. Also: BackgroundRenderer.kt:26-30 and PdfBackgroundPainter.kt:22-24 duplicate the rule/margin/dot colours (0xA9C7E8, 0xE79B9B, 0xFF8FB0D6) — move them into BackgroundGrid (already the shared home for spacings) as RULE_RGB / MARGIN_RGB / DOT_RGB. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "low"
+order = 470
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "refactor-tabchip"
+title = "Break up the 95-line TabChip composable"
+description = "ui/TabStrip.kt TabChip (~175-269, 95 lines, borderline — lowest priority of the function breakups). Extract: private fun Modifier.tabChipInteractions(selected, onSelect, onLongClick, drag, chipWidth) owning the 26-line modifier chain at ~204-221 (clip/background/combinedClickable/pointerInput); @Composable private fun TabChipMenu(expanded, onDismiss, onMove, onMirror) owning ~225-234; @Composable private fun TabCloseButton(title, selected, onClose) owning ~257-267. Residual TabChip ~45 lines. scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "low"
+order = 480
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "refactor-editorscreen"
+title = "EditorScreen: extract top-bar slot and pane-chrome params (optional)"
+description = "ui/EditorScreen.kt EditorScreen (~118-211, 94 lines) is borderline — much of the excess is per-parameter KDoc and a flat list of top-level regions, so this is optional polish. If done: extract @Composable private fun EditorTopBarSlot(ui, pane, tabs, activePane, onOpen, onSave, onExportPdf, splitView, onToggleSplitView) owning ~152-165 including the fullPage guard and the coerceIn index math, and group splitView/activePane/onToggleSplitView/onActivePane into a PaneChromeState parameter object. Skip if it fights the existing KDoc-per-param style; if skipped, close this task with a note."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "low"
+order = 490
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "fill-alpha-range-decision"
+title = "Resolve fill-alpha range disagreement (0..255 vs 1..255)"
+description = "Stroke fill alpha is clamped to different ranges: format/XoppReader.kt:97 coerces 0..255 (the file format legitimately allows fill=\"0\"), while ui/AppSettings.kt:250 and ui/ToolPresetCodec.kt:65 coerce 1..255 — so a document read with fill=0 cannot be reproduced by the editor controls. Decide and record: the model keeps 0..255 and the UI pickers keep 1..255, with a comment at each site explaining why they differ (or widen the UI to 0). Minimal code change; the point is that the divergence becomes deliberate instead of accidental."
+status = "active"
+level = "task"
+category = "chore"
+urgency = "low"
+order = 500
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "page-label-helper"
+title = "One pageLabel helper; remove the load-bearing guard in PageCounter"
+description = "The \"page X of Y\" label is computed three ways: ui/PageCounter.kt:56 uses (currentPage + 1).coerceIn(1, pageCount), which throws if pageCount == 0 and is saved only by the guard at :48, while ui/ScrollThumb.kt:179 and ui/ToolbarPagesPopup.kt:134 use the hazard-free coerceAtMost(pageCount). Extract internal fun pageLabel(currentPage: Int, pageCount: Int): String using the coerceAtMost form (a sensible home: ui/PageCounter.kt or a small ui/PageLabels.kt) and use it at all three sites so no copy depends on a guard the others lack."
+status = "active"
+level = "task"
+category = "chore"
+urgency = "low"
+order = 510
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "cleanup-leftovers"
+title = "Delete dead STYLE_TOKENS; annotate test-only scrollY"
+description = "Two leftovers. (1) format/FontDescription.kt declares STYLE_TOKENS, the only private declaration in the tree with zero references — delete it (or wire it into the font-string parser it was written for, if that is a small obvious change). (2) render/DrawingSurfaceView.kt:91 scrollY is internal solely so on-device input tests can read it, while the paired scrollX two lines below is private — annotate it @VisibleForTesting (androidx.annotation) so the reason is machine-checkable, or have the test read it via ViewportState and make it private. Note: after the split-dsv tasks land, the line numbers will have moved; search by name."
+status = "active"
+level = "task"
+category = "chore"
+urgency = "low"
+order = 520
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "dynamic-color-setting"
+title = "Surface dynamicColor as a Use-system-colours setting (or drop it)"
+description = "ui/theme/Theme.kt:35 XoppTheme(dynamicColor = ...) is a parameter that is always its default — the sole call site (MainActivity.kt:225) never passes it. Make it real: add dynamicColor: Boolean (default true) to ui/AppSettings.kt with a pref key and load/save wiring, a \"Use system colours\" SwitchRow in AppearanceSection (currently ui/SettingsSections.kt ~360; may have moved to a split-out file by the time this runs), and pass it through from MainActivity. Unit-test the settings persistence. Document the new toggle in the README Appearance section in the same commit. Full scripts/build.sh."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "low"
+order = 530
+created = 2026-08-05
+tags = ["audit"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "xoppzip-mimetype-check"
+title = "Check upstream Xournal++ for the mimetype fix behind XoppZip hack"
+description = "format/XoppZip.kt:24-37: MIMETYPE = \"application/x-xopp-zip\" is a documented deliberate workaround for the inverted mimetype check in Xournal++ 1.3.5, with no expiry condition. Check current upstream (github.com/xournalpp/xournalpp release notes or source) for whether the inverted check is fixed. If fixed: flip the constant back to \"application/xournal++\", set this task rebuild=true before working it, run the round-trip tests, and ideally verify a file opens in a current desktop build. If not fixed: add a version-gated note in the KDoc naming the upstream issue and the last-checked version so the next check is mechanical."
+status = "active"
+level = "task"
+category = "chore"
+urgency = "low"
+order = 540
+created = 2026-08-05
+tags = ["audit"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "kdoc-format-package"
+title = "KDoc: format/ package (Element.kt is 2/37 documented)"
+description = "Add missing KDoc across format/. Worst file in the repo: format/model/Element.kt (2 of 37 public declarations documented) — document Element, Tool, StrokePoint, LineStyle, TextElement, ImageElement and every public field, especially round-trip-preservation fields like uniformWidth and (once added) extraAttrs. Also: format/model/Document.kt (Page); XoppReader.kt (object + read); XoppWriter.kt (object + write); Xopp.kt (open, parseXml, save, toXml); XoppColor.kt (parse, format); xml/XmlPullReader.kt (all six publics); xml/XmlWriter.kt (prolog, start, attr, text, rawText, end, newline). Each doc should state the role in the .xopp schema mapping and any invariant the code cannot show; imitate the style of format/XoppZip.kt and io/PdfReference.kt. No narration comments. Verify nothing broke with scripts/build.sh testDebugUnitTest once at the end of the kdoc batch."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 550
+created = 2026-08-05
+tags = ["audit", "kdoc"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "kdoc-io-audio-tabs"
+title = "KDoc: io/, audio/ and tabs/ gaps"
+description = "Add missing KDoc: io/SaveTarget.kt (file header + XOPP_SUFFIX), io/ImageStore.kt (newFile, copyIn, prune), io/ScratchDir.kt, io/UriStaging.kt (remaining members), io/TextImport.kt (TextTooLargeException), io/IncomingDocument.kt if bare; audio/WavWriter.kt (write, durationMs, close), audio/AudioSession.kt (the ~9 undocumented members), audio/AudioPlayer.kt, audio/AudioStore.kt; tabs/OpenTab.kt (TabSession). Imitate io/PdfReference.kt and io/DocumentIo.kt, the best-documented files in the tree. Coordinate with the io/ refactor tasks (consolidate-store-newfile, split-documentio) — document the post-refactor shape."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 560
+created = 2026-08-05
+tags = ["audit", "kdoc"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "kdoc-render-core"
+title = "KDoc: render/ types with no class docs at all"
+description = "Add class-level KDoc to render/ files whose primary types have none: LatexParser.kt (0/16 — LatexNode and all its variants Row/SymbolRun/Superscript/Subscript/SubSup/Fraction/Sqrt, plus the parser), PageEraser.kt (EraserMode, ERASER_RADIUS_MIN_PT), PdfText.kt (CharBox, PdfWord), PixmapBackgroundDomain.kt (PixmapAttachments, attachPixmapFilename), PdfBackgroundDomain.kt (ATTACH_DOMAIN, ABSOLUTE_DOMAIN), SelectionGestureController.kt (ActiveSelection), ShapeBuilder.kt (ShapeKind), DrawingGuide.kt (GuideKind), Fling.kt (FlingStep), InputClassifier.kt (BarrelAction, GestureIntent, InputSettings), PressureCurve.kt (PressureSensitivity), Selection.kt (Vec2), VelocityEstimator.kt (Velocity), markdown/MarkdownBlock.kt (ListItem), markdown/MarkdownLayoutItem.kt (MarkdownPage), and the DrawingSurface*.kt files created by the split-dsv tasks if any type still lacks a header. State units (pt vs px) and threading expectations where relevant; imitate render/StrokeSmoother.kt and render/PageOps.kt. Do after the split-dsv and PdfPageCache tasks so docs land on final files."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 570
+created = 2026-08-05
+tags = ["audit", "kdoc"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "kdoc-render-members"
+title = "KDoc: render/ member-level gaps (units and invariants)"
+description = "These render/ files have class docs but mostly bare public members — add one-line KDoc per member stating units and invariants (pt vs px matters everywhere here): CanvasChrome.kt (the ~14 paint accessors: backdropColor, selectionStroke, selectionFill, handle, handleArm, bandFill, guideStroke, guideFill, guideHandle, pageLift, pageDrop, pageSelectFill, pageSelect, hover), PageOverview.kt (~11: editMode, selected, clipboard, dragIndex, dropIndex, armed, clearSelection, toggleSelection, copyToClipboard, arm, lift), PageStacker.kt (PageBox fields + boxes/totalHeightPx/contentWidthPx/columns, plus the toPt/toView members once consolidate-page-transforms lands), PageCommands.kt (~12 commands), ViewportState.kt (~11), ElementBounds.kt (~9), SelectionOps.kt, EditHistory.kt (canUndo/canRedo/undo/redo/clear), BitmapBudget.kt (register/unregister/used/headroom/credit), MomentumDriver.kt, GuideDrag.kt, Snapping.kt, StrokeHitTester.kt, TextEditController.kt, LayerOps.kt, PdfOverlayMatrix.kt; markdown/MarkdownStyle.kt (all ~20 geometry constants), MarkdownLine.kt (~10 helpers), StyledRun.kt, and the single entry points parse/compose/layout/paginate/scan/resolve in MarkdownParser/Composer/Layout/InlineScanner/InlineEmphasis."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "low"
+order = 580
+created = 2026-08-05
+tags = ["audit", "kdoc"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "kdoc-ui-palette"
+title = "KDoc: the ui/ palette family (geometry, codecs, pickers)"
+description = "The palette family is almost entirely undocumented. Add KDoc to: PaletteSection.kt (0/23), RadialPalette.kt (RadialRing, RadialSlot, PalettePageOp, RadialPalette — including the width require() precondition), RadialPaletteHitTest.kt (RadialPaletteGeometry, RadialHit, slotIndexAt), RadialPaletteLayout.kt (RadialPoint, slotDrawRadius, DEFAULT_ANCHOR_MARGIN), RadialPaletteCodec.kt (encode side; decode is documented — match its style), PaletteActionCatalog.kt (PaletteActionGroup, paletteActionGroups), PaletteActionPicker.kt, PaletteEditorLayout.kt (PaletteEditorSlot, slotMarkRadius and the two radius constants), PaletteList.kt (PaletteSet, addPalette, movePalette, renamePalette, activatePalette), PaletteManagerRow.kt, PaletteResetControls.kt (PaletteBulkEdit and helpers), ColorPalette.kt (ColorPaletteState, rememberColorPaletteState, ColorSwatch, ColorPaletteRows, CustomColorEditor), ColorPicker.kt (0/11 — argbToHex, hexToArgb, CustomColorPickerDialog). Document geometry units and the codec string formats especially. Do after the palette-touching refactor tasks (shared-dialogs, consolidate-reorder-controls) so docs land on final code."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 590
+created = 2026-08-05
+tags = ["audit", "kdoc"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "kdoc-ui-chrome"
+title = "KDoc: remaining ui/ chrome, settings, toolbar popups, theme"
+description = "Add KDoc to the remaining undocumented ui/ surface (do LAST among the kdoc tasks, after the ui splits and consolidations, so docs land on final files): EditorScreen.kt, EditorRegions.kt (EditorTopBar, EditorToolbar, EditorPaneView + extracted binders), EditorOverlays.kt and the files split from it, EditorBackHandler.kt (0/1), ScrollThumb.kt (post-refactor), SettingsSections.kt sections and their split-out files, SideToolbar.kt, TabStrip.kt members, TabOverviewPopup.kt, SplitLayout.kt, PageCounter.kt, AppSettings.kt (ToolbarPosition, PageCounterVertical, PageCounterHorizontal, ThemeMode, SettingsStore, and at minimum every public type and non-obvious field of the ~45 undocumented members), PaneState.kt (0/19 members), EditorUiState.kt, RailItems.kt, ToolPreset.kt, ToolPresetCodec.kt, ToolPresetList.kt, VectorIconPath.kt, theme/Theme.kt, theme/Color.kt, theme/ChromeColors.kt, AboutSection.kt, and every Toolbar*Popup public plus shared constants (PEN_COLORS, PEN_WIDTH_LABELS/MIN/MAX/STEP, DEFAULT_FILL_ALPHA, PagePreset, SizeUnit, AudioUiState). Close the kdoc batch with one scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "docs"
+urgency = "normal"
+order = 600
+created = 2026-08-05
+tags = ["audit", "kdoc"]
+rebuild = false
+emulator_debug = false
