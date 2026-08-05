@@ -7,6 +7,17 @@ plugins {
 /** Test-only handle on the raw pdfbox-android AAR, so its bundled assets can be extracted below. */
 val pdfboxAar: Configuration by configurations.creating { isTransitive = false }
 
+/**
+ * The short commit the APK was built from, baked into `BuildConfig.GIT_COMMIT` so the About page can
+ * name the exact source revision. Falls back to "unknown" when git isn't available (a source tarball
+ * or a checkout-less CI step), since a missing hash must never fail the build.
+ */
+fun gitCommit(): String = runCatching {
+    providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+    }.standardOutput.asText.get().trim()
+}.getOrNull()?.takeIf { it.isNotEmpty() } ?: "unknown"
+
 android {
     namespace = "com.xopp.android"
     compileSdk = 34
@@ -18,6 +29,7 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "GIT_COMMIT", "\"${gitCommit()}\"")
     }
 
     buildTypes {
@@ -38,6 +50,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests {

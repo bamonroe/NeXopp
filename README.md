@@ -467,7 +467,7 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
 - **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Palette**, **Editor**,
-  **Toolbar**, **Navigation**, **Appearance** and **Storage**. Tap a section to open it as its own page; back returns to the list, and back from
+  **Toolbar**, **Navigation**, **Appearance**, **Storage** and **About**. Tap a section to open it as its own page; back returns to the list, and back from
   the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and never actuate a
     tool at all — pen, highlighter, eraser, text and selection all become stylus-only
@@ -609,6 +609,17 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     imports (64 / 128 / **256** / 512 / 1024 MB). These are what make reopening the same text file
     instant. Once the cache is over budget, the **oldest** ones no open tab is using are deleted;
     they are regenerated the next time you open that file, so nothing is lost but time.
+
+  Under **About** — what this build is and where it came from:
+  - **Version** and **Git commit** — the version name and code, plus the short commit the APK was
+    built from (baked in at build time; it reads `unknown` when built outside a git checkout). Quote
+    both when filing a bug.
+  - **Licence** — Xopp is free software under the **GNU GPL, version 2 or later**, the same licence
+    as Xournal++; the full text is in [`LICENSE`](LICENSE), and the page links to the GPL and to the
+    Xournal++ project.
+  - **Source** — a link to [github.com/bamonroe/xopp_android](https://github.com/bamonroe/xopp_android).
+  - **Buy me a coffee** — a link to [patreon.com/bamonroe](https://www.patreon.com/bamonroe) if you'd
+    like to support the work. Every link opens in your browser.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
   drawn at its true size with its background (a PDF page, an image, or a ruled sheet) and every
   stroke and element merged on top, then written to the location you pick. Pages backed by an
@@ -683,3 +694,12 @@ app/src/main/java/com/xopp/android/
 app/src/test/  # JVM unit tests for the format and render layers
 Dockerfile, compose.yaml, scripts/build.sh   # containerized build
 ```
+
+## Licence
+
+Xopp is free software under the **GNU General Public License, version 2 or later** — the same
+licence as [Xournal++](https://github.com/xournalpp/xournalpp). The full text is in
+[`LICENSE`](LICENSE). It comes with no warranty.
+
+If Xopp is useful to you, you can support its development at
+[patreon.com/bamonroe](https://www.patreon.com/bamonroe).

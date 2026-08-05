@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "about-page-version-git-hash-licence-source-and-support-links"
+title = "About page: version, git hash, licence, source and support links"
+description = "A new Settings > About section showing the version name/code and the git commit baked in via BuildConfig, the GPL-2.0-or-later licence (with LICENSE at the repo root), a link to the GitHub source, and a Patreon support link. Links open in the system browser."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-04
+completed = 2026-08-04
+tags = []
+
+[[task]]
 id = "round-trip-test-pixmap-backgrounds-against-desktop-xournal"
 title = "Round-trip test pixmap backgrounds against desktop Xournal++"
 description = "Add a PixmapBackgroundRoundTripTest modelled on PdfBackgroundRoundTripTest covering absolute and attach domains through XoppReader/XoppWriter and the save path, ensuring the linked image stays external and annotations survive."

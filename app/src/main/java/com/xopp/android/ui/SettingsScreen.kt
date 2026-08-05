@@ -42,6 +42,7 @@ enum class SettingsSection(val title: String, val summary: String) {
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
     APPEARANCE("Appearance", "Light, dark, or follow the system theme."),
     STORAGE("Storage", "How big a text file may be imported, and how much cache to keep."),
+    ABOUT("About", "Version, licence, source code, and how to support the work."),
 }
 
 /**
@@ -75,6 +76,7 @@ fun SettingsScreen(
                 SettingsSection.NAVIGATION -> NavigationSection(settings, onChange)
                 SettingsSection.APPEARANCE -> AppearanceSection(settings, onChange)
                 SettingsSection.STORAGE -> StorageSection(settings, onChange)
+                SettingsSection.ABOUT -> AboutSection()
             }
         }
     }
