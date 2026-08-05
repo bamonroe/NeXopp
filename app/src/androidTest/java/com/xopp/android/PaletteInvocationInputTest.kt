@@ -14,6 +14,8 @@ import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.InputSettings
 import com.xopp.android.render.PaletteInvocation
+import com.xopp.android.ui.RadialRing
+import com.xopp.android.ui.slotDrawRadius
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -99,12 +101,15 @@ class PaletteInvocationInputTest {
         twoFingerTap(view, holdMs = 40)
         assertTrue("the tap opened the palette", view.paletteOpen)
 
-        // A pick on the inner ring, straight up from where the tap anchored it.
-        tapAt(view, 550f, 900f - 100f)
+        // A pick on the inner ring, straight up from where the tap anchored it. The mark sits
+        // midway between the dead zone and the inner ring, and only a hit on the mark itself
+        // counts — aiming at the ring circle would land in the gap between slots.
+        val innerRadius = slotDrawRadius(RadialRing.INNER)
+        tapAt(view, 550f, 900f - innerRadius)
         assertTrue("the pick left the menu up", view.paletteOpen)
 
         // A second pick, proving the menu is still live rather than merely still painted.
-        tapAt(view, 550f + 100f, 900f)
+        tapAt(view, 550f + innerRadius, 900f)
         assertTrue("the menu is still up after a second pick", view.paletteOpen)
 
         // Well past the dismiss radius: this is the click-off that closes it.
