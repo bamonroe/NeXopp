@@ -325,6 +325,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** When true, the open radial palette buzzes as the flick crosses slots and on commit. */
     var paletteHaptics: Boolean = true
+    /** When true, picking a slot closes the palette instead of leaving it open for more picks. */
+    var paletteCloseOnSelect: Boolean = false
     /** When true, one finger pans the canvas (the Hand tool) instead of drawing/erasing. */
     var handMode: Boolean = false
     /** When non-null, a one-finger tap places an element of this kind instead of drawing. */
@@ -2441,7 +2443,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val hit = paletteOverlay?.hit ?: return
         if (hit is RadialHit.Outside || hit is RadialHit.Cancel) { closePalette(); return }
         if (PaletteHaptics.shouldConfirm(hit)) tick(HapticFeedbackConstants.CONFIRM)
-        if (alwaysClose) closePalette()
+        if (alwaysClose || paletteCloseOnSelect) closePalette()
         val action = (hit as? RadialHit.Slot)?.action ?: return
         onPaletteAction?.invoke(action)
     }

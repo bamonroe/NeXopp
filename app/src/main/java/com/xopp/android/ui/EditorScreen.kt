@@ -82,6 +82,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
     )
     showHover = s.showHover
     paletteHaptics = s.paletteHaptics
+    paletteCloseOnSelect = s.paletteCloseOnSelect
     pressureGamma = s.sensitivity.gamma
     strokePrecision = s.strokePrecision
     recognizeShapes = s.recognizeShapes

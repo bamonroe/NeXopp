@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "setting-click-and-dismiss-for-the-palette"
+title = "Setting: click-and-dismiss for the palette"
+description = "Add a settings toggle that, when on, dismisses the radial palette as soon as a selection is made. When off, keep the current behavior: the palette stays open until you tap outside it."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "show-the-eraser-outline-while-the-barrel-button-is-held"
 title = "Show the eraser outline while the barrel button is held"
 description = "Pressing the stylus barrel button switches to the eraser, but the tip outline only appears after the pen touches the screen. The outline should follow the hovering pen as soon as the button goes down, so you can see what you are about to rub out before committing. Draw it from hover/button-state events in DrawingSurfaceView rather than waiting for the first down event."

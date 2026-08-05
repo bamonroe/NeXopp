@@ -48,6 +48,8 @@ data class AppSettings(
     val showHover: Boolean = true,
     /** Buzz as a radial-palette flick crosses into a new slot, and again when it commits. */
     val paletteHaptics: Boolean = true,
+    /** Close the radial palette the moment a slot is picked, instead of leaving it open. */
+    val paletteCloseOnSelect: Boolean = false,
     /** How pen pressure maps to stroke width. */
     val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
     /** How much digitiser detail a freehand stroke keeps (fidelity vs. file size). */
@@ -207,6 +209,8 @@ class SettingsStore(context: Context) {
             paletteInvocation = enumOr(prefs.getString(KEY_PALETTE_INVOCATION, null), d.paletteInvocation),
             showHover = prefs.getBoolean(KEY_HOVER, d.showHover),
             paletteHaptics = prefs.getBoolean(KEY_PALETTE_HAPTICS, d.paletteHaptics),
+            paletteCloseOnSelect =
+                prefs.getBoolean(KEY_PALETTE_CLOSE_ON_SELECT, d.paletteCloseOnSelect),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
             strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
             recognizeShapes = prefs.getBoolean(KEY_RECOGNIZE_SHAPES, d.recognizeShapes),
@@ -255,6 +259,7 @@ class SettingsStore(context: Context) {
             .putString(KEY_PALETTE_INVOCATION, s.paletteInvocation.name)
             .putBoolean(KEY_HOVER, s.showHover)
             .putBoolean(KEY_PALETTE_HAPTICS, s.paletteHaptics)
+            .putBoolean(KEY_PALETTE_CLOSE_ON_SELECT, s.paletteCloseOnSelect)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
             .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
             .putBoolean(KEY_RECOGNIZE_SHAPES, s.recognizeShapes)
@@ -296,6 +301,7 @@ class SettingsStore(context: Context) {
         const val KEY_PALETTE_INVOCATION = "palette_invocation"
         const val KEY_HOVER = "show_hover"
         const val KEY_PALETTE_HAPTICS = "palette_haptics"
+        const val KEY_PALETTE_CLOSE_ON_SELECT = "palette_close_on_select"
         const val KEY_SENSITIVITY = "sensitivity"
         const val KEY_STROKE_PRECISION = "stroke_precision"
         const val KEY_RECOGNIZE_SHAPES = "recognize_shapes"

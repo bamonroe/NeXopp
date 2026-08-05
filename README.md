@@ -493,6 +493,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   - **Hover preview** — show a ring where a hovering stylus will land.
   - **Palette haptics** — tick as a radial-palette flick crosses into a new slot, with a
     stronger confirm buzz when it commits. Turn it off for a silent palette.
+  - **Close palette on select** — off by default; turn it **on** to dismiss the radial palette the
+    moment a slot is picked. Off, the palette stays open after a pick so you can make several
+    selections, and closes only when you tap outside it.
   - **Barrel button** — what the stylus side-button does while held: **Erase** (default), **Select**,
     or **None**.
   - **Barrel double-click** — what a *rapid double-click* of that same button does, recognised only

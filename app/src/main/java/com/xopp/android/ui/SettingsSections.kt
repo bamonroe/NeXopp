@@ -69,6 +69,13 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
         checked = settings.paletteHaptics,
         onCheckedChange = { onChange(settings.copy(paletteHaptics = it)) },
     )
+    SwitchRow(
+        title = "Close palette on select",
+        subtitle = "Dismiss the radial palette as soon as a slot is picked, instead of leaving " +
+            "it open until you tap outside it.",
+        checked = settings.paletteCloseOnSelect,
+        onCheckedChange = { onChange(settings.copy(paletteCloseOnSelect = it)) },
+    )
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     OptionGroup(
