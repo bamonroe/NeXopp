@@ -36,6 +36,28 @@ class EditorPane(
     /** The file name last chosen in the Save As dialog for this pane; reused by plain Save. */
     var pendingSaveName: String = "document.xopp"
 
-    /** Write this pane's session out. Cheap enough to call on every tab change. */
-    fun persist() = store.save(tabs.session())
+    /**
+     * Write this pane's session out — called on every tab change and on the way to the background.
+     *
+     * The session is read here, on the caller's (main) thread, so it is a consistent snapshot; the
+     * writing itself is gzip XML per open document, far too slow for the main thread, so it is queued
+     * onto [writer]. One single-threaded queue keeps the writes in the order they were asked for, so
+     * the last state asked for is the state left on disk.
+     */
+    fun persist() {
+        val session = tabs.session()
+        writer.execute { store.save(session) }
+    }
+
+    /**
+     * Block until the queued session writes have finished — used when the app is going away and the
+     * snapshot has to be on disk before the process can be killed.
+     */
+    fun awaitPersist(timeoutMs: Long) {
+        val done = java.util.concurrent.CountDownLatch(1)
+        writer.execute(done::countDown)
+        runCatching { done.await(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS) }
+    }
+
+    private val writer = java.util.concurrent.Executors.newSingleThreadExecutor()
 }

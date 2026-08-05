@@ -123,7 +123,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   format, its own background PDF and the page you were on, so switching back lands you where you
   left off. Closing the last tab leaves you on a fresh blank document. One thing to note: **undo
   history doesn't follow a tab switch** — the incoming document starts with a clean undo history,
-  though all of its content and unsaved edits are intact.
+  though all of its content and unsaved edits are intact. Reopening the app brings the whole strip
+  straight back, however many tabs it holds: each document is read in the background at the moment
+  you switch to it, so the app starts and stays responsive instead of stalling on a big session.
 - **Split view — two documents side by side** — **Split view** in the ☰ menu divides the drawing
   area into a left and a right **pane**, each showing its own document. Drag the bar down the
   middle to rebalance the two halves (it's a finger-wide grab strip, and neither pane can be

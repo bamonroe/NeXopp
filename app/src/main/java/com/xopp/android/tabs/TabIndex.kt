@@ -67,6 +67,7 @@ object TabIndex {
                 pdfPath = unescape(f[4]).ifEmpty { null },
                 page = f[5].toIntOrNull() ?: 0,
                 docKey = f.getOrNull(6)?.let(::unescape)?.ifEmpty { null } ?: id,
+                hydrated = false,
             )
         }
         return TabSession(tabs, active.coerceIn(0, maxOf(0, tabs.size - 1)))

@@ -27,7 +27,9 @@ class MirrorSync(private val panes: List<EditorPane>) {
         val key = active.docKey
         if (panes.none { p -> p.tabs.tabs.any { it.docKey == key && it.id != active.id } }) return
         for (p in panes) {
-            p.tabs.updateMatching({ it.docKey == key }) { it.copy(document = doc) }
+            // The record now holds the real document, so it counts as hydrated even if it was still a
+            // placeholder from the session index — the edit must not be lost to a later snapshot read.
+            p.tabs.updateMatching({ it.docKey == key }) { it.copy(document = doc, hydrated = true) }
             if (p === source) continue
             if (p.tabs.active?.docKey == key) p.surface?.applyMirroredDocument(doc)
         }

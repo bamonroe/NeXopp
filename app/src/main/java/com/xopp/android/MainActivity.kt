@@ -233,8 +233,9 @@ class MainActivity : ComponentActivity() {
                         p.surface = view
                         view.onDocumentEdited = { doc -> mirrors.propagate(p, doc) }
                         attachAudio(view)
-                        restoreTabs(p)
-                        openIncoming()
+                        // Restore is asynchronous now, so a file handed to us by another app is opened
+                        // once the session is back — otherwise it would be shoved aside by the restore.
+                        restoreTabs(p) { openIncoming() }
                     },
                     settings = settings,
                     onSettingsChange = { settings = it; store.save(it); applyStorageLimits(it) },
@@ -634,16 +635,21 @@ class MainActivity : ComponentActivity() {
         snapshotActiveTab(from)
         val source = from.tabs.tabs.getOrNull(index) ?: return
         hydrate(other)
-        other.tabs.open(source.copy(id = TabStore.newId()))
+        val newId = TabStore.newId()
+        // A tab still waiting to be parsed is handed over as a *file*: its snapshot is copied under
+        // the copy's new id, so the other pane can hydrate it itself rather than us parsing a whole
+        // document inside this long-press.
+        if (!source.hydrated) other.store.adopt(from.store, source.id, newId)
+        other.tabs.open(source.copy(id = newId))
         if (!keepHere) {
             val showing = from.tabs.active?.id
             from.tabs.close(index)
             if (from.tabs.isEmpty) from.tabs.open(blankTab())
-            from.tabs.active?.takeIf { it.id != showing }?.let { showTab(it, from) }
+            from.tabs.active?.takeIf { it.id != showing }?.let { show(it, from) }
         }
         // Only paints now if that pane already has a canvas; otherwise [restoreTabs] shows it when
         // split view builds one.
-        other.tabs.active?.let { showTab(it, other) }
+        other.tabs.active?.let { show(it, other) }
         splitView.value = true
         from.persist()
         other.persist()
@@ -661,6 +667,9 @@ class MainActivity : ComponentActivity() {
     /** Copy the live canvas back into the showing tab's record, so switching away doesn't lose it. */
     private fun snapshotActiveTab(p: EditorPane = pane) {
         val view = p.surface ?: return
+        // A tab still being parsed in the background hasn't reached the canvas yet, so what is on it
+        // belongs to the tab before it — copying that in would overwrite the pending document.
+        if (p.tabs.active?.hydrated == false) return
         p.tabs.updateActive {
             it.copy(
                 document = view.toDocument(),
@@ -669,6 +678,28 @@ class MainActivity : ComponentActivity() {
                 page = view.visiblePageIndex(),
             )
         }
+    }
+
+    /**
+     * Put [p]'s showing tab on its canvas, parsing its snapshot first if it is still a lazy
+     * placeholder from the session index ([TabStore.load]).
+     *
+     * The parse is gzip + XML over a whole document, far too slow for the main thread, so an
+     * unhydrated tab is read on a worker and handed to [showTab] when it lands — the canvas keeps
+     * whatever it was showing for those few frames instead of freezing. A tab whose selection has
+     * moved on by then is dropped: only the still-showing tab is painted.
+     */
+    private fun show(tab: OpenTab, p: EditorPane = pane) {
+        if (tab.hydrated) return showTab(tab, p)
+        Thread {
+            val full = p.store.hydrate(tab)
+            runOnUiThread {
+                if (p.tabs.active?.id != full.id) return@runOnUiThread
+                p.tabs.updateActive { if (it.id == full.id) full else it }
+                showTab(full, p)
+                tabsTick.value++
+            }
+        }.start()
     }
 
     /** Load [tab] onto [p]'s canvas: its document, background PDF, save format and page. */
@@ -688,7 +719,7 @@ class MainActivity : ComponentActivity() {
     private fun selectTab(index: Int, p: EditorPane = pane) {
         snapshotActiveTab(p)
         if (!p.tabs.select(index)) return
-        p.tabs.active?.let { showTab(it, p) }
+        p.tabs.active?.let { show(it, p) }
         tabsTick.value++
         p.persist()
     }
@@ -713,7 +744,7 @@ class MainActivity : ComponentActivity() {
         val showing = p.tabs.active?.id
         p.tabs.close(index) ?: return
         if (p.tabs.isEmpty) p.tabs.open(blankTab())
-        p.tabs.active?.takeIf { it.id != showing }?.let { showTab(it, p) }
+        p.tabs.active?.takeIf { it.id != showing }?.let { show(it, p) }
         tabsTick.value++
         p.persist()
         prunePdfCache() // the closed tab's background PDF is now unreferenced
@@ -723,7 +754,7 @@ class MainActivity : ComponentActivity() {
     private fun newTab(p: EditorPane = pane) {
         snapshotActiveTab(p)
         p.tabs.open(blankTab())
-        p.tabs.active?.let { showTab(it, p) }
+        p.tabs.active?.let { show(it, p) }
         tabsTick.value++
         p.persist()
     }
@@ -736,23 +767,33 @@ class MainActivity : ComponentActivity() {
      * that pane's canvas exists; guarded so a surface rebuilt within this activity doesn't restore
      * twice (and so the right-hand pane only restores when split view actually opens it).
      */
-    private fun restoreTabs(p: EditorPane) {
+    private fun restoreTabs(p: EditorPane, then: () -> Unit = {}) {
         // A pane that already has a session is being handed a *replacement* canvas (split view was
         // switched off and on again): put its showing document straight back onto the new surface.
         if (!p.tabs.isEmpty) {
-            p.tabs.active?.let { showTab(it, p) }
+            p.tabs.active?.let { show(it, p) }
+            then()
             return
         }
-        val session = p.store.load()
-        if (session == null) {
-            p.tabs.open(blankTab())
-            p.tabs.active?.let { showTab(it, p) }
-        } else {
-            session.tabs.forEach(p.tabs::open)
-            p.tabs.select(session.activeIndex)
-            p.tabs.active?.let { showTab(it, p) }
-        }
-        tabsTick.value++
+        // Reading the index and parsing the showing tab's snapshot is disk + gzip + XML work, so it
+        // happens on a worker; only the (cheap) hand-off to the canvas runs on the main thread. Doing
+        // it inline is what pushed the first frame past the ANR watchdog on a big restored session.
+        Thread {
+            val session = p.store.load()
+            runOnUiThread {
+                if (p.tabs.isEmpty) {
+                    if (session == null) {
+                        p.tabs.open(blankTab())
+                    } else {
+                        session.tabs.forEach(p.tabs::open)
+                        p.tabs.select(session.activeIndex)
+                    }
+                    p.tabs.active?.let { show(it, p) }
+                    tabsTick.value++
+                }
+                then()
+            }
+        }.start()
     }
 
     /** Write the focused pane's session out, on every tab change and on the way to the background. */
@@ -876,7 +917,10 @@ class MainActivity : ComponentActivity() {
     /** Cache both panes' open tabs on the way to the background — the app may not come back. */
     override fun onPause() {
         super.onPause()
+        // The write itself runs on the pane's writer thread; we wait briefly for it here because the
+        // process can be killed once we are in the background, and a lost snapshot is lost edits.
         panes.forEach { snapshotActiveTab(it); it.persist() }
+        panes.forEach { it.awaitPersist(PERSIST_WAIT_MS) }
     }
 
     override fun onDestroy() {
@@ -900,6 +944,9 @@ class MainActivity : ComponentActivity() {
          * order. The first keeps its historical name so an existing session still restores.
          */
         val TABS_DIRS = listOf("tabs", "tabs-right")
+
+        /** How long `onPause` waits for the queued session write before letting the app go. */
+        const val PERSIST_WAIT_MS = 2_000L
 
         /** Tab label for a document that has never been opened from, or saved to, a file. */
         const val UNTITLED = "Untitled"

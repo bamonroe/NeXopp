@@ -29,28 +29,56 @@ class TabStore(private val dir: File) {
             if (file.name.endsWith(SNAPSHOT_SUFFIX) && file !in live) file.delete()
         }
         for (tab in session.tabs) {
+            // An unhydrated tab's `document` is a placeholder, never its content — its snapshot on
+            // disk is already the truth, so leave it alone rather than blanking it.
+            if (!tab.hydrated) continue
             snapshotFile(tab.id).outputStream().use { Xopp.save(tab.document, it) }
         }
         indexFile().writeText(TabIndex.encode(session))
     }.isSuccess
 
     /**
-     * Read the session back. Tabs whose snapshot is missing or unreadable are dropped — a damaged
-     * snapshot costs that one tab, never the whole restore. Returns null when there is no session on
-     * disk (first launch) or nothing survived, and the caller should start with a fresh blank tab.
+     * Read the session back **lazily**: this only reads the small index, so every tab comes back as an
+     * unhydrated placeholder ([OpenTab.hydrated]) whose document is filled in by [hydrate] when it is
+     * about to be shown. No gzip XML is parsed here at all — parsing a whole session's worth of it up
+     * front is what used to block the first frame long enough for Android to raise an ANR.
+     *
+     * Tabs whose snapshot file is missing are dropped — a lost snapshot costs that one tab, never the
+     * whole restore. Returns null when there is no session on disk (first launch) or nothing survived,
+     * and the caller should start with a fresh blank tab.
      */
     fun load(): TabSession? = runCatching {
         val index = indexFile().takeIf(File::isFile) ?: return@runCatching null
         val parsed = TabIndex.decode(index.readText()) { DrawingSurfaceView.blankDocument() }
-        val restored = parsed.tabs.mapNotNull { tab ->
-            val doc = runCatching {
-                snapshotFile(tab.id).takeIf(File::isFile)?.inputStream()?.use(Xopp::open)
-            }.getOrNull() ?: return@mapNotNull null
-            tab.copy(document = doc)
-        }
-        if (restored.isEmpty()) null
-        else TabSession(restored, parsed.activeIndex.coerceIn(0, restored.lastIndex))
+        val present = parsed.tabs.filter { snapshotFile(it.id).isFile }
+        if (present.isEmpty()) null
+        else TabSession(present, parsed.activeIndex.coerceIn(0, present.lastIndex))
     }.getOrNull()
+
+    /**
+     * Copy the snapshot of [sourceId] in [from] to a tab called [newId] here, so a tab handed to the
+     * other pane keeps its content without anyone parsing the document. Returns false when there was
+     * nothing to copy.
+     */
+    fun adopt(from: TabStore, sourceId: String, newId: String): Boolean = runCatching {
+        val src = from.snapshotFile(sourceId).takeIf(File::isFile) ?: return@runCatching false
+        dir.mkdirs()
+        src.copyTo(snapshotFile(newId), overwrite = true)
+        true
+    }.getOrDefault(false)
+
+    /**
+     * Parse [tab]'s snapshot and return the tab holding its real document. An already-hydrated tab is
+     * returned untouched, and an unreadable snapshot leaves the tab as it was (a blank placeholder)
+     * but marks it hydrated, so the damage is one empty tab rather than a re-read on every switch.
+     */
+    fun hydrate(tab: OpenTab): OpenTab {
+        if (tab.hydrated) return tab
+        val doc = runCatching {
+            snapshotFile(tab.id).takeIf(File::isFile)?.inputStream()?.use(Xopp::open)
+        }.getOrNull()
+        return if (doc == null) tab.copy(hydrated = true) else tab.copy(document = doc, hydrated = true)
+    }
 
     /** Throw the whole cached session away (used when the user closes the last tab). */
     fun clear() {

@@ -360,6 +360,18 @@ Consequences worth knowing:
   `onPause`. On launch it is read back, so the app reopens on the same tabs with the same unsaved
   edits. It is a restart cache keyed by tab id — the user's own file (the tab's `uri`) is still the
   only thing the desktop ever sees, and a snapshot never stands in for saving.
+- **Nothing is parsed or written on the main thread.** Gzip XML over a whole document takes long
+  enough to trip Android's ANR watchdog, so the session is restored **lazily and off-thread**:
+  `TabStore.load` reads only the small index and returns every tab as a placeholder
+  (`OpenTab.hydrated = false`); `TabStore.hydrate` parses one tab's snapshot, and `MainActivity.show`
+  runs it on a worker and paints the canvas when it lands, so a cold start with many tabs never waits
+  on more than the index. Writing is the mirror image: `EditorPane.persist` reads the session on the
+  caller's thread and queues the save onto a single-threaded writer, with `awaitPersist` in `onPause`
+  so a backgrounded app still lands its snapshot. Two rules keep a placeholder from destroying
+  content: `TabStore.save` skips unhydrated tabs (their file on disk is the truth), and
+  `snapshotActiveTab` skips a tab whose parse is still in flight (the canvas still holds the previous
+  tab). Handing an unhydrated tab to the other pane copies the snapshot *file* (`TabStore.adopt`)
+  rather than parsing it.
 - Tabs that were opened from a file keep that `content://` URI, so **Save** after a restart still
   writes back to the same document.
 

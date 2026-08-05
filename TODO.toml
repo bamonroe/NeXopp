@@ -34,17 +34,3 @@ created = 2026-08-05
 tags = []
 rebuild = true
 emulator_debug = true
-
-[[task]]
-id = "fix-the-cold-start-anr-when-many-tabs-are-restored"
-title = "Fix the cold-start ANR when many tabs are restored"
-description = "Launching with a full restored session (6+ tabs) blocks the main thread long enough for Android to raise 'Xopp isn't responding'; ActivityTaskManager reported the first frame at +6.4s. Move the session/document restore off the main thread and load tabs lazily so only the active document parses at startup."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 30
-created = 2026-08-05
-tags = []
-rebuild = true
-emulator_debug = true

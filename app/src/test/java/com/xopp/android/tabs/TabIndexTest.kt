@@ -29,7 +29,8 @@ class TabIndexTest {
         )
         val back = roundTrip(session)
         assertEquals(session.activeIndex, back.activeIndex)
-        assertEquals(session.tabs.map { it.copy(document = doc()) }, back.tabs)
+        // Decoded tabs are placeholders: the index carries no document, so `hydrated` is false.
+        assertEquals(session.tabs.map { it.copy(document = doc(), hydrated = false) }, back.tabs)
     }
 
     @Test

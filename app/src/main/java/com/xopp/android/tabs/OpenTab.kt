@@ -33,6 +33,14 @@ data class OpenTab(
      * Fresh by default — only [copy]ing a tab to the other pane deliberately carries the key over.
      */
     val docKey: String = TabStore.newId(),
+    /**
+     * False while this tab is a *placeholder* restored from the session index whose snapshot has not
+     * been parsed yet — [document] is then an empty stand-in, not the tab's real content. Only the
+     * tab being shown is parsed at startup (see [TabStore.load]); the rest are hydrated on the way
+     * onto the canvas, which is what keeps a cold start with many tabs off the ANR watchdog.
+     * [TabStore.save] never overwrites an unhydrated tab's snapshot with its placeholder.
+     */
+    val hydrated: Boolean = true,
 )
 
 /** The whole set of open tabs plus which one is showing — what survives an app restart. */
