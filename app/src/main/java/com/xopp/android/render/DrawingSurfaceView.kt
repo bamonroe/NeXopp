@@ -1442,7 +1442,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun trackBarrelClicks(event: MotionEvent) {
         val down = barrelPressed(event)
         val edge = down && !barrelWasDown
-        barrelWasDown = down
+        // Holding the barrel arms the eraser before the tip ever lands, so the hover preview has to
+        // swap to the tip outline on the button edge — not on the first touch.
+        if (down != barrelWasDown) { barrelWasDown = down; if (hovering) render() }
         if (!edge || !barrelClicks.press(event.eventTime)) return
         // A second double-click while the menu is up commits the highlighted slot — the eyes-free
         // way out for a pen that never comes down on the glass.
@@ -2444,9 +2446,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
         onPaletteAction?.invoke(action)
     }
 
-    /** True when the pointer in hand rubs out: the Eraser tool, or a pen flipped onto its eraser tip. */
+    /**
+     * True when the pointer in hand rubs out: the Eraser tool, a pen flipped onto its eraser tip, or
+     * a hovering stylus with the barrel held while the button is bound to [BarrelAction.ERASE] — the
+     * same rule [InputClassifier] applies at pointer-down, so the preview matches what a touch does.
+     */
     private fun erasesNow(): Boolean =
-        activeTool() == ActiveTool.ERASER || hoverKind == PointerKind.ERASER_TIP
+        InputClassifier.classify(hoverKind, barrelWasDown, activeTool(), inputSettings) ==
+            GestureIntent.ERASE
 
     /**
      * The eraser tip outline (view px): a thin circle at exactly the radius [PageEraser] will clear,

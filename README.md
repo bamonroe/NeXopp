@@ -357,7 +357,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   written to the `.xopp` file. The eraser only affects the
   **selected layer** — ink on other layers is left alone — and hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
-  (configurable — see **Settings**). Double-clicking the barrel button with the pen lifted off the
+  (configurable — see **Settings**) — and the tip circle appears the moment the button goes down while
+  the pen hovers, so you can see what you are about to rub out before touching the glass. Double-clicking the barrel button with the pen lifted off the
   glass runs its own action — undo by default (see **Settings**).
 - **Layers** — the **Layers** pop-up manages the visible page's layers (top of the list = top of the
   page). Each row can **make the layer active** (tap its name — new ink lands there, marked with a
