@@ -138,6 +138,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   give it focus, and Save, Import PDF, the pen settings and undo/redo then apply to that document.
   Choosing **Close split view** hands the whole area back to the left pane; the right pane's tabs
   are kept, so turning split view on again brings the same documents back.
+- **Tab overview — see every open document at a glance** — the grid button in the top bar (between
+  redo and the ☰ menu) opens a grid of every tab in the current pane, each shown as a small picture of
+  the page that tab was left on, with its name underneath and the current tab outlined. Tap a picture
+  to switch straight to that document. It is the quickest way to find the right document when several
+  tabs are named alike (or are all "Untitled"). Pictures appear as they are drawn — a document that
+  hasn't been reopened since the app started has to be read from the session cache first, so its card
+  is blank for a moment. PDF and image page backgrounds aren't drawn in the pictures; your
+  handwriting and drawings are.
 - **The tab strip scrolls sideways** — open more documents than fit across the screen and the strip
   scrolls rather than pushing tabs off the edge, so every tab (and the trailing **+**) stays
   reachable. Drag anywhere on the strip except the current tab to scroll it, and the selected tab is

@@ -374,6 +374,15 @@ Consequences worth knowing:
   rather than parsing it.
 - Tabs that were opened from a file keep that `content://` URI, so **Save** after a restart still
   writes back to the same document.
+- **The tab overview draws previews from the same snapshots.** The top bar's grid button
+  (`ui/TabOverviewPopup.kt`) shows one card per tab, each the page that tab was left on, rasterised by
+  `render/PageThumbnail.kt` — `BackgroundRenderer` + `PageRenderer` into a small bitmap, so a preview
+  is drawn by the same code as the canvas. `pdf`/`pixmap` backgrounds are drawn as their plain sheet
+  only: those images come from asynchronous caches owned by a live surface. Opening the grid
+  snapshots the active tab first (`TabsUiState.onOverview`), then requests each preview through
+  `MainActivity.previewTabPage`, which hydrates (without writing back into the session) and
+  rasterises on **one** shared worker — a thread per tab put every open document in memory at once and
+  was an out-of-memory kill on a session of large files.
 
 ### Split view: the same thing, twice
 

@@ -43,14 +43,16 @@ import com.xopp.android.render.Placement
 import com.xopp.android.ui.theme.rememberCanvasChromeColors
 
 /**
- * The editor's top bar: undo/redo for the active pane plus the overflow menu. No title and a compact
- * height — the bar is just the action row, so it eats as little of the drawing area as possible.
+ * The editor's top bar: undo/redo for the active pane, the tab overview, then the overflow menu. No
+ * title and a compact height — the bar is just the action row, so it eats as little of the drawing
+ * area as possible.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorTopBar(
     ui: EditorUiState,
     pane: PaneState,
+    tabs: TabsUiState,
     onOpen: () -> Unit,
     onNewTab: () -> Unit,
     onSave: () -> Unit,
@@ -68,6 +70,7 @@ fun EditorTopBar(
             IconButton(onClick = { pane.surface?.redo() }, enabled = pane.canRedo) {
                 Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
             }
+            TabOverviewButton(tabs)
             OverflowMenu(
                 onOpen = onOpen,
                 onNewTab = onNewTab,

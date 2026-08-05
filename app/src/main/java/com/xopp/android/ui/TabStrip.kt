@@ -1,5 +1,6 @@
 package com.xopp.android.ui
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -70,6 +71,17 @@ data class TabsUiState(
     val onMirror: (Int) -> Unit = {},
     /** Drag action: the tab at the first index now sits at the second one. */
     val onReorder: (Int, Int) -> Unit = { _, _ -> },
+    /**
+     * The tab overview is opening: the live canvas is copied back into the showing tab, so its
+     * preview isn't a stale snapshot taken at the last tab switch.
+     */
+    val onOverview: () -> Unit = {},
+    /**
+     * Rasterise the page tab [Int] is showing, [Int] pixels wide, and hand the bitmap to the callback
+     * on the main thread — null if it can't be drawn. Asynchronous because a tab restored from a cold
+     * start still has to be parsed (gzip + XML), which is far too slow to do in a tap.
+     */
+    val preview: (Int, Int, (Bitmap?) -> Unit) -> Unit = { _, _, done -> done(null) },
 )
 
 /**

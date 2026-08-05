@@ -147,6 +147,7 @@ fun EditorScreen(
                     EditorTopBar(
                         ui = ui,
                         pane = pane,
+                        tabs = tabs[activePane.coerceIn(tabs.indices)],
                         onOpen = onOpen,
                         onNewTab = { tabs[activePane.coerceIn(tabs.indices)].onNew() },
                         onSave = onSave,

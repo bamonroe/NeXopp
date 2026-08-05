@@ -25,12 +25,14 @@ import com.xopp.android.io.IncomingDocument
 import com.xopp.android.io.LoadedFile
 import com.xopp.android.io.StorageLimits
 import com.xopp.android.io.xoppNameFor
+import android.graphics.Bitmap
 import com.xopp.android.render.BitmapBudget
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImageImport
 import com.xopp.android.render.ImportPdfMode
 import com.xopp.android.render.PdfFonts
 import com.xopp.android.render.PdfImport
+import com.xopp.android.render.PageThumbnail
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
 import com.xopp.android.render.TextPdfGenerator
@@ -119,6 +121,14 @@ class MainActivity : ComponentActivity() {
 
     /** Bumped whenever a tab list or selection changes, so the tab strips re-read them. */
     private var tabsTick = mutableStateOf(0)
+
+    /**
+     * The single worker every tab-overview preview is queued on, so a grid of tabs parses and
+     * rasterises one document at a time instead of all of them at once (see [previewTabPage]).
+     */
+    private val previewWorker: java.util.concurrent.ExecutorService by lazy {
+        java.util.concurrent.Executors.newSingleThreadExecutor()
+    }
 
     /**
      * All document I/O policy — staging, the background-PDF stores, and the read/encode/merge steps
@@ -616,6 +626,10 @@ class MainActivity : ComponentActivity() {
             onMove = { sendTabToOtherPane(it, p, keepHere = false) },
             onMirror = { sendTabToOtherPane(it, p, keepHere = true) },
             onReorder = { from, to -> reorderTab(from, to, p) },
+            // The showing tab's live edits are only in the canvas until it is snapshotted, so the
+            // overview would otherwise preview a stale page for the tab you are looking at.
+            onOverview = { snapshotActiveTab(p) },
+            preview = { index, widthPx, onReady -> previewTabPage(p, index, widthPx, onReady) },
         )
     }
 
@@ -713,6 +727,30 @@ class MainActivity : ComponentActivity() {
         view.load(tab.document)
         if (tab.page > 0) view.goToPage(tab.page)
         if (pdf != null) extractPdfTextInBackground(pdf, view)
+    }
+
+    /**
+     * Rasterise the page tab [index] of [p] is showing, for the tab overview grid, and hand it back on
+     * the main thread.
+     *
+     * Both halves run off the main thread: a tab still waiting to be parsed ([OpenTab.hydrated] false)
+     * costs a whole gzip + XML read, and even a parsed one can be a document of many thousand strokes,
+     * neither of which belongs in the tap that opened the grid. Hydrating here deliberately does *not*
+     * write the parsed tab back into the session — looking at the overview shouldn't undo the lazy
+     * restore that keeps a cold start off the ANR watchdog.
+     *
+     * The whole grid's previews share **one** worker ([previewWorker]) so only a single document is
+     * ever parsed at a time. Fanning a thread out per tab instead put every open document in memory at
+     * once, which is an out-of-memory kill on a session of large files.
+     */
+    private fun previewTabPage(p: EditorPane, index: Int, widthPx: Int, onReady: (Bitmap?) -> Unit) {
+        val tab = p.tabs.tabs.getOrNull(index) ?: return onReady(null)
+        previewWorker.execute {
+            val full = if (tab.hydrated) tab else runCatching { p.store.hydrate(tab) }.getOrNull()
+            val page = full?.document?.pages?.getOrNull(full.page)
+            val bitmap = page?.let { runCatching { PageThumbnail.render(it, widthPx) }.getOrNull() }
+            runOnUiThread { onReady(bitmap) }
+        }
     }
 
     /** Switch [p] to the tab at [index], snapshotting the one being left. */

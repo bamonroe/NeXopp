@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-tab-overview-button-showing-every-tab-s-active-page"
+title = "Add tab overview button showing every tab's active page"
+description = "Place a tab-window button in the toolbar between the undo/redo buttons and the hamburger stack. Tapping it opens an overview showing the currently active page of every open tab; tapping one of those pages switches to (opens) that tab."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "fix-the-cold-start-anr-when-many-tabs-are-restored"
 title = "Fix the cold-start ANR when many tabs are restored"
 description = "Launching with a full restored session (6+ tabs) blocks the main thread long enough for Android to raise 'Xopp isn't responding'; ActivityTaskManager reported the first frame at +6.4s. Move the session/document restore off the main thread and load tabs lazily so only the active document parses at startup."
