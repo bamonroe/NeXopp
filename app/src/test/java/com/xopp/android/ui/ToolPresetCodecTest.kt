@@ -89,6 +89,7 @@ class ToolPresetCodecTest {
     fun `preset positions become picker choices`() {
         val group = paletteActionGroups(presets).first { it.title == "Preset slot" }
         assertEquals(presets.indices.map { PaletteAction.ApplyPresetSlot(it) }, group.choices.map { it.action })
+        assertEquals(listOf("Preset 1: Fine black", "Preset 2: Marker"), group.choices.map { it.label })
         assertTrue(paletteActionGroups().none { it.title == "Preset slot" })
     }
 
@@ -96,6 +97,7 @@ class ToolPresetCodecTest {
     fun `saved presets become picker choices`() {
         val group = paletteActionGroups(presets).first { it.title == "Preset" }
         assertEquals(presets.map { PaletteAction.ApplyPreset(it.id) }, group.choices.map { it.action })
+        assertEquals(listOf("1. Fine black", "2. Marker"), group.choices.map { it.label })
         assertTrue(paletteActionGroups().none { it.title == "Preset" })
     }
 

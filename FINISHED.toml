@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "show-preset-slot-numbers-in-the-presets-popup-and-picker"
+title = "Show preset slot numbers in the presets popup and picker"
+description = "Nothing in the UI tells the user which preset is 1, 2, 3. Prefix the entries in ToolbarPresetsPopup.kt with their 1-based index, and do the same in PaletteActionCatalog.kt labels ('Preset 2: Fine liner'), so the slot-number binding is visible where presets are chosen."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "add-a-slot-number-palette-action-for-presets"
 title = "Add a slot-number palette action for presets"
 description = "PaletteAction.ApplyPreset stores a preset id (RadialPalette.kt:69), so a palette slot follows a specific preset rather than a position. Add a position-based action (ApplyPresetSlot(index)) that resolves settings.presets[index] at flick time in PaletteActions.kt, so slot 'preset 1' always fires whatever preset sits first. Cover the codec (RadialPaletteCodec.kt) and its round-trip test."

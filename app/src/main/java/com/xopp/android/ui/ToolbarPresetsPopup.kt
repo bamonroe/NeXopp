@@ -38,7 +38,8 @@ import androidx.compose.ui.unit.dp
 /**
  * The presets rail slot: the user's saved [ToolPreset]s, each one tap away.
  *
- * The menu lists every saved preset with a swatch in its colour and a dot scaled to its width (the
+ * The menu lists every saved preset numbered by its slot (what a position-based palette action
+ * fires), with a swatch in its colour and a dot scaled to its width (the
  * same [TipDot] language the size popup uses), then a "save current tool" row with an inline name
  * field. Reorder arrows and a delete button sit on each row; every edit goes through the pure
  * helpers in `ToolPresetList.kt` and back out via [onPresets], which is what persists it.
@@ -65,6 +66,7 @@ internal fun PresetsPopupButton(
             presets.forEachIndexed { i, preset ->
                 PresetRow(
                     preset = preset,
+                    slot = i + 1,
                     canMoveUp = i > 0,
                     canMoveDown = i < presets.lastIndex,
                     onActivate = { onActivate(preset); open = false },
@@ -97,6 +99,7 @@ internal fun PresetsPopupButton(
 @Composable
 private fun PresetRow(
     preset: ToolPreset,
+    slot: Int,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onActivate: () -> Unit,
@@ -117,6 +120,13 @@ private fun PresetRow(
         ) {
             PresetSwatch(preset)
             Spacer(Modifier.width(12.dp))
+            // The slot number is what a position-based palette action fires, so it leads the row.
+            Text(
+                "$slot.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(8.dp))
             Text(preset.name, style = MaterialTheme.typography.bodyMedium)
         }
         IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {

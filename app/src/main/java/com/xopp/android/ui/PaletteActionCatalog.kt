@@ -21,7 +21,10 @@ fun paletteActionGroups(
     presets.takeIf { it.isNotEmpty() }?.let { saved ->
         PaletteActionGroup(
             "Preset",
-            saved.map { PaletteActionChoice(it.name, PaletteAction.ApplyPreset(it.id)) },
+            // Numbered so the slot a preset currently occupies is visible where it's picked.
+            saved.mapIndexed { i, preset ->
+                PaletteActionChoice("${i + 1}. ${preset.name}", PaletteAction.ApplyPreset(preset.id))
+            },
         )
     },
     // The position-based twin: as many slots as there are presets to fill them, so the picker never
@@ -29,7 +32,9 @@ fun paletteActionGroups(
     presets.takeIf { it.isNotEmpty() }?.let { saved ->
         PaletteActionGroup(
             "Preset slot",
-            saved.indices.map { PaletteActionChoice("Preset ${it + 1}", PaletteAction.ApplyPresetSlot(it)) },
+            saved.mapIndexed { i, preset ->
+                PaletteActionChoice("Preset ${i + 1}: ${preset.name}", PaletteAction.ApplyPresetSlot(i))
+            },
         )
     },
     // Only worth offering once there is somewhere to switch *to* — a lone palette has no targets.

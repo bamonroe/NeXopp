@@ -340,7 +340,8 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
 - **Presets** — the **Presets** pop-up (the bookmark slot on the rail) saves the whole tool
   configuration under a name: the tool itself plus its colour, width, line style and fill. Type a
   name in **Save current tool as…** and tap **+** (leave the name blank for "Preset 1", "Preset 2",
-  …); saving under a name you already used overwrites that preset. Each saved preset shows a swatch
+  …); saving under a name you already used overwrites that preset. Each row is numbered with its
+  **slot number** (1, 2, 3… — the number a *Preset slot* palette action fires) and shows a swatch
   in its colour, sized to its width. **Tap a preset to make it the live tool** — one tap restores
   every knob at once, and **long-press a preset to overwrite it** with the live tool — the slot keeps
   its name, position and id, so a radial-palette slot bound to it keeps working. The **▲/▼** arrows reorder the list and the bin deletes a preset. Presets are
@@ -562,14 +563,14 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     **Toggle tool** for each tool, the shared **colour** swatches, a **width** slider with a
     *Set width* button, **Undo**, **Redo**, **Toggle full page**, the page operations (new page
     after/before, duplicate, delete, next, previous), and — once you have saved any — a **Preset**
-    group listing your saved tool presets, so one flick restores a whole tool configuration (the
+    group listing your saved tool presets (each numbered with its slot, "1. Fine liner"), so one flick restores a whole tool configuration (the
     slot draws a **bookmark**, tinted with that preset's own colour so several preset slots are
     told apart at a glance — very dark colours are lightened just enough to read on the slot's dark
     disc). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
     that preset updates the slot too; if you delete the preset, the slot reads "Preset (deleted)"
     and flicking onto it does nothing.
-  - **Preset slot** — the position-based twin of the group above, listed as **Preset 1**,
-    **Preset 2**… (one row per preset you have saved). A slot bound this way follows the
+  - **Preset slot** — the position-based twin of the group above, listed as **Preset 1: Fine liner**,
+    **Preset 2: Marker**… (one row per preset you have saved, naming whoever sits there now). A slot bound this way follows the
     *position* rather than the preset: it always fires whatever preset currently sits first,
     second, and so on, so reordering the presets list re-points the slot to match. The slot draws
     its number (**★1**, **★2**…) instead of a bookmark, and a position no preset occupies (you
