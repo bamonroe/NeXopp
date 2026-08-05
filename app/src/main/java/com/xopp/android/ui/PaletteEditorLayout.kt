@@ -78,10 +78,16 @@ fun RadialPalette.editorSlotAt(
     return (hitTest(center, center, x, y, scaled) as? RadialHit.Slot)?.slot
 }
 
+/**
+ * The same geometry at [scale]. *Every* radius scales, dismiss ring included — leaving that one
+ * unscaled let a wide diagram (a tablet's settings card) push the scaled outer ring past it, which
+ * trips `RadialPaletteGeometry`'s "dismiss ring must lie outside the outer ring" check mid-draw.
+ */
 private fun RadialPaletteGeometry.scaledBy(scale: Float) = RadialPaletteGeometry(
     deadZoneRadius = deadZoneRadius * scale,
     innerRingRadius = innerRingRadius * scale,
     outerRingRadius = outerRingRadius * scale,
+    dismissRadius = dismissRadius * scale,
 )
 
 /** Mirrors `CanvasChrome.PALETTE_SLOT_PX` — the inner ring's marks are the larger ones. */

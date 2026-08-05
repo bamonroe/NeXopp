@@ -67,4 +67,15 @@ class PaletteEditorLayoutTest {
         assertNotNull(slot)
         assertEquals(small.slot, slot)
     }
+
+    @Test
+    fun `a diagram wide enough to scale up still lays out`() {
+        // A tablet-width settings card scales past 1x; the dismiss radius has to scale with the
+        // rest or the geometry's own invariants reject it mid-draw.
+        for (edge in listOf(700f, 1200f, 2000f, 4000f)) {
+            val marks = palette.editorSlots(edge)
+            assertEquals(RadialRing.INNER.slotCount + RadialRing.OUTER.slotCount, marks.size)
+            assertEquals(marks.first().slot, palette.editorSlotAt(marks.first().center.x, marks.first().center.y, edge))
+        }
+    }
 }

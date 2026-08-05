@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-crash-opening-the-palette-section-in-settings"
+title = "Fix crash opening the palette section in settings"
+description = "On the owner's Galaxy Tab S, the latest build crashes when opening the palette section from the settings menu. Reproduce, capture the logcat stack trace, and fix."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "reduce-tab-bar-height-by-25"
 title = "Reduce tab bar height by 25%"
 description = "Shrink the tab strip's height by 25% so it takes less vertical space from the canvas. Scale tab label/close-button sizing to match."
