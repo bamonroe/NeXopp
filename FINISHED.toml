@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "order-saved-presets-by-slot-number"
+title = "Order saved presets by slot number"
+description = "Presets are currently identified by name. Track an explicit order instead so the palette can always map preset 1, 2, 3, 4, 5... to fixed slots. Names stay useful but ordering is what the palette keys off."
+status = "finished"
+level = "scope"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "long-press-a-preset-slot-to-overwrite-it"
 title = "Long-press a preset slot to overwrite it"
 description = "Long-pressing an existing saved preset should overwrite it with the currently active tool settings, so presets can be cleaned up in place instead of only being appended."
