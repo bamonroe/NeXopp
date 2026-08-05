@@ -25,6 +25,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -298,6 +300,12 @@ fun EditorPaneView(
                 pageCount = state.pageCount,
                 onScrollTo = { state.surface?.scrollToY(it) },
                 modifier = Modifier.matchParentSize(),
+            )
+            // Bottom-left, clear of the scroll thumb's band on the right.
+            PageCounter(
+                currentPage = state.currentPage,
+                pageCount = state.pageCount,
+                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
             )
         }
     }

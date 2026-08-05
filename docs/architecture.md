@@ -606,6 +606,7 @@ app/
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
+      PageCounter.kt         # always-visible "page X of Y" badge in the canvas's bottom-left corner
       SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
       SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation / Storage) + shared controls
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
