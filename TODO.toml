@@ -34,17 +34,3 @@ created = 2026-08-05
 tags = ["eraser", "stylus"]
 rebuild = true
 emulator_debug = false
-
-[[task]]
-id = "retune-the-eraser-size-relative-to-the-pen-tip"
-title = "Retune the eraser size relative to the pen tip"
-description = "The eraser tip is far bigger than expected: eraserRadiusPt() in render/PageEraser.kt is penWidthPt * ERASER_RADIUS_FACTOR (6.0) with a 3pt floor, and since pen width is a diameter while that result is a radius, the tip ends up roughly 12x the stroke thickness. Pick a ratio that feels right (likely comparing radius to radius, i.e. halving the effective factor) and update the constant, its KDoc, and PageEraserTest."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "normal"
-order = 20
-created = 2026-08-05
-tags = ["eraser"]
-rebuild = true
-emulator_debug = false

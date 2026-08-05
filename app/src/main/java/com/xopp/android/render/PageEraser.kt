@@ -11,13 +11,14 @@ enum class EraserMode { STANDARD, WHOLE_STROKE }
 /**
  * How much bigger the eraser tip is than the pen tip it follows. The eraser has no size scheme of
  * its own — it rides the same three configurable pen-width slots as the pen ([AppSettings.penWidths]),
- * so picking a tip size in the rail's Size popup sizes both. A rubber is only useful when it is
- * appreciably wider than the ink it rubs out, hence the multiplier.
+ * so picking a tip size in the rail's Size popup sizes both. A pen width is a **diameter** and this
+ * yields a **radius**, so a factor of 1 makes the eraser's radius the pen's full width — a rubber
+ * twice as wide as the ink it rubs out, which is enough to aim without swallowing the page.
  */
-const val ERASER_RADIUS_FACTOR: Double = 6.0
+const val ERASER_RADIUS_FACTOR: Double = 1.0
 
 /** Smallest eraser tip, in pt — a hair-thin pen still needs a tip you can aim. */
-const val ERASER_RADIUS_MIN_PT: Double = 3.0
+const val ERASER_RADIUS_MIN_PT: Double = 1.0
 
 /**
  * The eraser tip radius for a pen width of [widthPt], in document **pt**, so the tip covers the same

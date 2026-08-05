@@ -77,6 +77,7 @@ class PageEraserTest {
     /** …and it is always wider than the ink it rubs out, however hair-thin the pen slot is. */
     @Test fun eraserTipStaysAimableForAThinPen() {
         assertTrue(eraserRadiusPt(0.1f) >= ERASER_RADIUS_MIN_PT)
-        assertTrue(eraserRadiusPt(1.5f) > 1.5)
+        // The radius is the pen's full width, i.e. twice the ink's own radius.
+        assertEquals(1.5, eraserRadiusPt(1.5f), 1e-9)
     }
 }
