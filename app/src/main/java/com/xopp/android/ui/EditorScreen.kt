@@ -100,6 +100,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity
     palette = s.radialPalette
+    presetColors = s.presets.associate { it.id to it.colorArgb }
 }
 
 /**

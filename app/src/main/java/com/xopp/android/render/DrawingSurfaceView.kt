@@ -155,6 +155,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var paletteOverlay: RadialPaletteRenderer.Overlay? = null
     /** The palette a [BarrelDoubleAction.RADIAL_PALETTE] double-click opens at the pen tip. */
     var palette: RadialPalette = RadialPalette.default()
+    /** Preset id → colour, pushed from settings so preset slots draw their icon in that colour. */
+    var presetColors: Map<String, Int> = emptyMap()
     /** Fired with the action of the slot a palette flick landed on; the editor applies it. */
     var onPaletteAction: ((PaletteAction) -> Unit)? = null
     private var scrolling = false
@@ -2354,7 +2356,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * the hit test measures the flick from the same centre the ring is drawn at.
      */
     fun openPalette(palette: RadialPalette, x: Float, y: Float) {
-        val overlay = RadialPaletteRenderer.Overlay(palette, x, y)
+        val overlay = RadialPaletteRenderer.Overlay(palette, x, y, presetColors = presetColors)
         val anchor =
             if (width > 0 && height > 0) {
                 clampAnchor(x, y, width.toFloat(), height.toFloat(), overlay.geometry)

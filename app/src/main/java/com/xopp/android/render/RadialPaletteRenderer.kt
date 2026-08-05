@@ -13,6 +13,7 @@ import com.xopp.android.ui.clampAnchor
 import com.xopp.android.ui.drawCenter
 import com.xopp.android.ui.face
 import com.xopp.android.ui.icon
+import com.xopp.android.ui.iconTintArgb
 import com.xopp.android.ui.slots
 import com.xopp.android.ui.unitOutline
 import java.util.concurrent.ConcurrentHashMap
@@ -36,6 +37,8 @@ internal object RadialPaletteRenderer {
         val anchorY: Float,
         val hit: RadialHit = RadialHit.Inert,
         val geometry: RadialPaletteGeometry = RadialPaletteGeometry(),
+        /** Preset id → its colour, so a preset slot's icon can wear the colour it applies. */
+        val presetColors: Map<String, Int> = emptyMap(),
     )
 
     /** Draw [overlay] on a view of [viewWidth] × [viewHeight], clamped to stay on screen. */
@@ -48,7 +51,7 @@ internal object RadialPaletteRenderer {
         }
         val hovered = (overlay.hit as? RadialHit.Slot)?.slot
         for ((slot, action) in overlay.palette.slots()) {
-            drawSlot(canvas, chrome, anchor.x, anchor.y, slot, action, slot == hovered, g)
+            drawSlot(canvas, chrome, anchor.x, anchor.y, slot, action, slot == hovered, g, overlay.presetColors)
         }
     }
 
@@ -61,6 +64,7 @@ internal object RadialPaletteRenderer {
         action: PaletteAction?,
         hovered: Boolean,
         geometry: RadialPaletteGeometry,
+        presetColors: Map<String, Int>,
     ) {
         val c = slot.drawCenter(anchorX, anchorY, geometry)
         val radius = if (slot.ring == RadialRing.INNER) {
@@ -81,7 +85,7 @@ internal object RadialPaletteRenderer {
                 canvas.drawCircle(c.x, c.y, radius, chrome.paletteSlot)
                 val icon = action.icon()
                 if (icon != null) {
-                    drawIcon(canvas, chrome, icon, c.x, c.y, radius * ICON_SCALE)
+                    drawIcon(canvas, chrome, icon, c.x, c.y, radius * ICON_SCALE, action.iconTintArgb(presetColors))
                 } else {
                     canvas.drawText(faceOf.glyph, c.x, c.y + GLYPH_BASELINE_OFFSET, chrome.paletteGlyph)
                 }
@@ -90,7 +94,12 @@ internal object RadialPaletteRenderer {
         if (hovered) canvas.drawCircle(c.x, c.y, radius + HOVER_RING_PX, chrome.paletteHighlight)
     }
 
-    /** Fill the rail's icon on the mark, [size] px across, centred on ([cx], [cy]). */
+    /**
+     * Fill the rail's icon on the mark, [size] px across, centred on ([cx], [cy]).
+     *
+     * [tintArgb] overrides the default icon fill for this one slot (preset slots wear their own
+     * colour); the shared paint is put back afterwards so the next slot draws normally.
+     */
     private fun drawIcon(
         canvas: Canvas,
         chrome: CanvasChrome,
@@ -98,13 +107,16 @@ internal object RadialPaletteRenderer {
         cx: Float,
         cy: Float,
         size: Float,
+        tintArgb: Int? = null,
     ) {
         val path = androidPaths.getOrPut(icon) { icon.unitOutline().asAndroidPath() }
+        if (tintArgb != null) chrome.paletteIcon.color = tintArgb
         canvas.save()
         canvas.translate(cx, cy)
         canvas.scale(size, size)
         canvas.drawPath(path, chrome.paletteIcon)
         canvas.restore()
+        if (tintArgb != null) chrome.paletteIcon.color = CanvasChrome.PALETTE_ICON
     }
 
     /** Unit outlines, cached so a frame draws icons without re-flattening any vector. */

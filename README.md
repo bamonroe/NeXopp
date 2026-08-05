@@ -563,7 +563,9 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
     *Set width* button, **Undo**, **Redo**, **Toggle full page**, the page operations (new page
     after/before, duplicate, delete, next, previous), and — once you have saved any — a **Preset**
     group listing your saved tool presets, so one flick restores a whole tool configuration (the
-    slot draws a **bookmark**). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
+    slot draws a **bookmark**, tinted with that preset's own colour so several preset slots are
+    told apart at a glance — very dark colours are lightened just enough to read on the slot's dark
+    disc). Pick one and the sheet closes. A slot keeps the preset's *name*, so editing
     that preset updates the slot too; if you delete the preset, the slot reads "Preset (deleted)"
     and flicking onto it does nothing.
   - **Switch palette** — once you have more than one palette, the sheet also lists a **Switch

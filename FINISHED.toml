@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "tint-the-preset-icon-with-the-preset-s-color"
+title = "Tint the preset icon with the preset's color"
+description = "In the palette, a preset slot shows a plain bookmark/star icon. Color that icon with the preset's active color so slots are identifiable at a glance."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-05
+tags = []
+
+[[task]]
 id = "order-saved-presets-by-slot-number"
 title = "Order saved presets by slot number"
 description = "Presets are currently identified by name. Track an explicit order instead so the palette can always map preset 1, 2, 3, 4, 5... to fixed slots. Names stay useful but ordering is what the palette keys off."

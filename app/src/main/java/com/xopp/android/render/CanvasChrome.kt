@@ -129,7 +129,7 @@ internal class CanvasChrome {
     /** Fills a slot's rail icon; the glyph paint below still draws the width numbers. */
     val paletteIcon = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = 0xFFFFFFFF.toInt()
+        color = PALETTE_ICON
     }
     val paletteGlyph = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
@@ -192,6 +192,8 @@ internal class CanvasChrome {
         const val PALETTE_SCRIM = 0x66101010
         const val PALETTE_RING = 0x40FFFFFF
         const val PALETTE_SLOT = 0xE0303030.toInt()
+        /** Default fill for a slot's icon — preset slots override it with the preset's colour. */
+        const val PALETTE_ICON = 0xFFFFFFFF.toInt()
         /** An unassigned slot: present enough to show the ring's shape, faint enough to ignore. */
         const val PALETTE_SLOT_EMPTY = 0x33FFFFFF
         const val PALETTE_GLYPH_PX = 20f
