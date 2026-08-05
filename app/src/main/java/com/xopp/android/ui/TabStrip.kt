@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,7 +39,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -85,11 +88,27 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
     // where the dragged tab sits *now*, and [dragOffset] is how far past its slot the finger is.
     var dragIndex by remember { mutableStateOf(-1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+    val scroll = rememberScrollState()
+    // Where the selected chip sits inside the (scrollable) content, so a tab selected from elsewhere —
+    // or one carried past the edge by a reorder drag — is scrolled back into view instead of stranded.
+    var activeBounds by remember { mutableStateOf(0f to 0f) }
+    var viewportWidth by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(activeBounds, viewportWidth, scroll.maxValue) {
+        val (left, width) = activeBounds
+        if (viewportWidth <= 0f || width <= 0f) return@LaunchedEffect
+        val target = when {
+            left < scroll.value -> left
+            left + width > scroll.value + viewportWidth -> left + width - viewportWidth
+            else -> return@LaunchedEffect
+        }
+        scroll.animateScrollTo(target.toInt().coerceIn(0, scroll.maxValue))
+    }
     Row(
         modifier = modifier
             .height(TAB_STRIP_HEIGHT)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .horizontalScroll(rememberScrollState()),
+            .onSizeChanged { viewportWidth = it.width.toFloat() }
+            .horizontalScroll(scroll),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         state.titles.forEachIndexed { index, title ->
@@ -122,6 +141,7 @@ fun TabStrip(state: TabsUiState, modifier: Modifier = Modifier) {
                     }
                 },
                 onDragEnd = { dragIndex = -1; dragOffset = 0f },
+                onBounds = { left, width -> activeBounds = left to width },
             )
         }
         IconButton(onClick = state.onNew, modifier = Modifier.size(TAB_TOUCH_TARGET)) {
@@ -152,6 +172,7 @@ private fun TabChip(
     onDragStart: () -> Unit,
     onDrag: (dx: Float, chipWidth: Float) -> Unit,
     onDragEnd: () -> Unit,
+    onBounds: (left: Float, width: Float) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     var menuOpen by remember { mutableStateOf(false) }
@@ -165,12 +186,18 @@ private fun TabChip(
             .heightIn(min = TAB_TOUCH_TARGET)
             .graphicsLayer { translationX = dragOffset }
             .onSizeChanged { chipWidth = it.width.toFloat().coerceAtLeast(1f) }
+            .onGloballyPositioned {
+                if (selected) onBounds(it.positionInParent().x, it.size.width.toFloat())
+            }
             .clip(RoundedCornerShape(10.dp))
             .background(if (selected) colors.secondaryContainer else colors.surfaceVariant)
             .combinedClickable(onClick = onSelect, onLongClick = { menuOpen = true })
-            // Sideways drag reorders; it only takes over once the finger passes touch slop, so a tap
-            // still selects and a stationary hold still opens the long-press menu.
-            .pointerInput(Unit) {
+            // Sideways drag reorders, but only on the *selected* tab: the drag consumes the gesture, so
+            // if every chip claimed it the strip could never be scrolled and tabs past the edge would be
+            // unreachable. Dragging anywhere else therefore falls through to the strip's own scroll.
+            // A tap still selects and a stationary hold still opens the long-press menu.
+            .pointerInput(selected) {
+                if (!selected) return@pointerInput
                 detectHorizontalDragGestures(
                     onDragStart = { drag.value.first() },
                     onDragEnd = { drag.value.third() },

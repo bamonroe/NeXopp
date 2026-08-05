@@ -135,11 +135,17 @@ Emulator setup (AVD creation, headless launch, KVM notes) lives in
   give it focus, and Save, Import PDF, the pen settings and undo/redo then apply to that document.
   Choosing **Close split view** hands the whole area back to the left pane; the right pane's tabs
   are kept, so turning split view on again brings the same documents back.
-- **Drag a tab sideways to reorder it** — press a tab and slide it left or right along its strip to
-  move it past its neighbours; the order sticks and is restored with the rest of the session. A drag
-  only takes over once your finger has actually moved, so a plain tap still switches document and a
-  stationary hold still opens the long-press menu below. Dragging reorders **within** a strip; use
-  that menu to send a tab to the other pane.
+- **The tab strip scrolls sideways** — open more documents than fit across the screen and the strip
+  scrolls rather than pushing tabs off the edge, so every tab (and the trailing **+**) stays
+  reachable. Drag anywhere on the strip except the current tab to scroll it, and the selected tab is
+  always scrolled back into view when you switch documents.
+- **Drag the current tab sideways to reorder it** — press the **selected** tab and slide it left or
+  right along its strip to move it past its neighbours; the order sticks and is restored with the
+  rest of the session. Only the selected tab reorders — dragging any other tab scrolls the strip
+  instead, so tap a tab first if you want to move it. A drag only takes over once your finger has
+  actually moved, so a plain tap still switches document and a stationary hold still opens the
+  long-press menu below. Dragging reorders **within** a strip; use that menu to send a tab to the
+  other pane.
 - **Long-press a tab to send it to the other view** — holding a tab pops up a small menu with two
   entries. **Move to other view** takes that document out of this pane and opens it in the other
   one; **Mirror on other view** leaves it where it is and opens a **second view of the same
