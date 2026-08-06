@@ -489,7 +489,8 @@ app/
   src/main/AndroidManifest.xml
   src/main/res/                                            # strings, Material 3 theme, adaptive icon
   src/main/java/com/xopp/android/
-    MainActivity.kt          # hosts the editor; SAF intent plumbing over io/DocumentIo.kt
+    MainActivity.kt          # hosts the editor; SAF intent plumbing, tabs, panes, audio wiring
+    MainActivityDocuments.kt # its document I/O half: open/load, PDF & image adoption, save/export
     format/                  # THE CORE — lossless .xopp read/write (pure Kotlin, no device deps)
       model/                 # Document, Page, Layer, Background, Element/Stroke/Text/Image/TexImage
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
