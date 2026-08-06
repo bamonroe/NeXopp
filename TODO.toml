@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "dedupe-device-install-docs"
-title = "Reconcile device-install docs: README contradicts docs/tools.md"
-description = "README.md ~lines 62-67 documents raw adb install -r plus am start as the way to run the app on a device, while docs/tools.md (Android emulator section) says the standard path is emulator.sh install / emulator.sh launch and that routine adb install is not part of the standard flow. The two disagree. Fix: decide the authoritative flow in docs/tools.md — including when raw adb is appropriate (physical devices) — and reduce the README passage to a pointer, per the hub-and-spoke rule."
-status = "active"
-level = "task"
-category = "docs"
-urgency = "normal"
-order = 200
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "dedupe-test-inventory-docs"
 title = "Unit-test inventory and udiff.xopp rule stated in three places"
 description = "The unit-test inventory and the udiff.xopp self-skip rule are stated in README.md ~lines 52-58, docs/tools.md (RealFileRoundTripTest gotcha) and docs/architecture.md ~lines 614-617. Per the single-source rule, pick one owner (the architecture.md test-tree section is the natural home), reconcile any divergence between the three copies first, then replace the other two with links."

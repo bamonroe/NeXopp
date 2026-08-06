@@ -46,15 +46,10 @@ desktop-generated `udiff.xopp` is present at the repo root, an extra test round-
 
 ## Run on a device / emulator
 
-Install the debug APK on a connected device or a running emulator:
-
-```sh
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.xopp.android/.MainActivity
-```
-
-Emulator setup (AVD creation, headless launch, KVM notes) lives in
-[`docs/tools.md`](docs/tools.md).
+Installing and launching the built APK — the headless emulator (`emulator.sh install` /
+`launch`), when a raw `adb install` to a physical device is appropriate, and how builds reach
+the owner's tablets and phones — is documented in [`docs/tools.md`](docs/tools.md). That is the
+authoritative flow; don't invent another one.
 
 ## Using the app
 
