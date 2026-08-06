@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-drawingsurface-strokes"
+title = "Split DrawingSurfaceView 4/6: extract stroke/spline/erase/place capture"
+description = "Step 4: create render/DrawingSurfaceStrokes.kt (~400 lines from ~1617-2073): startStroke, extendStroke, splineDown, splineMove, splineUp, pairsWithPreviousSplineTap, renderSplinePreview, finishSpline, cancelSpline, clearSpline, startErase, eraseMove, eraseAt, beginPlace, placeMove, commitPlace, addSamples, widthForPressure, point, commitCurrent, strokeColor, audioTap, withAudioStamp, appendStroke, resolvedActiveLayer, eraseOnPage. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit", "split-dsv"]
+
+[[task]]
 id = "split-drawingsurface-input"
 title = "Split DrawingSurfaceView 3/6: extract the touch state machine"
 description = "Step 3: create render/DrawingSurfaceInput.kt (~450 lines from ~1139-1198, ~1384-1534 and ~1822-1932): beginPointer, onPointerDown, onPointerUp, abandonInProgress, cancelGesture, handleWheelScroll, pointerKindOf, barrelPressed, activeTool, trackBarrelClicks, beginScroll, doScroll, endGesture, finishGesture, focusY, focusX, spanOf, plus the hand double-tap block (~1384-1441). IMPORTANT: onTouchEvent, onHoverEvent and onGenericMotionEvent are overrides and cannot live in an extension file — keep thin overrides in the class body that delegate to internal handleTouch/handleHover/handleGenericMotion functions, which do move. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
