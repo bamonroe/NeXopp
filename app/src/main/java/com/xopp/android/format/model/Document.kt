@@ -11,6 +11,8 @@ data class Document(
     val pages: List<Page> = emptyList(),
     /** Base64 PNG thumbnail of page 1, verbatim, if the file carried one. */
     val preview: String? = null,
+    /** The `<title>` text the file carried; null means the writer's default banner. */
+    val title: String? = null,
 )
 
 data class Page(
@@ -18,6 +20,8 @@ data class Page(
     val height: Double,
     val background: Background,
     val layers: List<Layer>,
+    /** Attributes on `<page>` we don't interpret, kept in source order so they round-trip. */
+    val extraAttrs: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -26,4 +30,9 @@ data class Page(
  * omitted it). Layer *visibility* is a view-only editor state and is deliberately not stored here,
  * since the `.xopp` format has no place for it (a hidden layer still round-trips with its content).
  */
-data class Layer(val elements: List<Element>, val name: String? = null)
+data class Layer(
+    val elements: List<Element>,
+    val name: String? = null,
+    /** Attributes on `<layer>` we don't interpret, kept in source order so they round-trip. */
+    val extraAttrs: Map<String, String> = emptyMap(),
+)

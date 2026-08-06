@@ -4,6 +4,7 @@ import com.xopp.android.format.model.Element
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
 import com.xopp.android.format.model.Page
+import com.xopp.android.format.model.RawElement
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TexImageElement
@@ -38,6 +39,8 @@ object SelectionOps {
             left = element.left + dx, top = element.top + dy,
             right = element.right + dx, bottom = element.bottom + dy,
         )
+        // Elements we don't model carry geometry we can't interpret, so every op leaves them be.
+        is RawElement -> element
     }
 
     /** Return [pages] with the elements at [refs] on page [pageIndex] shifted by (dx, dy) pt. */
@@ -65,6 +68,7 @@ object SelectionOps {
             left = element.left * s + dx, top = element.top * s + dy,
             right = element.right * s + dx, bottom = element.bottom * s + dy,
         )
+        is RawElement -> element
     }
 
     /**
@@ -121,6 +125,7 @@ object SelectionOps {
         is TextElement -> if (color != null) element.copy(color = color) else element
         is TexImageElement -> if (color != null) element.copy(color = color) else element
         is ImageElement -> element
+        is RawElement -> element
     }
 
     /** Return [pages] with the elements at [refs] on page [pageIndex] recoloured/re-widthed. */

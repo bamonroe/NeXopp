@@ -27,6 +27,16 @@ class XmlPullReader(private val s: String) {
     fun attr(name: String): String? = attrs[name]
     fun attributes(): Map<String, String> = attrs
 
+    /**
+     * The offset in the source just past the last event consumed. Paired with [rawSlice] it lets a
+     * caller keep an unrecognised element's markup verbatim instead of re-serialising it.
+     */
+    val position: Int get() = pos
+
+    /** The source text between two [position] marks, exactly as it was written. */
+    fun rawSlice(from: Int, to: Int): String =
+        if (from in 0..to && to <= s.length) s.substring(from, to) else ""
+
     fun next(): Event {
         pendingEndName?.let {
             pendingEndName = null

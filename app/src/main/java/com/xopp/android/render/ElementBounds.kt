@@ -2,6 +2,7 @@ package com.xopp.android.render
 
 import com.xopp.android.format.model.Element
 import com.xopp.android.format.model.ImageElement
+import com.xopp.android.format.model.RawElement
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
@@ -61,6 +62,9 @@ object ElementBounds {
         is TextElement -> textBounds(element)
         is ImageElement -> Bounds(element.left, element.top, element.right, element.bottom)
         is TexImageElement -> Bounds(element.left, element.top, element.right, element.bottom)
+        // An element we don't model has no geometry we can trust; the empty box keeps it out of
+        // every hit test, the same answer an empty stroke gets.
+        is RawElement -> Bounds(0.0, 0.0, 0.0, 0.0)
     }
 
     private fun strokeBounds(s: Stroke): Bounds {

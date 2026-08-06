@@ -6,6 +6,7 @@ import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Page
+import com.xopp.android.format.model.RawElement
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
@@ -22,7 +23,7 @@ class XoppWriter(out: Appendable) {
         w.prolog()
         w.start("xournal").attr("creator", doc.creator).attr("fileversion", doc.fileVersion)
         w.newline()
-        w.start("title").text(TITLE).end().newline()
+        w.start("title").text(doc.title ?: DEFAULT_TITLE).end().newline()
         doc.preview?.let { w.start("preview").rawText(it).end().newline() }
         for (page in doc.pages) writePage(page)
         w.end() // xournal
@@ -30,7 +31,9 @@ class XoppWriter(out: Appendable) {
     }
 
     private fun writePage(page: Page) {
-        w.start("page").attr("width", num(page.width)).attr("height", num(page.height)).newline()
+        w.start("page")
+        writeExtras(page.extraAttrs)
+        w.attr("width", num(page.width)).attr("height", num(page.height)).newline()
         writeBackground(page.background)
         w.newline()
         for (layer in page.layers) writeLayer(layer)
@@ -40,6 +43,7 @@ class XoppWriter(out: Appendable) {
 
     private fun writeBackground(bg: Background) {
         w.start("background")
+        writeExtras(bg.extraAttrs)
         when (bg) {
             is Background.Solid ->
                 w.attr("type", "solid").attr("color", XoppColor.format(bg.color))
@@ -60,6 +64,7 @@ class XoppWriter(out: Appendable) {
 
     private fun writeLayer(layer: Layer) {
         w.start("layer")
+        writeExtras(layer.extraAttrs)
         layer.name?.let { w.attr("name", it) }
         w.newline()
         for (el in layer.elements) when (el) {
@@ -67,6 +72,7 @@ class XoppWriter(out: Appendable) {
             is TextElement -> writeText(el)
             is ImageElement -> writeImage(el)
             is TexImageElement -> writeTexImage(el)
+            is RawElement -> writeRaw(el)
         }
         w.end() // layer
         w.newline()
@@ -95,30 +101,59 @@ class XoppWriter(out: Appendable) {
     }
 
     private fun writeText(t: TextElement) {
-        w.start("text").attr("font", t.font).attr("size", num(t.size))
+        w.start("text")
+        writeExtras(t.extraAttrs)
+        w.attr("font", t.font).attr("size", num(t.size))
             .attr("x", num(t.x)).attr("y", num(t.y)).attr("color", XoppColor.format(t.color))
             .text(t.content).end().newline()
     }
 
     private fun writeImage(img: ImageElement) {
-        w.start("image").attr("left", num(img.left)).attr("top", num(img.top))
+        w.start("image")
+        writeExtras(img.extraAttrs)
+        w.attr("left", num(img.left)).attr("top", num(img.top))
             .attr("right", num(img.right)).attr("bottom", num(img.bottom))
             .rawText(Base64.getEncoder().encodeToString(img.data)).end().newline()
     }
 
     private fun writeTexImage(t: TexImageElement) {
-        w.start("teximage").attr("text", t.latex).attr("color", XoppColor.format(t.color))
+        w.start("teximage")
+        writeExtras(t.extraAttrs)
+        // Older files carry the LaTeX source in the body instead of a `text` attribute; re-emit
+        // whichever shape the file was authored in rather than converting it (see TexImageElement).
+        if (t.latexInAttribute) w.attr("text", t.latex)
+        w.attr("color", XoppColor.format(t.color))
             .attr("left", num(t.left)).attr("top", num(t.top))
             .attr("right", num(t.right)).attr("bottom", num(t.bottom))
-        // The body carries the rendered PNG when we have one; otherwise fall back to the source.
-        t.data?.let { w.rawText(Base64.getEncoder().encodeToString(it)) } ?: w.text(t.latex)
+        // The body carries the rendered PNG when we have one. Otherwise it carries the LaTeX source
+        // only in the old body-form: writing the source into the body of an attribute-form element
+        // would make the next read decode it as base64 and hand back garbage.
+        val png = t.data
+        when {
+            png != null -> w.rawText(Base64.getEncoder().encodeToString(png))
+            !t.latexInAttribute -> w.text(t.latex)
+        }
         w.end().newline()
     }
 
-    private companion object {
-        const val TITLE = "Xournal++ document - see https://xournalpp.github.io/"
+    /** Re-emit an element we don't model exactly as it was read (see [RawElement]). */
+    private fun writeRaw(el: RawElement) {
+        w.start(el.name)
+        writeExtras(el.attrs)
+        if (el.body.isNotEmpty()) w.rawText(el.body)
+        w.end().newline()
+    }
+
+    /** Attributes we don't interpret, written first so they keep their place in the element. */
+    private fun writeExtras(extras: Map<String, String>) {
+        for ((k, v) in extras) w.attr(k, v)
+    }
+
+    companion object {
+        /** The banner desktop Xournal++ writes; used when the document carries no title of its own. */
+        const val DEFAULT_TITLE = "Xournal++ document - see https://xournalpp.github.io/"
 
         /** Fixed 8-decimal form, matching desktop Xournal++'s writer; locale-independent. */
-        fun num(v: Double): String = String.format(Locale.US, "%.8f", v)
+        private fun num(v: Double): String = String.format(Locale.US, "%.8f", v)
     }
 }

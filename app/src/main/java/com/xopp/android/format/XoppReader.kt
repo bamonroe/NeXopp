@@ -7,6 +7,7 @@ import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Layer
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.format.model.Page
+import com.xopp.android.format.model.RawElement
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TexImageElement
@@ -21,30 +22,45 @@ class XoppReader(xml: String) {
 
     private val r = XmlPullReader(xml)
 
-    /** Attributes handled explicitly on `<stroke>`; everything else is preserved verbatim. */
+    /** Attributes handled explicitly per element; everything else is preserved verbatim. */
     private val strokeKnownAttrs = setOf("tool", "color", "width", "capStyle", "style", "fill")
+    private val pageKnownAttrs = setOf("width", "height")
+    private val layerKnownAttrs = setOf("name")
+    private val backgroundKnownAttrs = setOf("type", "color", "style", "domain", "filename", "pageno")
+    private val textKnownAttrs = setOf("font", "size", "x", "y", "color")
+    private val imageKnownAttrs = setOf("left", "top", "right", "bottom")
+    private val texKnownAttrs = setOf("left", "top", "right", "bottom", "color", "text")
 
     fun read(): Document {
         val pages = mutableListOf<Page>()
         var creator = "xopp_android"
         var fileVersion = "4"
         var preview: String? = null
+        var title: String? = null
         while (r.next() != Event.EOF) {
             if (r.event == Event.START) when (r.name) {
                 "xournal" -> {
                     creator = r.attr("creator") ?: creator
                     fileVersion = r.attr("fileversion") ?: fileVersion
                 }
+                // Only a *custom* title is worth carrying: the standard banner is what the writer
+                // emits anyway, and keeping it null makes model -> XML -> model an identity.
+                "title" -> title = readTextContent().takeIf { it != XoppWriter.DEFAULT_TITLE }
                 "preview" -> preview = readTextContent().trim()
                 "page" -> pages += readPage()
             }
         }
-        return Document(creator, fileVersion, pages, preview)
+        return Document(creator, fileVersion, pages, preview, title)
     }
+
+    /** The attributes of the element at the cursor minus [known], in source order. */
+    private fun extras(known: Set<String>): Map<String, String> =
+        r.attributes().filterKeys { it !in known }.toMap(LinkedHashMap())
 
     private fun readPage(): Page {
         val width = r.attr("width")?.toDoubleOrNull() ?: 0.0
         val height = r.attr("height")?.toDoubleOrNull() ?: 0.0
+        val extra = extras(pageKnownAttrs)
         var background: Background = Background.Solid(0xFFFFFFFF.toInt(), "plain")
         val layers = mutableListOf<Layer>()
         while (r.next() != Event.EOF) {
@@ -57,29 +73,36 @@ class XoppReader(xml: String) {
                 else -> {}
             }
         }
-        return Page(width, height, background, layers)
+        return Page(width, height, background, layers, extra)
     }
 
-    private fun readBackground(): Background = when (r.attr("type")) {
-        "pixmap" -> Background.Pixmap(
-            domain = r.attr("domain") ?: "absolute",
-            filename = r.attr("filename") ?: "",
-        )
-        "pdf" -> Background.Pdf(
-            filename = r.attr("filename"),
-            // `pageno` is 1-based on disk (desktop Xournal++); store it 0-based to index
-            // Android's PdfRenderer directly. Missing pageno defaults to the first page.
-            pageNo = (r.attr("pageno")?.toIntOrNull() ?: 1) - 1,
-            domain = r.attr("domain"),
-        )
-        else -> Background.Solid(
-            color = XoppColor.parse(r.attr("color")),
-            style = r.attr("style") ?: "plain",
-        )
+    private fun readBackground(): Background {
+        val extra = extras(backgroundKnownAttrs)
+        return when (r.attr("type")) {
+            "pixmap" -> Background.Pixmap(
+                domain = r.attr("domain") ?: "absolute",
+                filename = r.attr("filename") ?: "",
+                extraAttrs = extra,
+            )
+            "pdf" -> Background.Pdf(
+                filename = r.attr("filename"),
+                // `pageno` is 1-based on disk (desktop Xournal++); store it 0-based to index
+                // Android's PdfRenderer directly. Missing pageno defaults to the first page.
+                pageNo = (r.attr("pageno")?.toIntOrNull() ?: 1) - 1,
+                domain = r.attr("domain"),
+                extraAttrs = extra,
+            )
+            else -> Background.Solid(
+                color = XoppColor.parse(r.attr("color")),
+                style = r.attr("style") ?: "plain",
+                extraAttrs = extra,
+            )
+        }
     }
 
     private fun readLayer(): Layer {
         val name = r.attr("name")
+        val extra = extras(layerKnownAttrs)
         val elements = mutableListOf<Element>()
         while (r.next() != Event.EOF) {
             when (r.event) {
@@ -88,12 +111,39 @@ class XoppReader(xml: String) {
                     "text" -> elements += readText()
                     "image" -> elements += readImage()
                     "teximage" -> elements += readTexImage()
+                    // Anything else is a vendor or future element: keep its markup verbatim so the
+                    // next save doesn't silently drop it.
+                    else -> elements += readRaw()
                 }
                 Event.END -> if (r.name == "layer") break
                 else -> {}
             }
         }
-        return Layer(elements, name)
+        return Layer(elements, name, extra)
+    }
+
+    /** Capture the unrecognised element at the cursor — attributes plus raw inner markup. */
+    private fun readRaw(): RawElement {
+        val name = r.name
+        val attrs = r.attributes().toMap(LinkedHashMap<String, String>())
+        val start = r.position
+        var end = start
+        var depth = 0
+        loop@ while (true) {
+            val before = r.position
+            when (r.next()) {
+                Event.EOF -> { end = before; break@loop }
+                Event.START -> depth++
+                Event.END -> if (depth == 0 && r.name == name) {
+                    end = before
+                    break@loop
+                } else {
+                    depth--
+                }
+                else -> {}
+            }
+        }
+        return RawElement(name, attrs, r.rawSlice(start, end))
     }
 
     private fun readStroke(): Stroke {
@@ -129,8 +179,9 @@ class XoppReader(xml: String) {
         val x = r.attr("x")?.toDoubleOrNull() ?: 0.0
         val y = r.attr("y")?.toDoubleOrNull() ?: 0.0
         val color = XoppColor.parse(r.attr("color"))
+        val extra = extras(textKnownAttrs)
         val content = readTextContent()
-        return TextElement(font, size, x, y, color, content)
+        return TextElement(font, size, x, y, color, content, extra)
     }
 
     private fun readImage(): ImageElement {
@@ -138,6 +189,7 @@ class XoppReader(xml: String) {
         val top = r.attr("top")?.toDoubleOrNull() ?: 0.0
         val right = r.attr("right")?.toDoubleOrNull() ?: 0.0
         val bottom = r.attr("bottom")?.toDoubleOrNull() ?: 0.0
+        val extra = extras(imageKnownAttrs)
         val b64 = readTextContent().trim()
         // Desktop Xournal++ line-wraps the base64 body, so use the MIME decoder (which skips
         // whitespace) and fall back to an empty image rather than failing the whole file.
@@ -146,7 +198,7 @@ class XoppReader(xml: String) {
         } else {
             runCatching { Base64.getMimeDecoder().decode(b64) }.getOrNull() ?: ByteArray(0)
         }
-        return ImageElement(left, top, right, bottom, bytes)
+        return ImageElement(left, top, right, bottom, bytes, extra)
     }
 
     private fun readTexImage(): TexImageElement {
@@ -156,6 +208,7 @@ class XoppReader(xml: String) {
         val bottom = r.attr("bottom")?.toDoubleOrNull() ?: 0.0
         val color = XoppColor.parse(r.attr("color"))
         val attrLatex = r.attr("text")
+        val extra = extras(texKnownAttrs)
         // With a `text` attribute the body is the desktop-rendered PNG (base64); without one,
         // older files put the LaTeX source itself in the body.
         val body = readTextContent().trim()
@@ -165,7 +218,11 @@ class XoppReader(xml: String) {
         } else {
             null
         }
-        return TexImageElement(left, top, right, bottom, latex, color, data)
+        return TexImageElement(
+            left, top, right, bottom, latex, color, data,
+            latexInAttribute = attrLatex != null,
+            extraAttrs = extra,
+        )
     }
 
     /** Collect text between the current START and its matching END. */

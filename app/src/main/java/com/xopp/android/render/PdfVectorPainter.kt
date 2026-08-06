@@ -10,6 +10,7 @@ import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import com.xopp.android.format.FontDescription
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Page
+import com.xopp.android.format.model.RawElement
 import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
@@ -35,6 +36,9 @@ class PdfVectorPainter {
                         is TextElement -> text(cs, element, t)
                         is ImageElement -> image(doc, cs, element, t)
                         is TexImageElement -> tex(cs, element, t)
+                        // Nothing to draw for an element we don't model — it exists only to
+                        // survive the .xopp round trip.
+                        is RawElement -> Unit
                     }
                 }
             }

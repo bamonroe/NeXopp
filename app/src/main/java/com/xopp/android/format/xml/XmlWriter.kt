@@ -76,6 +76,11 @@ class XmlWriter(private val out: Appendable) {
                     '<' -> out.append("&lt;")
                     '>' -> out.append("&gt;")
                     '"' -> if (attribute) out.append("&quot;") else out.append(c)
+                    // A conforming parser normalises literal newline/CR/tab in an attribute value
+                    // to a space, so escaping them is what makes such a value round-trip at all.
+                    '\n' -> if (attribute) out.append("&#10;") else out.append(c)
+                    '\r' -> if (attribute) out.append("&#13;") else out.append(c)
+                    '\t' -> if (attribute) out.append("&#9;") else out.append(c)
                     else -> out.append(c)
                 }
             }

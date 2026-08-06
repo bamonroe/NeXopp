@@ -116,7 +116,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 
 ```
 <xournal creator="…" fileversion="4">
-  <title>…</title>                     (ignored on read; a fixed string on write)
+  <title>…</title>                     (preserved when custom; a fixed banner otherwise)
   <preview>…base64 PNG…</preview>       (optional thumbnail; regenerated on write)
   <page width height>
     <background type style color … />
@@ -125,6 +125,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
       <text …>…text…</text>
       <image …>…base64…</image>
       <teximage …>…latex…</teximage>
+      <anything-else …>…</…>            (kept verbatim as RawElement; see below)
     </layer>                            (1+ layers per page)
   </page>                              (1+ pages per document)
 </xournal>
@@ -133,7 +134,10 @@ no signature at all — it is recognised by the whole sample decoding as printab
 **`<xournal>`** — root. Attributes: `creator` (writer id string), `fileversion` (`"4"` for
 current desktop). Children: optional `<title>`, optional `<preview>`, then 1+ `<page>`.
 
-**`<title>`** — decorative text child; desktop writes a fixed banner string. Not parsed.
+**`<title>`** — decorative text child; desktop writes a fixed banner string. Read into
+`Document.title` and written back verbatim, so a document with a custom title keeps it. The
+standard banner reads back as `null` (i.e. "no title of its own"), which keeps
+model → XML → model an identity for documents we author.
 
 **`<preview>`** — inner text is a base64-encoded PNG thumbnail of page 1. Optional; we
 regenerate it on write (or omit it — desktop tolerates its absence).
@@ -164,7 +168,11 @@ regenerate it on write (or omit it — desktop tolerates its absence).
 
 **`<layer>`** — optional `name` (desktop's `<layer name="Layer 1">`; preserved on round-trip, null
 when omitted). Children in document order: any mix of `<stroke>`, `<text>`, `<image>`, `<teximage>`.
-**Document order is z-order** and must be preserved on round-trip. Layer *visibility* is **not** a
+**Document order is z-order** and must be preserved on round-trip. A child whose tag we don't
+model (a vendor or future element) is captured verbatim — attributes plus raw inner markup — as
+`format/model/Element.kt`'s `RawElement` and re-emitted untouched in its original position, so it
+is never silently dropped by a save. It has no geometry, so it is invisible to hit tests,
+selection ops and PDF export. Layer *visibility* is **not** a
 format attribute — it's a view-only editor state (a hidden layer still round-trips with its content).
 
 **`<stroke>`** — the core drawable. Attributes:
@@ -202,12 +210,20 @@ body yields an empty image rather than failing the whole file.
 **`<teximage>`** — a LaTeX-rendered image. Attributes `text` (LaTeX source), `color`, and
 `left/top/right/bottom` bounding box (pt). **Inner text** is the base64-encoded PNG desktop
 rendered from that source; we keep those bytes verbatim (`TexImage.data`) so they survive a
-round-trip. Older files without a `text` attribute put the LaTeX source in the body instead.
+round-trip. Older files without a `text` attribute put the LaTeX source in the body instead;
+`TexImageElement.latexInAttribute` records which of the two shapes the file used so we re-emit the
+one it was authored in rather than converting it.
 
 ### Fidelity notes / round-trip hazards
 
-- **Preserve unknown attributes.** Desktop emits attributes we don't render (`ts`/`fn`,
-  possibly future ones); carry them through unchanged rather than dropping them.
+- **Preserve unknown attributes — on every element, not just strokes.** Desktop emits attributes
+  we don't render (`ts`/`fn` on strokes *and* text boxes, custom ruling configuration on a solid
+  background, future ones anywhere); each of `<page>`, `<background>`, `<layer>`, `<stroke>`,
+  `<text>`, `<image>` and `<teximage>` carries an `extraAttrs` map in source order and re-emits it
+  ahead of the attributes we do model.
+- **Escape control characters in attribute values.** A conforming XML parser normalises a literal
+  newline/CR/tab inside an attribute to a space, so `XmlWriter` writes `&#10;`, `&#13;` and `&#9;`
+  — without that, a preserved value containing one would not survive a trip through desktop.
 - **Preserve layer child order** exactly (it is z-order).
 - **Alpha matters** for highlighter — don't force `ff`.
 - The Xournal++ Mobile reference is a *simplified* writer (always alpha `ff`, fixed title,
@@ -433,17 +449,22 @@ The design decisions worth keeping:
 The native-Android analogue of the reference's `Xpp*` types — one small Kotlin data
 class/module per format element, mirroring the tree in [The `.xopp` format](#the-xopp-format-code-derived--this-is-its-authoritative-home):
 
+Every container and element below also carries an `extraAttrs` map of the attributes we don't
+interpret, in source order, so unknown markup round-trips (see the fidelity notes above).
+
 - `Document` — `creator`, `fileversion`, optional title/preview, `List<Page>`.
 - `Page` — `width`, `height` (pt), `Background`, `List<Layer>`.
 - `Background` — sealed type: `Solid(color, style)`, `Pixmap(domain, filename)`,
   `Pdf(filename, pageNo, domain?)`.
 - `Layer` — ordered `List<Element>` (z-order) plus optional `name`.
-- `Element` — sealed type: `Stroke`, `Text`, `Image`, `TexImage`.
+- `Element` — sealed type: `Stroke`, `Text`, `Image`, `TexImage`, `RawElement`.
   - `Stroke` — `tool`, `color`, `capStyle`, `lineStyle` (plain/dash/dashdot/dot), `fill` (0..255 or
     null), `List<Point>` (each `x, y, width`), plus preserved raw attrs (`ts`, `fn`, unknowns).
   - `Text` — `font`, `size`, `x`, `y`, `color`, `content`.
   - `Image` — bbox `left/top/right/bottom`, decoded bytes.
-  - `TexImage` — bbox, `latex`, `color`, and the rendered PNG bytes (`data`, nullable).
+  - `TexImage` — bbox, `latex`, `color`, the rendered PNG bytes (`data`, nullable), and
+    `latexInAttribute` (which of the two on-disk shapes the source used).
+  - `RawElement` — an unmodelled layer child kept verbatim: tag name, attributes, raw inner markup.
 
 Colors are stored as Android `0xAARRGGBB` ints; the I/O layer converts to/from the on-disk
 `#RRGGBBAA`. Coordinates are stored in pt (document space); the view applies a pan/zoom
@@ -733,7 +754,10 @@ from `ActivityManager.memoryClass`), so a PDF-backed document has a single memor
 two independent guesses. A cache `charge`s each bitmap it rasterises; when the total goes over, the
 budget asks its clients to `trim` — the *other* clients first, the one that just allocated last, so
 the pixels being drawn this frame survive. `InkCache.trim` gives back off-screen pages first,
-`PdfPageCache.trim` its least-recently-used entries (pinned tiles last). Trimmed bitmaps are dropped
+`PdfPageCache.trim` its least-recently-used entries (pinned tiles last), and
+`ElementRenderer.trim` its least-recently-drawn embedded images (keyed by element *identity*, since
+an `ImageElement`'s `equals` compares whole byte arrays; `ElementRenderer.close` recycles them and
+leaves the budget when the surface is torn down or a one-shot thumbnail is finished). Trimmed bitmaps are dropped
 but never recycled: another thread's trim can hit a bitmap the drawing thread holds for the current
 frame. `BitmapBudget` never calls a client back while holding its own lock — clients charge while
 holding *their* locks, so a callback under both would invert the lock order.
@@ -1070,7 +1094,9 @@ through the same `getAbsoluteFilepath`, so `DocumentIo` resolves them through on
 helper: a `content://` URI, an absolute path, a relative path beside the `.xopp`, or
 `domain="attach"`'s `<name>.xopp.<filename>` sibling. Whatever it can reach is **copied into
 `ImageStore`** (cache dir `images/`, one never-rewritten file per copy, swept by `DocumentIo.prune`
-against the pictures the live canvases decode from), and the copies come back on `LoadedFile.Doc` as
+against the pictures the live canvases decode from and additionally held to
+`StorageLimits.imageCacheBytes` oldest-first, as `PdfStore` is — live copies are never evicted, so
+the cap is a backstop for strays rather than the primary bound), and the copies come back on `LoadedFile.Doc` as
 an `images: reference → File` map — never as a rewrite of the document. That side table is the whole
 design point: the document keeps the reference it was read with, so a plain Save round-trips it
 unchanged, while `DrawingSurfaceView.setImageSources` hands the map to `ImageBackgroundCache`, which

@@ -50,7 +50,11 @@ data class Stroke(
     val extraAttrs: Map<String, String> = emptyMap(),
 ) : Element
 
-/** A `<text>` box: content anchored at (x, y) top-left, in the given font/size (pt)/colour. */
+/**
+ * A `<text>` box: content anchored at (x, y) top-left, in the given font/size (pt)/colour.
+ * [extraAttrs] preserves attributes we don't interpret — desktop text boxes can carry the same
+ * audio `fn`/`ts` pair strokes do, so dropping them would lose an audio link on save.
+ */
 data class TextElement(
     val font: String,
     val size: Double,
@@ -58,6 +62,18 @@ data class TextElement(
     val y: Double,
     val color: Int,
     val content: String,
+    val extraAttrs: Map<String, String> = emptyMap(),
+) : Element
+
+/**
+ * A layer child whose tag we don't model — a vendor or future element in a desktop-written file.
+ * Captured verbatim ([attrs] in source order, [body] as the raw inner text) and re-emitted
+ * untouched in document order, so an unknown element survives a load/save round trip.
+ */
+data class RawElement(
+    val name: String,
+    val attrs: Map<String, String> = emptyMap(),
+    val body: String = "",
 ) : Element
 
 /** An `<image>`: raw encoded bytes (PNG/JPEG) placed in a pt bounding box. */
@@ -67,6 +83,8 @@ data class ImageElement(
     val right: Double,
     val bottom: Double,
     val data: ByteArray,
+    /** Attributes on `<image>` we don't interpret, kept in source order so they round-trip. */
+    val extraAttrs: Map<String, String> = emptyMap(),
 ) : Element {
     override fun equals(other: Any?): Boolean =
         other is ImageElement &&
@@ -83,6 +101,10 @@ data class ImageElement(
  *
  * [data] is the desktop-rendered PNG carried in the element body, kept verbatim so a file
  * round-trips without losing its rendering; null when the source had no body.
+ *
+ * [latexInAttribute] records where the source *was*: newer files put it in the `text` attribute,
+ * older ones in the element body. Like [Stroke.uniformWidth] it exists so we re-emit the shape the
+ * file was authored in rather than silently converting it.
  */
 data class TexImageElement(
     val left: Double,
@@ -92,6 +114,9 @@ data class TexImageElement(
     val latex: String,
     val color: Int,
     val data: ByteArray? = null,
+    val latexInAttribute: Boolean = true,
+    /** Attributes on `<teximage>` we don't interpret, kept in source order so they round-trip. */
+    val extraAttrs: Map<String, String> = emptyMap(),
 ) : Element {
     override fun equals(other: Any?): Boolean =
         other is TexImageElement &&
