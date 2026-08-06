@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-architecture-layout-drift"
+title = "architecture.md: fix repository-layout drift (25+ missing files, one dupe)"
+description = "docs/architecture.md repository-layout section (~lines 452-618) has drifted from the tree. (1) DrawingGuide.kt is listed twice (~lines 509-510) with two different descriptions — delete one. (2) Missing entries: io/ImageStore.kt, io/IncomingDocument.kt, io/SaveTarget.kt; format/FontDescription.kt; panes/MirrorSync.kt; tabs/DocColors.kt; render/InkCache.kt (described in prose but absent from the list), render/ImportPdfMode.kt, render/PageThumbnail.kt, render/PaletteHaptics.kt, render/PaletteTapDetector.kt, render/PdfBackgroundDomain.kt, render/StrokeSmoother.kt; ui/EditorBackHandler.kt, ui/PaletteActionCatalog.kt, ui/PaletteActionPicker.kt, ui/PaletteEditorLayout.kt, ui/PaletteResetControls.kt, ui/PaletteSection.kt, ui/PaneState.kt, ui/SplitLayout.kt, ui/TabOverviewPopup.kt, ui/TabStrip.kt, ui/AboutSection.kt. Read each file header briefly and add a one-line description matching the style of existing entries. (3) ~Line 611 says SettingsSections.kt holds Stylus/Editor/Toolbar/Navigation/Storage — it also has AppearanceSection; align with the full list README states at ~line 502."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit"]
+
+[[task]]
 id = "consolidate-page-transforms"
 title = "Put page/view coordinate transforms on PageBox, once"
 description = "The page-to-view coordinate transform is copied at least six times: identical private ptX/ptY pairs in render/DrawingSurfaceView.kt:1048, render/SelectionGestureController.kt:307 and render/GuideDrag.kt:125 (differing only in scroll source), the same expression re-inlined at DrawingSurfaceView.kt ~1788, ~1815 and ~2024, and the inverse hand-rolled at DrawingSurfaceView.kt:1115, InkCache.kt:68 and BackgroundRenderer.kt:47. Fix: add to PageBox in render/PageStacker.kt (next to the existing contains at ~line 22): toPtX(viewX, scrollX), toPtY(viewY, scrollY), toViewX(ptX, scrollX), toViewY(ptY, scrollY), each with KDoc stating units (view px vs page pt). Replace every copy and delete the three private pairs. Pure refactor, no behaviour change; SelectionTest and PageOpsTest cover some paths. Do this BEFORE the DrawingSurfaceView file-split tasks so the code being moved is already clean. Full scripts/build.sh."

@@ -495,6 +495,7 @@ app/
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
                              #   malformed entities decode to raw text; truncated input throws
                              #   XmlPullReader.TruncatedXmlException instead of hanging/crashing
+      FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
       XoppWriter.kt          # Document -> XML
@@ -506,20 +507,27 @@ app/
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call file names (staging and both stores), so overlapping writes can't collide
       StoreFiles.kt          # the sweep both stores share: drop unreferenced files, then trim oldest-first to a byte budget
+      IncomingDocument.kt    # picks the document URI out of an incoming view/edit intent (pure, testable)
+      SaveTarget.kt          # the .xopp suffix we always write, and the name to suggest when a PDF is first saved
       PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index, byte-budget eviction
       ImageStore.kt          # one never-rewritten copy per pixmap background reference; same liveness sweep and byte budget
+      ImageStore.kt          # never-rewritten copy of every pixmap background picture; same sweep and byte budget
       TextImport.kt          # text file -> generated background PDF, cached by content hash
       PdfReference.kt        # how a .xopp names its background PDF: relative <-> absolute paths and SAF document ids
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
+      MirrorSync.kt          # keeps the several views of one document in step (mirrored tabs share the document)
     tabs/                    # several documents open at once, cached across app restarts
       OpenTab.kt             # one open document: id, title, source URI, save format, PDF, page
       TabManager.kt          # the tab list + selection rules (pure; no Android, no canvas)
       TabIndex.kt            # the session index text format (pure encode/decode)
       TabStore.kt            # filesDir/tabs: index + one .xopp snapshot per tab
+      DocColors.kt           # the dot colour that marks two tabs as views of the same document (pure)
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
+      InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
+      StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
       ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested)
       MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
@@ -534,11 +542,12 @@ app/
       BackgroundGrid.kt      # ruling line/dot offsets + the pt spacings themselves (pure geometry)
       Snapping.kt            # shape endpoints -> the ruling; rotation -> 15-degree steps (pure)
       DrawingGuide.kt        # setsquare/compass overlay geometry: project a drawn point onto an edge (pure)
-      DrawingGuide.kt        # setsquare/compass overlay geometry + edge projection (pure)
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
       ElementRenderer.kt     # draws text boxes, images, and LaTeX images (real math)
+      PaletteTapDetector.kt  # the two-finger-tap gesture that opens the radial palette (pure state machine)
+      PaletteHaptics.kt      # when the open palette should buzz as the highlight moves (pure)
       RadialPaletteRenderer.kt # paints the open radial palette (two rings + hovered slot) over the canvas
       LatexParser.kt         # LaTeX source -> node tree (pure, no Android deps)
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
@@ -546,7 +555,9 @@ app/
       BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
       ImageImport.kt         # builds a one-page Document with an image as its pixmap background
       ImageBackgroundCache.kt # decodes+scales pixmap background pictures (LRU, off the frame)
+      PdfBackgroundDomain.kt # the `attach` domain: the PDF travels bundled beside the .xopp
       PixmapBackgroundDomain.kt # re-points pixmap backgrounds at bundled ZIP entries for attach saves
+      ImportPdfMode.kt       # how an imported PDF joins the open document (replace vs append-and-merge)
       PdfImport.kt           # builds a Document of pdf-background pages from a PdfPageCache
       PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
@@ -594,6 +605,7 @@ app/
       VelocityEstimator.kt   # pan release-velocity from a trailing sample window (pure)
       EditHistory.kt         # generic undo/redo over document snapshots (pure)
       PageOps.kt             # insert / copy / move / delete pages in a page list (pure)
+      PageThumbnail.kt       # rasterises one page into a small preview bitmap for the tab overview
     audio/                   # audio-annotated strokes: record, replay, sidecar transfer
       AudioAnnotation.kt     # AudioRef <-> a stroke's fn/ts attrs; document sidecar set (pure)
       WavWriter.kt           # streaming 16-bit PCM RIFF/WAVE writer, header patched on close (pure)
@@ -605,6 +617,9 @@ app/
       EditorScreen.kt        # the editor's assembly: scaffold + body layout (rail edge, split panes)
       EditorUiState.kt       # the screen's remembered chrome state (pen, open dialogs, panes) in one holder
       EditorRegions.kt       # the screen's regions: top bar, ☰ menu, the rail's wiring, one pane's canvas
+      EditorBackHandler.kt   # back peels off one transient editor state at a time before leaving the app
+      PaneState.kt           # per-pane canvas state the chrome mirrors (zoom, page, layer, undo) + the pane count
+      SplitLayout.kt         # two panes side by side with a draggable bar down the middle
       EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import dialogs
       SideToolbar.kt         # left vertical rail: the shell + tool-group slots; each pop-up is a Toolbar*.kt below
       EditorTool.kt          # the editor's tool modes + their labels/icons (pure)
@@ -615,6 +630,8 @@ app/
       ToolbarViewPopups.kt   # rail slots: zoom, page background, drawing guides, audio
       ToolbarPagesPopup.kt   # rail slot: page navigation/clipboard, overview grid controls, page-size dialog
       ToolbarLayersPopup.kt  # rail slot: the layer manager list + rename dialog
+      TabStrip.kt            # the horizontal strip of open-tab titles: select, reorder, close, long-press menu
+      TabOverviewPopup.kt    # a grid of every open tab shown as the page it was left on
       ColorPalette.kt        # the one colour picker (swatches + custom slot + recents) all three sites use
       ColorPicker.kt         # the arbitrary-colour HSV/hex dialog behind the palette's custom slot
       RadialPalette.kt       # the pen-tip radial menu's model: two rings of slots holding PaletteActions (pure)
@@ -625,6 +642,11 @@ app/
       VectorIconPath.kt      # flattens an ImageVector into a cached unit Path both painters draw (pure)
       RadialPaletteCodec.kt  # one palette (and the whole list) as one SharedPreferences line; forgiving decode (pure)
       PaletteList.kt         # PaletteSet: add/rename/reorder/delete a palette + the active index, and the pre-list migration (pure)
+      PaletteSection.kt      # the PALETTE settings page: the two-ring diagram with every slot tappable
+      PaletteEditorLayout.kt # the diagram's geometry — the canvas rings scaled to fit a settings card (pure)
+      PaletteActionCatalog.kt # the catalogue of assignable actions and how each reads in prose (pure)
+      PaletteActionPicker.kt # the sheet that fills one slot: every action, the swatches, a width slider, Clear
+      PaletteResetControls.kt # the confirm step in front of the destructive palette edits
       PaletteManagerRow.kt   # settings UI: the palette chips + add/rename/reorder/delete/activate buttons
       PaletteActions.kt      # runs a picked PaletteAction against the editor state + surface (the toolbar's edits)
       ToolPreset.kt          # a named snapshot of the whole tool config (tool/colour/width/style/fill); capture + apply
@@ -635,7 +657,8 @@ app/
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       PageCounter.kt         # always-visible "page X of Y" badge; its corner is a setting
       SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
-      SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation / Storage) + shared controls
+      SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation / Appearance / Storage) + shared controls
+      AboutSection.kt        # the About page and the links it sends people to
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
   src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
