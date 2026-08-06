@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "dedupe-build-docs"
+title = "Dedupe build instructions between README and docs/tools.md"
+description = "Hub-and-spoke violation: README.md ~lines 29-50 duplicates the docs/tools.md Android-build section nearly verbatim (build.sh variants, APK output path, test-report path), and the .gradle-cache behaviour is stated in both (README ~37 and the tools.md gotchas). Fix: slim README to the single canonical build command plus a link to docs/tools.md as the authoritative home — README already does exactly this for the emulator, so follow that pattern. Ensure nothing is lost: anything stated only in README moves into tools.md."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit"]
+
+[[task]]
 id = "fix-architecture-layout-drift"
 title = "architecture.md: fix repository-layout drift (25+ missing files, one dupe)"
 description = "docs/architecture.md repository-layout section (~lines 452-618) has drifted from the tree. (1) DrawingGuide.kt is listed twice (~lines 509-510) with two different descriptions — delete one. (2) Missing entries: io/ImageStore.kt, io/IncomingDocument.kt, io/SaveTarget.kt; format/FontDescription.kt; panes/MirrorSync.kt; tabs/DocColors.kt; render/InkCache.kt (described in prose but absent from the list), render/ImportPdfMode.kt, render/PageThumbnail.kt, render/PaletteHaptics.kt, render/PaletteTapDetector.kt, render/PdfBackgroundDomain.kt, render/StrokeSmoother.kt; ui/EditorBackHandler.kt, ui/PaletteActionCatalog.kt, ui/PaletteActionPicker.kt, ui/PaletteEditorLayout.kt, ui/PaletteResetControls.kt, ui/PaletteSection.kt, ui/PaneState.kt, ui/SplitLayout.kt, ui/TabOverviewPopup.kt, ui/TabStrip.kt, ui/AboutSection.kt. Read each file header briefly and add a one-line description matching the style of existing entries. (3) ~Line 611 says SettingsSections.kt holds Stylus/Editor/Toolbar/Navigation/Storage — it also has AppearanceSection; align with the full list README states at ~line 502."

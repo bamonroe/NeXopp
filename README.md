@@ -33,21 +33,8 @@ scripts/build.sh
 ```
 
 This runs the full check loop through the shared toolchain container — **unit tests + a debug
-APK**. The SDK image is already baked; the first run only downloads Gradle and dependencies
-into a per-project `.gradle-cache/`, so later runs are fast.
-
-Common variants:
-
-```sh
-scripts/build.sh testDebugUnitTest     # JVM unit tests only (no device needed)
-scripts/build.sh clean assembleDebug   # clean build of the debug APK
-scripts/build.sh <any gradle tasks>    # arbitrary Gradle tasks in the container
-```
-
-Outputs:
-
-- Debug APK: `app/build/outputs/apk/debug/app-debug.apk`
-- Test report: `app/build/reports/tests/testDebugUnitTest/index.html`
+APK**. Task variants, output paths, caching behaviour and the rest of the pipeline live in
+[`docs/tools.md`](docs/tools.md), the authoritative home for the build.
 
 The unit tests cover the `.xopp` round-trip (the colour codec, every element type, XML escaping,
 model reserialization, a gzip round-trip, the PDF-background on-disk shape, and a fixture-driven
