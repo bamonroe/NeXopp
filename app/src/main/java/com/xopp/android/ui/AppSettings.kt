@@ -7,6 +7,7 @@ import com.xopp.android.render.GuideKind
 import com.xopp.android.render.Momentum
 import com.xopp.android.render.MomentumCurve
 import com.xopp.android.render.PaletteInvocation
+import com.xopp.android.render.PageStacker
 import com.xopp.android.render.PanSensitivity
 import com.xopp.android.render.PressureSensitivity
 import com.xopp.android.render.StrokePrecision
@@ -169,6 +170,20 @@ data class AppSettings(
     }
 
     /**
+     * This settings object with every numeric field forced back into the range the UI assumes —
+     * what [SettingsStore.load] applies to whatever the pref file happens to hold.
+     *
+     * A stored value out of range isn't cosmetic: [RadialPalette] *requires* a width in
+     * `PEN_WIDTH_MIN..PEN_WIDTH_MAX` and throws when a corrupt or legacy pref reaches a palette
+     * slot, and a stored `pageColumns` of 0 makes the pages popup's mode rows unreachable.
+     */
+    fun sanitized(): AppSettings = copy(
+        penWidths = penWidths.map { it.coerceIn(PEN_WIDTH_MIN, PEN_WIDTH_MAX) },
+        lastWidth = lastWidth.coerceIn(PEN_WIDTH_MIN, PEN_WIDTH_MAX),
+        pageColumns = pageColumns.coerceIn(1, PageStacker.COLUMN_CHOICES.last()),
+    )
+
+    /**
      * This settings object with [color] pushed to the front of [recentColors] — de-duplicated and
      * truncated to [MAX_RECENT_COLORS]. Every picker records its choice here, so recents are shared;
      * only the pen's own picks pass [asPen], which also makes it the [lastColor] restored on launch.
@@ -259,7 +274,7 @@ class SettingsStore(context: Context) {
             presets = decodeToolPresets(prefs.getString(KEY_PRESETS, null)),
             textImportLimitMb = prefs.getInt(KEY_TEXT_IMPORT_LIMIT, d.textImportLimitMb).coerceAtLeast(1),
             pdfCacheLimitMb = prefs.getInt(KEY_PDF_CACHE_LIMIT, d.pdfCacheLimitMb).coerceAtLeast(1),
-        ).withPalettes(loadPaletteSet())
+        ).withPalettes(loadPaletteSet()).sanitized()
     }
 
     /**
