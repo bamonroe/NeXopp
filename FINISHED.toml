@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-mainactivity-documents"
+title = "Split MainActivity 1/3: extract document I/O extensions"
+description = "MainActivity.kt is 994 lines. Same extension-file technique as the DrawingSurfaceView split; private members that moved code touches become internal. Step 1: create MainActivityDocuments.kt (same package, ~300 lines from ~311-617): openDocument, loadDocument, importPdf, adoptPdf, adoptImage, appendMergedPdf, extractPdfTextInBackground, exportPdf, insertPickedImage, saveDocument, afterSaved, saveActiveTab, documentHasAudio, beginSaveAs, applyStorageLimits. scripts/build.sh testDebugUnitTest; add the file to docs/architecture.md. Final step (split-mainactivity-audio) does the full build and emulator verify."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit", "split-main"]
+
+[[task]]
 id = "split-drawingsurface-selection"
 title = "Split DrawingSurfaceView 6/6: extract selection API; verify whole split"
 description = "Final step: create render/DrawingSurfaceSelection.kt (~150 lines from ~891-1043): beginSelect, beginTextSelect, textSelectMove, copyTextSelection, deleteSelection, restyleSelection, copySelection, cutSelection, pasteClipboard, duplicateSelection. Residual DrawingSurfaceView.kt should now be roughly 700 lines: the property block, document/zoom/page/layer facades, and the thin overrides. Give every new DrawingSurface*.kt file a class-level KDoc header stating what lives there, and rewrite the DrawingSurfaceView entry in docs/architecture.md to describe the split family. This task closes the whole split: run the full scripts/build.sh, install on the /data/android emulator and exercise the moved surfaces — draw pen strokes with pressure, erase, lasso-select then move/copy/paste, open the radial palette by long-press and by two-finger tap, scroll and pinch-zoom, drag a page in the overview — screenshot each and check adb logcat for errors."

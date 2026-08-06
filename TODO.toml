@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "split-mainactivity-documents"
-title = "Split MainActivity 1/3: extract document I/O extensions"
-description = "MainActivity.kt is 994 lines. Same extension-file technique as the DrawingSurfaceView split; private members that moved code touches become internal. Step 1: create MainActivityDocuments.kt (same package, ~300 lines from ~311-617): openDocument, loadDocument, importPdf, adoptPdf, adoptImage, appendMergedPdf, extractPdfTextInBackground, exportPdf, insertPickedImage, saveDocument, afterSaved, saveActiveTab, documentHasAudio, beginSaveAs, applyStorageLimits. scripts/build.sh testDebugUnitTest; add the file to docs/architecture.md. Final step (split-mainactivity-audio) does the full build and emulator verify."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 300
-created = 2026-08-05
-tags = ["audit", "split-main"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "split-mainactivity-tabs"
 title = "Split MainActivity 2/3: extract tab/session management"
 description = "Step 2: create MainActivityTabs.kt (~260 lines from ~618-879): tabsUiState, sendTabToOtherPane, hydrate, snapshotActiveTab, show, showTab, previewTabPage, selectTab, reorderTab, closeTab, newTab, blankTab, restoreTabs, persistTabs, prunePdfCache, toggleSplitView, displayName. scripts/build.sh testDebugUnitTest; docs/architecture.md."
