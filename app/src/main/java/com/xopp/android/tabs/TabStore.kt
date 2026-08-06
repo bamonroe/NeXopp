@@ -1,7 +1,7 @@
 package com.xopp.android.tabs
 
 import com.xopp.android.format.Xopp
-import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.blankDocument
 import java.io.File
 
 /**
@@ -49,7 +49,7 @@ class TabStore(private val dir: File) {
      */
     fun load(): TabSession? = runCatching {
         val index = indexFile().takeIf(File::isFile) ?: return@runCatching null
-        val parsed = TabIndex.decode(index.readText()) { DrawingSurfaceView.blankDocument() }
+        val parsed = TabIndex.decode(index.readText()) { blankDocument() }
         val present = parsed.tabs.filter { snapshotFile(it.id).isFile }
         if (present.isEmpty()) null
         else TabSession(present, parsed.activeIndex.coerceIn(0, present.lastIndex))

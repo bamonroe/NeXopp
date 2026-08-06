@@ -1,6 +1,6 @@
 package com.xopp.android.render.markdown
 
-import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.DrawingSurfaceDefaults
 
 /**
  * Every size markdown layout uses, in one place — the markdown-flavoured sibling of
@@ -12,8 +12,8 @@ import com.xopp.android.render.DrawingSurfaceView
  * Points throughout. Nothing here is Android- or PDFBox-aware, so layout stays unit-testable.
  */
 data class MarkdownStyle(
-    val widthPt: Double = DrawingSurfaceView.A4_WIDTH_PT,
-    val heightPt: Double = DrawingSurfaceView.A4_HEIGHT_PT,
+    val widthPt: Double = DrawingSurfaceDefaults.A4_WIDTH_PT,
+    val heightPt: Double = DrawingSurfaceDefaults.A4_HEIGHT_PT,
     val marginPt: Double = 72.0,
     val bodyFontSizePt: Double = 10.0,
     val lineHeightRatio: Double = 1.2,

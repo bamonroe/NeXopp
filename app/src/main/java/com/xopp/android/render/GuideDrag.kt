@@ -36,13 +36,13 @@ internal class GuideDrag(
 
     // Which part is held, and the grab offset from the guide's anchor so the body slides without
     // jumping under the finger.
-    private var held = DrawingSurfaceView.GUIDE_DRAG_NONE
+    private var held = DrawingSurfaceDefaults.GUIDE_DRAG_NONE
     private var pointerId = -1
     private var grabDx = 0.0
     private var grabDy = 0.0
 
     /** True while a finger is holding the guide. */
-    val dragging: Boolean get() = held != DrawingSurfaceView.GUIDE_DRAG_NONE
+    val dragging: Boolean get() = held != DrawingSurfaceDefaults.GUIDE_DRAG_NONE
 
     /**
      * ([x], [y]) page pt pulled onto the guide's nearest edge when one is placed on [boxIndex]'s
@@ -65,12 +65,12 @@ internal class GuideDrag(
         val box = layout().boxes.getOrNull(page) ?: return false
         val px = box.toPtX(event.getX(pointerIndex), viewport.scrollX)
         val py = box.toPtY(event.getY(pointerIndex), viewport.scrollY)
-        val handleReach = (DrawingSurfaceView.HANDLE_HIT_PX / box.scale.coerceAtLeast(0.01f)).toDouble()
+        val handleReach = (DrawingSurfaceDefaults.HANDLE_HIT_PX / box.scale.coerceAtLeast(0.01f)).toDouble()
         val tip = tipOf(g)
         if (hypot(px - tip.first, py - tip.second) <= handleReach) {
-            held = DrawingSurfaceView.GUIDE_DRAG_TIP
+            held = DrawingSurfaceDefaults.GUIDE_DRAG_TIP
         } else if (bodyHit(g, px, py, handleReach)) {
-            held = DrawingSurfaceView.GUIDE_DRAG_BODY
+            held = DrawingSurfaceDefaults.GUIDE_DRAG_BODY
             grabDx = px - g.x
             grabDy = py - g.y
         } else {
@@ -88,7 +88,7 @@ internal class GuideDrag(
         val px = box.toPtX(event.getX(pointerIndex), viewport.scrollX)
         val py = box.toPtY(event.getY(pointerIndex), viewport.scrollY)
         pose = when {
-            held == DrawingSurfaceView.GUIDE_DRAG_BODY -> g.moved(px - grabDx - g.x, py - grabDy - g.y)
+            held == DrawingSurfaceDefaults.GUIDE_DRAG_BODY -> g.moved(px - grabDx - g.x, py - grabDy - g.y)
             g is DrawingGuide.Setsquare -> g.aimedAt(px, py, snapRotation())
             g is DrawingGuide.Compass -> g.openedTo(px, py)
             else -> g
@@ -100,7 +100,7 @@ internal class GuideDrag(
     fun end(event: MotionEvent?) {
         if (!dragging) return
         if (event != null && event.getPointerId(event.actionIndex) != pointerId) return
-        held = DrawingSurfaceView.GUIDE_DRAG_NONE
+        held = DrawingSurfaceDefaults.GUIDE_DRAG_NONE
         pointerId = -1
         onGuideChanged(pose)
     }

@@ -126,8 +126,8 @@ internal class PageCommands(
      * changes the page's on-screen aspect ratio (and the dimensions written to the `.xopp`).
      */
     fun setPageSize(widthPt: Double, heightPt: Double) = editVisiblePage(resetViewState = false, op = { page ->
-        val w = widthPt.coerceIn(DrawingSurfaceView.PAGE_SIZE_MIN_PT, DrawingSurfaceView.PAGE_SIZE_MAX_PT)
-        val h = heightPt.coerceIn(DrawingSurfaceView.PAGE_SIZE_MIN_PT, DrawingSurfaceView.PAGE_SIZE_MAX_PT)
+        val w = widthPt.coerceIn(DrawingSurfaceDefaults.PAGE_SIZE_MIN_PT, DrawingSurfaceDefaults.PAGE_SIZE_MAX_PT)
+        val h = heightPt.coerceIn(DrawingSurfaceDefaults.PAGE_SIZE_MIN_PT, DrawingSurfaceDefaults.PAGE_SIZE_MAX_PT)
         if (page.width == w && page.height == h) page else page.copy(width = w, height = h)
     })
 

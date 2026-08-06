@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-drawingsurface-constants"
+title = "Split DrawingSurfaceView 1/6: extract constants and blank-doc helpers"
+description = "render/DrawingSurfaceView.kt is 2549 lines — the one true mono-file in the repo and the largest violation of the CLAUDE.md size rules. The split strategy (steps 1-6, separate tasks tagged split-dsv) keeps DrawingSurfaceView one class and moves method groups into extension files in the same package; private members that moved code touches become internal. Step 1: move the internal companion object body (~lines 2509-2548: ~25 constants plus blankDocument/blankPage) into a new render/DrawingSurfaceConstants.kt as a top-level internal object DrawingSurfaceDefaults plus internal fun blankDocument()/blankPage(); update the ~30 call sites. Verify with scripts/build.sh testDebugUnitTest. Update the render/ list in docs/architecture.md in the same commit (each split step does this). The final step (split-drawingsurface-selection) does the full build and emulator verify for the whole split."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit", "split-dsv"]
+
+[[task]]
 id = "readme-feature-gaps"
 title = "README: document eraser tip preview/sizing and palette centre cancel"
 description = "Three shipped behaviours lack README coverage. (1) The eraser tip outline shown while the stylus barrel button is held (commit 48e860d) and (2) the eraser tip radius matching the pen full width (commit 42ccd83): extend the Erase bullet at ~line 350. (3) The radial palette hollow-centre cancel (commit 928a613) is only obliquely covered at ~line 524 — add an explicit sentence that releasing over the hollow centre cancels without picking."

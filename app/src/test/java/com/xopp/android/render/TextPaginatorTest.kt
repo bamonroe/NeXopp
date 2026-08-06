@@ -48,8 +48,8 @@ class TextPaginatorTest {
     @Test
     fun `page size is A4 and holds a whole number of lines`() {
         val spec = TextPaginator.PageSpec()
-        assertEquals(DrawingSurfaceView.A4_WIDTH_PT, spec.widthPt, 1e-9)
-        assertEquals(DrawingSurfaceView.A4_HEIGHT_PT, spec.heightPt, 1e-9)
+        assertEquals(DrawingSurfaceDefaults.A4_WIDTH_PT, spec.widthPt, 1e-9)
+        assertEquals(DrawingSurfaceDefaults.A4_HEIGHT_PT, spec.heightPt, 1e-9)
         // 841.89 - 144 = 697.89pt of content at 12pt per line.
         assertEquals(58, spec.linesPerPage)
     }

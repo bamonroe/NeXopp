@@ -8,7 +8,7 @@ package com.xopp.android.render
  * wrapping and pagination are pure functions and unit-testable on the JVM. The caller supplies a
  * measurer backed by whatever font it will actually draw with.
  *
- * Page size is hardcoded to A4 ([DrawingSurfaceView.A4_WIDTH_PT] / [DrawingSurfaceView.A4_HEIGHT_PT])
+ * Page size is hardcoded to A4 ([DrawingSurfaceDefaults.A4_WIDTH_PT] / [DrawingSurfaceDefaults.A4_HEIGHT_PT])
  * because there is no user paper-size preference yet; when one lands, pass it in via [PageSpec].
  */
 object TextPaginator {
@@ -18,8 +18,8 @@ object TextPaginator {
 
     /** Page geometry in points: the sheet plus its margins. Defaults to A4 with 1 inch margins. */
     data class PageSpec(
-        val widthPt: Double = DrawingSurfaceView.A4_WIDTH_PT,
-        val heightPt: Double = DrawingSurfaceView.A4_HEIGHT_PT,
+        val widthPt: Double = DrawingSurfaceDefaults.A4_WIDTH_PT,
+        val heightPt: Double = DrawingSurfaceDefaults.A4_HEIGHT_PT,
         val marginPt: Double = 72.0,
         val fontSizePt: Double = 10.0,
         /** Matches `PdfVectorPainter.LINE_HEIGHT_RATIO`, which is private to that painter. */

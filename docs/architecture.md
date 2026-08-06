@@ -526,6 +526,7 @@ app/
       DocColors.kt           # the dot colour that marks two tabs as views of the same document (pure)
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
+      DrawingSurfaceConstants.kt # DrawingSurfaceDefaults: the canvas's shared tuning constants; blankDocument/blankPage
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
@@ -743,7 +744,7 @@ round-trips with no deep copy needed. The selection
 is view-only (never written) and is cleared by `editPages` and by dropping back to one column, since
 both invalidate page indices; the clipboard is not cleared, so one copy can be pasted repeatedly. Page order *is* list order in
 `Document.pages` — `XoppWriter` writes no index — so the reorder round-trips by construction. Zoom keeps the viewport-centre point roughly
-fixed, and is clamped to 25%–1000% (`DrawingSurfaceView.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
+fixed, and is clamped to 25%–1000% (`DrawingSurfaceDefaults.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
 backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and
 never above `PdfPageCache.PER_PAGE_SHARE` of the cache budget for one bitmap (so the visible pages

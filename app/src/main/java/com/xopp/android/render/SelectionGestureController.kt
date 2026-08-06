@@ -133,28 +133,28 @@ internal class SelectionGestureController(
         if (isAllStrokes(sel)) {
             val midY = ((b.top + b.bottom) / 2 * box.scale + box.topPx - viewport.scrollY).toFloat()
             val rightX = (b.right * box.scale + box.leftPx - viewport.scrollX).toFloat() +
-                DrawingSurfaceView.SELECT_PAD_PX + DrawingSurfaceView.ROTATE_ARM_PX
-            if (hypot(event.x - rightX, event.y - midY) <= DrawingSurfaceView.HANDLE_HIT_PX) {
+                DrawingSurfaceDefaults.SELECT_PAD_PX + DrawingSurfaceDefaults.ROTATE_ARM_PX
+            if (hypot(event.x - rightX, event.y - midY) <= DrawingSurfaceDefaults.HANDLE_HIT_PX) {
                 beginRotate(event, box, (b.left + b.right) / 2, (b.top + b.bottom) / 2)
                 return true
             }
         }
         // Four corner resize handles; the anchor is the diagonally-opposite corner.
-        val pad = DrawingSurfaceView.SELECT_PAD_PX
+        val pad = DrawingSurfaceDefaults.SELECT_PAD_PX
         val cornersPt = arrayOf(b.left to b.top, b.right to b.top, b.right to b.bottom, b.left to b.bottom)
         for (i in 0..3) {
             val padX = if (cornersPt[i].first == b.left) -pad else pad
             val padY = if (cornersPt[i].second == b.top) -pad else pad
             val hx = (cornersPt[i].first * box.scale + box.leftPx - viewport.scrollX).toFloat() + padX
             val hy = (cornersPt[i].second * box.scale + box.topPx - viewport.scrollY).toFloat() + padY
-            if (hypot(event.x - hx, event.y - hy) <= DrawingSurfaceView.HANDLE_HIT_PX) {
+            if (hypot(event.x - hx, event.y - hy) <= DrawingSurfaceDefaults.HANDLE_HIT_PX) {
                 val anchor = cornersPt[(i + 2) % 4]
                 beginResize(event, box, anchor.first, anchor.second)
                 return true
             }
         }
         // Inside the outline: move.
-        if (b.expand(DrawingSurfaceView.MOVE_GRAB_PAD).contains(box.toPtX(event.x, viewport.scrollX), box.toPtY(event.y, viewport.scrollY))) {
+        if (b.expand(DrawingSurfaceDefaults.MOVE_GRAB_PAD).contains(box.toPtX(event.x, viewport.scrollX), box.toPtY(event.y, viewport.scrollY))) {
             beginMove(event, box)
             return true
         }
@@ -212,7 +212,7 @@ internal class SelectionGestureController(
     fun resizeSelect(event: MotionEvent) = transform { sel, start, box ->
         val dist = hypot(box.toPtX(event.x, viewport.scrollX) - resizeAnchorX, box.toPtY(event.y, viewport.scrollY) - resizeAnchorY)
         val factor = (dist / resizeStartDist)
-            .coerceIn(DrawingSurfaceView.MIN_RESIZE, DrawingSurfaceView.MAX_RESIZE)
+            .coerceIn(DrawingSurfaceDefaults.MIN_RESIZE, DrawingSurfaceDefaults.MAX_RESIZE)
         SelectionOps.scale(start.pages, sel.pageIndex, sel.refs, factor, resizeAnchorX, resizeAnchorY)
     }
 
@@ -281,7 +281,7 @@ internal class SelectionGestureController(
     fun commitBand() {
         val box = layout().boxes.getOrNull(bandPage) ?: return
         val page = document().pages.getOrNull(bandPage) ?: return
-        val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= DrawingSurfaceView.TAP_SLOP_PX
+        val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= DrawingSurfaceDefaults.TAP_SLOP_PX
         val refs: Set<ElementRef> = when {
             isTap -> SelectionTester.pickTopmost(page, box.toPtX(bandX0, viewport.scrollX), box.toPtY(bandY0, viewport.scrollY))?.let { setOf(it) } ?: emptySet()
             lassoMode() -> {

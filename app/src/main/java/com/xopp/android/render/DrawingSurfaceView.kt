@@ -652,8 +652,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // --- zoom ----------------------------------------------------------------------------------
 
-    fun zoomIn() = setZoom(zoom * ZOOM_STEP)
-    fun zoomOut() = setZoom(zoom / ZOOM_STEP)
+    fun zoomIn() = setZoom(zoom * DrawingSurfaceDefaults.ZOOM_STEP)
+    fun zoomOut() = setZoom(zoom / DrawingSurfaceDefaults.ZOOM_STEP)
     fun resetZoom() = setZoom(1f)
 
     /** Set the zoom factor (clamped), keeping the point at the viewport centre roughly fixed. */
@@ -1011,14 +1011,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun pasteClipboard() {
         if (clipboard.isEmpty()) return
         val target = visiblePageIndex()
-        pasteOnto(target, clipboard.map { SelectionOps.translate(it, PASTE_OFFSET_PT, PASTE_OFFSET_PT) })
+        pasteOnto(target, clipboard.map { SelectionOps.translate(it, DrawingSurfaceDefaults.PASTE_OFFSET_PT, DrawingSurfaceDefaults.PASTE_OFFSET_PT) })
     }
 
     /** Duplicate the selection in place (offset a little), selecting the duplicates. */
     fun duplicateSelection() {
         val sel = selection ?: return
         val page = doc.pages.getOrNull(sel.pageIndex) ?: return
-        val copies = SelectionOps.elementsAt(page, sel.refs).map { SelectionOps.translate(it, PASTE_OFFSET_PT, PASTE_OFFSET_PT) }
+        val copies = SelectionOps.elementsAt(page, sel.refs).map { SelectionOps.translate(it, DrawingSurfaceDefaults.PASTE_OFFSET_PT, DrawingSurfaceDefaults.PASTE_OFFSET_PT) }
         pasteOnto(sel.pageIndex, copies)
     }
 
@@ -1299,7 +1299,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var paletteLongPressY = 0f
 
     /** The two-finger tap candidate; its rules — and their tests — live in [PaletteTapDetector]. */
-    private val paletteTap = PaletteTapDetector(touchSlopPx, TWO_FINGER_TAP_MS)
+    private val paletteTap = PaletteTapDetector(touchSlopPx, DrawingSurfaceDefaults.TWO_FINGER_TAP_MS)
 
     /** Arm the pen-tip hold that opens the palette, for a single stylus pointer coming down. */
     private fun armPaletteLongPress(event: MotionEvent) {
@@ -1476,7 +1476,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun handleWheelScroll(event: MotionEvent): Boolean {
         val notches = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
         if (notches == 0f) return false
-        val step = WHEEL_SCROLL_DP * resources.displayMetrics.density
+        val step = DrawingSurfaceDefaults.WHEEL_SCROLL_DP * resources.displayMetrics.density
         if (!scrollViewportBy(0f, -notches * step)) return false
         render()
         return true
@@ -1801,7 +1801,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Moving past the tap slop turns a placement into a no-op (the user is scrubbing, not tapping). */
     private fun placeMove(event: MotionEvent) {
-        if (hypot(event.x - placeDownX, event.y - placeDownY) > TAP_SLOP_PX) placing = false
+        if (hypot(event.x - placeDownX, event.y - placeDownY) > DrawingSurfaceDefaults.TAP_SLOP_PX) placing = false
     }
 
     /** Fire [onPlace] for the page/point the tap landed on, hitting an existing text box if any. */
@@ -1839,7 +1839,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         lastFocusX = fx
         // Two fingers also pinch-zoom: a change in span since the last frame scales zoom about the focus.
         val span = spanOf(event)
-        if (lastSpan > PINCH_MIN_SPAN_PX && span > PINCH_MIN_SPAN_PX) zoomAbout(fx, fy, span / lastSpan)
+        if (lastSpan > DrawingSurfaceDefaults.PINCH_MIN_SPAN_PX && span > DrawingSurfaceDefaults.PINCH_MIN_SPAN_PX) zoomAbout(fx, fy, span / lastSpan)
         lastSpan = span
         momentum.track(event.eventTime, fx, fy)
         render()
@@ -1947,7 +1947,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * and splines call this once per gesture so they match a pen stroke drawn at the same size.
      */
     private fun widthForPressure(pressure: Float): Double = if (tool == Tool.HIGHLIGHTER) {
-        (baseWidthPt * HIGHLIGHTER_WIDTH_FACTOR).toDouble()
+        (baseWidthPt * DrawingSurfaceDefaults.HIGHLIGHTER_WIDTH_FACTOR).toDouble()
     } else {
         val p = if (pressure <= 0f) 1f else pressure
         (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
@@ -2087,7 +2087,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun relayout() {
-        layout = PageStacker.stack(doc.pages, width, GAP_PX, zoom, columns)
+        layout = PageStacker.stack(doc.pages, width, DrawingSurfaceDefaults.GAP_PX, zoom, columns)
         viewport.setBounds(width.toFloat(), height.toFloat(), layout.contentWidthPx, layout.totalHeightPx)
     }
 
@@ -2328,10 +2328,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
         val page = doc.pages.getOrNull(sel.pageIndex) ?: return
         val b = SelectionTester.boundsOf(page, sel.refs) ?: return
-        val l = (b.left * box.scale + box.leftPx - scrollX).toFloat() - SELECT_PAD_PX
-        val t = (b.top * box.scale + box.topPx - scrollY).toFloat() - SELECT_PAD_PX
-        val r = (b.right * box.scale + box.leftPx - scrollX).toFloat() + SELECT_PAD_PX
-        val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + SELECT_PAD_PX
+        val l = (b.left * box.scale + box.leftPx - scrollX).toFloat() - DrawingSurfaceDefaults.SELECT_PAD_PX
+        val t = (b.top * box.scale + box.topPx - scrollY).toFloat() - DrawingSurfaceDefaults.SELECT_PAD_PX
+        val r = (b.right * box.scale + box.leftPx - scrollX).toFloat() + DrawingSurfaceDefaults.SELECT_PAD_PX
+        val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + DrawingSurfaceDefaults.SELECT_PAD_PX
         canvas.drawRect(l, t, r, bot, chrome.selectionFill)
         canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
         // Corner resize handles.
@@ -2341,7 +2341,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // Rotate knob poking out midway from the right edge (strokes only).
         if (gestures.isAllStrokes(sel)) {
             val midY = (t + bot) / 2f
-            val knobX = r + ROTATE_ARM_PX
+            val knobX = r + DrawingSurfaceDefaults.ROTATE_ARM_PX
             canvas.drawLine(r, midY, knobX, midY, chrome.handleArm)
             canvas.drawCircle(knobX, midY, HANDLE_DRAW_PX, chrome.handle)
         }
@@ -2501,46 +2501,5 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val bot = max(gestures.bandY0, gestures.bandY1)
         canvas.drawRect(l, t, r, bot, chrome.bandFill)
         canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
-    }
-
-    internal companion object {
-        const val A4_WIDTH_PT = 595.276
-        const val A4_HEIGHT_PT = 841.89
-        const val PAGE_SIZE_MIN_PT = 72.0     // 1 in — floor on a page dimension
-        const val PAGE_SIZE_MAX_PT = 14400.0  // 200 in — ceiling on a page dimension
-        const val GAP_PX = 24f
-        const val ERASER_RADIUS_PX = 18f
-        /** Document scroll per mouse-wheel notch, in dp (roughly three text lines). */
-        const val WHEEL_SCROLL_DP = 64f
-        /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
-        const val HIGHLIGHTER_WIDTH_FACTOR = 6f
-        const val ZOOM_STEP = ViewportState.ZOOM_STEP
-        const val MIN_ZOOM = ViewportState.MIN_ZOOM
-        const val MAX_ZOOM = ViewportState.MAX_ZOOM
-        /** Below this two-finger span (view px) the pinch ratio is too noisy to zoom by, so it's ignored. */
-        const val PINCH_MIN_SPAN_PX = 40f
-        /**
-         * How long two fingers may rest before their lift stops counting as a palette tap. Kept
-         * short (well under the long-press timeout) so a deliberate two-finger pan never trips it.
-         */
-        const val TWO_FINGER_TAP_MS = 250L
-        const val TAP_SLOP_PX = 16f
-        const val SELECT_PAD_PX = 6f
-        const val MOVE_GRAB_PAD = 8.0
-        const val HANDLE_HIT_PX = 30f      // touch radius for grabbing a resize/rotate handle
-        const val ROTATE_ARM_PX = 40f      // gap from the right edge out to the rotate knob
-        const val MIN_RESIZE = 0.05        // clamp on the live uniform-resize factor
-        const val MAX_RESIZE = 20.0
-        const val PASTE_OFFSET_PT = 12.0   // paste/duplicate nudge so copies don't hide the original
-
-        // Which part of the guide a finger is holding.
-        const val GUIDE_DRAG_NONE = 0
-        const val GUIDE_DRAG_BODY = 1
-        const val GUIDE_DRAG_TIP = 2
-
-        /** A fresh one-page document — what a new tab starts on (see `com.xopp.android.tabs`). */
-        fun blankDocument() = Document(pages = listOf(blankPage()))
-
-        fun blankPage() = Page(A4_WIDTH_PT, A4_HEIGHT_PT, Background.Solid(AndroidColor.WHITE, "graph"), listOf(Layer(emptyList())))
     }
 }

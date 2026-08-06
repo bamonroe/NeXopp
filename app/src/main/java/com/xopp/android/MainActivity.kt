@@ -27,6 +27,7 @@ import com.xopp.android.io.StorageLimits
 import com.xopp.android.io.xoppNameFor
 import android.graphics.Bitmap
 import com.xopp.android.render.BitmapBudget
+import com.xopp.android.render.blankDocument
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImageImport
 import com.xopp.android.render.ImportPdfMode
@@ -311,7 +312,7 @@ class MainActivity : ComponentActivity() {
     private fun openDocument(uri: Uri) {
         snapshotActiveTab()
         val created = tabs.open(
-            OpenTab(TabStore.newId(), displayName(uri), DrawingSurfaceView.blankDocument(), uri.toString()),
+            OpenTab(TabStore.newId(), displayName(uri), blankDocument(), uri.toString()),
         )
         pendingSaveName = displayName(uri)
         tabsTick.value++
@@ -803,7 +804,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun blankTab() =
-        OpenTab(TabStore.newId(), UNTITLED, DrawingSurfaceView.blankDocument())
+        OpenTab(TabStore.newId(), UNTITLED, blankDocument())
 
     /**
      * Bring back the tabs [p] was last closed with, or start it on a single blank one. Called once
