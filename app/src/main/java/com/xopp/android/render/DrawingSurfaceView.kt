@@ -913,7 +913,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val index = pdfTextIndex ?: return
         val pageIndex = layout.pageAt(event.x + scrollX, event.y + scrollY)?.index ?: return
         val box = layout.boxes.getOrNull(pageIndex) ?: return
-        val anchor = index.anchorWord(pageIndex, ptX(box, event.x), ptY(box, event.y)) ?: return
+        val anchor = index.anchorWord(pageIndex, box.toPtX(event.x, scrollX), box.toPtY(event.y, scrollY)) ?: return
         textSelecting = true
         textSelPage = pageIndex
         textSelAnchor = anchor
@@ -926,7 +926,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun textSelectMove(event: MotionEvent) {
         val index = pdfTextIndex ?: return
         val box = layout.boxes.getOrNull(textSelPage) ?: return
-        val focus = index.anchorWord(textSelPage, ptX(box, event.x), ptY(box, event.y)) ?: return
+        val focus = index.anchorWord(textSelPage, box.toPtX(event.x, scrollX), box.toPtY(event.y, scrollY)) ?: return
         if (focus != textSelFocus) { textSelFocus = focus; render() }
     }
 
@@ -1045,8 +1045,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
         layout.nearestPage(scrollX + width / 2f, scrollY + height / 2f)?.index ?: currentPage
 
     /** View px -> page-local pt for [box]. */
-    private fun ptX(box: PageBox, vx: Float): Double = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
-    private fun ptY(box: PageBox, vy: Float): Double = ((vy + scrollY - box.topPx) / box.scale).toDouble()
 
     /** [x] pt pulled onto [box]'s background ruling when the snap-to-grid setting is on. */
     private fun snapX(box: PageBox, x: Double): Double =
@@ -1075,12 +1073,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         // middle — that way a guide restored at launch still lands somewhere sensible.
         val laidOut = box != null && width > 0 && height > 0
         val cx = when {
-            laidOut -> ptX(box!!, width / 2f)
+            laidOut -> box!!.toPtX(width / 2f, scrollX)
             box != null -> box.page.width / 2
             else -> 0.0
         }
         val cy = when {
-            laidOut -> ptY(box!!, height / 2f)
+            laidOut -> box!!.toPtY(height / 2f, scrollY)
             box != null -> box.page.height / 2
             else -> 0.0
         }
@@ -1110,10 +1108,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val g = guide ?: return
         val box = layout.boxes.getOrNull(guideDrag.page) ?: return
         val s = box.scale
-        val ox = box.leftPx - scrollX
-        val oy = box.topPx - scrollY
-        fun vx(x: Double) = (x * s + ox).toFloat()
-        fun vy(y: Double) = (y * s + oy).toFloat()
+        fun vx(x: Double) = box.toViewX(x, scrollX)
+        fun vy(y: Double) = box.toViewY(y, scrollY)
         when (g) {
             is DrawingGuide.Setsquare -> {
                 val c = g.corners()
@@ -1627,8 +1623,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
             // not be undone by pulling the point back onto the ruling.
             val (sx, sy) = guided(
                 box,
-                snapX(box, ptX(box, event.getX(pointerIndex))),
-                snapY(box, ptY(box, event.getY(pointerIndex))),
+                snapX(box, box.toPtX(event.getX(pointerIndex), scrollX)),
+                snapY(box, box.toPtY(event.getY(pointerIndex), scrollY)),
             )
             shapeStartX = sx
             shapeStartY = sy
@@ -1649,8 +1645,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (shaping) {
             val (ex, ey) = guided(
                 box,
-                snapX(box, ptX(box, event.getX(pointerIndex))),
-                snapY(box, ptY(box, event.getY(pointerIndex))),
+                snapX(box, box.toPtX(event.getX(pointerIndex), scrollX)),
+                snapY(box, box.toPtY(event.getY(pointerIndex), scrollY)),
             )
             current = ArrayList(
                 ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, shapeWidthPt),
@@ -1684,8 +1680,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
         gesturePointerId = event.getPointerId(pointerIndex)
         if (splineNodes.isEmpty()) shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
-        splineAnchorX = ptX(box, x)
-        splineAnchorY = ptY(box, y)
+        splineAnchorX = box.toPtX(x, scrollX)
+        splineAnchorY = box.toPtY(y, scrollY)
         splineNodes += SplineNode(splineAnchorX, splineAnchorY)
         splineDragging = true
         splineTapTime = event.eventTime
@@ -1699,8 +1695,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val pointerIndex = event.findPointerIndex(gesturePointerId)
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
-        val tx = ptX(box, event.getX(pointerIndex)) - splineAnchorX
-        val ty = ptY(box, event.getY(pointerIndex)) - splineAnchorY
+        val tx = box.toPtX(event.getX(pointerIndex), scrollX) - splineAnchorX
+        val ty = box.toPtY(event.getY(pointerIndex), scrollY) - splineAnchorY
         splineNodes[splineNodes.lastIndex] = SplineNode(splineAnchorX, splineAnchorY, tx, ty)
         renderSplinePreview()
     }
@@ -1785,8 +1781,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
-        val px = ((vx + scrollX - box.leftPx) / box.scale).toDouble()
-        val py = ((vy + scrollY - box.topPx) / box.scale).toDouble()
+        val px = box.toPtX(vx, scrollX)
+        val py = box.toPtY(vy, scrollY)
         eraseX = vx; eraseY = vy
         eraseOnPage(currentPage, px, py, eraserRadiusPt)
         // Always repaint: even a rub over blank paper has to move the tip outline with the pointer.
@@ -1812,8 +1808,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun commitPlace() {
         val kind = placeKind ?: return
         val box = layout.pageAt(placeDownX + scrollX, placeDownY + scrollY) ?: return
-        val xPt = ((placeDownX + scrollX - box.leftPx) / box.scale).toDouble()
-        val yPt = ((placeDownY + scrollY - box.topPx) / box.scale).toDouble()
+        val xPt = box.toPtX(placeDownX, scrollX)
+        val yPt = box.toPtY(placeDownY, scrollY)
         val existing = if (kind == PlaceKind.TEXT) textEdits.pickForEditing(box.index, xPt, yPt) else null
         onPlace?.invoke(kind, Placement(box.index, xPt, yPt, existing))
     }
@@ -1959,7 +1955,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
         val width = widthForPressure(pressure)
-        val (gx, gy) = guided(box, ptX(box, vx), ptY(box, vy))
+        val (gx, gy) = guided(box, box.toPtX(vx, scrollX), box.toPtY(vy, scrollY))
         return StrokePoint(x = gx, y = gy, width = width)
     }
 
@@ -2021,8 +2017,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val x = event.getX(pointerIndex)
         val y = event.getY(pointerIndex)
         val box = layout.pageAt(x + scrollX, y + scrollY) ?: return
-        val xPt = ((x + scrollX - box.leftPx) / box.scale).toDouble()
-        val yPt = ((y + scrollY - box.topPx) / box.scale).toDouble()
+        val xPt = box.toPtX(x, scrollX)
+        val yPt = box.toPtY(y, scrollY)
         val page = doc.pages.getOrNull(box.index) ?: return
         val ref = SelectionTester.pickTopmost(page, xPt, yPt)
             ?.let { page.layers.getOrNull(it.layerIndex)?.elements?.getOrNull(it.elementIndex) }
@@ -2298,8 +2294,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun visibleBounds(box: PageBox): Bounds? {
         if (box.scale <= 0f) return null
         val s = box.scale.toDouble()
-        val left = (scrollX - box.leftPx) / s
-        val top = (scrollY - box.topPx) / s
+        val left = box.toPtX(0f, scrollX)
+        val top = box.toPtY(0f, scrollY)
         return Bounds(left, top, left + width / s, top + height / s)
     }
 

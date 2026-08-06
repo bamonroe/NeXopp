@@ -154,7 +154,7 @@ internal class SelectionGestureController(
             }
         }
         // Inside the outline: move.
-        if (b.expand(DrawingSurfaceView.MOVE_GRAB_PAD).contains(ptX(box, event.x), ptY(box, event.y))) {
+        if (b.expand(DrawingSurfaceView.MOVE_GRAB_PAD).contains(box.toPtX(event.x, viewport.scrollX), box.toPtY(event.y, viewport.scrollY))) {
             beginMove(event, box)
             return true
         }
@@ -173,8 +173,8 @@ internal class SelectionGestureController(
     private fun beginMove(event: MotionEvent, box: PageBox) {
         moving = true
         snapshot()
-        moveStartPtX = ptX(box, event.x)
-        moveStartPtY = ptY(box, event.y)
+        moveStartPtX = box.toPtX(event.x, viewport.scrollX)
+        moveStartPtY = box.toPtY(event.y, viewport.scrollY)
     }
 
     private fun beginResize(event: MotionEvent, box: PageBox, anchorX: Double, anchorY: Double) {
@@ -182,7 +182,7 @@ internal class SelectionGestureController(
         snapshot()
         resizeAnchorX = anchorX
         resizeAnchorY = anchorY
-        resizeStartDist = hypot(ptX(box, event.x) - anchorX, ptY(box, event.y) - anchorY).coerceAtLeast(1e-3)
+        resizeStartDist = hypot(box.toPtX(event.x, viewport.scrollX) - anchorX, box.toPtY(event.y, viewport.scrollY) - anchorY).coerceAtLeast(1e-3)
     }
 
     private fun beginRotate(event: MotionEvent, box: PageBox, pivotX: Double, pivotY: Double) {
@@ -190,7 +190,7 @@ internal class SelectionGestureController(
         snapshot()
         rotatePivotX = pivotX
         rotatePivotY = pivotY
-        rotateStartAngle = atan2(ptY(box, event.y) - pivotY, ptX(box, event.x) - pivotX)
+        rotateStartAngle = atan2(box.toPtY(event.y, viewport.scrollY) - pivotY, box.toPtX(event.x, viewport.scrollX) - pivotX)
     }
 
     /** Latch the document a transform starts from, both as the undo point and as the live base. */
@@ -204,13 +204,13 @@ internal class SelectionGestureController(
     fun moveSelect(event: MotionEvent) = transform { sel, start, box ->
         SelectionOps.translate(
             start.pages, sel.pageIndex, sel.refs,
-            ptX(box, event.x) - moveStartPtX, ptY(box, event.y) - moveStartPtY,
+            box.toPtX(event.x, viewport.scrollX) - moveStartPtX, box.toPtY(event.y, viewport.scrollY) - moveStartPtY,
         )
     }
 
     /** Resize the selection: a uniform scale by (current distance / start distance) about the anchor. */
     fun resizeSelect(event: MotionEvent) = transform { sel, start, box ->
-        val dist = hypot(ptX(box, event.x) - resizeAnchorX, ptY(box, event.y) - resizeAnchorY)
+        val dist = hypot(box.toPtX(event.x, viewport.scrollX) - resizeAnchorX, box.toPtY(event.y, viewport.scrollY) - resizeAnchorY)
         val factor = (dist / resizeStartDist)
             .coerceIn(DrawingSurfaceView.MIN_RESIZE, DrawingSurfaceView.MAX_RESIZE)
         SelectionOps.scale(start.pages, sel.pageIndex, sel.refs, factor, resizeAnchorX, resizeAnchorY)
@@ -218,7 +218,7 @@ internal class SelectionGestureController(
 
     /** Rotate the selection's strokes by the angle swept around the pivot since the gesture start. */
     fun rotateSelect(event: MotionEvent) = transform { sel, start, box ->
-        val swept = atan2(ptY(box, event.y) - rotatePivotY, ptX(box, event.x) - rotatePivotX) - rotateStartAngle
+        val swept = atan2(box.toPtY(event.y, viewport.scrollY) - rotatePivotY, box.toPtX(event.x, viewport.scrollX) - rotatePivotX) - rotateStartAngle
         // Snapping the swept angle (not the absolute one) keeps the steps relative to where the
         // selection started, so a snapped drag returns exactly to the original orientation at rest.
         val angle = if (snapRotation()) Snapping.snapAngle(swept) else swept
@@ -283,17 +283,17 @@ internal class SelectionGestureController(
         val page = document().pages.getOrNull(bandPage) ?: return
         val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= DrawingSurfaceView.TAP_SLOP_PX
         val refs: Set<ElementRef> = when {
-            isTap -> SelectionTester.pickTopmost(page, ptX(box, bandX0), ptY(box, bandY0))?.let { setOf(it) } ?: emptySet()
+            isTap -> SelectionTester.pickTopmost(page, box.toPtX(bandX0, viewport.scrollX), box.toPtY(bandY0, viewport.scrollY))?.let { setOf(it) } ?: emptySet()
             lassoMode() -> {
                 val poly = ArrayList<Vec2>(lassoPts.size / 2)
                 var i = 0
-                while (i < lassoPts.size) { poly.add(Vec2(ptX(box, lassoPts[i]), ptY(box, lassoPts[i + 1]))); i += 2 }
+                while (i < lassoPts.size) { poly.add(Vec2(box.toPtX(lassoPts[i], viewport.scrollX), box.toPtY(lassoPts[i + 1], viewport.scrollY))); i += 2 }
                 SelectionTester.inPolygon(page, poly)
             }
             else -> {
                 val rect = Bounds(
-                    min(ptX(box, bandX0), ptX(box, bandX1)), min(ptY(box, bandY0), ptY(box, bandY1)),
-                    max(ptX(box, bandX0), ptX(box, bandX1)), max(ptY(box, bandY0), ptY(box, bandY1)),
+                    min(box.toPtX(bandX0, viewport.scrollX), box.toPtX(bandX1, viewport.scrollX)), min(box.toPtY(bandY0, viewport.scrollY), box.toPtY(bandY1, viewport.scrollY)),
+                    max(box.toPtX(bandX0, viewport.scrollX), box.toPtX(bandX1, viewport.scrollX)), max(box.toPtY(bandY0, viewport.scrollY), box.toPtY(bandY1, viewport.scrollY)),
                 )
                 SelectionTester.inRect(page, rect)
             }
@@ -304,6 +304,4 @@ internal class SelectionGestureController(
     }
 
     /** View px -> page-local pt for [box]. */
-    private fun ptX(box: PageBox, vx: Float): Double = ((vx + viewport.scrollX - box.leftPx) / box.scale).toDouble()
-    private fun ptY(box: PageBox, vy: Float): Double = ((vy + viewport.scrollY - box.topPx) / box.scale).toDouble()
 }

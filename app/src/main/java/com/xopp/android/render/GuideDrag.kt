@@ -63,8 +63,8 @@ internal class GuideDrag(
     fun begin(event: MotionEvent, pointerIndex: Int): Boolean {
         val g = pose ?: return false
         val box = layout().boxes.getOrNull(page) ?: return false
-        val px = ptX(box, event.getX(pointerIndex))
-        val py = ptY(box, event.getY(pointerIndex))
+        val px = box.toPtX(event.getX(pointerIndex), viewport.scrollX)
+        val py = box.toPtY(event.getY(pointerIndex), viewport.scrollY)
         val handleReach = (DrawingSurfaceView.HANDLE_HIT_PX / box.scale.coerceAtLeast(0.01f)).toDouble()
         val tip = tipOf(g)
         if (hypot(px - tip.first, py - tip.second) <= handleReach) {
@@ -85,8 +85,8 @@ internal class GuideDrag(
         val box = layout().boxes.getOrNull(page) ?: return
         val pointerIndex = event.findPointerIndex(pointerId)
         if (pointerIndex < 0) return
-        val px = ptX(box, event.getX(pointerIndex))
-        val py = ptY(box, event.getY(pointerIndex))
+        val px = box.toPtX(event.getX(pointerIndex), viewport.scrollX)
+        val py = box.toPtY(event.getY(pointerIndex), viewport.scrollY)
         pose = when {
             held == DrawingSurfaceView.GUIDE_DRAG_BODY -> g.moved(px - grabDx - g.x, py - grabDy - g.y)
             g is DrawingGuide.Setsquare -> g.aimedAt(px, py, snapRotation())
@@ -122,6 +122,4 @@ internal class GuideDrag(
             is DrawingGuide.Compass -> hypot(px - g.x, py - g.y) <= hubReach
         }
 
-    private fun ptX(box: PageBox, vx: Float): Double = ((vx + viewport.scrollX - box.leftPx) / box.scale).toDouble()
-    private fun ptY(box: PageBox, vy: Float): Double = ((vy + viewport.scrollY - box.topPx) / box.scale).toDouble()
 }

@@ -65,8 +65,8 @@ class InkCache(
         elements: ElementRenderer,
     ): Boolean {
         val entry = entryFor(box, hidden, strokes, elements) ?: return false
-        val left = box.leftPx - scrollX
-        val top = box.topPx - scrollY
+        val left = box.toViewX(0.0, scrollX)
+        val top = box.toViewY(0.0, scrollY)
         dst.set(left, top, left + box.widthPx, top + box.heightPx)
         canvas.drawBitmap(entry.bitmap, null, dst, blit)
         return true

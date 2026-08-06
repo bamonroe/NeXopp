@@ -21,6 +21,18 @@ data class PageBox(
 
     fun contains(contentX: Float, contentY: Float): Boolean =
         contentX >= leftPx && contentX < rightPx && contentY >= topPx && contentY < bottomPx
+
+    /** View x (px, scrolled) → page x (pt), given the viewport's horizontal scroll in px. */
+    fun toPtX(viewX: Float, scrollX: Float): Double = ((viewX + scrollX - leftPx) / scale).toDouble()
+
+    /** View y (px, scrolled) → page y (pt), given the viewport's vertical scroll in px. */
+    fun toPtY(viewY: Float, scrollY: Float): Double = ((viewY + scrollY - topPx) / scale).toDouble()
+
+    /** Page x (pt) → view x (px), given the viewport's horizontal scroll in px. */
+    fun toViewX(ptX: Double, scrollX: Float): Float = (ptX * scale + leftPx - scrollX).toFloat()
+
+    /** Page y (pt) → view y (px), given the viewport's vertical scroll in px. */
+    fun toViewY(ptY: Double, scrollY: Float): Float = (ptY * scale + topPx - scrollY).toFloat()
 }
 
 /**

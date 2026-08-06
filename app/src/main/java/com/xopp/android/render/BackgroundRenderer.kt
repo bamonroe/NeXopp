@@ -44,8 +44,8 @@ object BackgroundRenderer {
         viewWidthPx: Float = 0f,
         viewHeightPx: Float = 0f,
     ) {
-        val left = box.leftPx - scrollX
-        val top = box.topPx - scrollY
+        val left = box.toViewX(0.0, scrollX)
+        val top = box.toViewY(0.0, scrollY)
         val solid = box.page.background as? Background.Solid
         fill.color = solid?.color ?: AndroidColor.WHITE
         canvas.drawRect(left, top, left + box.widthPx, top + box.heightPx, fill)
