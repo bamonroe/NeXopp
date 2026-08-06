@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-drawingsurface-selection"
+title = "Split DrawingSurfaceView 6/6: extract selection API; verify whole split"
+description = "Final step: create render/DrawingSurfaceSelection.kt (~150 lines from ~891-1043): beginSelect, beginTextSelect, textSelectMove, copyTextSelection, deleteSelection, restyleSelection, copySelection, cutSelection, pasteClipboard, duplicateSelection. Residual DrawingSurfaceView.kt should now be roughly 700 lines: the property block, document/zoom/page/layer facades, and the thin overrides. Give every new DrawingSurface*.kt file a class-level KDoc header stating what lives there, and rewrite the DrawingSurfaceView entry in docs/architecture.md to describe the split family. This task closes the whole split: run the full scripts/build.sh, install on the /data/android emulator and exercise the moved surfaces — draw pen strokes with pressure, erase, lasso-select then move/copy/paste, open the radial palette by long-press and by two-finger tap, scroll and pinch-zoom, drag a page in the overview — screenshot each and check adb logcat for errors."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit", "split-dsv"]
+
+[[task]]
 id = "split-drawingsurface-palette"
 title = "Split DrawingSurfaceView 5/6: extract palette invocation and overlay"
 description = "Step 5: create render/DrawingSurfacePalette.kt (~250 lines): the palette long-press arm/track/cancel block (~1309-1348), the two-finger-tap block (~1349-1383), and the palette overlay block (~2358-2459): openPalette, reopenPalette, movePaletteTo, closePalette, paletteTouch, commitPalette, tick. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
