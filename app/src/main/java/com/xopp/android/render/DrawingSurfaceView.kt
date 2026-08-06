@@ -2086,6 +2086,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         choreographer.removeFrameCallback(paintCallback)
         paintPosted = false
         inkCache.clear()
+        elementRenderer.close()
         super.onDetachedFromWindow()
     }
 

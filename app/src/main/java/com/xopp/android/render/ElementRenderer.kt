@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.util.Log
 import com.xopp.android.format.FontDescription
 import com.xopp.android.format.model.Element
 import com.xopp.android.format.model.ImageElement
@@ -19,18 +20,71 @@ import java.util.IdentityHashMap
  * page's top-left offset (`offsetX`, `offsetY`, px) so elements land in the same space as the strokes.
  *
  * Decoded image bitmaps are cached by element identity so a large PNG isn't re-decoded every frame.
+ * Those bitmaps are charged to the shared [BitmapBudget] and handed back least-recently-used first
+ * ([trim]), so a document with many embedded pictures can't grow the heap without bound — the same
+ * arrangement [InkCache] and [ImageBackgroundCache] live under. Call [close] when the renderer is
+ * done (surface teardown, one-shot thumbnail) to recycle what it holds and leave the budget.
+ *
  * A `<teximage>` carries only its LaTeX source in our model (no rendered glyphs), so the source is
  * parsed once (cached by element identity, like the bitmap cache) into a [LatexNode] tree and drawn
  * as real math by [LatexRenderer]. Any parse/draw failure falls back to the raw source text so a
  * malformed formula can never crash a frame.
  */
-class ElementRenderer {
+class ElementRenderer(
+    private val budget: BitmapBudget = BitmapBudget.shared,
+) : BitmapBudget.Client {
 
+    /** Guards [bitmapCache]: [trim] can arrive from another cache's worker thread. */
+    private val lock = Any()
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
-    private val bitmapCache = IdentityHashMap<ImageElement, Bitmap?>()
+    /** Access order, so the iterator hands [trim] the least recently drawn image first. */
+    private val bitmapCache = LinkedHashMap<IdentityKey, Bitmap?>(16, 0.75f, true)
     private val latexRenderer = LatexRenderer()
     private val texCache = IdentityHashMap<TexImageElement, LatexNode?>()
+
+    init {
+        budget.register(this)
+    }
+
+    /**
+     * A cache key that is the *element itself* by reference: [ImageElement.equals] compares whole
+     * byte arrays, so hashing by content would cost megabytes of work per image per frame.
+     */
+    private class IdentityKey(val element: ImageElement) {
+        override fun hashCode(): Int = System.identityHashCode(element)
+        override fun equals(other: Any?): Boolean =
+            other is IdentityKey && other.element === element
+    }
+
+    /** Recycle every decoded bitmap and leave the shared budget. The renderer is unusable after. */
+    fun close() {
+        var freed = 0L
+        synchronized(lock) {
+            for (bmp in bitmapCache.values) bmp?.let { freed += it.byteCount.toLong(); it.recycle() }
+            bitmapCache.clear()
+        }
+        texCache.clear()
+        budget.unregister(this)
+        if (freed > 0) budget.credit(freed)
+    }
+
+    /**
+     * Give [bytes] back, least-recently-drawn image first. As in [InkCache.trim], bitmaps dropped
+     * here are **not** recycled: this can run on another cache's worker thread while the drawing
+     * thread still holds one for the current frame.
+     */
+    override fun trim(bytes: Long): Long {
+        var freed = 0L
+        synchronized(lock) {
+            val it = bitmapCache.entries.iterator()
+            while (freed < bytes && it.hasNext()) {
+                freed += it.next().value?.byteCount?.toLong() ?: 0L
+                it.remove()
+            }
+        }
+        return freed
+    }
 
     fun draw(canvas: Canvas, element: Element, scale: Float, offsetX: Float, offsetY: Float) {
         when (element) {
@@ -77,8 +131,21 @@ class ElementRenderer {
     }
 
     private fun drawImage(canvas: Canvas, img: ImageElement, scale: Float, offsetX: Float, offsetY: Float) {
-        val bmp = bitmapCache.getOrPut(img) {
-            BitmapFactory.decodeByteArray(img.data, 0, img.data.size)
+        val key = IdentityKey(img)
+        val cached = synchronized(lock) { if (bitmapCache.containsKey(key)) bitmapCache[key] else MISS }
+        val bmp = if (cached !== MISS) {
+            cached as Bitmap?
+        } else {
+            val fresh = try {
+                BitmapFactory.decodeByteArray(img.data, 0, img.data.size)
+            } catch (e: OutOfMemoryError) {
+                Log.w(TAG, "out of memory decoding a ${img.data.size}-byte embedded image", e)
+                null
+            }
+            synchronized(lock) { bitmapCache[key] = fresh }
+            // Charged after the insert, so an over-budget total can evict this very entry if it must.
+            fresh?.let { budget.charge(this, it.byteCount.toLong()) }
+            fresh
         } ?: return
         canvas.drawBitmap(bmp, null, rect(img.left, img.top, img.right, img.bottom, scale, offsetX, offsetY), bitmapPaint)
     }
@@ -89,7 +156,8 @@ class ElementRenderer {
         // Parse the LaTeX source once and cache the tree by element identity (like the bitmap cache).
         val node = try {
             texCache.getOrPut(tex) { LatexParser.parse(tex.latex) }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            Log.w(TAG, "cannot parse LaTeX \"${tex.latex}\" — falling back to raw source", e)
             null
         }
         if (node != null) {
@@ -97,7 +165,8 @@ class ElementRenderer {
                 // Cap the font so a single glyph never balloons past the box; fit does the rest.
                 latexRenderer.draw(canvas, node, dst, tex.color, dst.height())
                 return
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                Log.w(TAG, "cannot draw LaTeX \"${tex.latex}\" — falling back to raw source", e)
                 // fall through to the raw-source fallback below
             }
         }
@@ -123,4 +192,11 @@ class ElementRenderer {
             offsetX + (right * scale).toFloat(),
             offsetY + (bottom * scale).toFloat(),
         )
+
+    private companion object {
+        const val TAG = "ElementRenderer"
+
+        /** Distinguishes "not cached" from a cached null (an image whose bytes won't decode). */
+        val MISS = Any()
+    }
 }

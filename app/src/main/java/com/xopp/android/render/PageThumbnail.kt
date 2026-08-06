@@ -32,7 +32,14 @@ object PageThumbnail {
         val canvas = Canvas(bitmap)
         val box = PageBox(index = 0, topPx = 0f, leftPx = 0f, heightPx = height.toFloat(), scale = scale, page = page)
         BackgroundRenderer.draw(canvas, box, scrollX = 0f, scrollY = 0f)
-        PageRenderer.drawElements(canvas, page, scale, offsetX = 0f, offsetY = 0f, StrokePainter(), ElementRenderer())
+        // One-shot renderer: close it so its decoded images don't sit in the shared bitmap budget
+        // for the life of the process — the thumbnail itself is the only thing worth keeping.
+        val elements = ElementRenderer()
+        try {
+            PageRenderer.drawElements(canvas, page, scale, offsetX = 0f, offsetY = 0f, StrokePainter(), elements)
+        } finally {
+            elements.close()
+        }
         return bitmap
     }
 }
