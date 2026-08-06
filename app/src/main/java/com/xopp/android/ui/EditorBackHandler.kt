@@ -2,6 +2,8 @@ package com.xopp.android.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import com.xopp.android.render.cancelSpline
+import com.xopp.android.render.splineInProgress
 
 /**
  * The Android back button/gesture as a **navigation** control rather than a quit button.

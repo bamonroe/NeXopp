@@ -113,25 +113,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var currentPage = 0
     /** While drawing a shape ([shapeKind] set), the drag anchor in page-local pt and the live flag. */
     internal var shaping = false
-    private var shapeStartX = 0.0
-    private var shapeStartY = 0.0
+    internal var shapeStartX = 0.0
+    internal var shapeStartY = 0.0
     /**
      * The width a shape/spline draws at, in pt. Fixed at the gesture's first touch from the same
      * pressure curve the pen uses, so a line and a pen stroke at one size setting come out equally
      * thick instead of the shape rendering at the un-scaled base width.
      */
-    private var shapeWidthPt = 1.5
+    internal var shapeWidthPt = 1.5
     /** The spline tool's control points so far (page-local pt); non-empty means one is being laid down. */
-    private val splineNodes = ArrayList<SplineNode>()
+    internal val splineNodes = ArrayList<SplineNode>()
     /** True between the down and up of a tap that is placing/curving the newest spline node. */
     internal var splineDragging = false
     /** Where the pointer went down on the current spline node, so a drag can be read as its tangent. */
-    private var splineAnchorX = 0.0
-    private var splineAnchorY = 0.0
+    internal var splineAnchorX = 0.0
+    internal var splineAnchorY = 0.0
     /** The previous spline tap's time/position, to recognise the double-tap that finishes the curve. */
-    private var splineTapTime = 0L
-    private var splineTapX = 0f
-    private var splineTapY = 0f
+    internal var splineTapTime = 0L
+    internal var splineTapX = 0f
+    internal var splineTapY = 0f
     /** Pointer id owning the current draw/erase gesture, so a resting palm can't perturb it. */
     internal var gesturePointerId = -1
     /** True while a stylus/eraser tip owns the current draw/erase gesture (drives palm rejection). */
@@ -156,8 +156,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var scrolling = false
     internal var erasing = false
     internal var placing = false
-    private var placeDownX = 0f
-    private var placeDownY = 0f
+    internal var placeDownX = 0f
+    internal var placeDownY = 0f
     internal var lastFocusY = 0f
     internal var lastFocusX = 0f
     /** The two-finger span (mean pointer distance from the focus, view px) at the last pan frame,
@@ -232,7 +232,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     )
 
     /** Places and edits text boxes, images and LaTeX images (see [TextEditController]). */
-    private val textEdits = TextEditController(
+    internal val textEdits = TextEditController(
         document = { doc },
         activeLayerOf = { resolvedActiveLayer(it) },
         commit = { commitElementEdit(it) },
@@ -311,7 +311,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Pressure→width exponent (see [PressureCurve]); 1 = linear. Set from the sensitivity setting. */
     var pressureGamma: Float = PressureSensitivity.LINEAR.gamma
     /** Jitter filter for the in-progress freehand stroke; reset at the start of each stroke. */
-    private val smoother = StrokeSmoother()
+    internal val smoother = StrokeSmoother()
     /** How much digitiser detail freehand strokes keep (see [StrokePrecision]); from Settings. */
     // The decimation radius depends on the page's px/pt as well as this setting, so it is computed
     // per stroke in [startStroke] rather than pinned here.
@@ -1041,11 +1041,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** View px -> page-local pt for [box]. */
 
     /** [x] pt pulled onto [box]'s background ruling when the snap-to-grid setting is on. */
-    private fun snapX(box: PageBox, x: Double): Double =
+    internal fun snapX(box: PageBox, x: Double): Double =
         if (snapToGrid) Snapping.snap(x, Snapping.spacingX(box.page.background)) else x
 
     /** [y] pt pulled onto [box]'s background ruling when the snap-to-grid setting is on. */
-    private fun snapY(box: PageBox, y: Double): Double =
+    internal fun snapY(box: PageBox, y: Double): Double =
         if (snapToGrid) Snapping.snap(y, Snapping.spacingY(box.page.background)) else y
 
     // --- the setsquare / compass guide: place it, drag it, and rule drawn points against it -------
@@ -1094,7 +1094,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * the point is within reach. Every drawn vertex — freehand and shape-tool alike — goes through
      * here, which is what makes the guide behave like a physical straightedge held against the page.
      */
-    private fun guided(box: PageBox, x: Double, y: Double): Pair<Double, Double> =
+    internal fun guided(box: PageBox, x: Double, y: Double): Pair<Double, Double> =
         guideDrag.project(box.index, x, y)
 
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
@@ -1273,358 +1273,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
     override fun onHoverEvent(event: MotionEvent): Boolean =
         handleHover(event) ?: super.onHoverEvent(event)
 
-    internal fun startStroke(event: MotionEvent, pointerIndex: Int) {
-        scrolling = false
-        shaping = shapeKind != null
-        gestureStartDoc = doc
-        gesturePointerId = event.getPointerId(pointerIndex)
-        val box = layout.pageAt(event.getX(pointerIndex) + scrollX, event.getY(pointerIndex) + scrollY)
-            ?: run { current = null; return }
-        currentPage = box.index
-        if (shaping) {
-            // Grid snap first, then the guide — a placed guide is the stronger constraint and must
-            // not be undone by pulling the point back onto the ruling.
-            val (sx, sy) = guided(
-                box,
-                snapX(box, box.toPtX(event.getX(pointerIndex), scrollX)),
-                snapY(box, box.toPtY(event.getY(pointerIndex), scrollY)),
-            )
-            shapeStartX = sx
-            shapeStartY = sy
-            shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
-            current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, shapeWidthPt)))
-        } else {
-            // Decimate against this page's real px/pt, so a stroke drawn zoomed out or in a
-            // multi-column view keeps the same document-space detail as one drawn at 100%.
-            smoother.reset(strokePrecision.stepPxFor(box.scale))
-            current = ArrayList<StrokePoint>().also { addSamples(event, pointerIndex, box, it) }
-        }
-    }
-
-    internal fun extendStroke(event: MotionEvent) {
-        val pointerIndex = event.findPointerIndex(gesturePointerId)
-        if (pointerIndex < 0) return
-        val box = layout.boxes.getOrNull(currentPage) ?: return
-        if (shaping) {
-            val (ex, ey) = guided(
-                box,
-                snapX(box, box.toPtX(event.getX(pointerIndex), scrollX)),
-                snapY(box, box.toPtY(event.getY(pointerIndex), scrollY)),
-            )
-            current = ArrayList(
-                ShapeBuilder.build(shapeKind ?: return, shapeStartX, shapeStartY, ex, ey, shapeWidthPt),
-            )
-            render()
-        } else {
-            current?.let { addSamples(event, pointerIndex, box, it); render() }
-        }
-    }
-
-    // --- the spline tool: tap to add a control point, drag to curve it, double-tap to finish -------
-
-    /**
-     * A touch while the spline tool is active. A tap that pairs with the previous one (double-tap)
-     * closes the curve; otherwise it appends a control point, which the following drag can curve.
-     */
-    internal fun splineDown(event: MotionEvent, pointerIndex: Int) {
-        val x = event.getX(pointerIndex)
-        val y = event.getY(pointerIndex)
-        if (splineNodes.isNotEmpty() && pairsWithPreviousSplineTap(event.eventTime, x, y)) {
-            finishSpline()
-            return
-        }
-        scrolling = false
-        // The first node fixes the page for the whole curve, so later taps stay in one stroke.
-        val box = if (splineNodes.isEmpty()) layout.pageAt(x + scrollX, y + scrollY) else layout.boxes.getOrNull(currentPage)
-        if (box == null) return
-        if (splineNodes.isEmpty()) {
-            currentPage = box.index
-            gestureStartDoc = doc
-        }
-        gesturePointerId = event.getPointerId(pointerIndex)
-        if (splineNodes.isEmpty()) shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
-        splineAnchorX = box.toPtX(x, scrollX)
-        splineAnchorY = box.toPtY(y, scrollY)
-        splineNodes += SplineNode(splineAnchorX, splineAnchorY)
-        splineDragging = true
-        splineTapTime = event.eventTime
-        splineTapX = x
-        splineTapY = y
-        renderSplinePreview()
-    }
-
-    /** Dragging away from the tap grows the newest node's tangent handle, curving the curve live. */
-    internal fun splineMove(event: MotionEvent) {
-        val pointerIndex = event.findPointerIndex(gesturePointerId)
-        if (pointerIndex < 0) return
-        val box = layout.boxes.getOrNull(currentPage) ?: return
-        val tx = box.toPtX(event.getX(pointerIndex), scrollX) - splineAnchorX
-        val ty = box.toPtY(event.getY(pointerIndex), scrollY) - splineAnchorY
-        splineNodes[splineNodes.lastIndex] = SplineNode(splineAnchorX, splineAnchorY, tx, ty)
-        renderSplinePreview()
-    }
-
-    /** The node is placed; the curve stays open, waiting for the next tap (or the finishing double-tap). */
-    internal fun splineUp(event: MotionEvent) {
-        splineDragging = false
-        gesturePointerId = -1
-        stylusOwner = false
-        // A drag isn't a tap, so it can't be half of the double-tap that finishes the curve.
-        if (hypot(event.x - splineTapX, event.y - splineTapY) > doubleTapSlopPx) splineTapTime = 0L
-        renderSplinePreview()
-    }
-
-    private fun pairsWithPreviousSplineTap(time: Long, x: Float, y: Float): Boolean =
-        splineTapTime != 0L && time - splineTapTime <= doubleTapTimeoutMs &&
-            hypot(x - splineTapX, y - splineTapY) <= doubleTapSlopPx
-
-    /** Show the curve-so-far as the in-progress stroke, so it paints exactly as it will commit. */
-    private fun renderSplinePreview() {
-        current = ArrayList(SplineBuilder.build(splineNodes, shapeWidthPt))
-        render()
-    }
-
-    /** True while a spline is open — the editor uses this to decide whether Enter/Esc apply. */
-    fun splineInProgress(): Boolean = splineNodes.isNotEmpty()
-
-    /**
-     * Commit the open spline as one ordinary stroke (the same shape any other tool produces) and
-     * clear the tool's state. Safe to call when nothing is open; a one-node spline is just dropped.
-     */
-    fun finishSpline() {
-        if (splineNodes.isEmpty()) return
-        val pts = SplineBuilder.build(splineNodes, shapeWidthPt)
-        clearSpline()
-        if (pts.size >= 2) {
-            appendStroke(
-                currentPage,
-                Stroke(
-                    tool, strokeColor(), "round", pts, true,
-                    lineStyle = currentLineStyle, fill = currentFill,
-                ),
-            )
-        }
-        finishGesture()
-        render()
-    }
-
-    /** Throw the open spline away without committing it (Escape, or switching tools mid-curve). */
-    fun cancelSpline() {
-        if (splineNodes.isEmpty()) return
-        clearSpline()
-        gestureStartDoc = null
-        render()
-    }
-
-    internal fun clearSpline() {
-        splineNodes.clear()
-        splineDragging = false
-        splineTapTime = 0L
-        current = null
-        gesturePointerId = -1
-        stylusOwner = false
-    }
-
-    /** The eraser: touch/drag deletes any stroke it passes over on the page under the pointer. */
-    internal fun startErase(event: MotionEvent, pointerIndex: Int) {
-        scrolling = false
-        erasing = true
-        gestureStartDoc = doc
-        gesturePointerId = event.getPointerId(pointerIndex)
-        val box = layout.pageAt(event.getX(pointerIndex) + scrollX, event.getY(pointerIndex) + scrollY) ?: return
-        currentPage = box.index
-        eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
-    }
-
-    internal fun eraseMove(event: MotionEvent) {
-        val pointerIndex = event.findPointerIndex(gesturePointerId)
-        if (pointerIndex < 0) return
-        val box = layout.boxes.getOrNull(currentPage) ?: return
-        eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
-    }
-
-    private fun eraseAt(box: PageBox, vx: Float, vy: Float) {
-        val px = box.toPtX(vx, scrollX)
-        val py = box.toPtY(vy, scrollY)
-        eraseX = vx; eraseY = vy
-        eraseOnPage(currentPage, px, py, eraserRadiusPt)
-        // Always repaint: even a rub over blank paper has to move the tip outline with the pointer.
-        render()
-    }
-
-    /** A tap in a placement tool: remember where it went down; a small drag cancels it. */
-    internal fun beginPlace(event: MotionEvent, pointerIndex: Int) {
-        scrolling = false
-        erasing = false
-        current = null
-        placing = true
-        placeDownX = event.getX(pointerIndex)
-        placeDownY = event.getY(pointerIndex)
-    }
-
-    /** Moving past the tap slop turns a placement into a no-op (the user is scrubbing, not tapping). */
-    internal fun placeMove(event: MotionEvent) {
-        if (hypot(event.x - placeDownX, event.y - placeDownY) > DrawingSurfaceDefaults.TAP_SLOP_PX) placing = false
-    }
-
-    /** Fire [onPlace] for the page/point the tap landed on, hitting an existing text box if any. */
-    internal fun commitPlace() {
-        val kind = placeKind ?: return
-        val box = layout.pageAt(placeDownX + scrollX, placeDownY + scrollY) ?: return
-        val xPt = box.toPtX(placeDownX, scrollX)
-        val yPt = box.toPtY(placeDownY, scrollY)
-        val existing = if (kind == PlaceKind.TEXT) textEdits.pickForEditing(box.index, xPt, yPt) else null
-        onPlace?.invoke(kind, Placement(box.index, xPt, yPt, existing))
-    }
-
     internal fun maxScrollY(): Float = viewport.maxScrollY()
     internal fun maxScrollX(): Float = viewport.maxScrollX()
 
     /** Scroll the viewport by one glide step, clamped; false when it didn't move (pinned at a bound). */
     internal fun scrollViewportBy(dx: Float, dy: Float): Boolean = viewport.scrollBy(dx, dy)
-
-    /**
-     * Append every sample for the gesture's pointer — historical first — as pressure-scaled
-     * page-local points. Sampling only [pointerIndex] (not pointer 0) is what lets a resting palm
-     * coexist with the pen: the palm is a different pointer and is never read here.
-     */
-    private fun addSamples(event: MotionEvent, pointerIndex: Int, box: PageBox, into: MutableList<StrokePoint>) {
-        for (h in 0 until event.historySize) {
-            smoother.accept(
-                event.getHistoricalX(pointerIndex, h),
-                event.getHistoricalY(pointerIndex, h),
-                event.getHistoricalPressure(pointerIndex, h),
-            )?.let { into += point(box, it.x, it.y, it.pressure) }
-        }
-        // The batch's newest sample is always kept, so the drawn line reaches the pen.
-        smoother.accept(
-            event.getX(pointerIndex), event.getY(pointerIndex), event.getPressure(pointerIndex), force = true,
-        )?.let { into += point(box, it.x, it.y, it.pressure) }
-    }
-
-    /**
-     * The stroke width one sample of the current tool draws at, in pt. A highlighter lays down a
-     * broad, constant-width band and ignores pressure; every other tool tapers with pressure. Shapes
-     * and splines call this once per gesture so they match a pen stroke drawn at the same size.
-     */
-    private fun widthForPressure(pressure: Float): Double = if (tool == Tool.HIGHLIGHTER) {
-        (baseWidthPt * DrawingSurfaceDefaults.HIGHLIGHTER_WIDTH_FACTOR).toDouble()
-    } else {
-        val p = if (pressure <= 0f) 1f else pressure
-        (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
-    }
-
-    private fun point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
-        val width = widthForPressure(pressure)
-        val (gx, gy) = guided(box, box.toPtX(vx, scrollX), box.toPtY(vy, scrollY))
-        return StrokePoint(x = gx, y = gy, width = width)
-    }
-
-    internal fun commitCurrent() {
-        val raw = current ?: return
-        current = null
-        val wasShaping = shaping
-        shaping = false
-        // Shape tools emit exact geometry — only freehand samples get thinned.
-        // Thin against the page's real px/pt (fit-to-width × zoom), not the zoom alone — on a large
-        // screen those differ by 2–4×, and using the zoom leaves visible facets at 100% and below.
-        val pxPerPt = layout.boxes.getOrNull(currentPage)?.scale ?: zoom
-        var snapped = false
-        val pts = if (wasShaping) {
-            raw
-        } else {
-            val thinned = StrokeSimplifier.simplify(raw, StrokeSimplifier.toleranceFor(pxPerPt, strokePrecision))
-            // With the recogniser on, a freehand stroke that clearly means a primitive is replaced by
-            // clean geometry; anything it doesn't recognise comes through exactly as drawn.
-            val shape = if (recognizeShapes && tool == Tool.PEN && thinned.isNotEmpty()) {
-                // Keep the thickness the stroke was actually drawn at, not the un-scaled base width,
-                // so snapping to a primitive doesn't fatten the line under the user's hand.
-                ShapeRecognizer.recognize(thinned, thinned.map { it.width }.average())
-            } else {
-                null
-            }
-            snapped = shape != null
-            shape ?: thinned
-        }
-        if (pts.size >= 2) {
-            // Highlighter and geometric shapes are constant-width → store a single width; the freehand
-            // pen keeps its per-vertex pressure. Live line-style/fill are baked in so they round-trip.
-            val uniform = tool == Tool.HIGHLIGHTER || wasShaping || snapped
-            val stroke = Stroke(
-                tool, strokeColor(), "round", pts, uniform,
-                lineStyle = currentLineStyle, fill = currentFill,
-            )
-            appendStroke(currentPage, stroke)
-        }
-        render()
-    }
-
-    /** Highlighter is stored semi-transparent so it round-trips (and renders) translucent. */
-    internal fun strokeColor(): Int =
-        if (tool == Tool.HIGHLIGHTER && (colorArgb ushr 24) == 0xFF) {
-            colorArgb.withAlpha(XoppColor.HIGHLIGHTER_ALPHA)
-        } else {
-            colorArgb
-        }
-
-    // --- audio: stamp strokes while recording, replay them on a play-object tap ------------------
-
-    /**
-     * Report the recording behind the topmost stroke under a play-object tap. Reports null (rather
-     * than staying silent) when the tap misses or lands on a stroke that was drawn without audio, so
-     * the editor can say so instead of leaving the tap looking broken.
-     */
-    internal fun audioTap(event: MotionEvent, pointerIndex: Int) {
-        val x = event.getX(pointerIndex)
-        val y = event.getY(pointerIndex)
-        val box = layout.pageAt(x + scrollX, y + scrollY) ?: return
-        val xPt = box.toPtX(x, scrollX)
-        val yPt = box.toPtY(y, scrollY)
-        val page = doc.pages.getOrNull(box.index) ?: return
-        val ref = SelectionTester.pickTopmost(page, xPt, yPt)
-            ?.let { page.layers.getOrNull(it.layerIndex)?.elements?.getOrNull(it.elementIndex) }
-            ?.let { it as? Stroke }
-            ?.audioRef()
-        onAudioTap?.invoke(ref)
-    }
-
-    /** [stroke] with the live recording position stamped on, or unchanged when nothing is recording. */
-    private fun withAudioStamp(stroke: Stroke): Stroke =
-        audioStamp?.invoke()?.let(stroke::withAudio) ?: stroke
-
-    /** Append [stroke] to the active (or top) layer of page [pageIndex], rebuilding the model. */
-    private fun appendStroke(pageIndex: Int, stroke: Stroke) {
-        val pages = doc.pages.toMutableList()
-        val page = pages[pageIndex]
-        val layers = page.layers.ifEmpty { listOf(Layer(emptyList())) }.toMutableList()
-        val target = resolvedActiveLayer(page).coerceIn(0, layers.lastIndex)
-        // Stamping here rather than at each commit site covers freehand, shapes and splines alike.
-        layers[target] = Layer(layers[target].elements + withAudioStamp(stroke), layers[target].name)
-        pages[pageIndex] = page.copy(layers = layers)
-        doc = doc.copy(pages = pages)
-        relayout() // rebuild boxes so they reference the updated pages, not stale ones
-    }
-
-    /** The layer new ink lands on for [page]: [activeLayerIndex] when in range, else the top layer. */
-    private fun resolvedActiveLayer(page: Page): Int =
-        if (activeLayerIndex in page.layers.indices) activeLayerIndex else page.layers.lastIndex
-
-    /**
-     * Apply the eraser disc to page [pageIndex] in the current [eraserMode], on the selected layer
-     * only and skipping hidden layers ([PageEraser]). Returns true if anything on the page changed.
-     */
-    private fun eraseOnPage(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
-        val page = doc.pages.getOrNull(pageIndex) ?: return false
-        val hidden = page.layers.indices.filter { isLayerHidden(pageIndex, it) }.toSet()
-        val target = resolvedActiveLayer(page)
-        val erased = PageEraser.erase(page, px, py, radius, eraserMode, hidden, target)
-            ?: return false
-        val pages = doc.pages.toMutableList()
-        pages[pageIndex] = erased
-        doc = doc.copy(pages = pages)
-        relayout()
-        return true
-    }
 
     // --- surface + rendering -------------------------------------------------------------------
 
