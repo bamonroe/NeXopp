@@ -29,11 +29,7 @@ import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
 import com.xopp.android.ui.PaletteAction
-import com.xopp.android.ui.RadialHit
 import com.xopp.android.ui.RadialPalette
-import com.xopp.android.ui.RadialPoint
-import com.xopp.android.ui.clampAnchor
-import com.xopp.android.ui.hitTest
 import kotlin.math.hypot
 
 /** What a canvas tap places when a placement tool is active (see [DrawingSurfaceView.placeKind]). */
@@ -220,8 +216,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // Page-overview drag-to-reorder: in the multi-column grid a finger long-press lifts a page and the
     // drag drops it at another slot. Armed on touch-down, fired by [pageDragArm] after the long-press
     // timeout; see [startPageDrag]. The state it moves through lives in [overview].
-    private val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
-    private val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+    internal val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
+    internal val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
     internal val pageDragArm = Runnable { startPageDrag() }
 
     /** The page-overview grid's view state: edit mode, selection, clipboard, lift (see [PageOverview]). */
@@ -1162,99 +1158,36 @@ class DrawingSurfaceView @JvmOverloads constructor(
         if (wasDragging) render()
     }
 
-    // --- palette invocation gestures -------------------------------------------------------------
-    // The two button-free ways of summoning the ring (see [PaletteInvocation]). Each is live only
-    // when the user has picked it, so at most one of them ever inspects a touch.
+    // --- palette state -----------------------------------------------------------------------
+    // The gesture and overlay state the ring needs; the behaviour lives in DrawingSurfacePalette.kt.
 
-    private val paletteLongPressArm = Runnable { openPaletteOnLongPress() }
+    internal val paletteLongPressArm = Runnable { openPaletteOnLongPress() }
 
     /**
      * The hold rides on a plain main-looper handler rather than `View.postDelayed`, which queues its
      * work until the view is attached to a window — that would make the gesture untestable, and
      * silently dead for any surface not yet on screen.
      */
-    private val paletteTimer = Handler(Looper.getMainLooper())
-    private var paletteLongPressArmed = false
-    private var paletteLongPressX = 0f
-    private var paletteLongPressY = 0f
+    internal val paletteTimer = Handler(Looper.getMainLooper())
+    internal var paletteLongPressArmed = false
+    internal var paletteLongPressX = 0f
+    internal var paletteLongPressY = 0f
 
     /** The two-finger tap candidate; its rules — and their tests — live in [PaletteTapDetector]. */
     internal val paletteTap = PaletteTapDetector(touchSlopPx, DrawingSurfaceDefaults.TWO_FINGER_TAP_MS)
 
-    /** Arm the pen-tip hold that opens the palette, for a single stylus pointer coming down. */
-    internal fun armPaletteLongPress(event: MotionEvent) {
-        cancelPaletteLongPress()
-        if (inputSettings.paletteInvocation != PaletteInvocation.PEN_TIP_LONG_PRESS) return
-        if (event.pointerCount != 1) return
-        val kind = pointerKindOf(event, 0)
-        if (kind != PointerKind.STYLUS && kind != PointerKind.ERASER_TIP) return
-        paletteLongPressArmed = true
-        paletteLongPressX = event.x
-        paletteLongPressY = event.y
-        paletteTimer.postDelayed(paletteLongPressArm, longPressMs)
-    }
-
-    /** A tip that travels past slop before the timeout is writing — never steal that stroke. */
-    internal fun trackPaletteLongPressMove(event: MotionEvent) {
-        if (!paletteLongPressArmed) return
-        if (hypot(event.x - paletteLongPressX, event.y - paletteLongPressY) > touchSlopPx) {
-            cancelPaletteLongPress()
-        }
-    }
-
-    /** Drop any pending pen-tip hold (moved, lifted, cancelled, or a second pointer arrived). */
-    internal fun cancelPaletteLongPress() {
-        if (!paletteLongPressArmed) return
-        paletteLongPressArmed = false
-        paletteTimer.removeCallbacks(paletteLongPressArm)
-    }
-
-    /**
-     * The hold fired: throw away the few pixels of stroke the tip has laid down and put the ring up
-     * where it rests. [cancelGesture] rather than [endGesture] is what makes the ink vanish instead
-     * of committing a dot to the document.
-     */
-    private fun openPaletteOnLongPress() {
-        paletteLongPressArmed = false
-        cancelGesture()
-        tick(HapticFeedbackConstants.LONG_PRESS)
-        openPalette(palette, paletteLongPressX, paletteLongPressY)
-    }
-
-    /** A second finger landing starts a tap candidate; a third one ends any hope of a tap. */
-    internal fun trackPaletteTapDown(event: MotionEvent) {
-        if (inputSettings.paletteInvocation != PaletteInvocation.TWO_FINGER_TAP) return
-        if (event.pointerCount != 2 || !bothFingers(event)) { paletteTap.cancel(); return }
-        paletteTap.start(event.eventTime, event.getX(0), event.getY(0), event.getX(1), event.getY(1))
-    }
-
-    /** Feed both fingers to the detector, which drops the candidate once either one pans. */
-    internal fun trackPaletteTapMove(event: MotionEvent) {
-        if (event.pointerCount < 2) return
-        paletteTap.move(event.getX(0), event.getY(0), event.getX(1), event.getY(1))
-    }
-
-    /**
-     * True when this lift completed a two-finger tap — in which case the pan it would otherwise have
-     * become is cancelled and the palette opens midway between the fingers.
-     */
-    internal fun openPaletteOnTwoFingerTap(event: MotionEvent): Boolean {
-        val (x, y) = paletteTap.release(event.eventTime) ?: return false
-        cancelPageDrag()
-        cancelGesture()
-        handTapCandidate = false
-        palettePendingLift = true
-        tick(HapticFeedbackConstants.LONG_PRESS)
-        openPalette(palette, x, y)
-        return true
-    }
-
     /** True between a two-finger tap opening the menu and the last of those fingers coming up. */
-    private var palettePendingLift = false
+    internal var palettePendingLift = false
 
-    /** True when every pointer down is a finger — a stylus in the mix is drawing, not summoning. */
-    private fun bothFingers(event: MotionEvent): Boolean =
-        (0 until event.pointerCount).all { pointerKindOf(event, it) == PointerKind.FINGER }
+    /** Where the last menu stood, so a switch-palette slot can put its successor in the same place. */
+    internal var lastPaletteAnchorX = 0f
+    internal var lastPaletteAnchorY = 0f
+
+    /**
+     * True while the radial palette is open and owns every pointer — no stroke can start under it.
+     * Internal rather than private so the on-device input tests can assert what a gesture summoned.
+     */
+    internal val paletteOpen: Boolean get() = paletteOverlay != null
 
     // --- barrel double-click ---------------------------------------------------------------------
     // Recognised only while the tip is *off* the glass (hover / button-only events): with the tip
@@ -1304,106 +1237,5 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal val inkCacheUsable: Boolean
         get() = !gestures.transforming && !erasing
 
-    /**
-     * Open [palette] anchored at ([x], [y]) in view pixels — where the gesture that summoned it was.
-     * The anchor is clamped *here*, once, so a menu opened near an edge stays wholly on screen and
-     * the hit test measures the flick from the same centre the ring is drawn at.
-     */
-    fun openPalette(palette: RadialPalette, x: Float, y: Float) {
-        val overlay = RadialPaletteRenderer.Overlay(palette, x, y, presetColors = presetColors)
-        val anchor =
-            if (width > 0 && height > 0) {
-                clampAnchor(x, y, width.toFloat(), height.toFloat(), overlay.geometry)
-            } else {
-                RadialPoint(x, y) // not laid out yet; the renderer clamps again at paint time
-            }
-        paletteOverlay = overlay.copy(anchorX = anchor.x, anchorY = anchor.y)
-        lastPaletteAnchorX = anchor.x
-        lastPaletteAnchorY = anchor.y
-        render()
-    }
-
-    /** Where the last menu stood, so a switch-palette slot can put its successor in the same place. */
-    private var lastPaletteAnchorX = 0f
-    private var lastPaletteAnchorY = 0f
-
-    /**
-     * Put [palette] up again at the anchor the menu that just closed used — what a
-     * [PaletteAction.SwitchPalette] slot fires, so the pen never has to re-summon the ring.
-     */
-    fun reopenPalette(palette: RadialPalette) =
-        openPalette(palette, lastPaletteAnchorX, lastPaletteAnchorY)
-
-    /** Move the pen over the open menu, re-hit-testing which slot is highlighted. No-op if closed. */
-    fun movePaletteTo(x: Float, y: Float) {
-        val open = paletteOverlay ?: return
-        val hit = open.palette.hitTest(open.anchorX, open.anchorY, x, y, open.geometry)
-        if (hit != open.hit) {
-            if (PaletteHaptics.shouldTick(open.hit, hit)) tick(HapticFeedbackConstants.CLOCK_TICK)
-            paletteOverlay = open.copy(hit = hit)
-            render()
-        }
-    }
-
-    /** Fire one haptic [constant], unless the user has turned palette haptics off in settings. */
-    private fun tick(constant: Int) {
-        if (paletteHaptics) performHapticFeedback(constant)
-    }
-
-    /** Close the menu and return what the pen was over — [RadialHit.Inert] if it wasn't open. */
-    fun closePalette(): RadialHit {
-        val open = paletteOverlay ?: return RadialHit.Inert
-        paletteOverlay = null
-        render()
-        return open.hit
-    }
-
-    /**
-     * True while the radial palette is open and owns every pointer — no stroke can start under it.
-     * Internal rather than private so the on-device input tests can assert what a gesture summoned.
-     */
-    internal val paletteOpen: Boolean get() = paletteOverlay != null
-
-    /**
-     * Drive the open palette from a touch: dragging re-highlights, lifting fires the highlighted
-     * slot. Returning true from [onTouchEvent] before any gesture begins is what guarantees the
-     * menu never leaves a stroke behind it.
-     */
-    internal fun paletteTouch(event: MotionEvent): Boolean {
-        // The fingers that summoned the menu are still on the glass; their lift is the end of the
-        // *summoning* gesture, not a pick, so it is swallowed rather than committing a slot.
-        if (palettePendingLift) {
-            if (event.actionMasked == MotionEvent.ACTION_UP ||
-                event.actionMasked == MotionEvent.ACTION_CANCEL
-            ) {
-                palettePendingLift = false
-            }
-            return true
-        }
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE, MotionEvent.ACTION_POINTER_DOWN ->
-                movePaletteTo(event.x, event.y)
-            MotionEvent.ACTION_UP -> { movePaletteTo(event.x, event.y); commitPalette() }
-            MotionEvent.ACTION_CANCEL -> closePalette()
-        }
-        return true
-    }
-
-    /**
-     * Run whatever the pen was over and **leave the menu up**, so several settings can be picked in
-     * one summoning. Only an explicit "click off it" closes the ring: releasing clear of the menu
-     * ([RadialHit.Outside]) — as does [alwaysClose], which the barrel button's eyes-free commit
-     * passes. The hollow centre ([RadialHit.Inert]) is not a hit target: releasing there leaves the
-     * menu exactly as it was.
-     */
-    internal fun commitPalette(alwaysClose: Boolean = false) {
-        val hit = paletteOverlay?.hit ?: return
-        if (hit is RadialHit.Inert) { if (alwaysClose) closePalette(); return }
-        if (hit is RadialHit.Outside) { closePalette(); return }
-        if (PaletteHaptics.shouldConfirm(hit)) tick(HapticFeedbackConstants.CONFIRM)
-        if (alwaysClose || paletteCloseOnSelect) closePalette()
-        val action = (hit as? RadialHit.Slot)?.action ?: return
-        onPaletteAction?.invoke(action)
-    }
 
 }

@@ -1,6 +1,7 @@
 package com.xopp.android.ui
 
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.reopenPalette
 
 /**
  * Runs the [PaletteAction] a radial-palette flick landed on.

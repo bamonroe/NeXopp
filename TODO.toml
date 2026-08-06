@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "split-drawingsurface-palette"
-title = "Split DrawingSurfaceView 5/6: extract palette invocation and overlay"
-description = "Step 5: create render/DrawingSurfacePalette.kt (~250 lines): the palette long-press arm/track/cancel block (~1309-1348), the two-finger-tap block (~1349-1383), and the palette overlay block (~2358-2459): openPalette, reopenPalette, movePaletteTo, closePalette, paletteTouch, commitPalette, tick. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 280
-created = 2026-08-05
-tags = ["audit", "split-dsv"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "split-drawingsurface-selection"
 title = "Split DrawingSurfaceView 6/6: extract selection API; verify whole split"
 description = "Final step: create render/DrawingSurfaceSelection.kt (~150 lines from ~891-1043): beginSelect, beginTextSelect, textSelectMove, copyTextSelection, deleteSelection, restyleSelection, copySelection, cutSelection, pasteClipboard, duplicateSelection. Residual DrawingSurfaceView.kt should now be roughly 700 lines: the property block, document/zoom/page/layer facades, and the thin overrides. Give every new DrawingSurface*.kt file a class-level KDoc header stating what lives there, and rewrite the DrawingSurfaceView entry in docs/architecture.md to describe the split family. This task closes the whole split: run the full scripts/build.sh, install on the /data/android emulator and exercise the moved surfaces — draw pen strokes with pressure, erase, lasso-select then move/copy/paste, open the radial palette by long-press and by two-finger tap, scroll and pinch-zoom, drag a page in the overview — screenshot each and check adb logcat for errors."

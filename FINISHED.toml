@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-drawingsurface-palette"
+title = "Split DrawingSurfaceView 5/6: extract palette invocation and overlay"
+description = "Step 5: create render/DrawingSurfacePalette.kt (~250 lines): the palette long-press arm/track/cancel block (~1309-1348), the two-finger-tap block (~1349-1383), and the palette overlay block (~2358-2459): openPalette, reopenPalette, movePaletteTo, closePalette, paletteTouch, commitPalette, tick. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit", "split-dsv"]
+
+[[task]]
 id = "split-drawingsurface-strokes"
 title = "Split DrawingSurfaceView 4/6: extract stroke/spline/erase/place capture"
 description = "Step 4: create render/DrawingSurfaceStrokes.kt (~400 lines from ~1617-2073): startStroke, extendStroke, splineDown, splineMove, splineUp, pairsWithPreviousSplineTap, renderSplinePreview, finishSpline, cancelSpline, clearSpline, startErase, eraseMove, eraseAt, beginPlace, placeMove, commitPlace, addSamples, widthForPressure, point, commitCurrent, strokeColor, audioTap, withAudioStamp, appendStroke, resolvedActiveLayer, eraseOnPage. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
