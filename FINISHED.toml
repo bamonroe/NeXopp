@@ -17,6 +17,116 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "pageops-insertafter-return-index"
+title = "PageOps.insertAfter: return the real insertion index"
+description = "render/PageOps.kt:102 insertAfter clamps the insertion point ((after + 1).coerceIn(0, pages.size)) while render/PageCommands.kt:109 pasteCopiedPages pre-clamps the source index to lastIndex and then independently derives its return value (~line 111) as at + 1 — the \"index of the first pasted page\" is only correct because the two clamps happen to agree. If either changes, the return silently desynchronises from where pages actually landed. Fix: have PageOps.insertAfter return the actual insertion index and make pasteCopiedPages use that return for both the edit and its own return value, deleting the redundant clamp. Unit tests in app/src/test/.../PageOpsTest.kt covering paste at start, middle and past-end. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "imagestore-byte-budget"
+title = "ImageStore: enforce a byte budget in prune like PdfStore"
+description = "io/ImageStore.kt prune (~line 41) only deletes unreferenced files; its KDoc claims the folder is bounded, but there is no byte cap — unlike its documented twin PdfStore.prune(keep, maxBytes) (io/PdfStore.kt ~66-83), and DocumentIo.prune (io/DocumentIo.kt ~337) passes limits.pdfCacheBytes to the PDF store but nothing to the image store. Fix: add a maxBytes parameter to ImageStore.prune with the same oldest-first trim logic, pass a cap from DocumentIo.prune (reuse limits.pdfCacheBytes or add an imageCacheBytes field to StorageLimits), correct the KDoc, and unit-test the trim. Coordinate with consolidate-store-newfile, which touches the same functions."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "elementrenderer-bitmap-budget"
+title = "ElementRenderer: bound and recycle the decoded-image bitmap cache"
+description = "render/ElementRenderer.kt (~lines 80-82): bitmaps decoded from embedded image bytes are cached forever and never recycled, unlike render/InkCache.kt (BitmapBudget registration ~line 81, recycle on eviction ~line 131) and render/ImageBackgroundCache.kt (~lines 122/128) — a document with many embedded images grows the heap without bound. Fix: register the cache as a BitmapBudget.Client and evict plus recycle LRU-style, mirroring InkCache. While in the file, add Log.w to the two silent catch blocks at ~lines 92 and 100 (a LaTeX element that never renders is currently undiagnosable), matching the style of ImageBackgroundCache.give (~135-139). Depends on elementrenderer-identity-cache-keys landing first. Full scripts/build.sh."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "elementrenderer-identity-cache-keys"
+title = "ElementRenderer: key bitmap and tex caches by identity, not content hash"
+description = "render/ElementRenderer.kt:80 uses bitmapCache.getOrPut(img) where img is an ImageElement whose equals/hashCode (format/model/Element.kt:76) run contentEquals/contentHashCode over the entire byte array — O(megabytes) of hashing plus comparison per image per painted frame at up to 120 Hz. texCache (~line 91) has the identical problem, and its own KDoc already says the tree should be cached by element identity. Fix: rekey both caches by reference identity — java.util.IdentityHashMap, or a small wrapper key using System.identityHashCode plus reference equality. Pure performance fix, no behaviour change; verify by build and existing tests."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "preserve-document-title"
+title = "Round-trip: read and re-emit the document title element"
+description = "format/XoppReader.kt read (~lines 32-40) never handles the title element, and XoppWriter.write (~line 26) always emits the constant TITLE, so a document authored with a custom title loses it on save. Fix: read title into a nullable Document.title field (format/model/Document.kt), write it back when present, defaulting to the existing constant. Round-trip unit test. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "teximage-preserve-source-shape"
+title = "Round-trip: keep teximage latex in attribute or body as authored"
+description = "format/XoppReader.kt readTexImage (~lines 152-160): when the text attribute is absent, the LaTeX source is taken from the element body; on save XoppWriter (~110-115) unconditionally emits a text attribute, so an old-format file gains an attribute it never had and its body changes shape. Fix: record which form the file used with a latexInAttribute: Boolean on TexImageElement — exactly the pattern Stroke.uniformWidth already uses (format/model/Element.kt:47) — and re-emit the original shape. Round-trip unit tests for both forms. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "preserve-unknown-elements"
+title = "Round-trip: preserve unknown elements inside layers"
+description = "format/XoppReader.kt ~lines 83-88: the when over layer children handles stroke/text/image/teximage and silently skips anything else, so a future or vendor element in a desktop-written file vanishes on the next save with no warning. Fix: add a RawElement(name, attrs, body) variant to the Element sealed interface in format/model/Element.kt that captures the unrecognised tag verbatim (attributes plus raw inner content) and have XoppWriter re-emit it untouched, in document order. Round-trip unit test with a made-up element inside a layer, asserting byte-level survival. Mention the behaviour in the format section of docs/architecture.md in the same commit."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "escape-control-chars-in-attrs"
+title = "XmlWriter: escape newline, CR and tab in attribute values"
+description = "format/xml/XmlWriter.kt escapeInto (~lines 76-84) escapes ampersand, angle brackets and double quote but not newline, carriage return or tab in attribute values. Preserved extraAttrs values containing a newline are read back verbatim by our own parser but normalised to a space by any conforming XML parser (attribute-value normalisation), silently breaking round-trip with desktop Xournal++. Fix: when writing attribute values, emit &#10; &#13; &#9; for those characters. Unit test: an attribute value containing newline and tab survives XmlWriter -> XmlPullReader unchanged. Do together with or immediately after preserve-unknown-attributes, which widens the surface this bug applies to. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "preserve-unknown-attributes"
+title = "Round-trip: preserve unknown attributes on all elements, not just strokes"
+description = "Core-rule fidelity gap. format/XoppReader.kt preserves unknown attributes only on stroke elements (extraAttrs, ~lines 99-104). readText (~126), readImage (~136), readTexImage (~145), readLayer (~80), readPage (~45) and readBackground (~62) each read a fixed attribute set and drop the rest. Most consequential: desktop Xournal++ text elements can carry the same audio fn/ts pair strokes do (see audio/AudioAnnotation.kt:22-25), so audio links on text boxes are silently lost on save; solid-background config attributes (custom ruling spacing on newer desktop builds) are dropped too. Fix: add extraAttrs: Map<String,String> to TextElement, ImageElement, TexImageElement (format/model/Element.kt), and to Layer, Page and the Background variants, populated with the same filterKeys pattern used for strokes at XoppReader.kt:100, and re-emit them first in each XoppWriter.write* the way writeStroke does (XoppWriter.kt ~75). Round-trip unit tests: parse XML with an unknown attribute on each element kind, save, assert it survives byte-identically. Update the schema-mapping notes in docs/architecture.md in the same commit."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
+id = "clamp-settings-on-load"
+title = "Clamp pen widths, last width and page columns at settings load"
+description = "ui/AppSettings.kt SettingsStore.load: penWidths (~line 238) and lastWidth (~line 249) come out of SharedPreferences unclamped, but ui/RadialPalette.kt:48 has require(widthPt in PEN_WIDTH_MIN..PEN_WIDTH_MAX) — a corrupt or legacy pref value crashes the app when it reaches a palette slot. Every other consumer clamps: ToolPresetCodec.kt:55, RadialPaletteCodec.kt:104, ToolbarSizePopup.kt:156, PaletteActionPicker.kt:126. pageColumns (~line 240) is also unclamped: DrawingSurfaceView.setColumns clamps to 1..PageStacker.COLUMN_CHOICES.last() but EditorScreen.kt:89 and ToolbarPagesPopup.kt:345/352 use the raw value, so a stored 0 makes the popup mode rows unreachable. Fix in SettingsStore.load, following the fillAlpha pattern at ~line 250: coerce each penWidths entry and lastWidth into PEN_WIDTH_MIN..PEN_WIDTH_MAX, and pageColumns into 1..PageStacker.COLUMN_CHOICES.last(). Unit-test load with out-of-range prefs."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
 id = "fix-pdf-export-truncate-mode"
 title = "PDF export: open output stream with truncate mode wt"
 description = "MainActivity.kt exportPdf (~line 521) opens the destination with contentResolver.openOutputStream(uri, \"w\") — mode \"w\" does not truncate, so exporting a shorter PDF over an existing longer file leaves trailing bytes from the old file and yields a corrupt PDF. Change the mode to \"wt\", matching io/UriStaging.kt stageOut (~line 37). One-line fix, verify by inspection; a later task (consolidate-uri-copy) routes this call through UriStaging — land this fix first regardless."
