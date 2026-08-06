@@ -17,6 +17,39 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "readme-feature-gaps"
+title = "README: document eraser tip preview/sizing and palette centre cancel"
+description = "Three shipped behaviours lack README coverage. (1) The eraser tip outline shown while the stylus barrel button is held (commit 48e860d) and (2) the eraser tip radius matching the pen full width (commit 42ccd83): extend the Erase bullet at ~line 350. (3) The radial palette hollow-centre cancel (commit 928a613) is only obliquely covered at ~line 524 — add an explicit sentence that releasing over the hollow centre cancels without picking."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit"]
+
+[[task]]
+id = "readme-project-layout-defer"
+title = "README project layout: incomplete duplicate of architecture.md"
+description = "README.md Project layout (~lines 733-743) omits io/ and audio/ (README itself documents audio recording at ~line 686) and duplicates the authoritative layout in docs/architecture.md — the exact drift the hub-and-spoke rule exists to prevent, and README even declares architecture.md authoritative. Fix: cut the block to a one-line pointer at docs/architecture.md, or if a thumbnail list stays, make it complete (format/ io/ audio/ render/ tabs/ panes/ ui/ MainActivity.kt) and keep it to package names only so it cannot drift at file level."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit"]
+
+[[task]]
+id = "dedupe-test-inventory-docs"
+title = "Unit-test inventory and udiff.xopp rule stated in three places"
+description = "The unit-test inventory and the udiff.xopp self-skip rule are stated in README.md ~lines 52-58, docs/tools.md (RealFileRoundTripTest gotcha) and docs/architecture.md ~lines 614-617. Per the single-source rule, pick one owner (the architecture.md test-tree section is the natural home), reconcile any divergence between the three copies first, then replace the other two with links."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit"]
+
+[[task]]
 id = "dedupe-device-install-docs"
 title = "Reconcile device-install docs: README contradicts docs/tools.md"
 description = "README.md ~lines 62-67 documents raw adb install -r plus am start as the way to run the app on a device, while docs/tools.md (Android emulator section) says the standard path is emulator.sh install / emulator.sh launch and that routine adb install is not part of the standard flow. The two disagree. Fix: decide the authoritative flow in docs/tools.md — including when raw adb is appropriate (physical devices) — and reduce the README passage to a pointer, per the hub-and-spoke rule."

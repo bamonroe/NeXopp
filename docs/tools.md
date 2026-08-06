@@ -48,8 +48,8 @@ Gradle wrapper (pinned to Gradle 8.9); the toolchain supplies JDK 21 + the Andro
     user-mode builds can't clean it.)
   - The image is already baked; only Gradle + dependencies download on first use into
     `.gradle-cache/`. No `local.properties` needed — the SDK is baked in.
-  - The `RealFileRoundTripTest` reads the repo-root `udiff.xopp` (visible via the parent
-    mount); it self-skips when absent, so it's green with or without the sample.
+  - The parent mount is what makes the optional real-file test resolve its repo-root sample; the
+    rule is documented in [`architecture.md`](architecture.md#what-the-unit-tests-cover).
 
 ## Android emulator
 

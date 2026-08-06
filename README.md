@@ -36,13 +36,10 @@ This runs the full check loop through the shared toolchain container — **unit 
 APK**. Task variants, output paths, caching behaviour and the rest of the pipeline live in
 [`docs/tools.md`](docs/tools.md), the authoritative home for the build.
 
-The unit tests cover the `.xopp` round-trip (the colour codec, every element type, XML escaping,
-model reserialization, a gzip round-trip, the PDF-background on-disk shape, and a fixture-driven
-`FormatDriftTest` asserting schema coverage, and an `XmlEqualityRoundTripTest` that checks the
-XML we emit still matches the desktop-written source byte-for-byte once normalized) plus the pure `render/` geometry (page layout,
-gridlines, page ops, eraser hit-testing, text layout, undo/redo history). If a real
-desktop-generated `udiff.xopp` is present at the repo root, an extra test round-trips it end to end
-(it self-skips when absent).
+The unit tests run on the JVM with no device attached, covering the `.xopp` round-trip, the pure
+`render/` geometry and the audio sidecar mapping. What each one asserts — and the rule for the
+optional real-file `udiff.xopp` test — is documented in
+[`docs/architecture.md`](docs/architecture.md#what-the-unit-tests-cover).
 
 ## Run on a device / emulator
 
@@ -333,11 +330,14 @@ authoritative flow; don't invent another one.
   which eraser it stands for: **Eraser (partial)** rubs out just the part of a stroke the eraser
   passes over, splitting it into the surviving pieces; **Eraser (whole stroke)** removes any stroke
   the eraser touches entirely. Like every tool slot, the choice is remembered across restarts. The
-  eraser has no size of its own — its tip follows the **Size** pop-up's three width slots (about six
-  times the pen width, so the rubber is always wider than the ink it removes), measured in document
-  points, so it rubs out the same amount of ink whatever the zoom. A thin black circle shows exactly
+  eraser has no size of its own — its tip follows the **Size** pop-up's three width slots: the tip's
+  *radius* is the selected pen's full width, so the rubber is twice as wide as the ink it removes —
+  wide enough to bite, narrow enough to erase precisely — and the three slots still give three
+  clearly different tips. It is measured in document points, so it rubs out the same amount of ink
+  whatever the zoom. A thin black circle shows exactly
   where the tip's edge falls — it follows a hovering stylus, and follows the contact point while you
-  rub (finger touches included). It is on-screen chrome only: it is never part of the page and never
+  rub (finger touches included). When you erase by **holding the stylus barrel button**, the circle
+  appears the moment the button goes down, so you can see the tip's reach before touching the page. It is on-screen chrome only: it is never part of the page and never
   written to the `.xopp` file. The eraser only affects the
   **selected layer** — ink on other layers is left alone — and hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
@@ -504,7 +504,10 @@ authoritative flow; don't invent another one.
     you double-click the barrel again without coming down at all. **The menu stays open after a
     pick**, so you can set a tool, a colour and a width in one summoning; it closes when you click
     off it — release well clear of the outer ring (an empty slot, or the hollow centre of the
-    ring, simply does nothing). A second barrel double-click picks *and* closes.
+    ring, simply does nothing). **The middle of the ring is a hollow, inert hole, not a button:**
+    releasing the tip in there neither picks anything nor dismisses the menu, so a flick that falls
+    short is a no-op you can simply repeat — to close, release *outside* the outer ring instead. A
+    second barrel double-click picks *and* closes.
     Nothing you do while the menu is open can
     leave a stroke behind: the canvas ignores the pen until the menu closes. Slots run the same
     actions the toolbar does: pick or toggle a tool, set the pen colour or width, undo/redo, toggle
@@ -710,19 +713,11 @@ The file on disk is the only source of truth — there's no cloud, account, or c
 
 ## Project layout
 
-The authoritative layout lives in [`docs/architecture.md`](docs/architecture.md). In short:
-
-```
-app/src/main/java/com/xopp/android/
-  format/      # .xopp read/write: model, colour codec, gzip, dependency-free XML layer
-  render/      # stylus canvas, page layout/rendering, PDF import & export
-  tabs/        # multiple open documents + the session cache that restores them on launch
-  panes/       # the one-or-two editing panes of split view, each with its own tabs and canvas
-  ui/          # Compose Material 3 editor screen, dockable toolbar rail pop-ups, settings, theme
-  MainActivity.kt
-app/src/test/  # JVM unit tests for the format and render layers
-Dockerfile, compose.yaml, scripts/build.sh   # containerized build
-```
+Every package and what it holds is documented, file by file, in
+[`docs/architecture.md`](docs/architecture.md) — the authoritative layout. The app's Kotlin
+sources live under `app/src/main/java/com/xopp/android/` (`format/`, `io/`, `render/`, `audio/`,
+`tabs/`, `panes/`, `ui/`, plus `MainActivity.kt`), with JVM unit tests under `app/src/test/` and
+the containerized build in `Dockerfile`, `compose.yaml` and `scripts/build.sh`.
 
 ## Licence
 

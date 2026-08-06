@@ -671,6 +671,22 @@ The **`format/` package is the heart** and is deliberately free of Android depen
 round-trip logic is fully unit-testable on the JVM (see `app/src/test/`). `render/` and `ui/`
 are the Android-facing shell around it.
 
+**What the unit tests cover** (this section is the one authoritative inventory — `README.md`
+and `docs/tools.md` link here rather than restating it). The `format/` tests exercise the
+`.xopp` round-trip: the colour codec, every element type, XML escaping, model reserialization,
+a gzip round-trip, the PDF-background on-disk shape, the fixture-driven `FormatDriftTest`
+asserting schema coverage, and `XmlEqualityRoundTripTest`, which checks that the XML we emit
+still matches the desktop-written source byte-for-byte once normalized. The `render/` tests
+cover the pure geometry — page layout, gridlines, page ops, eraser hit-testing, text layout,
+LaTeX geometry and undo/redo history — and the `audio/` tests cover fn/ts mapping and WAV
+framing. All of it runs on the JVM with no device attached.
+
+**The `udiff.xopp` self-skip rule.** `RealFileRoundTripTest` round-trips a real
+desktop-generated `udiff.xopp` end to end, read from the **repo root** (the builder mounts the
+project's parent dir, so the file resolves inside the container). The sample is not checked in,
+so the test **self-skips when it is absent** — the suite is green with or without it, and
+dropping a fresh `udiff.xopp` at the repo root is all it takes to turn the extra coverage on.
+
 **Rendering (`render/`).** Every repaint is **paced to the display**: `DrawingSurfaceView.render()`
 never paints inline, it flags a `Choreographer` frame callback that runs the actual `paint()` once
 per vsync, collapsing everything requested in between. This matters because a digitiser reports far
