@@ -13,6 +13,9 @@ import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.Tool
 import com.xopp.android.render.DrawingSurfaceView
+import com.xopp.android.render.copySelection
+import com.xopp.android.render.deleteSelection
+import com.xopp.android.render.pasteClipboard
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith

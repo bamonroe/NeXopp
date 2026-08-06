@@ -1,3 +1,8 @@
+/**
+ * [DrawingSurfaceView]'s shared tuning constants ([DrawingSurfaceDefaults]) and the blank-document
+ * factories every empty canvas starts from. Values only — no behaviour lives here, so the rest of
+ * the `DrawingSurface*.kt` family can read a number without pulling in another file's logic.
+ */
 package com.xopp.android.render
 
 import android.graphics.Color as AndroidColor

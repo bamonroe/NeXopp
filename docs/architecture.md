@@ -525,12 +525,16 @@ app/
       TabStore.kt            # filesDir/tabs: index + one .xopp snapshot per tab
       DocColors.kt           # the dot colour that marks two tabs as views of the same document (pure)
     render/
-      DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
+      DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure): the state block, the
+                             # document/zoom/page/layer facades and the View overrides; the gesture and
+                             # editing surfaces live in the DrawingSurface*.kt extension files below
       DrawingSurfaceConstants.kt # DrawingSurfaceDefaults: the canvas's shared tuning constants; blankDocument/blankPage
       DrawingSurfacePaint.kt # the surface's render loop, page compositing and chrome overlays (extensions)
       DrawingSurfaceInput.kt # the surface's touch/hover state machine: pointer routing, scroll and gesture end (extensions)
       DrawingSurfaceStrokes.kt # the surface's ink capture: stroke, spline, erase and place gestures (extensions)
       DrawingSurfacePalette.kt # the surface's radial palette: invocation gestures, open menu, commit (extensions)
+      DrawingSurfaceSelection.kt # the surface's selection: rubber-band start, PDF-text selection, and the
+                             # delete/restyle/copy/cut/paste/duplicate edits (extensions)
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette

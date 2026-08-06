@@ -52,6 +52,15 @@ import androidx.compose.ui.unit.dp
 import com.xopp.android.format.FontDescription
 import com.xopp.android.format.SaveFormat
 import com.xopp.android.render.ImportPdfMode
+import com.xopp.android.render.clearSelection
+import com.xopp.android.render.clearTextSelection
+import com.xopp.android.render.copySelection
+import com.xopp.android.render.copyTextSelection
+import com.xopp.android.render.cutSelection
+import com.xopp.android.render.deleteSelection
+import com.xopp.android.render.duplicateSelection
+import com.xopp.android.render.pasteClipboard
+import com.xopp.android.render.restyleSelection
 import kotlin.math.roundToInt
 
 /**

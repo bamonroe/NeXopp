@@ -1,7 +1,5 @@
 package com.xopp.android.render
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.Color as AndroidColor
 import android.os.Handler
@@ -52,6 +50,13 @@ data class Placement(val pageIndex: Int, val xPt: Double, val yPt: Double, val e
  * Strokes are drawn here; text boxes, images, and LaTeX images are drawn by [ElementRenderer].
  * Pressure is captured at the fidelity `.xopp` stores — this is where round-trip safety starts
  * (see `docs/architecture.md`).
+ *
+ * This file is deliberately the *state* of the surface — the property block, the document/zoom/page/
+ * layer facades and the thin `View` overrides. The behaviour is split across sibling extension
+ * files: `DrawingSurfacePaint.kt` (render loop and compositing), `DrawingSurfaceInput.kt` (touch
+ * state machine), `DrawingSurfaceStrokes.kt` (ink capture), `DrawingSurfacePalette.kt` (the radial
+ * palette), `DrawingSurfaceSelection.kt` (selection and its edits) and `DrawingSurfaceConstants.kt`
+ * (tuning values).
  */
 class DrawingSurfaceView @JvmOverloads constructor(
     context: Context,
@@ -431,7 +436,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         set(value) { gestures.selection = value }
 
     /** Copied/cut elements, ready to paste onto the visible page. */
-    private var clipboard: List<Element> = emptyList()
+    internal var clipboard: List<Element> = emptyList()
 
     /** When true, a one-finger/stylus drag selects text over an imported PDF's extracted text layer. */
     var textSelectMode: Boolean = false
@@ -875,16 +880,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
-    // --- selection: rubber-band / tap to select, drag to move, delete --------------------------
-
-    /** Down in Select mode: clear the other modes and let [SelectionGestureController] take it. */
-    internal fun beginSelect(event: MotionEvent) {
-        scrolling = false
-        erasing = false
-        placing = false
-        current = null
-        gestures.beginSelect(event)
-    }
+    // --- selection & vertical space -------------------------------------------------------------
+    // Selection itself (rubber-band, PDF text, and the clipboard edits) lives in
+    // `DrawingSurfaceSelection.kt`; only the vertical-space drag stays here.
 
     /** Down with the vertical-space tool: clear the other modes and hand off to [VerticalSpaceDrag]. */
     internal fun beginVerticalSpace(event: MotionEvent) {
@@ -895,146 +893,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
-    // --- PDF text selection ---------------------------------------------------------------------
-
-    /** Down with the text-select tool: anchor the selection at the word nearest the touch. */
-    internal fun beginTextSelect(event: MotionEvent) {
-        scrolling = false; erasing = false; placing = false; current = null
-        val index = pdfTextIndex ?: return
-        val pageIndex = layout.pageAt(event.x + scrollX, event.y + scrollY)?.index ?: return
-        val box = layout.boxes.getOrNull(pageIndex) ?: return
-        val anchor = index.anchorWord(pageIndex, box.toPtX(event.x, scrollX), box.toPtY(event.y, scrollY)) ?: return
-        textSelecting = true
-        textSelPage = pageIndex
-        textSelAnchor = anchor
-        textSelFocus = anchor
-        onTextSelectionChanged?.invoke(true)
-        render()
-    }
-
-    /** Drag: extend the selection to the word nearest the touch (kept on the anchor's page). */
-    internal fun textSelectMove(event: MotionEvent) {
-        val index = pdfTextIndex ?: return
-        val box = layout.boxes.getOrNull(textSelPage) ?: return
-        val focus = index.anchorWord(textSelPage, box.toPtX(event.x, scrollX), box.toPtY(event.y, scrollY)) ?: return
-        if (focus != textSelFocus) { textSelFocus = focus; render() }
-    }
-
-    /** True while a PDF-text selection is active (drives the Copy affordance). */
-    fun hasTextSelection(): Boolean = textSelPage >= 0 && textSelAnchor >= 0
-
-    /** Copy the selected PDF text to the Android system clipboard. */
-    fun copyTextSelection() {
-        val index = pdfTextIndex ?: return
-        if (!hasTextSelection()) return
-        val text = index.rangeText(textSelPage, textSelAnchor, textSelFocus)
-        if (text.isEmpty()) return
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-        clipboard.setPrimaryClip(ClipData.newPlainText("PDF text", text))
-    }
-
-    /** Drop the current PDF-text selection (view-only). */
-    fun clearTextSelection() {
-        val had = textSelPage >= 0
-        textSelecting = false
-        textSelPage = -1
-        textSelAnchor = -1
-        textSelFocus = -1
-        if (had) {
-            onTextSelectionChanged?.invoke(false)
-            render()
-        }
-    }
-
-    /** Delete every selected element as one undoable edit. */
-    fun deleteSelection() {
-        val sel = selection ?: return
-        val before = doc
-        doc = doc.copy(pages = SelectionOps.delete(doc.pages, sel.pageIndex, sel.refs))
-        selection = null
-        onSelectionChanged?.invoke(false)
-        history.record(before)
-        notifyHistory()
-        relayout()
-        render()
-    }
-
-    /** Drop the current selection (a view-only change; not recorded in history). */
-    fun clearSelection() {
-        if (selection == null) return
-        gestures.clearSelection()
-        render()
-    }
-
-    /** Recolour and/or re-width the selected elements as one undoable edit (selection stays). */
-    fun restyleSelection(color: Int?, widthPt: Double?) {
-        val sel = selection ?: return
-        val before = doc
-        val pages = SelectionOps.restyle(doc.pages, sel.pageIndex, sel.refs, color, widthPt)
-        if (pages === doc.pages) return
-        doc = doc.copy(pages = pages)
-        history.record(before)
-        notifyHistory()
-        relayout()
-        render()
-    }
-
-    /** Copy the selected elements to the clipboard (leaves the document and selection unchanged). */
-    fun copySelection() {
-        val sel = selection ?: return
-        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
-        clipboard = SelectionOps.elementsAt(page, sel.refs)
-        onClipboardChanged?.invoke(clipboard.isNotEmpty())
-    }
-
-    /** Copy then delete the selection (one undoable edit via [deleteSelection]). */
-    fun cutSelection() {
-        if (selection == null) return
-        copySelection()
-        deleteSelection()
-    }
-
-    /** Whether the clipboard currently holds anything to paste. */
-    fun hasClipboard(): Boolean = clipboard.isNotEmpty()
-
-    /** Paste the clipboard onto the visible page (offset a little), selecting the pasted copies. */
-    fun pasteClipboard() {
-        if (clipboard.isEmpty()) return
-        val target = visiblePageIndex()
-        pasteOnto(target, clipboard.map { SelectionOps.translate(it, DrawingSurfaceDefaults.PASTE_OFFSET_PT, DrawingSurfaceDefaults.PASTE_OFFSET_PT) })
-    }
-
-    /** Duplicate the selection in place (offset a little), selecting the duplicates. */
-    fun duplicateSelection() {
-        val sel = selection ?: return
-        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
-        val copies = SelectionOps.elementsAt(page, sel.refs).map { SelectionOps.translate(it, DrawingSurfaceDefaults.PASTE_OFFSET_PT, DrawingSurfaceDefaults.PASTE_OFFSET_PT) }
-        pasteOnto(sel.pageIndex, copies)
-    }
-
-    /** Append [elements] to [pageIndex]'s top layer as one undoable edit and select them. */
-    private fun pasteOnto(pageIndex: Int, elements: List<Element>) {
-        if (elements.isEmpty()) return
-        val before = doc
-        val (pages, refs) = SelectionOps.addToTopLayer(doc.pages, pageIndex, elements)
-        if (refs.isEmpty()) return
-        doc = doc.copy(pages = pages)
-        selection = ActiveSelection(pageIndex, refs)
-        onSelectionChanged?.invoke(true)
-        history.record(before)
-        notifyHistory()
-        relayout()
-        render()
-    }
-
     /**
      * The page nearest the viewport centre — the target for a paste, and what a tab records so
      * re-selecting it lands back where you left off (see `com.xopp.android.tabs`).
      */
     fun visiblePageIndex(): Int =
         layout.nearestPage(scrollX + width / 2f, scrollY + height / 2f)?.index ?: currentPage
-
-    /** View px -> page-local pt for [box]. */
 
     /** [x] pt pulled onto [box]'s background ruling when the snap-to-grid setting is on. */
     internal fun snapX(box: PageBox, x: Double): Double =
