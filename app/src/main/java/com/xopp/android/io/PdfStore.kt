@@ -26,14 +26,11 @@ import java.io.File
  */
 class PdfStore(private val dir: File) {
 
+    /** Hands out this store's unique names; see [ScratchDir] for why allocation has to be atomic. */
+    private val scratch = ScratchDir(dir)
+
     /** A fresh, never-before-used PDF file in this store. The caller writes the bytes. */
-    fun newFile(): File {
-        dir.mkdirs()
-        while (true) {
-            val candidate = File(dir, "pdf-${System.currentTimeMillis()}-${counter++}.pdf")
-            if (!candidate.exists()) return candidate
-        }
-    }
+    fun newFile(): File = scratch.newFile("pdf", ".pdf")
 
     /**
      * The store's copy for [key], generating it with [write] the first time. [key] identifies the
@@ -66,32 +63,11 @@ class PdfStore(private val dir: File) {
     fun prune(keep: Collection<String?>, maxBytes: Long = UNLIMITED) {
         val live = keep.filterNotNull().toSet()
         val cached = index().values.map { File(dir, it).absolutePath }.toSet()
-        dir.listFiles()?.forEach { file ->
-            // The index is bookkeeping, not a background: never sweep it away with the PDFs.
-            if (file.isFile && file.name != INDEX_FILE &&
-                file.absolutePath !in live && file.absolutePath !in cached
-            ) {
-                file.delete()
-            }
-        }
-        trimTo(maxBytes, live)
+        // The index is bookkeeping, not a background: never sweep it away with the PDFs.
+        dir.pruneUnreferenced(live + cached, except = setOf(INDEX_FILE))
+        dir.trimOldestTo(maxBytes, live, except = setOf(INDEX_FILE))
         val surviving = index().filterValues { File(dir, it).isFile }
         writeIndex(surviving)
-    }
-
-    /** Delete the **oldest** non-[live] files until the folder fits in [maxBytes]. */
-    private fun trimTo(maxBytes: Long, live: Set<String>) {
-        if (maxBytes >= UNLIMITED) return
-        val files = dir.listFiles().orEmpty().filter { it.isFile && it.name != INDEX_FILE }
-        var total = files.sumOf(File::length)
-        if (total <= maxBytes) return
-        files.filter { it.absolutePath !in live }
-            .sortedBy(File::lastModified)
-            .forEach { file ->
-                if (total <= maxBytes) return
-                val size = file.length()
-                if (file.delete()) total -= size
-            }
     }
 
     /** The content-key → file-name map, as last written. Missing or corrupt reads as empty. */
@@ -114,9 +90,6 @@ class PdfStore(private val dir: File) {
     companion object {
         /** The "no budget" [prune] cap — every file that survives the liveness sweep is kept. */
         const val UNLIMITED: Long = Long.MAX_VALUE
-
-        /** Salts the name so two allocations within the same millisecond still differ. */
-        private var counter = 0
 
         /** Sidecar holding the [cached] key → file-name map. Tab-separated, one entry per line. */
         private const val INDEX_FILE = "index.tsv"

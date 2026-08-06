@@ -21,14 +21,11 @@ import java.io.File
  */
 class ImageStore(private val dir: File) {
 
+    /** Hands out this store's unique names; see [ScratchDir] for why allocation has to be atomic. */
+    private val scratch = ScratchDir(dir)
+
     /** A fresh, never-before-used image file in this store. The caller writes the bytes. */
-    fun newFile(): File {
-        dir.mkdirs()
-        while (true) {
-            val candidate = File(dir, "img-${System.currentTimeMillis()}-${counter++}")
-            if (!candidate.exists()) return candidate
-        }
-    }
+    fun newFile(): File = scratch.newFile("img", suffix = "")
 
     /** Copy [stream] (closed here) into a fresh file in this store and return it. */
     fun copyIn(stream: java.io.InputStream): File {
@@ -45,31 +42,12 @@ class ImageStore(private val dir: File) {
      */
     fun prune(keep: Collection<String?>, maxBytes: Long = UNLIMITED) {
         val live = keep.filterNotNull().toSet()
-        dir.listFiles()?.forEach { file ->
-            if (file.isFile && file.absolutePath !in live) file.delete()
-        }
-        trimTo(maxBytes, live)
-    }
-
-    private fun trimTo(maxBytes: Long, live: Set<String>) {
-        if (maxBytes >= UNLIMITED) return
-        val files = dir.listFiles().orEmpty().filter(File::isFile)
-        var total = files.sumOf(File::length)
-        if (total <= maxBytes) return
-        files.filter { it.absolutePath !in live }
-            .sortedBy(File::lastModified)
-            .forEach { file ->
-                if (total <= maxBytes) return
-                val size = file.length()
-                if (file.delete()) total -= size
-            }
+        dir.pruneUnreferenced(live)
+        dir.trimOldestTo(maxBytes, live)
     }
 
     companion object {
         /** The "no cap" sentinel, matching [PdfStore.UNLIMITED]. */
         const val UNLIMITED: Long = Long.MAX_VALUE
-
-        /** Salts the name so two allocations within the same millisecond still differ. */
-        private var counter = 0
     }
 }

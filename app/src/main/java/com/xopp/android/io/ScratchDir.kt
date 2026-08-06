@@ -15,11 +15,15 @@ import java.io.File
  */
 class ScratchDir(private val dir: File) {
 
-    /** A fresh, never-before-used file in this folder. [prefix] is only a human-readable label. */
-    fun newFile(prefix: String): File {
+    /**
+     * A fresh, never-before-used file in this folder. [prefix] is only a human-readable label and
+     * [suffix] the extension to end it with (`""` for none) — the stores that keep their own folder
+     * of never-rewritten files ([PdfStore], [ImageStore]) delegate here for exactly this guarantee.
+     */
+    fun newFile(prefix: String, suffix: String = ".tmp"): File {
         dir.mkdirs()
         while (true) {
-            val candidate = File(dir, "$prefix-${System.currentTimeMillis()}-${counter.getAndIncrement()}.tmp")
+            val candidate = File(dir, "$prefix-${System.currentTimeMillis()}-${counter.getAndIncrement()}$suffix")
             if (!candidate.exists()) return candidate
         }
     }

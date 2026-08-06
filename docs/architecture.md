@@ -504,8 +504,10 @@ app/
       FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / IMAGE / UNKNOWN
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
-      ScratchDir.kt          # unique-per-call staging file names, so overlapping opens can't collide
+      ScratchDir.kt          # unique-per-call file names (staging and both stores), so overlapping writes can't collide
+      StoreFiles.kt          # the sweep both stores share: drop unreferenced files, then trim oldest-first to a byte budget
       PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index, byte-budget eviction
+      ImageStore.kt          # one never-rewritten copy per pixmap background reference; same liveness sweep and byte budget
       TextImport.kt          # text file -> generated background PDF, cached by content hash
       PdfReference.kt        # how a .xopp names its background PDF: relative <-> absolute paths and SAF document ids
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge

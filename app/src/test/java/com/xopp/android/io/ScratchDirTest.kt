@@ -43,4 +43,24 @@ class ScratchDirTest {
         val file = ScratchDir(tmp.newFolder()).newFile("import")
         assertTrue(file.name, file.name.startsWith("import-") && file.name.endsWith(".tmp"))
     }
+
+    /** The stores delegate here for their own extensions — `.pdf`, or none at all for images. */
+    @Test fun theSuffixIsTheCallersToChoose() {
+        val scratch = ScratchDir(tmp.newFolder())
+        assertTrue(scratch.newFile("pdf", ".pdf").name.endsWith(".pdf"))
+        assertTrue(scratch.newFile("img", suffix = "").name.last().isDigit())
+    }
+
+    /** The stores are written from worker threads, so their allocations race like staging's do. */
+    @Test fun storeAllocationsAreUniqueUnderConcurrency() {
+        val pdfs = PdfStore(tmp.newFolder())
+        val images = ImageStore(tmp.newFolder())
+        val paths = java.util.Collections.synchronizedList(mutableListOf<String>())
+        val threads = (1..8).map {
+            Thread { repeat(25) { paths.add(pdfs.newFile().absolutePath); paths.add(images.newFile().absolutePath) } }
+        }
+        threads.forEach(Thread::start)
+        threads.forEach(Thread::join)
+        assertEquals(400, paths.toSet().size)
+    }
 }

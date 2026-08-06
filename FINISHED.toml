@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "consolidate-store-newfile"
+title = "Consolidate unique-filename allocation; fix thread-unsafe counters"
+description = "Three copies of the unique-filename allocator, two thread-unsafe: io/ScratchDir.kt:19-33 uses an AtomicInteger (correct, with a comment explaining why), but io/PdfStore.kt:30-36 and io/ImageStore.kt:25-31 use a plain var counter (in ImageStore not even private) while being called from worker threads (via DocumentIo.copyIntoStore ~line 307 and ImageStore.copyIn ~34-38) — two threads can race on the same counter value. Fix: generalise ScratchDir.newFile(prefix, suffix = \".tmp\"), have PdfStore and ImageStore each hold a private ScratchDir and delegate (io/UriStaging.kt:51 already does exactly this), keeping current file extensions. Also extract the duplicated liveness sweep (ImageStore.kt:41-46 is a strict subset of PdfStore.kt:66-80) into an internal File.pruneUnreferenced(live, except) helper in a new io/StoreFiles.kt. Unit-test concurrent newFile allocation. Update the io/ list in docs/architecture.md for the new file. Full scripts/build.sh."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit"]
+
+[[task]]
 id = "pageops-insertafter-return-index"
 title = "PageOps.insertAfter: return the real insertion index"
 description = "render/PageOps.kt:102 insertAfter clamps the insertion point ((after + 1).coerceIn(0, pages.size)) while render/PageCommands.kt:109 pasteCopiedPages pre-clamps the source index to lastIndex and then independently derives its return value (~line 111) as at + 1 — the \"index of the first pasted page\" is only correct because the two clamps happen to agree. If either changes, the return silently desynchronises from where pages actually landed. Fix: have PageOps.insertAfter return the actual insertion index and make pasteCopiedPages use that return for both the edit and its own return value, deleting the redundant clamp. Unit tests in app/src/test/.../PageOpsTest.kt covering paste at start, middle and past-end. scripts/build.sh testDebugUnitTest."

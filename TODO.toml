@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "consolidate-store-newfile"
-title = "Consolidate unique-filename allocation; fix thread-unsafe counters"
-description = "Three copies of the unique-filename allocator, two thread-unsafe: io/ScratchDir.kt:19-33 uses an AtomicInteger (correct, with a comment explaining why), but io/PdfStore.kt:30-36 and io/ImageStore.kt:25-31 use a plain var counter (in ImageStore not even private) while being called from worker threads (via DocumentIo.copyIntoStore ~line 307 and ImageStore.copyIn ~34-38) — two threads can race on the same counter value. Fix: generalise ScratchDir.newFile(prefix, suffix = \".tmp\"), have PdfStore and ImageStore each hold a private ScratchDir and delegate (io/UriStaging.kt:51 already does exactly this), keeping current file extensions. Also extract the duplicated liveness sweep (ImageStore.kt:41-46 is a strict subset of PdfStore.kt:66-80) into an internal File.pruneUnreferenced(live, except) helper in a new io/StoreFiles.kt. Unit-test concurrent newFile allocation. Update the io/ list in docs/architecture.md for the new file. Full scripts/build.sh."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 150
-created = 2026-08-05
-tags = ["audit"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "consolidate-page-transforms"
 title = "Put page/view coordinate transforms on PageBox, once"
 description = "The page-to-view coordinate transform is copied at least six times: identical private ptX/ptY pairs in render/DrawingSurfaceView.kt:1048, render/SelectionGestureController.kt:307 and render/GuideDrag.kt:125 (differing only in scroll source), the same expression re-inlined at DrawingSurfaceView.kt ~1788, ~1815 and ~2024, and the inverse hand-rolled at DrawingSurfaceView.kt:1115, InkCache.kt:68 and BackgroundRenderer.kt:47. Fix: add to PageBox in render/PageStacker.kt (next to the existing contains at ~line 22): toPtX(viewX, scrollX), toPtY(viewY, scrollY), toViewX(ptX, scrollX), toViewY(ptY, scrollY), each with KDoc stating units (view px vs page pt). Replace every copy and delete the three private pairs. Pure refactor, no behaviour change; SelectionTest and PageOpsTest cover some paths. Do this BEFORE the DrawingSurfaceView file-split tasks so the code being moved is already clean. Full scripts/build.sh."
