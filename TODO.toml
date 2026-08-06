@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "fix-pdf-export-truncate-mode"
-title = "PDF export: open output stream with truncate mode wt"
-description = "MainActivity.kt exportPdf (~line 521) opens the destination with contentResolver.openOutputStream(uri, \"w\") — mode \"w\" does not truncate, so exporting a shorter PDF over an existing longer file leaves trailing bytes from the old file and yields a corrupt PDF. Change the mode to \"wt\", matching io/UriStaging.kt stageOut (~line 37). One-line fix, verify by inspection; a later task (consolidate-uri-copy) routes this call through UriStaging — land this fix first regardless."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 50
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "clamp-settings-on-load"
 title = "Clamp pen widths, last width and page columns at settings load"
 description = "ui/AppSettings.kt SettingsStore.load: penWidths (~line 238) and lastWidth (~line 249) come out of SharedPreferences unclamped, but ui/RadialPalette.kt:48 has require(widthPt in PEN_WIDTH_MIN..PEN_WIDTH_MAX) — a corrupt or legacy pref value crashes the app when it reaches a palette slot. Every other consumer clamps: ToolPresetCodec.kt:55, RadialPaletteCodec.kt:104, ToolbarSizePopup.kt:156, PaletteActionPicker.kt:126. pageColumns (~line 240) is also unclamped: DrawingSurfaceView.setColumns clamps to 1..PageStacker.COLUMN_CHOICES.last() but EditorScreen.kt:89 and ToolbarPagesPopup.kt:345/352 use the raw value, so a stored 0 makes the popup mode rows unreachable. Fix in SettingsStore.load, following the fillAlpha pattern at ~line 250: coerce each penWidths entry and lastWidth into PEN_WIDTH_MIN..PEN_WIDTH_MAX, and pageColumns into 1..PageStacker.COLUMN_CHOICES.last(). Unit-test load with out-of-range prefs."

@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-pdf-export-truncate-mode"
+title = "PDF export: open output stream with truncate mode wt"
+description = "MainActivity.kt exportPdf (~line 521) opens the destination with contentResolver.openOutputStream(uri, \"w\") — mode \"w\" does not truncate, so exporting a shorter PDF over an existing longer file leaves trailing bytes from the old file and yields a corrupt PDF. Change the mode to \"wt\", matching io/UriStaging.kt stageOut (~line 37). One-line fix, verify by inspection; a later task (consolidate-uri-copy) routes this call through UriStaging — land this fix first regardless."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-05
+completed = 2026-08-05
+tags = ["audit"]
+
+[[task]]
 id = "fix-xml-truncated-input"
 title = "XmlPullReader: fail cleanly on truncated input"
 description = "format/xml/XmlPullReader.kt readStartTag: ~line 88 reads val quote = s[i] with no bounds check (StringIndexOutOfBoundsException on truncated input), and ~line 95 the search for the closing angle bracket can return -1, which resets pos to 0 and loops forever. A truncated .xopp (interrupted write, partial download) should fail with a clean parse error, not hang or crash. Fix: break out when i >= s.length before reading quote; when indexOf returns -1, set pos = s.length and end parsing with a controlled error. Unit tests: several truncated .xopp XML strings must fail fast with no hang. This closes the batch of four format-parser fixes: run the full scripts/build.sh here."

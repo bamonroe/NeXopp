@@ -518,7 +518,7 @@ class MainActivity : ComponentActivity() {
 
     /** Flatten the current document to a PDF at the chosen location (backgrounds + annotations). */
     private fun exportPdf(uri: Uri) = runCatching {
-        contentResolver.openOutputStream(uri, "w").use { output ->
+        contentResolver.openOutputStream(uri, "wt").use { output ->
             requireNotNull(output) { "could not write $uri" }
             surface?.exportPdf(output)
         }
