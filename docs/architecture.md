@@ -527,6 +527,7 @@ app/
     render/
       DrawingSurfaceView.kt  # low-latency stylus canvas (MotionEvent pressure)
       DrawingSurfaceConstants.kt # DrawingSurfaceDefaults: the canvas's shared tuning constants; blankDocument/blankPage
+      DrawingSurfacePaint.kt # the surface's render loop, page compositing and chrome overlays (extensions)
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette

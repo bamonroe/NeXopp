@@ -3,8 +3,6 @@ package com.xopp.android.render
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.os.Handler
 import android.os.Looper
@@ -15,7 +13,6 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewConfiguration
-import com.xopp.android.render.CanvasChrome.Companion.HANDLE_DRAW_PX
 import com.xopp.android.audio.AudioRef
 import com.xopp.android.audio.audioRef
 import com.xopp.android.audio.withAudio
@@ -37,10 +34,7 @@ import com.xopp.android.ui.RadialPalette
 import com.xopp.android.ui.RadialPoint
 import com.xopp.android.ui.clampAnchor
 import com.xopp.android.ui.hitTest
-import kotlin.math.atan2
 import kotlin.math.hypot
-import kotlin.math.max
-import kotlin.math.min
 
 /** What a canvas tap places when a placement tool is active (see [DrawingSurfaceView.placeKind]). */
 enum class PlaceKind { TEXT, IMAGE, TEX }
@@ -77,29 +71,29 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * document ([load], [applyMirroredDocument]) writes [docValue] directly instead: that is a view
      * catching up, not an edit, and echoing it back would loop.
      */
-    private var doc: Document
+    internal var doc: Document
         get() = docValue
         set(value) {
             if (value === docValue) return
             docValue = value
             onDocumentEdited?.invoke(value)
         }
-    private var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
+    internal var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
     /** The scroll/zoom offsets and their clamps ([ViewportState] owns the numbers and the maths). */
-    private val viewport = ViewportState()
+    internal val viewport = ViewportState()
     /** Internal (not private) so on-device input tests can read where the viewport ended up. */
     internal var scrollY: Float
         get() = viewport.scrollY
         set(value) { viewport.scrollY = value }
-    private var scrollX: Float
+    internal var scrollX: Float
         get() = viewport.scrollX
         set(value) { viewport.scrollX = value }
-    private val zoom: Float get() = viewport.zoom
+    internal val zoom: Float get() = viewport.zoom
     /** Pages shown side by side: 1 is the single-page stack, 2+ the page-overview grid. */
-    private var columns = 1
+    internal var columns = 1
 
     /** Rasteriser for the PDF that backs this document's `pdf` pages (set on import), or null. */
-    private var pdfSource: PdfPageCache? = null
+    internal var pdfSource: PdfPageCache? = null
 
     /**
      * Decoder for the pictures behind `pixmap` pages. Unlike [pdfSource] this isn't handed in on
@@ -107,16 +101,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * carries it — an opened image, or a `.xopp` that references one. Built on first use so a
      * document with no pixmap page never starts a decode thread.
      */
-    private val imageSource: ImageBackgroundCache by lazy {
+    internal val imageSource: ImageBackgroundCache by lazy {
         ImageBackgroundCache(::openBackgroundImage).apply { onImageReady = { requestRender() } }
     }
 
     /** Local copies of the `pixmap` pictures, by document reference (see [setImageSources]). */
-    private var imageBackgrounds: Map<String, java.io.File> = emptyMap()
+    internal var imageBackgrounds: Map<String, java.io.File> = emptyMap()
 
     /** In-progress stroke (page-local pt space) and the page it belongs to. */
-    private var current: ArrayList<StrokePoint>? = null
-    private var currentPage = 0
+    internal var current: ArrayList<StrokePoint>? = null
+    internal var currentPage = 0
     /** While drawing a shape ([shapeKind] set), the drag anchor in page-local pt and the live flag. */
     private var shaping = false
     private var shapeStartX = 0.0
@@ -143,16 +137,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** True while a stylus/eraser tip owns the current draw/erase gesture (drives palm rejection). */
     private var stylusOwner = false
     // Hover preview position (view px) and whether a stylus is currently hovering.
-    private var hovering = false
-    private var hoverX = 0f
-    private var hoverY = 0f
+    internal var hovering = false
+    internal var hoverX = 0f
+    internal var hoverY = 0f
     /** Tool type of the hovering pointer — an inverted pen's eraser tip previews the rubber, not the nib. */
-    private var hoverKind = PointerKind.UNKNOWN
+    internal var hoverKind = PointerKind.UNKNOWN
     // Last eraser contact point (view px), so the tip outline follows the rub — finger touches included.
-    private var eraseX = 0f
-    private var eraseY = 0f
+    internal var eraseX = 0f
+    internal var eraseY = 0f
     /** The radial palette while it is open, or null when it isn't — see [openPalette]. */
-    private var paletteOverlay: RadialPaletteRenderer.Overlay? = null
+    internal var paletteOverlay: RadialPaletteRenderer.Overlay? = null
     /** The palette a [BarrelDoubleAction.RADIAL_PALETTE] double-click opens at the pen tip. */
     var palette: RadialPalette = RadialPalette.default()
     /** Preset id → colour, pushed from settings so preset slots draw their icon in that colour. */
@@ -160,7 +154,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Fired with the action of the slot a palette flick landed on; the editor applies it. */
     var onPaletteAction: ((PaletteAction) -> Unit)? = null
     private var scrolling = false
-    private var erasing = false
+    internal var erasing = false
     private var placing = false
     private var placeDownX = 0f
     private var placeDownY = 0f
@@ -172,8 +166,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // Momentum scrolling: a released pan keeps gliding, decelerating, until it stalls or hits a bound.
     // The whole loop — velocity tracking, the release seed, and the per-frame glide — is [MomentumDriver]'s.
-    private val choreographer = Choreographer.getInstance()
-    private val momentum = MomentumDriver(
+    internal val choreographer = Choreographer.getInstance()
+    internal val momentum = MomentumDriver(
         context = context,
         choreographer = choreographer,
         canScroll = { viewport.canScroll() },
@@ -205,8 +199,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var panSensitivity = PanSensitivity.NORMAL
 
     /** Set between a [render] request and the vsync that services it — see [render]. */
-    private var paintPosted = false
-    private val paintCallback = Choreographer.FrameCallback { paint() }
+    internal var paintPosted = false
+    internal val paintCallback = Choreographer.FrameCallback { paint() }
 
     // Hand-tool double-tap: a centre double-tap toggles full-page view, a left/right-edge double-tap
     // pages back/forward. Detected manually (single-finger tap = down→up without exceeding tap slop).
@@ -231,7 +225,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private val pageDragArm = Runnable { startPageDrag() }
 
     /** The page-overview grid's view state: edit mode, selection, clipboard, lift (see [PageOverview]). */
-    private val overview = PageOverview(
+    internal val overview = PageOverview(
         onSelectionChanged = { onPageSelectionChanged?.invoke(it) },
         onClipboardChanged = { onPageClipboardChanged?.invoke(it) },
         invalidate = { render() },
@@ -407,7 +401,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var activeLayerIndex: Int = -1
         private set
     /** `(pageIndex, layerIndex)` keys hidden in the editor only — view state, never persisted. */
-    private val hiddenLayers = HashSet<Long>()
+    internal val hiddenLayers = HashSet<Long>()
     /** Notified when the layer set / active layer / visibility changes so the chrome can refresh. */
     var onLayersChanged: (() -> Unit)? = null
 
@@ -422,7 +416,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * drags of what is picked. It owns the selection and the transform snapshot; see
      * [SelectionGestureController].
      */
-    private val gestures = SelectionGestureController(
+    internal val gestures = SelectionGestureController(
         document = { doc },
         setDocument = { doc = it },
         layout = { layout },
@@ -436,7 +430,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     )
 
     /** The current selection (a page index + the refs of its selected elements), or null. */
-    private var selection: ActiveSelection?
+    internal var selection: ActiveSelection?
         get() = gestures.selection
         set(value) { gestures.selection = value }
 
@@ -451,20 +445,20 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
 
     /** The imported PDF's positioned text layer, or null when no PDF (or no text) is loaded. */
-    private var pdfTextIndex: PdfTextIndex? = null
+    internal var pdfTextIndex: PdfTextIndex? = null
 
     /** Notified when a PDF-text selection appears or clears, so the chrome can offer Copy. */
     var onTextSelectionChanged: ((Boolean) -> Unit)? = null
 
     // Live/committed PDF-text selection: a page and an inclusive reading-order word range.
     private var textSelecting = false
-    private var textSelPage = -1
-    private var textSelAnchor = -1
-    private var textSelFocus = -1
+    internal var textSelPage = -1
+    internal var textSelAnchor = -1
+    internal var textSelFocus = -1
 
     // Live vertical-space drag: the grabbed page, the grab line (page pt) and its view-px Y for the
     // guide overlay. Like a selection move, each frame recomputes from the gesture-start snapshot.
-    private val vspace = VerticalSpaceDrag(
+    internal val vspace = VerticalSpaceDrag(
         document = { doc },
         setDocument = { doc = it },
         layout = { layout },
@@ -474,7 +468,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     )
 
     /** The setsquare/compass overlay and the finger that poses it — see [GuideDrag]. */
-    private val guideDrag = GuideDrag(
+    internal val guideDrag = GuideDrag(
         layout = { layout },
         viewport = viewport,
         snapRotation = { snapRotation },
@@ -485,17 +479,17 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** A guide asked for before the first layout, held until there's a viewport to centre it on. */
     private var pendingGuide: GuideKind? = null
 
-    private val strokePainter = StrokePainter()
-    private val elementRenderer = ElementRenderer()
+    internal val strokePainter = StrokePainter()
+    internal val elementRenderer = ElementRenderer()
 
     /** Off-screen ink rasters, so a pan/fling frame blits pages instead of re-submitting strokes. */
-    private val inkCache = InkCache()
+    internal val inkCache = InkCache()
 
     /** Set while a coalesced redraw is queued — see [requestRender]. */
-    private val renderPosted = java.util.concurrent.atomic.AtomicBoolean(false)
+    internal val renderPosted = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /** Every non-document brush this canvas paints with — see [CanvasChrome]. */
-    private val chrome = CanvasChrome()
+    internal val chrome = CanvasChrome()
 
     /**
      * Repaints the canvas chrome from the app's Material 3 colour scheme. The `SurfaceView` sits
@@ -773,7 +767,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // are view-only editor state; add/delete/rename/reorder/move mutate the document (undoable).
 
     private fun layerKey(pi: Int, li: Int): Long = (pi.toLong() shl 32) or (li.toLong() and 0xFFFFFFFFL)
-    private fun isLayerHidden(pi: Int, li: Int): Boolean = layerKey(pi, li) in hiddenLayers
+    internal fun isLayerHidden(pi: Int, li: Int): Boolean = layerKey(pi, li) in hiddenLayers
 
     /** The visible page's layers, bottom-up, as UI-facing rows (label / visible / active). */
     fun visibleLayers(): List<LayerInfo> {
@@ -839,7 +833,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Emit [onCurrentPageChanged] if the page under the viewport centre changed since last time. */
-    private fun reportCurrentPage() {
+    internal fun reportCurrentPage() {
         if (doc.pages.isEmpty()) return
         val idx = currentPageIndex()
         if (idx != lastReportedPage) {
@@ -850,7 +844,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Emit [onScrollChanged] if the scroll offset or content extent changed since last time. */
-    private fun reportScroll() {
+    internal fun reportScroll() {
         val t = Triple(scrollY, layout.totalHeightPx, height.toFloat())
         if (t != lastScrollReport) {
             lastScrollReport = t
@@ -1103,33 +1097,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun guided(box: PageBox, x: Double, y: Double): Pair<Double, Double> =
         guideDrag.project(box.index, x, y)
 
-    /** Draw the guide overlay in view px: the setsquare's outline, or the compass's circle and hub. */
-    private fun drawGuide(canvas: Canvas) {
-        val g = guide ?: return
-        val box = layout.boxes.getOrNull(guideDrag.page) ?: return
-        val s = box.scale
-        fun vx(x: Double) = box.toViewX(x, scrollX)
-        fun vy(y: Double) = box.toViewY(y, scrollY)
-        when (g) {
-            is DrawingGuide.Setsquare -> {
-                val c = g.corners()
-                chrome.guidePath.reset()
-                chrome.guidePath.moveTo(vx(c[0].first), vy(c[0].second))
-                chrome.guidePath.lineTo(vx(c[1].first), vy(c[1].second))
-                chrome.guidePath.lineTo(vx(c[2].first), vy(c[2].second))
-                chrome.guidePath.close()
-                canvas.drawPath(chrome.guidePath, chrome.guideFill)
-                canvas.drawPath(chrome.guidePath, chrome.guideStroke)
-            }
-            is DrawingGuide.Compass -> {
-                canvas.drawCircle(vx(g.x), vy(g.y), (g.radius * s).toFloat(), chrome.guideStroke)
-                canvas.drawCircle(vx(g.x), vy(g.y), HANDLE_DRAW_PX, chrome.guideHandle)
-            }
-        }
-        val tip = guideDrag.tipOf(g)
-        canvas.drawCircle(vx(tip.first), vy(tip.second), HANDLE_DRAW_PX, chrome.guideHandle)
-    }
-
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -1251,35 +1218,6 @@ class DrawingSurfaceView @JvmOverloads constructor(
         val wasDragging = overview.dragging
         overview.endDrag()
         if (wasDragging) render()
-    }
-
-    /** Grey out the lifted page and outline the slot it would drop into. */
-    private fun drawPageDrag(canvas: Canvas) {
-        layout.boxes.getOrNull(overview.dragIndex)?.let { box ->
-            canvas.drawRect(
-                box.leftPx - scrollX, box.topPx - scrollY,
-                box.rightPx - scrollX, box.bottomPx - scrollY, chrome.pageLift,
-            )
-        }
-        layout.boxes.getOrNull(overview.dropIndex)?.let { box ->
-            canvas.drawRect(
-                box.leftPx - scrollX, box.topPx - scrollY,
-                box.rightPx - scrollX, box.bottomPx - scrollY, chrome.pageDrop,
-            )
-        }
-    }
-
-    /** Tint and outline every selected page, so the pending bulk delete's targets are obvious. */
-    private fun drawPageSelection(canvas: Canvas) {
-        for (index in overview.selected) {
-            val box = layout.boxes.getOrNull(index) ?: continue
-            val l = box.leftPx - scrollX
-            val t = box.topPx - scrollY
-            val r = box.rightPx - scrollX
-            val b = box.bottomPx - scrollY
-            canvas.drawRect(l, t, r, b, chrome.pageSelectFill)
-            canvas.drawRect(l, t, r, b, chrome.pageSelect)
-        }
     }
 
     // --- palette invocation gestures -------------------------------------------------------------
@@ -1436,7 +1374,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // that never send the button actions still work.
 
     private val barrelClicks = BarrelClickDetector()
-    private var barrelWasDown = false
+    internal var barrelWasDown = false
 
     /** Feed one off-glass event's button state to [barrelClicks] and run the action it completes. */
     private fun trackBarrelClicks(event: MotionEvent) {
@@ -1516,7 +1454,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         (event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY) != 0
 
     /** The on-screen tool collapsed to the classifier's [ActiveTool]. */
-    private fun activeTool(): ActiveTool = when {
+    internal fun activeTool(): ActiveTool = when {
         verticalSpaceMode -> ActiveTool.VERTICAL_SPACE
         placeKind != null -> ActiveTool.PLACE
         handMode -> ActiveTool.HAND
@@ -1999,7 +1937,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Highlighter is stored semi-transparent so it round-trips (and renders) translucent. */
-    private fun strokeColor(): Int =
+    internal fun strokeColor(): Int =
         if (tool == Tool.HIGHLIGHTER && (colorArgb ushr 24) == 0xFF) {
             colorArgb.withAlpha(XoppColor.HIGHLIGHTER_ALPHA)
         } else {
@@ -2086,266 +2024,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
-    private fun relayout() {
-        layout = PageStacker.stack(doc.pages, width, DrawingSurfaceDefaults.GAP_PX, zoom, columns)
-        viewport.setBounds(width.toFloat(), height.toFloat(), layout.contentWidthPx, layout.totalHeightPx)
-    }
-
-    /**
-     * Ask for one redraw from a background thread, collapsing a burst into a single frame. Several
-     * tiles of the same pan often finish within one frame's time; posting a [render] for each would
-     * repaint the whole viewport that many times over.
-     */
-    private fun requestRender() {
-        if (renderPosted.getAndSet(true)) return
-        post {
-            renderPosted.set(false)
-            render()
-        }
-    }
-
-    /**
-     * Ask for a repaint at the next display frame, collapsing everything asked for in between into
-     * one [paint].
-     *
-     * Painting is **never** done straight from an input handler. A stylus/touch digitiser reports
-     * far faster than the display refreshes (240 Hz against 120 Hz on the large tablets), so a
-     * synchronous paint per event posts two or more buffers per vsync. The compositor latches
-     * whichever happens to be newest at each vsync, so the position it shows walks back and forth
-     * between samples instead of advancing — the flicker seen when zoomed in on a big screen, where
-     * a paint is slow enough to keep several buffers in flight. Pacing to the [Choreographer] posts
-     * exactly one buffer per vsync, in phase, so every frame shown is the newest state.
-     */
-    private fun render() {
-        // A glide already paints once per vsync from [MomentumDriver]; posting a second callback for the
-        // same frame would post two buffers per vsync and bring back exactly the buffer-walk flicker
-        // above. This is the common case when zoomed in and panning: every PDF tile that lands calls
-        // back into [requestRender] mid-fling. Whatever asked for this repaint is shown by the glide's
-        // own frame anyway, so dropping the request loses nothing.
-        if (paintPosted || momentum.isFlinging) return
-        paintPosted = true
-        choreographer.postFrameCallback(paintCallback)
-    }
-
-    /**
-     * Lock the surface for one frame, preferring the **GPU** canvas.
-     *
-     * [SurfaceHolder.lockCanvas] hands back a *software* canvas: every pixel of the window is
-     * rasterised and blended on the CPU, so a frame costs time proportional to the window's pixel
-     * area no matter how little is on the page. On a large tablet that is several million pixels a
-     * frame, which is why flicking pages full-screen crawls while the identical gesture in a
-     * split-screen (half the pixels) stays smooth. [SurfaceHolder.lockHardwareCanvas] records the
-     * same draw calls and replays them on the GPU, where fill rate is essentially free and the
-     * cached page bitmaps become plain textured blits.
-     *
-     * Falls back to the software canvas if the hardware one is unavailable (no GL context, an
-     * emulator without a working renderer), so the view still paints rather than going black.
-     */
-    private fun lockCanvasForFrame(): Canvas? =
-        try {
-            holder.lockHardwareCanvas()
-        } catch (_: IllegalStateException) {
-            null
-        } ?: holder.lockCanvas()
-
-    private fun paint() {
-        paintPosted = false
-        if (!holder.surface.isValid) return
-        val canvas = lockCanvasForFrame() ?: return
-        try {
-            canvas.drawColor(chrome.backdropColor)
-            val visible = layout.visible(scrollY, height.toFloat())
-            for (box in visible) {
-                BackgroundRenderer.draw(
-                    canvas, box, scrollX, scrollY, pageBitmapFor(box), pdfTilesFor(box),
-                    width.toFloat(), height.toFloat(),
-                )
-                drawPageElements(canvas, box)
-            }
-            inkCache.retain(visible.mapTo(HashSet()) { it.index })
-            retainPdfPins(visible)
-            prefetchAround(visible)
-            drawCurrent(canvas)
-            drawTextSelection(canvas)
-            selection?.let { drawSelectionBox(canvas, it) }
-            if (overview.selected.isNotEmpty()) drawPageSelection(canvas)
-            if (overview.dragging) drawPageDrag(canvas)
-            if (gestures.banding) drawBand(canvas)
-            if (vspace.active) drawVerticalSpaceGuide(canvas)
-            drawGuide(canvas)
-            if (erasing) drawEraserTip(canvas, eraseX, eraseY)
-            if (hovering && showHover && current == null && !erasing) {
-                if (erasesNow()) drawEraserTip(canvas, hoverX, hoverY) else drawHover(canvas)
-            }
-            paletteOverlay?.let {
-                RadialPaletteRenderer.draw(canvas, chrome, it, width.toFloat(), height.toFloat())
-            }
-        } finally {
-            holder.unlockCanvasAndPost(canvas)
-        }
-        reportCurrentPage()
-        reportScroll()
-    }
-
-    /**
-     * The picture to blit behind [box] — the rasterised PDF page for a `pdf` background, the decoded
-     * image for a `pixmap` one, null for anything else (the renderer then draws sheet and ruling).
-     * Both caches fill asynchronously, so this never stalls a frame.
-     */
-    private fun pageBitmapFor(box: PageBox): Bitmap? = when (val bg = box.page.background) {
-        is Background.Pdf -> pdfSource?.request(bg.pageNo, box.widthPx.toInt())
-        is Background.Pixmap -> imageSource.request(bg.filename, box.widthPx.toInt())
-        else -> null
-    }
-
-    /**
-     * Open the bytes a `pixmap` background's `filename` points at. The local copy the loader made
-     * ([setImageSources]) wins whenever there is one — it is the only form that works for a picture
-     * bundled in a ZIP package or living beside the `.xopp`, and it outlives the grant the original
-     * was opened under. Otherwise the reference is opened directly: a `content://` URI through the
-     * resolver, a plain path off disk (what a desktop-written `.xopp` carries).
-     */
-    private fun openBackgroundImage(reference: String): java.io.InputStream? = runCatching {
-        imageBackgrounds[reference]?.takeIf { it.isFile }?.let { return@runCatching it.inputStream() }
-        if (reference.contains("://")) {
-            context.contentResolver.openInputStream(android.net.Uri.parse(reference))
-        } else {
-            java.io.File(reference).takeIf { it.isFile }?.inputStream()
-        }
-    }.getOrNull()
-
-    /**
-     * The full-resolution tiles for the visible part of a `pdf`-backed page, drawn over the
-     * (upscaled) whole-page bitmap. Empty until the zoom passes the whole-page raster ceiling, so
-     * normal reading costs exactly what it did before. Like [pdfBitmapFor] this never blocks: a tile
-     * that isn't cached yet is queued and arrives on a later frame.
-     */
-    private fun pdfTilesFor(box: PageBox): List<PdfTile> {
-        val bg = box.page.background as? Background.Pdf ?: return emptyList()
-        val src = pdfSource ?: return emptyList()
-        if (box.widthPx <= 0f || box.heightPx <= 0f) return emptyList()
-        val x = scrollX - box.leftPx
-        val y = scrollY - box.topPx
-        return src.requestTiles(
-            bg.pageNo, box.widthPx.toInt(),
-            (x / box.widthPx).coerceIn(0f, 1f),
-            (y / box.heightPx).coerceIn(0f, 1f),
-            ((x + width) / box.widthPx).coerceIn(0f, 1f),
-            ((y + height) / box.heightPx).coerceIn(0f, 1f),
-        )
-    }
-
-    /**
-     * Tell the PDF cache which pages are still on screen, so it stops protecting the tiles of pages
-     * we have scrolled past. Uses the PDF page numbers, the same key [pdfTilesFor] pins under.
-     */
-    private fun retainPdfPins(visible: List<PageBox>) {
-        val src = pdfSource ?: return
-        src.retain(visible.mapNotNullTo(HashSet()) { (it.page.background as? Background.Pdf)?.pageNo })
-    }
-
-    /**
-     * Warm the pages just outside the viewport so scrolling meets a filled cache rather than a
-     * rasterise. One page either side is enough to cover a flick at reading speed.
-     */
-    private fun prefetchAround(visible: List<PageBox>) {
-        val src = pdfSource ?: return
-        if (visible.isEmpty()) return
-        val first = visible.first().index
-        val last = visible.last().index
-        for (i in intArrayOf(first - 1, last + 1)) {
-            val box = layout.boxes.getOrNull(i) ?: continue
-            val bg = box.page.background as? Background.Pdf ?: continue
-            src.prefetch(bg.pageNo, box.widthPx.toInt())
-        }
-    }
-
-    /**
-     * Paint one page's ink. The [InkCache] handles it as a single blit whenever it can; a gesture
-     * that rewrites the page every frame (drag/resize/rotate/erase) would only thrash the raster, so
-     * those fall through to submitting elements directly — as does any page too large to cache.
-     */
-    private fun drawPageElements(canvas: Canvas, box: PageBox) {
-        val hidden = if (hiddenLayers.isEmpty()) {
-            emptySet()
-        } else {
-            box.page.layers.indices.filterTo(HashSet()) { isLayerHidden(box.index, it) }
-        }
-        if (inkCacheUsable &&
-            inkCache.draw(canvas, box, scrollX, scrollY, hidden, strokePainter, elementRenderer)
-        ) {
-            return
-        }
-        PageRenderer.drawElements(
-            canvas, box.page, box.scale, box.leftPx - scrollX, box.topPx - scrollY,
-            strokePainter, elementRenderer, hidden, visibleBounds(box),
-        )
-    }
-
     /** False during gestures that rewrite the page model each frame, where caching would thrash. */
-    private val inkCacheUsable: Boolean
+    internal val inkCacheUsable: Boolean
         get() = !gestures.transforming && !erasing
-
-    /**
-     * The viewport in this page's local pt space, so [PageRenderer] can drop elements that can't be
-     * on screen. At high zoom a page spans many screens, where almost every stroke is off-screen and
-     * submitting it costs thousands of canvas calls Skia would only clip away.
-     */
-    private fun visibleBounds(box: PageBox): Bounds? {
-        if (box.scale <= 0f) return null
-        val s = box.scale.toDouble()
-        val left = box.toPtX(0f, scrollX)
-        val top = box.toPtY(0f, scrollY)
-        return Bounds(left, top, left + width / s, top + height / s)
-    }
-
-    private fun drawCurrent(canvas: Canvas) {
-        val pts = current ?: return
-        val box = layout.boxes.getOrNull(currentPage) ?: return
-        strokePainter.draw(
-            canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY,
-            currentLineStyle, currentFill,
-        )
-    }
-
-    /** Highlight the selected PDF-text word boxes (the same frame as strokes, so it tracks scroll/zoom). */
-    private fun drawTextSelection(canvas: Canvas) {
-        val index = pdfTextIndex ?: return
-        if (textSelPage < 0 || textSelAnchor < 0) return
-        val box = layout.boxes.getOrNull(textSelPage) ?: return
-        for (w in index.rangeBoxes(textSelPage, textSelAnchor, textSelFocus)) {
-            val l = (w.left * box.scale + box.leftPx - scrollX).toFloat()
-            val t = (w.top * box.scale + box.topPx - scrollY).toFloat()
-            val r = (w.right * box.scale + box.leftPx - scrollX).toFloat()
-            val b = (w.bottom * box.scale + box.topPx - scrollY).toFloat()
-            canvas.drawRect(l, t, r, b, chrome.textSelect)
-        }
-    }
-
-    /** Draw the dashed selection outline (padded a little), the four resize handles, and — for an
-     * all-stroke selection — the top rotate knob. */
-    private fun drawSelectionBox(canvas: Canvas, sel: ActiveSelection) {
-        val box = layout.boxes.getOrNull(sel.pageIndex) ?: return
-        val page = doc.pages.getOrNull(sel.pageIndex) ?: return
-        val b = SelectionTester.boundsOf(page, sel.refs) ?: return
-        val l = (b.left * box.scale + box.leftPx - scrollX).toFloat() - DrawingSurfaceDefaults.SELECT_PAD_PX
-        val t = (b.top * box.scale + box.topPx - scrollY).toFloat() - DrawingSurfaceDefaults.SELECT_PAD_PX
-        val r = (b.right * box.scale + box.leftPx - scrollX).toFloat() + DrawingSurfaceDefaults.SELECT_PAD_PX
-        val bot = (b.bottom * box.scale + box.topPx - scrollY).toFloat() + DrawingSurfaceDefaults.SELECT_PAD_PX
-        canvas.drawRect(l, t, r, bot, chrome.selectionFill)
-        canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
-        // Corner resize handles.
-        for (hx in floatArrayOf(l, r)) for (hy in floatArrayOf(t, bot)) {
-            canvas.drawCircle(hx, hy, HANDLE_DRAW_PX, chrome.handle)
-        }
-        // Rotate knob poking out midway from the right edge (strokes only).
-        if (gestures.isAllStrokes(sel)) {
-            val midY = (t + bot) / 2f
-            val knobX = r + DrawingSurfaceDefaults.ROTATE_ARM_PX
-            canvas.drawLine(r, midY, knobX, midY, chrome.handleArm)
-            canvas.drawCircle(knobX, midY, HANDLE_DRAW_PX, chrome.handle)
-        }
-    }
 
     /**
      * Open [palette] anchored at ([x], [y]) in view pixels — where the gesture that summoned it was.
@@ -2449,57 +2130,4 @@ class DrawingSurfaceView @JvmOverloads constructor(
         onPaletteAction?.invoke(action)
     }
 
-    /**
-     * True when the pointer in hand rubs out: the Eraser tool, a pen flipped onto its eraser tip, or
-     * a hovering stylus with the barrel held while the button is bound to [BarrelAction.ERASE] — the
-     * same rule [InputClassifier] applies at pointer-down, so the preview matches what a touch does.
-     */
-    private fun erasesNow(): Boolean =
-        InputClassifier.classify(hoverKind, barrelWasDown, activeTool(), inputSettings) ==
-            GestureIntent.ERASE
-
-    /**
-     * The eraser tip outline (view px): a thin circle at exactly the radius [PageEraser] will clear,
-     * so the boundary is visible. Pure chrome — it is never part of the document or the saved file.
-     */
-    private fun drawEraserTip(canvas: Canvas, vx: Float, vy: Float) {
-        val box = layout.pageAt(vx + scrollX, vy + scrollY) ?: layout.boxes.getOrNull(currentPage)
-        val scale = box?.scale ?: 1f
-        canvas.drawCircle(vx, vy, (eraserRadiusPt * scale).toFloat(), chrome.eraserOutline)
-    }
-
-    private fun drawHover(canvas: Canvas) {
-        val r = (baseWidthPt * 3f).coerceIn(6f, 28f)
-        chrome.tintHover(colorArgb)
-        canvas.drawCircle(hoverX, hoverY, r, chrome.hover)
-    }
-
-    /** Draw the vertical-space grab line across the page being reflowed (view px). */
-    private fun drawVerticalSpaceGuide(canvas: Canvas) {
-        val box = layout.boxes.getOrNull(vspace.page) ?: return
-        val left = box.leftPx - scrollX
-        val right = left + box.widthPx
-        canvas.drawRect(left, vspace.lineViewY - 1f, right, vspace.lineViewY + 1f, chrome.selectionStroke)
-    }
-
-    /** Draw the live marquee (view px): a rectangle, or the traced lasso path in lasso mode. */
-    private fun drawBand(canvas: Canvas) {
-        val pts = gestures.lassoPts
-        if (lassoMode && pts.size >= 4) {
-            chrome.lassoPath.reset()
-            chrome.lassoPath.moveTo(pts[0], pts[1])
-            var i = 2
-            while (i < pts.size) { chrome.lassoPath.lineTo(pts[i], pts[i + 1]); i += 2 }
-            chrome.lassoPath.close()
-            canvas.drawPath(chrome.lassoPath, chrome.bandFill)
-            canvas.drawPath(chrome.lassoPath, chrome.selectionStroke)
-            return
-        }
-        val l = min(gestures.bandX0, gestures.bandX1)
-        val t = min(gestures.bandY0, gestures.bandY1)
-        val r = max(gestures.bandX0, gestures.bandX1)
-        val bot = max(gestures.bandY0, gestures.bandY1)
-        canvas.drawRect(l, t, r, bot, chrome.bandFill)
-        canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
-    }
 }

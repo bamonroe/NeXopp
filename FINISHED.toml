@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-drawingsurface-paint"
+title = "Split DrawingSurfaceView 2/6: extract the render/paint loop"
+description = "Step 2 of the DrawingSurfaceView split: create render/DrawingSurfacePaint.kt with extension functions for the render loop and all drawing (~450 lines from ranges ~1109, ~1261-1292 and ~2092-2508): relayout, requestRender, render, lockCanvasForFrame, paint, pageBitmapFor, openBackgroundImage, pdfTilesFor, retainPdfPins, prefetchAround, drawPageElements, visibleBounds, drawCurrent, drawTextSelection, drawSelectionBox, drawGuide, drawPageDrag, drawPageSelection, drawEraserTip, drawHover, drawVerticalSpaceGuide, drawBand, erasesNow. While moving, fix the stale KDoc link at ~line 2224: pdfBitmapFor was renamed to pageBitmapFor. scripts/build.sh testDebugUnitTest; update docs/architecture.md."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-06
+tags = ["audit", "split-dsv"]
+
+[[task]]
 id = "split-drawingsurface-constants"
 title = "Split DrawingSurfaceView 1/6: extract constants and blank-doc helpers"
 description = "render/DrawingSurfaceView.kt is 2549 lines — the one true mono-file in the repo and the largest violation of the CLAUDE.md size rules. The split strategy (steps 1-6, separate tasks tagged split-dsv) keeps DrawingSurfaceView one class and moves method groups into extension files in the same package; private members that moved code touches become internal. Step 1: move the internal companion object body (~lines 2509-2548: ~25 constants plus blankDocument/blankPage) into a new render/DrawingSurfaceConstants.kt as a top-level internal object DrawingSurfaceDefaults plus internal fun blankDocument()/blankPage(); update the ~30 call sites. Verify with scripts/build.sh testDebugUnitTest. Update the render/ list in docs/architecture.md in the same commit (each split step does this). The final step (split-drawingsurface-selection) does the full build and emulator verify for the whole split."
