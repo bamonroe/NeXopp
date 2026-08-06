@@ -112,7 +112,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var current: ArrayList<StrokePoint>? = null
     internal var currentPage = 0
     /** While drawing a shape ([shapeKind] set), the drag anchor in page-local pt and the live flag. */
-    private var shaping = false
+    internal var shaping = false
     private var shapeStartX = 0.0
     private var shapeStartY = 0.0
     /**
@@ -124,7 +124,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** The spline tool's control points so far (page-local pt); non-empty means one is being laid down. */
     private val splineNodes = ArrayList<SplineNode>()
     /** True between the down and up of a tap that is placing/curving the newest spline node. */
-    private var splineDragging = false
+    internal var splineDragging = false
     /** Where the pointer went down on the current spline node, so a drag can be read as its tangent. */
     private var splineAnchorX = 0.0
     private var splineAnchorY = 0.0
@@ -133,9 +133,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var splineTapX = 0f
     private var splineTapY = 0f
     /** Pointer id owning the current draw/erase gesture, so a resting palm can't perturb it. */
-    private var gesturePointerId = -1
+    internal var gesturePointerId = -1
     /** True while a stylus/eraser tip owns the current draw/erase gesture (drives palm rejection). */
-    private var stylusOwner = false
+    internal var stylusOwner = false
     // Hover preview position (view px) and whether a stylus is currently hovering.
     internal var hovering = false
     internal var hoverX = 0f
@@ -153,16 +153,16 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var presetColors: Map<String, Int> = emptyMap()
     /** Fired with the action of the slot a palette flick landed on; the editor applies it. */
     var onPaletteAction: ((PaletteAction) -> Unit)? = null
-    private var scrolling = false
+    internal var scrolling = false
     internal var erasing = false
-    private var placing = false
+    internal var placing = false
     private var placeDownX = 0f
     private var placeDownY = 0f
-    private var lastFocusY = 0f
-    private var lastFocusX = 0f
+    internal var lastFocusY = 0f
+    internal var lastFocusX = 0f
     /** The two-finger span (mean pointer distance from the focus, view px) at the last pan frame,
      * so a change in span drives a proportional pinch-zoom. 0 means "re-baseline on the next frame". */
-    private var lastSpan = 0f
+    internal var lastSpan = 0f
 
     // Momentum scrolling: a released pan keeps gliding, decelerating, until it stalls or hits a bound.
     // The whole loop — velocity tracking, the release seed, and the per-frame glide — is [MomentumDriver]'s.
@@ -204,25 +204,25 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // Hand-tool double-tap: a centre double-tap toggles full-page view, a left/right-edge double-tap
     // pages back/forward. Detected manually (single-finger tap = down→up without exceeding tap slop).
-    private val doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong()
-    private val doubleTapSlopPx = ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat()
+    internal val doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong()
+    internal val doubleTapSlopPx = ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat()
     /** The current single touch's down time/position, and whether it has moved past tap slop (→ a pan). */
-    private var handTapDownTime = 0L
-    private var handTapDownX = 0f
-    private var handTapDownY = 0f
-    private var handTapCandidate = false
-    private var handTapMoved = false
+    internal var handTapDownTime = 0L
+    internal var handTapDownX = 0f
+    internal var handTapDownY = 0f
+    internal var handTapCandidate = false
+    internal var handTapMoved = false
     /** The previous confirmed tap's down time/position, to match the next tap against for a double-tap. */
-    private var handFirstTapTime = 0L
-    private var handFirstTapX = 0f
-    private var handFirstTapY = 0f
+    internal var handFirstTapTime = 0L
+    internal var handFirstTapX = 0f
+    internal var handFirstTapY = 0f
 
     // Page-overview drag-to-reorder: in the multi-column grid a finger long-press lifts a page and the
     // drag drops it at another slot. Armed on touch-down, fired by [pageDragArm] after the long-press
     // timeout; see [startPageDrag]. The state it moves through lives in [overview].
     private val longPressMs = ViewConfiguration.getLongPressTimeout().toLong()
     private val touchSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
-    private val pageDragArm = Runnable { startPageDrag() }
+    internal val pageDragArm = Runnable { startPageDrag() }
 
     /** The page-overview grid's view state: edit mode, selection, clipboard, lift (see [PageOverview]). */
     internal val overview = PageOverview(
@@ -243,9 +243,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var lastScrollReport = Triple(-1f, -1f, -1f)
 
     /** Undo/redo snapshots of the whole [Document] (cheap: immutable pages/layers share structure). */
-    private val history = EditHistory<Document>()
+    internal val history = EditHistory<Document>()
     /** The document as it was when the current gesture began, so one gesture is one undo step. */
-    private var gestureStartDoc: Document? = null
+    internal var gestureStartDoc: Document? = null
 
     /** The page/layer edit commands and the two commit pipelines behind them (see [PageCommands]). */
     private val pages = PageCommands(
@@ -451,7 +451,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onTextSelectionChanged: ((Boolean) -> Unit)? = null
 
     // Live/committed PDF-text selection: a page and an inclusive reading-order word range.
-    private var textSelecting = false
+    internal var textSelecting = false
     internal var textSelPage = -1
     internal var textSelAnchor = -1
     internal var textSelFocus = -1
@@ -619,7 +619,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         notifyHistory()
     }
 
-    private fun notifyHistory() {
+    internal fun notifyHistory() {
         onHistoryChanged?.invoke(history.canUndo, history.canRedo)
     }
 
@@ -662,7 +662,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * pixel ([focusVx], [focusVy]) fixed — the anchor for pinch-zoom. Unlike [setZoom] this does not
      * render; the pan frame that drives it renders once at the end. No-op if the clamp bites.
      */
-    private fun zoomAbout(focusVx: Float, focusVy: Float, factor: Float) {
+    internal fun zoomAbout(focusVx: Float, focusVy: Float, factor: Float) {
         if (viewport.zoomAbout(focusVx, focusVy, factor, ::relayout)) onZoomChanged?.invoke(zoom)
     }
 
@@ -758,7 +758,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun setPageSize(widthPt: Double, heightPt: Double) = pages.setPageSize(widthPt, heightPt)
 
     /** Index of the page nearest the viewport centre — the one add/remove act on. */
-    private fun currentPageIndex(): Int =
+    internal fun currentPageIndex(): Int =
         layout.nearestPage(scrollX + width / 2f, scrollY + height / 2f)?.index ?: doc.pages.lastIndex.coerceAtLeast(0)
 
     // --- layers --------------------------------------------------------------------------------
@@ -882,7 +882,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // --- selection: rubber-band / tap to select, drag to move, delete --------------------------
 
     /** Down in Select mode: clear the other modes and let [SelectionGestureController] take it. */
-    private fun beginSelect(event: MotionEvent) {
+    internal fun beginSelect(event: MotionEvent) {
         scrolling = false
         erasing = false
         placing = false
@@ -891,7 +891,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Down with the vertical-space tool: clear the other modes and hand off to [VerticalSpaceDrag]. */
-    private fun beginVerticalSpace(event: MotionEvent) {
+    internal fun beginVerticalSpace(event: MotionEvent) {
         scrolling = false; erasing = false; placing = false; current = null
         val page = vspace.begin(event.x, event.y) ?: return
         currentPage = page
@@ -902,7 +902,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // --- PDF text selection ---------------------------------------------------------------------
 
     /** Down with the text-select tool: anchor the selection at the word nearest the touch. */
-    private fun beginTextSelect(event: MotionEvent) {
+    internal fun beginTextSelect(event: MotionEvent) {
         scrolling = false; erasing = false; placing = false; current = null
         val index = pdfTextIndex ?: return
         val pageIndex = layout.pageAt(event.x + scrollX, event.y + scrollY)?.index ?: return
@@ -917,7 +917,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Drag: extend the selection to the word nearest the touch (kept on the anchor's page). */
-    private fun textSelectMove(event: MotionEvent) {
+    internal fun textSelectMove(event: MotionEvent) {
         val index = pdfTextIndex ?: return
         val box = layout.boxes.getOrNull(textSelPage) ?: return
         val focus = index.anchorWord(textSelPage, box.toPtX(event.x, scrollX), box.toPtY(event.y, scrollY)) ?: return
@@ -1099,69 +1099,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     // --- touch: the pen draws (or erases), fingers pan; input is routed through InputClassifier ----
 
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        // The open palette swallows the whole gesture before anything can begin — no stroke, no pan.
-        if (paletteOpen) return paletteTouch(event)
-        when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                momentum.stop(); beginPointer(event, 0); beginHandTap(event); armPageDrag(event)
-                armPaletteLongPress(event)
-            }
-            MotionEvent.ACTION_POINTER_DOWN -> {
-                handTapCandidate = false; cancelPageDrag(); cancelPaletteLongPress()
-                trackPaletteTapDown(event); onPointerDown(event)
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (handTapCandidate) trackHandTapMove(event)
-                trackPageDragArm(event)
-                trackPaletteLongPressMove(event)
-                trackPaletteTapMove(event)
-                // A lifted page owns the gesture outright — no panning, drawing or erasing underneath it.
-                if (overview.dragging) { pageDragMove(event); return true }
-                // The guide is dragged by its own finger and runs *alongside* the other gestures —
-                // holding it steady while the pen rules along it is the whole point.
-                if (guideDrag.dragging) guideDrag.move(event)
-                when {
-                    scrolling -> doScroll(event)
-                    erasing -> eraseMove(event)
-                    placing -> placeMove(event)
-                    gestures.resizing -> gestures.resizeSelect(event)
-                    gestures.rotating -> gestures.rotateSelect(event)
-                    gestures.moving -> gestures.moveSelect(event)
-                    vspace.active -> vspace.move(event.y)
-                    gestures.banding -> gestures.bandMove(event)
-                    textSelecting -> textSelectMove(event)
-                    splineDragging -> splineMove(event)
-                    current != null -> extendStroke(event)
-                    else -> Unit
-                }
-            }
-            // The two-finger tap is decided on the *first* lift — before the surviving finger can be
-            // handed a pan by [onPointerUp] — and takes the whole gesture with it when it fires.
-            MotionEvent.ACTION_POINTER_UP -> {
-                if (openPaletteOnTwoFingerTap(event)) return true
-                onPointerUp(event)
-            }
-            // A spline node is still mid-curve on release — it must not run the commit-and-finish path.
-            MotionEvent.ACTION_UP -> when {
-                overview.dragging -> { overview.disarm(); removeCallbacks(pageDragArm); finishPageDrag() }
-                splineDragging -> splineUp(event)
-                else -> {
-                    cancelPageDrag(); cancelPaletteLongPress(); paletteTap.cancel()
-                    captureReleaseVelocity(event); handleHandTapUp(event); endGesture()
-                }
-            }
-            MotionEvent.ACTION_CANCEL -> {
-                handTapCandidate = false; cancelPageDrag(); cancelPaletteLongPress()
-                paletteTap.cancel(); cancelGesture()
-            }
-            else -> return super.onTouchEvent(event)
-        }
-        return true
-    }
+    override fun onTouchEvent(event: MotionEvent): Boolean =
+        handleTouch(event) ?: super.onTouchEvent(event)
 
     /** Latch the pan's release velocity as the fling seed — see [MomentumDriver.captureRelease]. */
-    private fun captureReleaseVelocity(event: MotionEvent) =
+    internal fun captureReleaseVelocity(event: MotionEvent) =
         momentum.captureRelease(event.eventTime, focusX(event, skip = -1), focusY(event, skip = -1))
 
     // --- page-overview drag-to-reorder -----------------------------------------------------------
@@ -1170,7 +1112,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     // candidate, so drawing on a grid page is untouched.
 
     /** Arm the long-press that lifts a page, for a single finger down on the overview grid. */
-    private fun armPageDrag(event: MotionEvent) {
+    internal fun armPageDrag(event: MotionEvent) {
         cancelPageDrag()
         if (columns <= 1 || !overview.editMode || event.pointerCount != 1) return
         if (pointerKindOf(event, 0) != PointerKind.FINGER) return
@@ -1179,7 +1121,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** A touch that travels past slop before the timeout is a pan, not a page lift. */
-    private fun trackPageDragArm(event: MotionEvent) {
+    internal fun trackPageDragArm(event: MotionEvent) {
         if (!overview.armed) return
         if (hypot(event.x - overview.armDownX, event.y - overview.armDownY) > touchSlopPx) cancelPageDrag()
     }
@@ -1197,13 +1139,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Track the finger to the page it is hovering over — that slot is where the drop lands. */
-    private fun pageDragMove(event: MotionEvent) {
+    internal fun pageDragMove(event: MotionEvent) {
         val target = layout.nearestPage(scrollX + event.x, scrollY + event.y) ?: return
         if (overview.moveDropTo(target.index)) render()
     }
 
     /** Commit the drop as one undoable reorder and follow the page to its new home. */
-    private fun finishPageDrag() {
+    internal fun finishPageDrag() {
         val move = overview.endDrag()
         if (move == null) { render(); return }
         val (from, to) = move
@@ -1212,7 +1154,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Disarm the pending long-press and drop any in-flight lift without reordering. */
-    private fun cancelPageDrag() {
+    internal fun cancelPageDrag() {
         if (overview.armed) removeCallbacks(pageDragArm)
         overview.disarm()
         val wasDragging = overview.dragging
@@ -1237,10 +1179,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private var paletteLongPressY = 0f
 
     /** The two-finger tap candidate; its rules — and their tests — live in [PaletteTapDetector]. */
-    private val paletteTap = PaletteTapDetector(touchSlopPx, DrawingSurfaceDefaults.TWO_FINGER_TAP_MS)
+    internal val paletteTap = PaletteTapDetector(touchSlopPx, DrawingSurfaceDefaults.TWO_FINGER_TAP_MS)
 
     /** Arm the pen-tip hold that opens the palette, for a single stylus pointer coming down. */
-    private fun armPaletteLongPress(event: MotionEvent) {
+    internal fun armPaletteLongPress(event: MotionEvent) {
         cancelPaletteLongPress()
         if (inputSettings.paletteInvocation != PaletteInvocation.PEN_TIP_LONG_PRESS) return
         if (event.pointerCount != 1) return
@@ -1253,7 +1195,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** A tip that travels past slop before the timeout is writing — never steal that stroke. */
-    private fun trackPaletteLongPressMove(event: MotionEvent) {
+    internal fun trackPaletteLongPressMove(event: MotionEvent) {
         if (!paletteLongPressArmed) return
         if (hypot(event.x - paletteLongPressX, event.y - paletteLongPressY) > touchSlopPx) {
             cancelPaletteLongPress()
@@ -1261,7 +1203,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Drop any pending pen-tip hold (moved, lifted, cancelled, or a second pointer arrived). */
-    private fun cancelPaletteLongPress() {
+    internal fun cancelPaletteLongPress() {
         if (!paletteLongPressArmed) return
         paletteLongPressArmed = false
         paletteTimer.removeCallbacks(paletteLongPressArm)
@@ -1280,14 +1222,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** A second finger landing starts a tap candidate; a third one ends any hope of a tap. */
-    private fun trackPaletteTapDown(event: MotionEvent) {
+    internal fun trackPaletteTapDown(event: MotionEvent) {
         if (inputSettings.paletteInvocation != PaletteInvocation.TWO_FINGER_TAP) return
         if (event.pointerCount != 2 || !bothFingers(event)) { paletteTap.cancel(); return }
         paletteTap.start(event.eventTime, event.getX(0), event.getY(0), event.getX(1), event.getY(1))
     }
 
     /** Feed both fingers to the detector, which drops the candidate once either one pans. */
-    private fun trackPaletteTapMove(event: MotionEvent) {
+    internal fun trackPaletteTapMove(event: MotionEvent) {
         if (event.pointerCount < 2) return
         paletteTap.move(event.getX(0), event.getY(0), event.getX(1), event.getY(1))
     }
@@ -1296,7 +1238,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * True when this lift completed a two-finger tap — in which case the pan it would otherwise have
      * become is cancelled and the palette opens midway between the fingers.
      */
-    private fun openPaletteOnTwoFingerTap(event: MotionEvent): Boolean {
+    internal fun openPaletteOnTwoFingerTap(event: MotionEvent): Boolean {
         val (x, y) = paletteTap.release(event.eventTime) ?: return false
         cancelPageDrag()
         cancelGesture()
@@ -1314,241 +1256,24 @@ class DrawingSurfaceView @JvmOverloads constructor(
     private fun bothFingers(event: MotionEvent): Boolean =
         (0 until event.pointerCount).all { pointerKindOf(event, it) == PointerKind.FINGER }
 
-    /** Arm double-tap tracking for a fresh single-finger touch, but only while the Hand tool is active. */
-    private fun beginHandTap(event: MotionEvent) {
-        handTapCandidate = handMode
-        handTapMoved = false
-        handTapDownTime = event.eventTime
-        handTapDownX = event.x
-        handTapDownY = event.y
-    }
-
-    /** A moved-too-far touch is a pan, not a tap — disqualify it from forming a double-tap. */
-    private fun trackHandTapMove(event: MotionEvent) {
-        if (hypot(event.x - handTapDownX, event.y - handTapDownY) > doubleTapSlopPx) handTapMoved = true
-    }
-
-    /** On lift, confirm a tap and — if it pairs with the previous one in time and place — fire the double-tap. */
-    private fun handleHandTapUp(event: MotionEvent) {
-        if (!handTapCandidate) return
-        handTapCandidate = false
-        // A flick is a pan, not a tap — even one whose travel stayed inside the tap slop. Without this
-        // a short-but-fast swipe in the overview grid would count as a tap and jump back to the page
-        // under the finger, cancelling the glide it should have started.
-        if (handTapMoved || momentum.hasRelease) { handFirstTapTime = 0L; return }
-        // In the overview grid a tap is about pages, not paging/zooming around: in edit mode it picks
-        // pages out for a bulk edit, in view mode it just jumps to the page you tapped.
-        if (columns > 1) {
-            handFirstTapTime = 0L
-            val box = layout.pageAt(scrollX + handTapDownX, scrollY + handTapDownY) ?: return
-            if (overview.editMode) overview.toggleSelection(box.index, doc.pages.size) else goToPage(box.index)
-            return
-        }
-        val pairsWithPrevious = handFirstTapTime != 0L &&
-            handTapDownTime - handFirstTapTime <= doubleTapTimeoutMs &&
-            hypot(handTapDownX - handFirstTapX, handTapDownY - handFirstTapY) <= doubleTapSlopPx
-        if (pairsWithPrevious) {
-            handFirstTapTime = 0L // consume, so a third tap doesn't immediately re-fire
-            onHandDoubleTap(handTapDownX)
-        } else {
-            handFirstTapTime = handTapDownTime
-            handFirstTapX = handTapDownX
-            handFirstTapY = handTapDownY
-        }
-    }
-
-    /** Route a Hand-tool double-tap by horizontal zone: left third → prev page, right third → next, centre → toggle full-page. */
-    private fun onHandDoubleTap(x: Float) {
-        val edge = width / 3f
-        when {
-            x < edge -> goToPage(currentPageIndex() - 1)
-            x > width - edge -> goToPage(currentPageIndex() + 1)
-            else -> onToggleFullPage?.invoke()
-        }
-    }
-
     // --- barrel double-click ---------------------------------------------------------------------
     // Recognised only while the tip is *off* the glass (hover / button-only events): with the tip
     // down the button is the held modifier ([BarrelAction]), and firing an undo mid-stroke would be
     // exactly wrong. Edges are derived from `buttonState` rather than ACTION_BUTTON_PRESS so devices
     // that never send the button actions still work.
 
-    private val barrelClicks = BarrelClickDetector()
+    internal val barrelClicks = BarrelClickDetector()
     internal var barrelWasDown = false
 
-    /** Feed one off-glass event's button state to [barrelClicks] and run the action it completes. */
-    private fun trackBarrelClicks(event: MotionEvent) {
-        val down = barrelPressed(event)
-        val edge = down && !barrelWasDown
-        // Holding the barrel arms the eraser before the tip ever lands, so the hover preview has to
-        // swap to the tip outline on the button edge — not on the first touch.
-        if (down != barrelWasDown) { barrelWasDown = down; if (hovering) render() }
-        if (!edge || !barrelClicks.press(event.eventTime)) return
-        // A second double-click while the menu is up commits the highlighted slot — the eyes-free
-        // way out for a pen that never comes down on the glass.
-        if (paletteOpen) { commitPalette(alwaysClose = true); return }
-        when (val action = inputSettings.barrelDoubleAction) {
-            BarrelDoubleAction.NONE -> Unit
-            BarrelDoubleAction.UNDO -> undo()
-            BarrelDoubleAction.REDO -> redo()
-            // The double-click setting is the sole owner of what the barrel button does: if it says
-            // palette, the palette opens, whatever touch gesture is also bound in the settings.
-            BarrelDoubleAction.RADIAL_PALETTE -> openPalette(palette, event.x, event.y)
-            else -> onBarrelDoubleClick?.invoke(action)
-        }
-    }
-
     /** Button-only events (press/release with the tip off the glass) arrive here, not in touch. */
-    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
-        trackBarrelClicks(event)
-        if (event.actionMasked == MotionEvent.ACTION_SCROLL && handleWheelScroll(event)) return true
-        return super.onGenericMotionEvent(event)
-    }
-
-    /**
-     * A mouse wheel notch scrolls the document vertically. Android reports wheel-down as a negative
-     * [MotionEvent.AXIS_VSCROLL], so the sign flips: wheel down moves *further down* the document,
-     * matching a scrollbar drag rather than a grab-the-paper pan. Zoom is untouched, and the move is
-     * clamped by the same [ViewportState] bounds the pan gesture uses.
-     */
-    private fun handleWheelScroll(event: MotionEvent): Boolean {
-        val notches = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
-        if (notches == 0f) return false
-        val step = DrawingSurfaceDefaults.WHEEL_SCROLL_DP * resources.displayMetrics.density
-        if (!scrollViewportBy(0f, -notches * step)) return false
-        render()
-        return true
-    }
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean =
+        handleGenericMotion(event) ?: super.onGenericMotionEvent(event)
 
     /** A hovering stylus (tip not yet down) drives a preview dot so the user can see where it'll land. */
-    override fun onHoverEvent(event: MotionEvent): Boolean {
-        trackBarrelClicks(event)
-        // Hovering *is* the flick: the pen picks a slot without ever touching the glass. A hover exit
-        // is not a cancel — it's what the tip coming down looks like, and the touch commits instead.
-        if (paletteOpen) movePaletteTo(event.x, event.y)
-        if (event.actionMasked == MotionEvent.ACTION_HOVER_EXIT) { barrelClicks.reset(); barrelWasDown = false }
-        val kind = pointerKindOf(event, 0)
-        if (!showHover || (kind != PointerKind.STYLUS && kind != PointerKind.ERASER_TIP)) {
-            if (hovering) { hovering = false; render() }
-            return super.onHoverEvent(event)
-        }
-        when (event.actionMasked) {
-            MotionEvent.ACTION_HOVER_ENTER, MotionEvent.ACTION_HOVER_MOVE -> {
-                hovering = true; hoverX = event.x; hoverY = event.y; hoverKind = kind; render()
-            }
-            MotionEvent.ACTION_HOVER_EXIT -> { hovering = false; render() }
-        }
-        return true
-    }
+    override fun onHoverEvent(event: MotionEvent): Boolean =
+        handleHover(event) ?: super.onHoverEvent(event)
 
-    /** Map one event pointer's tool type to our device-independent [PointerKind]. */
-    private fun pointerKindOf(event: MotionEvent, pointerIndex: Int): PointerKind =
-        when (event.getToolType(pointerIndex)) {
-            MotionEvent.TOOL_TYPE_STYLUS -> PointerKind.STYLUS
-            MotionEvent.TOOL_TYPE_ERASER -> PointerKind.ERASER_TIP
-            MotionEvent.TOOL_TYPE_FINGER -> PointerKind.FINGER
-            else -> PointerKind.UNKNOWN
-        }
-
-    private fun barrelPressed(event: MotionEvent): Boolean =
-        (event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY) != 0
-
-    /** The on-screen tool collapsed to the classifier's [ActiveTool]. */
-    internal fun activeTool(): ActiveTool = when {
-        verticalSpaceMode -> ActiveTool.VERTICAL_SPACE
-        placeKind != null -> ActiveTool.PLACE
-        handMode -> ActiveTool.HAND
-        textSelectMode -> ActiveTool.TEXT_SELECT
-        selectMode -> ActiveTool.SELECT
-        tool == Tool.ERASER -> ActiveTool.ERASER
-        tool == Tool.HIGHLIGHTER -> ActiveTool.HIGHLIGHTER
-        else -> ActiveTool.PEN
-    }
-
-    /** Begin a gesture for the pointer at [pointerIndex], its intent decided by [InputClassifier]. */
-    private fun beginPointer(event: MotionEvent, pointerIndex: Int) {
-        val kind = pointerKindOf(event, pointerIndex)
-        // A finger laid on the guide manipulates it, whatever the active tool — the pen keeps
-        // drawing against it meanwhile, exactly as you'd hold a real setsquare down and rule along it.
-        if (kind == PointerKind.FINGER && guideDrag.begin(event, pointerIndex)) return
-        // Play-object is a pure query — it never edits the document, so it short-circuits the whole
-        // gesture machinery rather than earning a GestureIntent of its own.
-        if (audioPlayMode) { audioTap(event, pointerIndex); return }
-        val intent = InputClassifier.classify(kind, barrelPressed(event), activeTool(), inputSettings)
-        stylusOwner = (kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP) &&
-            (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE)
-        when (intent) {
-            GestureIntent.PLACE -> beginPlace(event, pointerIndex)
-            GestureIntent.PAN -> beginScroll(event)
-            GestureIntent.SELECT -> beginSelect(event)
-            GestureIntent.SELECT_TEXT -> beginTextSelect(event)
-            GestureIntent.VERTICAL_SPACE -> beginVerticalSpace(event)
-            GestureIntent.ERASE -> startErase(event, pointerIndex)
-            // The spline tool is laid down over many taps, so it gets its own gesture path.
-            GestureIntent.DRAW ->
-                if (shapeKind == ShapeKind.SPLINE) splineDown(event, pointerIndex)
-                else startStroke(event, pointerIndex)
-            GestureIntent.IGNORE -> Unit
-        }
-    }
-
-    /**
-     * A second pointer arrived. A stylus/eraser tip takes over any in-progress finger gesture (so a
-     * palm that landed first can't block the pen); while a stylus already owns the gesture, extra
-     * finger/palm pointers are ignored (palm rejection); otherwise two fingers pan.
-     */
-    private fun onPointerDown(event: MotionEvent) {
-        val idx = event.actionIndex
-        val kind = pointerKindOf(event, idx)
-        when {
-            kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP -> {
-                abandonInProgress()
-                beginPointer(event, idx)
-            }
-            stylusOwner -> Unit // palm / finger resting while the pen writes: ignore
-            else -> beginScroll(event) // ordinary two-finger pan
-        }
-    }
-
-    /** If the pointer that lifted owns the draw/erase gesture, finish it; otherwise keep panning. */
-    private fun onPointerUp(event: MotionEvent) {
-        guideDrag.end(event)
-        val upId = event.getPointerId(event.actionIndex)
-        if (upId == gesturePointerId && (current != null || erasing)) {
-            endGesture()
-            return
-        }
-        lastFocusY = focusY(event, skip = event.actionIndex)
-        lastFocusX = focusX(event, skip = event.actionIndex)
-        // The span also jumps when a finger leaves; re-baseline it next frame so the drop isn't read as
-        // a pinch-out, mirroring the focus/velocity reset below.
-        lastSpan = 0f
-        // The focus jumps when a finger leaves, so restart the estimate from the new baseline —
-        // otherwise that discontinuity would read as a huge phantom flick. A side effect is that a
-        // two-finger release carries no momentum (its near-motionless single-finger tail is all that
-        // survives the reset), which is the intended feel — only a one-finger pan flings.
-        momentum.rebaseline(event.eventTime, lastFocusX, lastFocusY)
-    }
-
-    /** Drop any in-progress draw/erase/place/band/move without committing (a stylus is taking over). */
-    private fun abandonInProgress() {
-        clearSpline()
-        current = null; shaping = false; erasing = false; placing = false
-        scrolling = false; textSelecting = false; vspace.reset()
-        gestures.reset()
-    }
-
-    private fun cancelGesture() {
-        momentum.stop()
-        guideDrag.end(null)
-        clearSpline()
-        current = null; shaping = false; scrolling = false; erasing = false; placing = false
-        gestures.reset(); gestureStartDoc = null
-        textSelecting = false; vspace.reset()
-        gesturePointerId = -1; stylusOwner = false
-    }
-
-    private fun startStroke(event: MotionEvent, pointerIndex: Int) {
+    internal fun startStroke(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
         shaping = shapeKind != null
         gestureStartDoc = doc
@@ -1576,7 +1301,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         }
     }
 
-    private fun extendStroke(event: MotionEvent) {
+    internal fun extendStroke(event: MotionEvent) {
         val pointerIndex = event.findPointerIndex(gesturePointerId)
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
@@ -1601,7 +1326,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * A touch while the spline tool is active. A tap that pairs with the previous one (double-tap)
      * closes the curve; otherwise it appends a control point, which the following drag can curve.
      */
-    private fun splineDown(event: MotionEvent, pointerIndex: Int) {
+    internal fun splineDown(event: MotionEvent, pointerIndex: Int) {
         val x = event.getX(pointerIndex)
         val y = event.getY(pointerIndex)
         if (splineNodes.isNotEmpty() && pairsWithPreviousSplineTap(event.eventTime, x, y)) {
@@ -1629,7 +1354,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Dragging away from the tap grows the newest node's tangent handle, curving the curve live. */
-    private fun splineMove(event: MotionEvent) {
+    internal fun splineMove(event: MotionEvent) {
         val pointerIndex = event.findPointerIndex(gesturePointerId)
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
@@ -1640,7 +1365,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** The node is placed; the curve stays open, waiting for the next tap (or the finishing double-tap). */
-    private fun splineUp(event: MotionEvent) {
+    internal fun splineUp(event: MotionEvent) {
         splineDragging = false
         gesturePointerId = -1
         stylusOwner = false
@@ -1691,7 +1416,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         render()
     }
 
-    private fun clearSpline() {
+    internal fun clearSpline() {
         splineNodes.clear()
         splineDragging = false
         splineTapTime = 0L
@@ -1701,7 +1426,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** The eraser: touch/drag deletes any stroke it passes over on the page under the pointer. */
-    private fun startErase(event: MotionEvent, pointerIndex: Int) {
+    internal fun startErase(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
         erasing = true
         gestureStartDoc = doc
@@ -1711,7 +1436,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
     }
 
-    private fun eraseMove(event: MotionEvent) {
+    internal fun eraseMove(event: MotionEvent) {
         val pointerIndex = event.findPointerIndex(gesturePointerId)
         if (pointerIndex < 0) return
         val box = layout.boxes.getOrNull(currentPage) ?: return
@@ -1728,7 +1453,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** A tap in a placement tool: remember where it went down; a small drag cancels it. */
-    private fun beginPlace(event: MotionEvent, pointerIndex: Int) {
+    internal fun beginPlace(event: MotionEvent, pointerIndex: Int) {
         scrolling = false
         erasing = false
         current = null
@@ -1738,12 +1463,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
     }
 
     /** Moving past the tap slop turns a placement into a no-op (the user is scrubbing, not tapping). */
-    private fun placeMove(event: MotionEvent) {
+    internal fun placeMove(event: MotionEvent) {
         if (hypot(event.x - placeDownX, event.y - placeDownY) > DrawingSurfaceDefaults.TAP_SLOP_PX) placing = false
     }
 
     /** Fire [onPlace] for the page/point the tap landed on, hitting an existing text box if any. */
-    private fun commitPlace() {
+    internal fun commitPlace() {
         val kind = placeKind ?: return
         val box = layout.pageAt(placeDownX + scrollX, placeDownY + scrollY) ?: return
         val xPt = box.toPtX(placeDownX, scrollX)
@@ -1752,113 +1477,11 @@ class DrawingSurfaceView @JvmOverloads constructor(
         onPlace?.invoke(kind, Placement(box.index, xPt, yPt, existing))
     }
 
-    /** A second finger (or the Hand tool) started panning: abandon any partial stroke/erase/place. */
-    private fun beginScroll(event: MotionEvent) {
-        current = null
-        erasing = false
-        placing = false
-        scrolling = true
-        lastFocusY = focusY(event, skip = -1)
-        lastFocusX = focusX(event, skip = -1)
-        lastSpan = spanOf(event)
-        // A fresh pan starts with no carried flick — otherwise a near-motionless release could keep a
-        // latched velocity from the previous gesture (see [captureReleaseVelocity]).
-        momentum.clearRelease()
-        momentum.rebaseline(event.eventTime, lastFocusX, lastFocusY)
-    }
-
-    private fun doScroll(event: MotionEvent) {
-        val fy = focusY(event, skip = -1)
-        val fx = focusX(event, skip = -1)
-        // Pan gain: 1 tracks the finger one-to-one, <1 pans slower, >1 faster, 0 freezes the document.
-        scrollY = (scrollY + (lastFocusY - fy) * panSensitivity).coerceIn(0f, maxScrollY())
-        scrollX = (scrollX + (lastFocusX - fx) * panSensitivity).coerceIn(0f, maxScrollX())
-        lastFocusY = fy
-        lastFocusX = fx
-        // Two fingers also pinch-zoom: a change in span since the last frame scales zoom about the focus.
-        val span = spanOf(event)
-        if (lastSpan > DrawingSurfaceDefaults.PINCH_MIN_SPAN_PX && span > DrawingSurfaceDefaults.PINCH_MIN_SPAN_PX) zoomAbout(fx, fy, span / lastSpan)
-        lastSpan = span
-        momentum.track(event.eventTime, fx, fy)
-        render()
-    }
-
-    private fun maxScrollY(): Float = viewport.maxScrollY()
-    private fun maxScrollX(): Float = viewport.maxScrollX()
-
-    private fun endGesture() {
-        guideDrag.end(null)
-        // Snapshot then clear the mode flags first, so any render() inside a commit (e.g. the
-        // rubber-band) sees the gesture already ended and doesn't paint a stale marquee/overlay.
-        val wasScrolling = scrolling
-        val wasErasing = erasing
-        val wasPlacing = placing
-        val wasMoving = gestures.moving
-        val wasTransforming = gestures.resizing || gestures.rotating
-        val wasBanding = gestures.banding
-        val wasTextSelecting = textSelecting
-        val wasVspacing = vspace.active
-        vspace.reset()
-        scrolling = false
-        erasing = false
-        placing = false
-        textSelecting = false
-        gestures.reset()
-        when {
-            wasPlacing -> commitPlace()
-            wasMoving -> gestures.commitMove() // applied live; re-home if dropped on another page
-            wasTransforming -> Unit  // resize/rotate applied live; finishGesture records them
-            wasBanding -> gestures.commitBand()
-            wasTextSelecting -> Unit // the word range is updated live; the selection just stays put
-            // The shift is applied live and finishGesture records it as one undo step; the repaint is
-            // what clears the grab-line overlay, which would otherwise stay drawn after the release.
-            wasVspacing -> render()
-            !wasScrolling && !wasErasing -> commitCurrent()
-        }
-        finishGesture()
-        gesturePointerId = -1
-        stylusOwner = false
-        if (wasScrolling) momentum.launch(panSensitivity)
-    }
+    internal fun maxScrollY(): Float = viewport.maxScrollY()
+    internal fun maxScrollX(): Float = viewport.maxScrollX()
 
     /** Scroll the viewport by one glide step, clamped; false when it didn't move (pinned at a bound). */
-    private fun scrollViewportBy(dx: Float, dy: Float): Boolean = viewport.scrollBy(dx, dy)
-
-    /** Record one undo step if this gesture actually changed the document. */
-    private fun finishGesture() {
-        val start = gestureStartDoc ?: return
-        gestureStartDoc = null
-        if (doc !== start) {
-            history.record(start)
-            notifyHistory()
-        }
-    }
-
-    /** Mean Y of all pointers except [skip] (an index being lifted), in view px. */
-    private fun focusY(event: MotionEvent, skip: Int): Float {
-        var sum = 0f
-        var n = 0
-        for (i in 0 until event.pointerCount) if (i != skip) { sum += event.getY(i); n++ }
-        return if (n == 0) event.y else sum / n
-    }
-
-    /** Mean X of all pointers except [skip] (an index being lifted), in view px. */
-    private fun focusX(event: MotionEvent, skip: Int): Float {
-        var sum = 0f
-        var n = 0
-        for (i in 0 until event.pointerCount) if (i != skip) { sum += event.getX(i); n++ }
-        return if (n == 0) event.x else sum / n
-    }
-
-    /** Mean distance of every pointer from the touch focus (view px); a pinch's "size". 0 for <2 pointers. */
-    private fun spanOf(event: MotionEvent): Float {
-        if (event.pointerCount < 2) return 0f
-        val fx = focusX(event, skip = -1)
-        val fy = focusY(event, skip = -1)
-        var sum = 0f
-        for (i in 0 until event.pointerCount) sum += hypot(event.getX(i) - fx, event.getY(i) - fy)
-        return sum / event.pointerCount
-    }
+    internal fun scrollViewportBy(dx: Float, dy: Float): Boolean = viewport.scrollBy(dx, dy)
 
     /**
      * Append every sample for the gesture's pointer — historical first — as pressure-scaled
@@ -1897,7 +1520,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         return StrokePoint(x = gx, y = gy, width = width)
     }
 
-    private fun commitCurrent() {
+    internal fun commitCurrent() {
         val raw = current ?: return
         current = null
         val wasShaping = shaping
@@ -1951,7 +1574,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * than staying silent) when the tap misses or lands on a stroke that was drawn without audio, so
      * the editor can say so instead of leaving the tap looking broken.
      */
-    private fun audioTap(event: MotionEvent, pointerIndex: Int) {
+    internal fun audioTap(event: MotionEvent, pointerIndex: Int) {
         val x = event.getX(pointerIndex)
         val y = event.getY(pointerIndex)
         val box = layout.pageAt(x + scrollX, y + scrollY) ?: return
@@ -2093,7 +1716,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * slot. Returning true from [onTouchEvent] before any gesture begins is what guarantees the
      * menu never leaves a stroke behind it.
      */
-    private fun paletteTouch(event: MotionEvent): Boolean {
+    internal fun paletteTouch(event: MotionEvent): Boolean {
         // The fingers that summoned the menu are still on the glass; their lift is the end of the
         // *summoning* gesture, not a pick, so it is swallowed rather than committing a slot.
         if (palettePendingLift) {
@@ -2120,7 +1743,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * passes. The hollow centre ([RadialHit.Inert]) is not a hit target: releasing there leaves the
      * menu exactly as it was.
      */
-    private fun commitPalette(alwaysClose: Boolean = false) {
+    internal fun commitPalette(alwaysClose: Boolean = false) {
         val hit = paletteOverlay?.hit ?: return
         if (hit is RadialHit.Inert) { if (alwaysClose) closePalette(); return }
         if (hit is RadialHit.Outside) { closePalette(); return }
