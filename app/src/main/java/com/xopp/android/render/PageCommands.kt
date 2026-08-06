@@ -106,9 +106,9 @@ internal class PageCommands(
         if (copied.isEmpty()) return null
         val pages = document().pages
         val after = overview.selected.maxOrNull() ?: currentPage()
-        val at = after.coerceIn(0, pages.lastIndex.coerceAtLeast(0))
-        editPages(PageOps.insertAfter(pages, at, copied))
-        return at + 1
+        val inserted = PageOps.insertAfter(pages, after, copied)
+        editPages(inserted.pages)
+        return inserted.index
     }
 
     /**

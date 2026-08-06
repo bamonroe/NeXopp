@@ -154,20 +154,25 @@ class PageOpsTest {
         val pages = listOf(page(100.0, "a"), page(200.0, "b"), page(300.0, "c"))
         val copied = PageOps.copyOf(pages, setOf(0, 1))
         val out = PageOps.insertAfter(pages, 1, copied)
-        assertEquals(5, out.size)
-        assertEquals(listOf(pages[0], pages[1], pages[0], pages[1], pages[2]), out)
+        assertEquals(5, out.pages.size)
+        assertEquals(listOf(pages[0], pages[1], pages[0], pages[1], pages[2]), out.pages)
+        assertEquals(2, out.index)
     }
 
     @Test fun insertAfterClampsAndCanPrepend() {
         val pages = listOf(page(100.0, "a"), page(200.0, "b"))
         val added = listOf(page(300.0, "c"))
-        assertSame("before the first page", added[0], PageOps.insertAfter(pages, -1, added)[0])
-        assertSame("past the end lands last", added[0], PageOps.insertAfter(pages, 9, added).last())
+        val front = PageOps.insertAfter(pages, -1, added)
+        assertSame("before the first page", added[0], front.pages[0])
+        assertEquals(0, front.index)
+        val back = PageOps.insertAfter(pages, 9, added)
+        assertSame("past the end lands last", added[0], back.pages.last())
+        assertEquals("index of the first added page", 2, back.index)
     }
 
     @Test fun insertAfterWithNothingToInsertIsANoOp() {
         val pages = listOf(page(100.0, "a"))
-        assertSame(pages, PageOps.insertAfter(pages, 0, emptyList()))
+        assertSame(pages, PageOps.insertAfter(pages, 0, emptyList()).pages)
     }
 
     @Test fun addBeforeInsertsBlankPageAheadOfTheIndex() {

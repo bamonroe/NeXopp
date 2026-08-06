@@ -96,12 +96,18 @@ object PageOps {
      * A copy of [pages] with [added] inserted directly *after* index [after]; a negative [after] puts
      * them in front of the document. [after] is clamped into range, and an empty [added] returns the
      * same instance so callers can hand the result straight to an "only if it differs" edit.
+     *
+     * [Insertion.index] is where the first added page actually landed, so a caller that reports or
+     * scrolls to it can't drift out of step with this function's own clamping.
      */
-    fun insertAfter(pages: List<Page>, after: Int, added: List<Page>): List<Page> {
-        if (added.isEmpty()) return pages
+    fun insertAfter(pages: List<Page>, after: Int, added: List<Page>): Insertion {
+        if (added.isEmpty()) return Insertion(pages, (after + 1).coerceIn(0, pages.size))
         val at = (after + 1).coerceIn(0, pages.size)
-        return pages.toMutableList().apply { addAll(at, added) }
+        return Insertion(pages.toMutableList().apply { addAll(at, added) }, at)
     }
+
+    /** The result of [insertAfter]: the new page list and the index the first added page landed at. */
+    data class Insertion(val pages: List<Page>, val index: Int)
 
     /** A copy of [pages] with page [index] removed. The last remaining page is never removed. */
     fun removeAt(pages: List<Page>, index: Int): List<Page> {
