@@ -359,6 +359,9 @@ class MainActivity : ComponentActivity() {
         io.limits = StorageLimits(
             textImportBytes = settings.textImportLimitBytes,
             pdfCacheBytes = settings.pdfCacheLimitBytes,
+            // The pixmap copies share the one user-facing cache budget rather than adding a second
+            // number to Settings; both stores hold background pictures for open documents.
+            imageCacheBytes = settings.pdfCacheLimitBytes,
         )
     }
 

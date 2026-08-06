@@ -70,6 +70,8 @@ data class StorageLimits(
     val textImportBytes: Long = Long.MAX_VALUE,
     /** Byte budget for the generated/background PDF cache (see [PdfStore.prune]). */
     val pdfCacheBytes: Long = PdfStore.UNLIMITED,
+    /** Byte budget for the pixmap-background copies (see [ImageStore.prune]). */
+    val imageCacheBytes: Long = ImageStore.UNLIMITED,
 )
 
 /**
@@ -335,14 +337,15 @@ class DocumentIo(
      * Drop the background PDFs nothing refers to any more. Each open allocates its own file, so
      * without this sweep the folders would grow with every document opened.
      *
-     * The cache store is additionally held to [StorageLimits.pdfCacheBytes], so a session that opens
-     * many large PDFs can't sit on hundreds of megabytes of cache between sweeps. The *joined* store
-     * is not: a saved `.xopp` links those by path, so deleting one would break a document on disk.
+     * The cache store is additionally held to [StorageLimits.pdfCacheBytes], and the image store to
+     * [StorageLimits.imageCacheBytes], so a session that opens many large PDFs or pictures can't sit
+     * on hundreds of megabytes of cache between sweeps. The *joined* store is not: a saved `.xopp`
+     * links those by path, so deleting one would break a document on disk.
      */
     fun prune(live: Collection<String?>, liveImages: Collection<String?> = emptyList()) {
         pdfStore.prune(live, limits.pdfCacheBytes)
         joinedPdfStore.prune(live)
-        imageStore.prune(liveImages)
+        imageStore.prune(liveImages, limits.imageCacheBytes)
     }
 
     // --- writing --------------------------------------------------------------------------------

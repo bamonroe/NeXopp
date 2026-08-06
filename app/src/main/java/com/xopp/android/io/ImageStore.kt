@@ -37,16 +37,39 @@ class ImageStore(private val dir: File) {
         return out
     }
 
-    /** Delete the copies in this store that no live document refers to any more. */
-    fun prune(keep: Collection<String?>) {
+    /**
+     * Delete the copies in this store that no live document refers to any more, then hold the folder
+     * to [maxBytes] by deleting the **oldest** surviving non-live files until it fits — the same
+     * oldest-first trim [PdfStore.prune] does. Live copies are never evicted, whatever the budget
+     * says, so a session whose open documents alone exceed it simply stays over.
+     */
+    fun prune(keep: Collection<String?>, maxBytes: Long = UNLIMITED) {
         val live = keep.filterNotNull().toSet()
         dir.listFiles()?.forEach { file ->
             if (file.isFile && file.absolutePath !in live) file.delete()
         }
+        trimTo(maxBytes, live)
     }
 
-    private companion object {
+    private fun trimTo(maxBytes: Long, live: Set<String>) {
+        if (maxBytes >= UNLIMITED) return
+        val files = dir.listFiles().orEmpty().filter(File::isFile)
+        var total = files.sumOf(File::length)
+        if (total <= maxBytes) return
+        files.filter { it.absolutePath !in live }
+            .sortedBy(File::lastModified)
+            .forEach { file ->
+                if (total <= maxBytes) return
+                val size = file.length()
+                if (file.delete()) total -= size
+            }
+    }
+
+    companion object {
+        /** The "no cap" sentinel, matching [PdfStore.UNLIMITED]. */
+        const val UNLIMITED: Long = Long.MAX_VALUE
+
         /** Salts the name so two allocations within the same millisecond still differ. */
-        var counter = 0
+        private var counter = 0
     }
 }
