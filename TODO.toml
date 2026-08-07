@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "split-mainactivity-tabs"
-title = "Split MainActivity 2/3: extract tab/session management"
-description = "Step 2: create MainActivityTabs.kt (~260 lines from ~618-879): tabsUiState, sendTabToOtherPane, hydrate, snapshotActiveTab, show, showTab, previewTabPage, selectTab, reorderTab, closeTab, newTab, blankTab, restoreTabs, persistTabs, prunePdfCache, toggleSplitView, displayName. scripts/build.sh testDebugUnitTest; docs/architecture.md."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 310
-created = 2026-08-05
-tags = ["audit", "split-main"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "split-mainactivity-audio"
 title = "Split MainActivity 3/3: extract audio; verify whole split"
 description = "Final step: create MainActivityAudio.kt (~75 lines from ~885-957): attachAudio, audioUiState, toggleRecording, beginRecording, adoptAudioFolder, pullAudioSidecars, pushAudioSidecars. Residual MainActivity.kt ~340 lines (fields, activity-result launchers, OpenDocumentForEditing, dispatchKeyEvent, onCreate, intent handling, inBackground, onPause/onDestroy, toast, companion). KDoc headers on all three new files; docs/architecture.md entry describes the family. Closes the MainActivity split: full scripts/build.sh, then emulator — open an existing .xopp, edit and save it, reopen to confirm the round-trip, open a second tab, reorder and close tabs, toggle split view; screenshots plus adb logcat."
