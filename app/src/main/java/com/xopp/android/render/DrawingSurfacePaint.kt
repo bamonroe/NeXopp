@@ -95,11 +95,13 @@ internal fun DrawingSurfaceView.paint() {
         inkCache.retain(visible.mapTo(HashSet()) { it.index })
         retainPdfPins(visible)
         prefetchAround(visible)
+        drawSearchHighlights(canvas)
         drawCurrent(canvas)
         drawTextSelection(canvas)
         selection?.let { drawSelectionBox(canvas, it) }
         if (overview.selected.isNotEmpty()) drawPageSelection(canvas)
         if (overview.dragging) drawPageDrag(canvas)
+        if (backgroundSelecting) drawBackgroundSelectBand(canvas)
         if (gestures.banding) drawBand(canvas)
         if (vspace.active) drawVerticalSpaceGuide(canvas)
         drawGuide(canvas)
@@ -232,6 +234,21 @@ internal fun DrawingSurfaceView.drawCurrent(canvas: Canvas) {
         canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY,
         currentLineStyle, currentFill,
     )
+}
+
+/** Highlight every search hit, with a stronger outline around the currently focused result. */
+internal fun DrawingSurfaceView.drawSearchHighlights(canvas: Canvas) {
+    for ((hitIndex, hit) in searchHits.withIndex()) {
+        val box = layout.boxes.getOrNull(hit.pageIndex) ?: continue
+        for (bounds in hit.boxes) {
+            val l = box.toViewX(bounds.left, scrollX)
+            val t = box.toViewY(bounds.top, scrollY)
+            val r = box.toViewX(bounds.right, scrollX)
+            val b = box.toViewY(bounds.bottom, scrollY)
+            canvas.drawRect(l, t, r, b, chrome.searchHit)
+            if (hitIndex == currentSearchHit) canvas.drawRect(l, t, r, b, chrome.searchCurrent)
+        }
+    }
 }
 
 /** Highlight the selected PDF-text word boxes (the same frame as strokes, so it tracks scroll/zoom). */
@@ -370,6 +387,16 @@ internal fun DrawingSurfaceView.drawBand(canvas: Canvas) {
     val t = min(gestures.bandY0, gestures.bandY1)
     val r = max(gestures.bandX0, gestures.bandX1)
     val bot = max(gestures.bandY0, gestures.bandY1)
+    canvas.drawRect(l, t, r, bot, chrome.bandFill)
+    canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
+}
+
+/** Draw the background-select marquee. It is always rectangular, even if lasso select is active. */
+internal fun DrawingSurfaceView.drawBackgroundSelectBand(canvas: Canvas) {
+    val l = min(backgroundSelectX0, backgroundSelectX1)
+    val t = min(backgroundSelectY0, backgroundSelectY1)
+    val r = max(backgroundSelectX0, backgroundSelectX1)
+    val bot = max(backgroundSelectY0, backgroundSelectY1)
     canvas.drawRect(l, t, r, bot, chrome.bandFill)
     canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
 }

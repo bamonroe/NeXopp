@@ -101,6 +101,15 @@ internal class CanvasChrome {
         style = Paint.Style.FILL
         color = TEXT_SELECT_FILL
     }
+    val searchHit = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = SEARCH_HIT_FILL
+    }
+    val searchCurrent = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+        color = SEARCH_CURRENT_STROKE
+    }
 
     // The radial palette: a dimmed disc under two rings of slot marks. Filled slots read solidly,
     // empty ones stay faint, and the slot the pen is over is ringed in the selection colour.
@@ -184,6 +193,9 @@ internal class CanvasChrome {
         const val BAND_FILL = 0x222060E0
         /** Translucent blue wash over selected PDF-text word boxes (like a text highlight). */
         const val TEXT_SELECT_FILL = 0x552196F3
+        /** Translucent yellow wash over document/PDF search results. */
+        const val SEARCH_HIT_FILL = 0x66FFD54F
+        const val SEARCH_CURRENT_STROKE = 0xFFFF8F00.toInt()
         const val HOVER_ALPHA = 0xB0
         /** Drawn radius of a selection/guide handle dot. */
         const val HANDLE_DRAW_PX = 7f

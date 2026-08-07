@@ -41,6 +41,7 @@ internal fun DrawingSurfaceView.handleTouch(event: MotionEvent): Boolean? {
                 scrolling -> doScroll(event)
                 erasing -> eraseMove(event)
                 placing -> placeMove(event)
+                backgroundSelecting -> backgroundSelectMove(event)
                 gestures.resizing -> gestures.resizeSelect(event)
                 gestures.rotating -> gestures.rotateSelect(event)
                 gestures.moving -> gestures.moveSelect(event)
@@ -62,6 +63,7 @@ internal fun DrawingSurfaceView.handleTouch(event: MotionEvent): Boolean? {
         MotionEvent.ACTION_UP -> when {
             overview.dragging -> { overview.disarm(); removeCallbacks(pageDragArm); finishPageDrag() }
             splineDragging -> splineUp(event)
+            backgroundSelecting -> { cancelPageDrag(); cancelPaletteLongPress(); paletteTap.cancel(); commitBackgroundSelect() }
             else -> {
                 cancelPageDrag(); cancelPaletteLongPress(); paletteTap.cancel()
                 captureReleaseVelocity(event); handleHandTapUp(event); endGesture()
@@ -120,6 +122,7 @@ internal fun DrawingSurfaceView.beginPointer(event: MotionEvent, pointerIndex: I
         GestureIntent.PLACE -> beginPlace(event, pointerIndex)
         GestureIntent.PAN -> beginScroll(event)
         GestureIntent.SELECT -> beginSelect(event)
+        GestureIntent.BACKGROUND_SELECT -> beginBackgroundSelect(event)
         GestureIntent.SELECT_TEXT -> beginTextSelect(event)
         GestureIntent.VERTICAL_SPACE -> beginVerticalSpace(event)
         GestureIntent.ERASE -> startErase(event, pointerIndex)
@@ -173,7 +176,7 @@ internal fun DrawingSurfaceView.onPointerUp(event: MotionEvent) {
 internal fun DrawingSurfaceView.abandonInProgress() {
     clearSpline()
     current = null; shaping = false; erasing = false; placing = false
-    scrolling = false; textSelecting = false; vspace.reset()
+    scrolling = false; textSelecting = false; backgroundSelecting = false; vspace.reset()
     gestures.reset()
 }
 
@@ -182,7 +185,7 @@ internal fun DrawingSurfaceView.cancelGesture() {
     guideDrag.end(null)
     clearSpline()
     current = null; shaping = false; scrolling = false; erasing = false; placing = false
-    gestures.reset(); gestureStartDoc = null
+    backgroundSelecting = false; gestures.reset(); gestureStartDoc = null
     textSelecting = false; vspace.reset()
     gesturePointerId = -1; stylusOwner = false
 }
@@ -219,6 +222,7 @@ internal fun DrawingSurfaceView.activeTool(): ActiveTool = when {
     verticalSpaceMode -> ActiveTool.VERTICAL_SPACE
     placeKind != null -> ActiveTool.PLACE
     handMode -> ActiveTool.HAND
+    backgroundSelectMode -> ActiveTool.BACKGROUND_SELECT
     textSelectMode -> ActiveTool.TEXT_SELECT
     selectMode -> ActiveTool.SELECT
     tool == Tool.ERASER -> ActiveTool.ERASER

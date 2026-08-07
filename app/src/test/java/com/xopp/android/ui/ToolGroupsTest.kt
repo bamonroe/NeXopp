@@ -20,6 +20,11 @@ class ToolGroupsTest {
     }
 
     @Test
+    fun `background select lives in the select group`() {
+        assertEquals("select", groupOf(EditorTool.BG_SELECT)?.id)
+    }
+
+    @Test
     fun `selection defaults to the first member`() {
         val draw = groupOf(EditorTool.PEN)!!
         assertEquals(EditorTool.PEN, draw.selected(emptyMap()))

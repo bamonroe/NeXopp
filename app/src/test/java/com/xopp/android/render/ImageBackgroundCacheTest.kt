@@ -30,8 +30,8 @@ class ImageBackgroundCacheTest {
 
     @Test
     fun `widths are bucketed so a zoom nudge reuses a cached decode`() {
-        assertEquals(64, ImageBackgroundCache.bucket(1))
-        assertEquals(1024, ImageBackgroundCache.bucket(1024))
-        assertEquals(1088, ImageBackgroundCache.bucket(1025))
+        assertEquals(64, BitmapLruCache.bucket(1))
+        assertEquals(1024, BitmapLruCache.bucket(1024))
+        assertEquals(1088, BitmapLruCache.bucket(1025))
     }
 }

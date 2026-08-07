@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import java.io.Closeable
 import java.io.InputStream
-import java.util.concurrent.Executors
 
 /**
  * Decodes the pictures behind `pixmap` page backgrounds and keeps them scaled to the size they are
@@ -28,33 +27,18 @@ import java.util.concurrent.Executors
  */
 class ImageBackgroundCache(
     private val open: (String) -> InputStream?,
-    private val budget: BitmapBudget = BitmapBudget.shared,
-) : Closeable, BitmapBudget.Client {
+    budget: BitmapBudget = BitmapBudget.shared,
+) : BitmapLruCache<ImageBackgroundCache.Key>(budget, "pixmap-decode"), Closeable {
 
-    private data class Key(val reference: String, val width: Int)
+    data class Key(val reference: String, val width: Int)
 
-    /** Guards the cache map and its bookkeeping. Held only for fast map operations. */
-    private val lock = Any()
-    /** Access-ordered so eviction drops the least recently *used* entry, not the oldest. */
-    private val cache = LinkedHashMap<Key, Bitmap>(8, 0.75f, true)
     /** Cached widths per reference, so [nearest] is a sorted lookup instead of a scan. */
     private val widths = HashMap<String, java.util.TreeSet<Int>>()
-    private val pending = LinkedHashSet<Key>()
     /** References whose bytes wouldn't open or decode: never queued again. */
     private val missing = HashSet<String>()
-    private var cachedBytes = 0L
-    /** The entry [put] is inserting right now — see [PdfPageCache]'s protected key for why. */
-    private var protectedKey: Key? = null
-    private val worker =
-        Executors.newSingleThreadExecutor { r -> Thread(r, "pixmap-decode").apply { isDaemon = true } }
-    @Volatile private var closed = false
 
     /** Invoked (on the worker thread) whenever a newly decoded image enters the cache. */
     @Volatile var onImageReady: (() -> Unit)? = null
-
-    init {
-        budget.register(this)
-    }
 
     /**
      * The best bitmap available for [reference] at [targetWidthPx]: an exact-bucket hit, else the
@@ -63,7 +47,7 @@ class ImageBackgroundCache(
      */
     fun request(reference: String, targetWidthPx: Int): Bitmap? {
         if (closed || targetWidthPx <= 0 || reference.isEmpty()) return null
-        val key = Key(reference, bucket(targetWidthPx.coerceAtMost(MAX_WIDTH)))
+        val key = Key(reference, bucket(targetWidthPx.coerceAtMost(MAX_RASTER_WIDTH)))
         synchronized(lock) {
             cache[key]?.let { return it }
             if (reference in missing) return null
@@ -75,34 +59,29 @@ class ImageBackgroundCache(
     /** Decode [reference] at [targetWidthPx] synchronously (off the drawing path: export, tests). */
     fun render(reference: String, targetWidthPx: Int): Bitmap? {
         if (closed || targetWidthPx <= 0 || reference.isEmpty()) return null
-        val key = Key(reference, bucket(targetWidthPx.coerceAtMost(MAX_WIDTH)))
+        val key = Key(reference, bucket(targetWidthPx.coerceAtMost(MAX_RASTER_WIDTH)))
         synchronized(lock) {
             cache[key]?.let { return it }
             if (reference in missing) return null
         }
-        return decode(key)
+        return produce(key)
     }
 
     // --- internals ---------------------------------------------------------------------------
 
-    /** Caller holds [lock]. */
-    private fun enqueue(key: Key) {
-        if (!pending.add(key)) return
-        worker.execute {
-            val stale = synchronized(lock) {
-                pending.remove(key)
-                closed || cache.containsKey(key) || key.reference in missing
-            }
-            if (!stale && decode(key) != null) onImageReady?.invoke()
-        }
+    override fun announce() {
+        onImageReady?.invoke()
     }
+
+    /** Caller holds [lock]. A reference retired into [missing] is never decoded again. */
+    override fun stale(key: Key) = super.stale(key) || key.reference in missing
 
     /**
      * Read the picture named by [key] and scale it to that width. Decoded in two passes — bounds
      * first, then with an [BitmapFactory.Options.inSampleSize] chosen from them — so a 12-megapixel
      * photo shown at tablet width never materialises at full size just to be shrunk.
      */
-    private fun decode(key: Key): Bitmap? {
+    override fun produce(key: Key): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         runCatching { open(key.reference)?.use { BitmapFactory.decodeStream(it, null, bounds) } }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return give(key.reference)
@@ -140,58 +119,25 @@ class ImageBackgroundCache(
     }
 
     /** Caller holds [lock]. The cached bitmap for [reference] whose width is closest to [w]. */
-    private fun nearest(reference: String, w: Int): Bitmap? {
-        val set = widths[reference] ?: return null
-        val below = set.floor(w)
-        val above = set.ceiling(w)
-        val best = when {
-            below == null -> above
-            above == null -> below
-            w - below <= above - w -> below
-            else -> above
-        } ?: return null
-        return cache[Key(reference, best)]
-    }
+    private fun nearest(reference: String, w: Int): Bitmap? =
+        nearest(widths[reference], w) { Key(reference, it) }
 
-    /** Caller holds [lock]. Inserts, then charges the budget — which may call straight back to [trim]. */
-    private fun put(key: Key, bmp: Bitmap) {
-        val replaced = cache.put(key, bmp)?.byteCount?.toLong() ?: 0L
-        cachedBytes += bmp.byteCount.toLong() - replaced
+    /** Caller holds [lock]. Track an entry's width for [nearest]. */
+    override fun index(key: Key) {
         widths.getOrPut(key.reference) { java.util.TreeSet() }.add(key.width)
-        protectedKey = key
-        try {
-            if (replaced > 0) budget.credit(replaced)
-            budget.charge(this, bmp.byteCount.toLong())
-        } finally {
-            protectedKey = null
-        }
     }
 
-    /**
-     * Give [bytes] back, least-recently-used first. Evicted bitmaps are not recycled: the drawing
-     * thread may still hold one for the frame it is painting.
-     */
-    override fun trim(bytes: Long): Long {
-        var freed = 0L
-        synchronized(lock) {
-            val it = cache.entries.iterator()
-            while (freed < bytes && cache.size > 1 && it.hasNext()) {
-                val eldest = it.next()
-                if (eldest.key == protectedKey) continue
-                freed += eldest.value.byteCount.toLong()
-                it.remove()
-                unindex(eldest.key)
-            }
-            cachedBytes -= freed
-        }
-        return freed
-    }
-
-    /** Caller holds [lock]. */
-    private fun unindex(key: Key) {
+    /** Caller holds [lock]. Forget an evicted entry's width. */
+    override fun unindex(key: Key) {
         val set = widths[key.reference] ?: return
         set.remove(key.width)
         if (set.isEmpty()) widths.remove(key.reference)
+    }
+
+    /** Caller holds [lock]. Cleared alongside the bitmaps by [clear] and [close]. */
+    override fun onDiscard() {
+        widths.clear()
+        missing.clear()
     }
 
     /**
@@ -200,42 +146,14 @@ class ImageBackgroundCache(
      * different bytes and a remembered failure would otherwise keep a now-resolvable page blank.
      */
     fun clear() {
-        synchronized(lock) {
-            pending.clear()
-            cache.clear()
-            widths.clear()
-            missing.clear()
-            budget.credit(cachedBytes)
-            cachedBytes = 0
-        }
+        synchronized(lock) { discardAll() }
     }
 
     override fun close() {
-        synchronized(lock) {
-            if (closed) return
-            closed = true
-            pending.clear()
-            cache.clear()
-            widths.clear()
-            missing.clear()
-            budget.credit(cachedBytes)
-            cachedBytes = 0
-        }
-        budget.unregister(this)
-        worker.shutdown()
+        shutdown()
     }
 
     companion object {
-        /**
-         * Ceiling on the width a background picture is held at. Past it the bitmap is upscaled by the
-         * renderer rather than decoded larger — a pixmap is a photo or a screenshot, so beyond its own
-         * resolution there is nothing sharper to decode anyway.
-         */
-        const val MAX_WIDTH = 4096
-
-        /** Round target widths up to 64px buckets so small zoom nudges reuse a cached bitmap. */
-        fun bucket(px: Int) = ((px + 63) / 64) * 64
-
         /**
          * The power-of-two subsample that gets [sourceWidth] closest to [targetWidth] **without**
          * dropping below it — decoding under the target and upscaling would show as a blurry page,

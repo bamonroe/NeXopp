@@ -76,6 +76,7 @@ class InputClassifierTest {
         assertEquals(GestureIntent.DRAW, classify(PointerKind.FINGER, ActiveTool.HIGHLIGHTER))
         assertEquals(GestureIntent.ERASE, classify(PointerKind.STYLUS, ActiveTool.ERASER))
         assertEquals(GestureIntent.SELECT, classify(PointerKind.FINGER, ActiveTool.SELECT))
+        assertEquals(GestureIntent.BACKGROUND_SELECT, classify(PointerKind.STYLUS, ActiveTool.BACKGROUND_SELECT))
         assertEquals(GestureIntent.PAN, classify(PointerKind.FINGER, ActiveTool.HAND))
         assertEquals(GestureIntent.PLACE, classify(PointerKind.STYLUS, ActiveTool.PLACE))
     }

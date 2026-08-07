@@ -229,7 +229,7 @@ authoritative flow; don't invent another one.
 - **Draw** — the controls live in a **vertical rail down the left edge**. It starts with eight
   **tool slots**, each standing for a group of related tools and showing the one that group is
   currently set to: **Draw** (pen · highlighter), **Eraser** (partial · whole stroke), **Line** (line · arrow · double arrow · spline), **Shape**
-  (rectangle · ellipse · coordinate axis), **Pan**, **Select** (rectangle · lasso · select text), **Insert** (text · LaTeX ·
+  (rectangle · ellipse · coordinate axis), **Pan**, **Select** (rectangle · lasso · select text · background copy), **Insert** (text · LaTeX ·
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
@@ -363,7 +363,7 @@ authoritative flow; don't invent another one.
 - **Select** — the rail's **Select** slot selects objects the way desktop Xournal++ does. The
   marquee shape is the tool itself: **long-press** the slot to pick **Select rectangle** (drag a box;
   every object fully inside is selected), **Select lasso** (trace a free-form loop; everything wholly
-  inside is selected), or **Select text (PDF)**.
+  inside is selected), **Select text (PDF)**, or **Select background (flatten)**.
   Or **tap** a single object to select just that one. Selected objects get a dashed outline with
   handles:
   - **Drag inside the outline** to move them — drag onto a **different page** to move them there.
@@ -375,8 +375,12 @@ authoritative flow; don't invent another one.
     a **line-weight** menu to re-width the selection, **Delete**, and **Done** (deselect).
   - **Paste** appears in the bottom bar (when nothing is selected) and drops the copied objects onto
     the page you're viewing.
+  - **Select background (flatten)** is rectangle-only: drag a box and release to copy that region as
+    one flat image, including the page background and all layers. Paste then drops that image back
+    onto the current page.
 
-  All of these are undoable. (Selection is per page; two-finger pan still works.)
+  Object selection edits are undoable. Background copy only fills the clipboard; the later paste is
+  undoable. (Selection is per page; two-finger pan still works.)
 - **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
   takes the content from the keyboard and lets you style it: **font family** (Sans / Serif /
   Monospace), **bold**, **italic**, a **size** slider (6–96 pt), and a **colour** — the same picker

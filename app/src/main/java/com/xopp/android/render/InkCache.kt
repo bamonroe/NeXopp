@@ -30,7 +30,7 @@ class InkCache(
 
     /** Max pixels in one cached page raster, from this device's share of the shared budget. */
     private val budgetPx: Int =
-        (budget.perEntryBytes(PAGE_SHARE) / BYTES_PER_PX).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        (budget.perEntryBytes(BitmapLruCache.PAGE_SHARE) / BYTES_PER_PX).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     private class Entry(
         val bitmap: Bitmap,
@@ -171,9 +171,6 @@ class InkCache(
     }
 
     private companion object {
-        /** The share of the shared budget one cached page raster may take. */
-        const val PAGE_SHARE = 0.25
-
         const val BYTES_PER_PX = 4
 
         /** Narrowest bucket; below this a page is a thumbnail and the raster is nearly free. */

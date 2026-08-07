@@ -33,6 +33,7 @@ private fun EditorTool.glyph(): String = when (this) {
     EditorTool.SELECT -> "▭"
     EditorTool.LASSO_SELECT -> "◌"
     EditorTool.TEXT_SELECT -> "T◌"
+    EditorTool.BG_SELECT -> "▣"
     EditorTool.TEXT -> "T"
     EditorTool.IMAGE -> "🖼"
     EditorTool.TEXIMAGE -> "∑"

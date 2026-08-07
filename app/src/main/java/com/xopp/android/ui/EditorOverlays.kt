@@ -99,7 +99,7 @@ fun BoxScope.EditorOverlays(
             onDeselect = { surface?.clearSelection() },
             modifier = barModifier,
         )
-    } else if (ui.tool == EditorTool.SELECT || ui.tool == EditorTool.LASSO_SELECT) {
+    } else if (ui.tool == EditorTool.SELECT || ui.tool == EditorTool.LASSO_SELECT || ui.tool == EditorTool.BG_SELECT) {
         SelectModeBar(
             canPaste = pane.hasClipboard,
             onPaste = { surface?.pasteClipboard() },
@@ -559,4 +559,3 @@ private fun FontFamilyPicker(family: String, onFamily: (String) -> Unit) {
         }
     }
 }
-

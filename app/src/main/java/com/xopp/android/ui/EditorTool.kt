@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowRightAlt
 import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Functions
@@ -31,7 +32,8 @@ import com.xopp.android.format.model.Tool
  * (see [com.xopp.android.render.PlaceKind]).
  */
 enum class EditorTool {
-    PEN, HIGHLIGHTER, ERASER, ERASER_WHOLE, HAND, SELECT, LASSO_SELECT, TEXT_SELECT, TEXT, IMAGE, TEXIMAGE,
+    PEN, HIGHLIGHTER, ERASER, ERASER_WHOLE, HAND, SELECT, LASSO_SELECT, TEXT_SELECT, BG_SELECT,
+    TEXT, IMAGE, TEXIMAGE,
     LINE, ARROW, DOUBLE_ARROW, COORDINATE_AXIS, RECTANGLE, ELLIPSE, SPLINE, VERTICAL_SPACE,
     PLAY_OBJECT,
 }
@@ -60,6 +62,7 @@ private val TOOLS: List<ToolInfo> = listOf(
     ToolInfo(EditorTool.SELECT, "Select rectangle", Icons.Filled.HighlightAlt),
     ToolInfo(EditorTool.LASSO_SELECT, "Select lasso", Icons.Filled.Polyline),
     ToolInfo(EditorTool.TEXT_SELECT, "Select text (PDF)", Icons.Filled.SelectAll),
+    ToolInfo(EditorTool.BG_SELECT, "Select background (flatten)", Icons.Filled.Crop),
     ToolInfo(EditorTool.TEXT, "Text", Icons.Filled.TextFields),
     ToolInfo(EditorTool.IMAGE, "Image", Icons.Filled.Image),
     ToolInfo(EditorTool.TEXIMAGE, "LaTeX", Icons.Filled.Functions),

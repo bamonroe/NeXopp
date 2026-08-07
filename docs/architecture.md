@@ -564,6 +564,7 @@ app/
       Snapping.kt            # shape endpoints -> the ruling; rotation -> 15-degree steps (pure)
       DrawingGuide.kt        # setsquare/compass overlay geometry: project a drawn point onto an edge (pure)
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
+      PageRegionRenderer.kt  # synchronous flattened rectangular page-region copies
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
       ElementRenderer.kt     # draws text boxes, images, and LaTeX images (real math)
@@ -574,6 +575,7 @@ app/
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
       BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
+      BitmapLruCache.kt      # the LRU bitmap-cache core PdfPageCache and ImageBackgroundCache share
       ImageImport.kt         # builds a one-page Document with an image as its pixmap background
       ImageBackgroundCache.kt # decodes+scales pixmap background pictures (LRU, off the frame)
       PdfBackgroundDomain.kt # the `attach` domain: the PDF travels bundled beside the .xopp
@@ -766,8 +768,8 @@ both invalidate page indices; the clipboard is not cleared, so one copy can be p
 `Document.pages` — `XoppWriter` writes no index — so the reorder round-trips by construction. Zoom keeps the viewport-centre point roughly
 fixed, and is clamped to 25%–1000% (`DrawingSurfaceDefaults.MIN_ZOOM`/`MAX_ZOOM`). Strokes and other
 elements are re-rendered vectorially at the zoomed scale, so they stay sharp at any level; PDF
-backgrounds are re-rasterised per zoomed width up to `PdfPageCache.MAX_RASTER_WIDTH` (4096 px) and
-never above `PdfPageCache.PER_PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
+backgrounds are re-rasterised per zoomed width up to `BitmapLruCache.MAX_RASTER_WIDTH` (4096 px) and
+never above `BitmapLruCache.PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
 can't evict one another and flash blank), beyond which the whole-page bitmap is upscaled to bound
 memory — asynchronously, so a zoom step shows the previous resolution stretched and sharpens a
 moment later rather than stalling the frame. A page with *nothing* cached is the one exception: it
@@ -808,9 +810,16 @@ crosses a bucket edge and the zooms in between are a ≤19 % stretch of the bitm
 entry is invalidated by page identity (any edit rebuilds the `Page`), by its hidden-layer set, or by
 scrolling out of view (`InkCache.retain` keeps only the visible pages). The cache **declines** two
 cases and the direct element path takes over: a page whose bucket would exceed its per-entry ceiling
-(`InkCache.PAGE_SHARE` of the shared budget — at deep zoom a page spans many screens and its full
+(`BitmapLruCache.PAGE_SHARE` of the shared budget — at deep zoom a page spans many screens and its full
 raster would dwarf the screen it feeds, and the viewport cull is the better tool there), and any
 gesture that rewrites the page every frame — drag, resize, rotate, erase — where caching would only thrash.
+`PdfPageCache` and `ImageBackgroundCache` share their LRU core: both extend **`BitmapLruCache<K>`**,
+which owns the access-ordered map, the short-held cache lock, the single background worker, the
+insert-and-charge path, and eviction. A subclass supplies only what differs — `produce` (rasterise or
+decode, called *without* the cache lock), `index`/`unindex` (its width index behind `nearest`),
+`spared` (PdfPageCache's on-screen pinned tiles), and the `onCacheChanged`/`onDiscard` hooks.
+`BitmapLruCache.MAX_RASTER_WIDTH` (4096 px), `PAGE_SHARE` (a quarter of the budget per raster) and
+`bucket` (64 px width buckets) live there once for all three caches.
 Both bitmap caches allocate through **one** `BitmapBudget` (`BitmapBudget.shared`, sized at startup
 from `ActivityManager.memoryClass`), so a PDF-backed document has a single memory bound rather than
 two independent guesses. A cache `charge`s each bitmap it rasterises; when the total goes over, the
@@ -958,10 +967,12 @@ never crosses above the line it was grabbed at; a drag that can't move anything 
 list, which keeps `finishGesture` from recording an empty undo step. The whole drag is one undo step,
 and because it only rewrites coordinates the result round-trips through save unchanged.
 
-**Selecting objects (`render/`).** The **Select** tool (`EditorTool.SELECT`, mapped to the surface's
-`selectMode`) mirrors desktop Xournal++'s object selection. A one-finger **drag** draws a rubber-band
-marquee and selects every element **wholly enclosed** by it (desktop's rectangle-select semantics); a
-one-finger **tap** picks the single topmost element under the point. Selection is **per page** —
+**Selecting objects (`render/`).** The **Select** tools (`EditorTool.SELECT`,
+`EditorTool.LASSO_SELECT`, `EditorTool.TEXT_SELECT`, and `EditorTool.BG_SELECT`) share the rail's
+Select group, but their gestures stay separate. Object selection (`selectMode`) mirrors desktop
+Xournal++: a one-finger **drag** draws a rubber-band marquee and selects every element **wholly
+enclosed** by it (desktop's rectangle-select semantics); a one-finger **tap** picks the single topmost
+element under the point. Selection is **per page** —
 anchored to the page the gesture started on — and elements are addressed by position, not identity, via
 `ElementRef(layerIndex, elementIndex)`: a move rewrites the element objects but never reorders them, so
 the refs stay valid across a live drag. The picking is pure and JVM-tested — **`ElementBounds` is the
@@ -991,6 +1002,14 @@ elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' 
 floating action bar also **recolours / re-widths** the selection (`SelectionOps.restyle`). The scope
 and round-trip reasoning for what rotate/resize can touch lives in
 [Stylus & selection roadmap](#stylus--selection-roadmap).
+
+The background-copy variant (`backgroundSelectMode`) is intentionally not a selection transform. A
+drag records only a rectangular marquee, clips it to the page, synchronously resolves the page's
+background bitmap (`PdfPageCache.render` or `ImageBackgroundCache.render`), then
+`PageRegionRenderer.render` composites the page background and all layers into a capped PNG. That PNG
+is wrapped as one `ImageElement` in the same view-held clipboard the normal Select tool uses, so
+Paste can drop the flattened region like any other copied image. There is no lasso path for this
+tool; the copied result is one flat bitmap rather than editable elements.
 
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is

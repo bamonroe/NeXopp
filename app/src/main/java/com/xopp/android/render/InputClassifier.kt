@@ -28,6 +28,7 @@ enum class ActiveTool {
     HIGHLIGHTER,
     ERASER,
     SELECT,
+    BACKGROUND_SELECT,
     TEXT_SELECT,
     HAND,
     PLACE,
@@ -43,6 +44,7 @@ enum class ActiveTool {
         PEN, HIGHLIGHTER -> GestureIntent.DRAW
         ERASER -> GestureIntent.ERASE
         SELECT -> GestureIntent.SELECT
+        BACKGROUND_SELECT -> GestureIntent.BACKGROUND_SELECT
         TEXT_SELECT -> GestureIntent.SELECT_TEXT
         HAND -> GestureIntent.PAN
         PLACE -> GestureIntent.PLACE
@@ -118,7 +120,17 @@ class BarrelClickDetector(private val windowMs: Long = DEFAULT_WINDOW_MS) {
 }
 
 /** The gesture a pointer-down should begin. */
-enum class GestureIntent { DRAW, ERASE, PAN, SELECT, SELECT_TEXT, PLACE, VERTICAL_SPACE, IGNORE }
+enum class GestureIntent {
+    DRAW,
+    ERASE,
+    PAN,
+    SELECT,
+    BACKGROUND_SELECT,
+    SELECT_TEXT,
+    PLACE,
+    VERTICAL_SPACE,
+    IGNORE,
+}
 
 /** Input-layer preferences the classifier consults (owned by the app's settings). */
 data class InputSettings(

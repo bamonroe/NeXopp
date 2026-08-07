@@ -36,6 +36,7 @@ import com.xopp.android.render.ShapeKind
 fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     handMode = tool == EditorTool.HAND
     selectMode = tool == EditorTool.SELECT || tool == EditorTool.LASSO_SELECT
+    backgroundSelectMode = tool == EditorTool.BG_SELECT
     lassoMode = tool == EditorTool.LASSO_SELECT
     textSelectMode = tool == EditorTool.TEXT_SELECT
     verticalSpaceMode = tool == EditorTool.VERTICAL_SPACE

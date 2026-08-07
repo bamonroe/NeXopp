@@ -77,6 +77,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         set(value) {
             if (value === docValue) return
             docValue = value
+            rebuildSearch()
             onDocumentEdited?.invoke(value)
         }
     internal var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
@@ -335,6 +336,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
             if (!value) clearSelection()
         }
 
+    /** When true, a one-finger rectangle copies the flattened page region into the image clipboard. */
+    var backgroundSelectMode: Boolean = false
+        set(value) {
+            field = value
+            if (!value) backgroundSelecting = false
+        }
+
     /** When true, a drag inserts/removes vertical space on a page instead of drawing (see [VerticalSpaceOps]). */
     var verticalSpaceMode: Boolean = false
 
@@ -438,6 +446,15 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Copied/cut elements, ready to paste onto the visible page. */
     internal var clipboard: List<Element> = emptyList()
 
+    // Live background-copy marquee (view px). Unlike Select, this is rectangle-only and never
+    // selects elements; release copies a flattened bitmap region into [clipboard].
+    internal var backgroundSelecting = false
+    internal var backgroundSelectPage = -1
+    internal var backgroundSelectX0 = 0f
+    internal var backgroundSelectY0 = 0f
+    internal var backgroundSelectX1 = 0f
+    internal var backgroundSelectY1 = 0f
+
     /** When true, a one-finger/stylus drag selects text over an imported PDF's extracted text layer. */
     var textSelectMode: Boolean = false
         set(value) {
@@ -456,6 +473,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var textSelPage = -1
     internal var textSelAnchor = -1
     internal var textSelFocus = -1
+
+    /** Notified when search count/current changes so the top bar can show navigation state. */
+    var onSearchChanged: ((SearchStatus) -> Unit)? = null
+
+    internal var searchQuery = ""
+    internal var searchHits: List<SearchHit> = emptyList()
+    internal var currentSearchHit = -1
 
     // Live vertical-space drag: the grabbed page, the grab line (page pt) and its view-px Y for the
     // guide overlay. Like a selection move, each frame recomputes from the gesture-start snapshot.
@@ -585,10 +609,71 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun setPdfTextIndex(index: PdfTextIndex?) {
         pdfTextIndex = index
         clearTextSelection()
+        rebuildSearch()
+        requestRender()
     }
 
     /** True when the PDF has a usable text layer, so the chrome can enable the text-select tool. */
     fun hasPdfText(): Boolean = pdfTextIndex?.hasAnyText == true
+
+    /** Search authored text and background-PDF text, repainting highlights as the query changes. */
+    fun setSearchQuery(query: String): SearchStatus {
+        searchQuery = query
+        rebuildSearch()
+        render()
+        return searchStatus()
+    }
+
+    fun nextSearchHit(): SearchStatus {
+        if (searchHits.isEmpty()) return searchStatus()
+        currentSearchHit = (currentSearchHit + 1).floorMod(searchHits.size)
+        jumpToSearchHit()
+        return notifySearchChanged()
+    }
+
+    fun previousSearchHit(): SearchStatus {
+        if (searchHits.isEmpty()) return searchStatus()
+        currentSearchHit = (currentSearchHit - 1).floorMod(searchHits.size)
+        jumpToSearchHit()
+        return notifySearchChanged()
+    }
+
+    fun clearSearch(): SearchStatus {
+        searchQuery = ""
+        searchHits = emptyList()
+        currentSearchHit = -1
+        render()
+        return notifySearchChanged()
+    }
+
+    fun searchStatus(): SearchStatus =
+        SearchStatus(current = if (currentSearchHit >= 0) currentSearchHit + 1 else 0, total = searchHits.size)
+
+    private fun rebuildSearch() {
+        searchHits = DocumentSearch.find(doc, pdfTextIndex, searchQuery)
+        currentSearchHit = when {
+            searchHits.isEmpty() -> -1
+            currentSearchHit < 0 -> 0
+            else -> currentSearchHit.coerceAtMost(searchHits.lastIndex)
+        }
+        notifySearchChanged()
+    }
+
+    private fun notifySearchChanged(): SearchStatus =
+        searchStatus().also { onSearchChanged?.invoke(it) }
+
+    private fun jumpToSearchHit() {
+        val hit = searchHits.getOrNull(currentSearchHit) ?: return
+        val box = layout.boxes.getOrNull(hit.pageIndex) ?: return
+        val bounds = hit.boxes.firstOrNull() ?: return
+        val centerX = box.toViewX((bounds.left + bounds.right) / 2, 0f)
+        val centerY = box.toViewY((bounds.top + bounds.bottom) / 2, 0f)
+        scrollX = (centerX - width / 2f).coerceIn(0f, maxScrollX())
+        scrollY = (centerY - height / 2f).coerceIn(0f, maxScrollY())
+        render()
+    }
+
+    private fun Int.floorMod(mod: Int): Int = ((this % mod) + mod) % mod
 
     /** The on-disk PDF backing this document's `pdf` backgrounds, or null when there is none. */
     fun pdfSourceFile(): java.io.File? = pdfSource?.source

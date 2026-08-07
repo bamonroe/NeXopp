@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "text-search-across-document-and-background-pdf"
+title = "Text search across document and background PDF"
+description = "Add a magnifying-glass search icon to the top-right toolbar, immediately left of the undo/redo buttons. Tapping it opens a search field that searches all text in the document: text typed into the document (text boxes) and text extracted from a background PDF, if there is one. Find every occurrence, highlight matches, and let the user tap through them (next/previous) with the view scrolling/jumping to each hit across pages."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-07
+completed = 2026-08-07
+tags = []
+
+[[task]]
+id = "background-rectangle-select-tool"
+title = "Background rectangle select tool"
+description = "The select tool can select strokes, but there is no way to select the background. Add a separate background-select tool with a rectangle marquee only (no lasso for now). Dragging a rectangle copies the whole flattened region: every layer composited together plus the background layer (plain/ruled/graph or PDF), as a single flat image. Lives alongside the existing select tool in the toolbar."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-07
+completed = 2026-08-07
+tags = []
+
+[[task]]
 id = "split-mainactivity-audio"
 title = "Split MainActivity 3/3: extract audio; verify whole split"
 description = "Final step: create MainActivityAudio.kt (~75 lines from ~885-957): attachAudio, audioUiState, toggleRecording, beginRecording, adoptAudioFolder, pullAudioSidecars, pushAudioSidecars. Residual MainActivity.kt ~340 lines (fields, activity-result launchers, OpenDocumentForEditing, dispatchKeyEvent, onCreate, intent handling, inBackground, onPause/onDestroy, toast, companion). KDoc headers on all three new files; docs/architecture.md entry describes the family. Closes the MainActivity split: full scripts/build.sh, then emulator — open an existing .xopp, edit and save it, reopen to confirm the round-trip, open a second tab, reorder and close tabs, toggle split view; screenshots plus adb logcat."

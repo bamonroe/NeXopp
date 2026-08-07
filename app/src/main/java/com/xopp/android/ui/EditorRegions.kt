@@ -2,19 +2,28 @@ package com.xopp.android.ui
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material3.DropdownMenu
@@ -22,11 +31,15 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,12 +49,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.xopp.android.render.BarrelDoubleAction
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.PlaceKind
 import com.xopp.android.render.Placement
+import com.xopp.android.render.SearchStatus
 import com.xopp.android.ui.theme.rememberCanvasChromeColors
 
 /**
@@ -66,6 +84,7 @@ fun EditorTopBar(
         title = {},
         modifier = Modifier.height(40.dp),
         actions = {
+            SearchControls(pane)
             IconButton(onClick = { pane.surface?.undo() }, enabled = pane.canUndo) {
                 Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
             }
@@ -84,6 +103,88 @@ fun EditorTopBar(
                 splitView = splitView,
                 onToggleSplitView = onToggleSplitView,
             )
+        },
+    )
+}
+
+@Composable
+private fun SearchControls(pane: PaneState) {
+    fun apply(status: SearchStatus) {
+        pane.searchCurrent = status.current
+        pane.searchTotal = status.total
+    }
+    if (!pane.searchOpen) {
+        IconButton(onClick = {
+            pane.searchOpen = true
+            pane.surface?.setSearchQuery(pane.searchQuery)?.let(::apply)
+        }) {
+            Icon(Icons.Filled.Search, contentDescription = "Search")
+        }
+        return
+    }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        CompactSearchField(
+            value = pane.searchQuery,
+            onValueChange = {
+                pane.searchQuery = it
+                pane.surface?.setSearchQuery(it)?.let(::apply) ?: apply(SearchStatus())
+            },
+        )
+        Text("${pane.searchCurrent}/${pane.searchTotal}")
+        CompactIconButton(
+            contentDescription = "Previous match",
+            enabled = pane.searchTotal > 0,
+            onClick = { pane.surface?.previousSearchHit()?.let(::apply) },
+        ) { Icon(Icons.Filled.KeyboardArrowUp, contentDescription = "Previous match") }
+        CompactIconButton(
+            contentDescription = "Next match",
+            enabled = pane.searchTotal > 0,
+            onClick = { pane.surface?.nextSearchHit()?.let(::apply) },
+        ) { Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Next match") }
+        CompactIconButton(contentDescription = "Close search", onClick = {
+            pane.searchOpen = false
+            pane.searchQuery = ""
+            pane.surface?.clearSearch()?.let(::apply) ?: apply(SearchStatus())
+        }) { Icon(Icons.Filled.Close, contentDescription = "Close search") }
+    }
+}
+
+@Composable
+private fun CompactIconButton(
+    contentDescription: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(36.dp)
+            .alpha(if (enabled) 1f else 0.38f)
+            .semantics { this.contentDescription = contentDescription }
+            .clickable(enabled = enabled, onClick = onClick),
+    ) {
+        icon()
+    }
+}
+
+@Composable
+private fun CompactSearchField(value: String, onValueChange: (String) -> Unit) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = true,
+        textStyle = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface),
+        modifier = Modifier
+            .width(88.dp)
+            .height(36.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp))
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        decorationBox = { inner ->
+            Box {
+                if (value.isEmpty()) Text("Search", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                inner()
+            }
         },
     )
 }
@@ -261,6 +362,7 @@ fun EditorPaneView(
                         it.onSelectionChanged = { s -> state.hasSelection = s }
                         it.onTextSelectionChanged = { s -> state.hasTextSelection = s }
                         it.onClipboardChanged = { c -> state.hasClipboard = c }
+                        it.onSearchChanged = { s -> state.searchCurrent = s.current; state.searchTotal = s.total }
                         it.onToggleFullPage = { ui.fullPage = !ui.fullPage }
                         // Undo/redo are handled on the surface itself; these need the editor's tool
                         // state, and each flips back to the previous tool on a second double-click.
