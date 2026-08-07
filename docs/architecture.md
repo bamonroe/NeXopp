@@ -477,6 +477,15 @@ This list mirrors the Kotlin types in `format/model/` — keep the two in sync w
 A standard single-module Gradle (Kotlin DSL) Android project. The app code is split into small,
 single-responsibility files per `CLAUDE.md`'s style guide.
 
+**The `MainActivity*.kt` family.** An activity can't be split into classes — the framework
+constructs exactly one — so it is split into four files instead, one class plus three files of
+`internal` extension functions on it. `MainActivity.kt` keeps only what has to live on the class:
+the pane/tab/audio fields, the `registerForActivityResult` launchers (which must be registered
+before `onCreate`), `onCreate` and the Compose entry point, the intent handovers from other apps,
+`inBackground`, and the lifecycle hooks. Each of the other three owns one half-independent concern —
+`MainActivityDocuments.kt` (I/O), `MainActivityTabs.kt` (sessions), `MainActivityAudio.kt` (audio) —
+and reads as an ordinary module of small functions.
+
 ```
 settings.gradle.kts, build.gradle.kts, gradle.properties   # Gradle config
 gradle/libs.versions.toml                                  # version catalog (all deps/plugins)
@@ -489,9 +498,10 @@ app/
   src/main/AndroidManifest.xml
   src/main/res/                                            # strings, Material 3 theme, adaptive icon
   src/main/java/com/xopp/android/
-    MainActivity.kt          # hosts the editor; SAF intent plumbing, panes, audio wiring
+    MainActivity.kt          # hosts the editor; SAF launchers, intent handovers, panes, lifecycle
     MainActivityDocuments.kt # its document I/O half: open/load, PDF & image adoption, save/export
     MainActivityTabs.kt      # its tab/session half: tab strip state, show/switch/close, restore, split view
+    MainActivityAudio.kt     # its audio half: canvas wiring, record/playback state, sidecar pull/push
     format/                  # THE CORE — lossless .xopp read/write (pure Kotlin, no device deps)
       model/                 # Document, Page, Layer, Background, Element/Stroke/Text/Image/TexImage
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer

@@ -1,9 +1,7 @@
 package com.xopp.android
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
@@ -15,7 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.core.content.ContextCompat
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.xopp.android.audio.AudioSession
 import com.xopp.android.format.SaveFormat
@@ -35,7 +32,6 @@ import com.xopp.android.render.splineInProgress
 import com.xopp.android.tabs.TabManager
 import com.xopp.android.tabs.TabStore
 import com.xopp.android.ui.AppSettings
-import com.xopp.android.ui.AudioUiState
 import com.xopp.android.ui.EditorScreen
 import com.xopp.android.ui.SettingsStore
 import com.xopp.android.ui.theme.XoppTheme
@@ -94,7 +90,7 @@ class MainActivity : ComponentActivity() {
     internal val audio: AudioSession by lazy { AudioSession(this) }
 
     /** Persists [AppSettings]; also the home of the nominated audio folder grant. */
-    private val settingsStore: SettingsStore by lazy { SettingsStore(this) }
+    internal val settingsStore: SettingsStore by lazy { SettingsStore(this) }
 
     /**
      * The folder sidecar `.wav` files are kept in — a persisted `OpenDocumentTree` grant, normally
@@ -104,7 +100,7 @@ class MainActivity : ComponentActivity() {
     internal var audioFolder: Uri? = null
 
     /** Bumped whenever recording/playback state changes, so the Compose chrome re-reads it. */
-    private var audioTick = mutableStateOf(0)
+    internal var audioTick = mutableStateOf(0)
 
     /** The active pane's open documents and which one is showing (see `com.xopp.android.tabs`). */
     internal val tabs: TabManager get() = pane.tabs
@@ -167,12 +163,12 @@ class MainActivity : ComponentActivity() {
             uri?.let { importPdf(it, pendingImportMode) }
         }
 
-    private val audioFolderLauncher =
+    internal val audioFolderLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             uri?.let(::adoptAudioFolder)
         }
 
-    private val recordPermissionLauncher =
+    internal val recordPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
             if (granted) beginRecording() else toast("Recording needs microphone permission")
         }
@@ -309,81 +305,6 @@ class MainActivity : ComponentActivity() {
         }.start()
     }
 
-
-    // --- audio: record onto strokes, replay from them, keep sidecars beside the .xopp -----------
-
-    /** Wire the canvas to the audio session: stamp new strokes while recording, replay on a tap. */
-    private fun attachAudio(view: DrawingSurfaceView) {
-        view.audioStamp = { audio.stamp() }
-        view.onAudioTap = { ref ->
-            when {
-                ref == null -> toast("That stroke has no recording")
-                !audio.play(ref) -> toast("Recording not found: ${ref.filename}")
-                else -> Unit
-            }
-        }
-    }
-
-    /** The audio slot's current state, read fresh on every recomposition [audioTick] triggers. */
-    private fun audioUiState(): AudioUiState {
-        audioTick.value // read so Compose re-invokes this when the session changes
-        return AudioUiState(
-            recording = audio.isRecording,
-            playing = audio.isPlaying,
-            folderChosen = audioFolder != null,
-            onToggleRecord = ::toggleRecording,
-            onStopPlayback = { audio.stopPlayback() },
-            onChooseFolder = { audioFolderLauncher.launch(null) },
-        )
-    }
-
-    /** Stop a running recording, or ask for the microphone and start one. */
-    private fun toggleRecording() {
-        if (audio.isRecording) {
-            val file = audio.stopRecording()
-            toast(if (file != null) "Recording saved: ${file.name}" else "Nothing was recording")
-            pushAudioSidecars()
-            return
-        }
-        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
-            PackageManager.PERMISSION_GRANTED
-        if (granted) beginRecording() else recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-    }
-
-    private fun beginRecording() {
-        val name = audio.startRecording()
-        toast(if (name != null) "Recording — strokes will replay from here" else "Could not open the microphone")
-    }
-
-    /**
-     * Adopt a newly picked audio folder, holding onto the grant across restarts so sidecars keep
-     * resolving, and immediately pull in whatever the open document references.
-     */
-    private fun adoptAudioFolder(uri: Uri) {
-        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        runCatching { contentResolver.takePersistableUriPermission(uri, flags) }
-        audioFolder = uri
-        settingsStore.save(settingsStore.load().copy(audioFolderUri = uri.toString()))
-        audioTick.value++
-        pullAudioSidecars()
-    }
-
-    /** Copy the sidecars the open document references out of the nominated folder, so they replay. */
-    internal fun pullAudioSidecars() {
-        val folder = audioFolder ?: return
-        val doc = surface?.toDocument() ?: return
-        val pulled = audio.importSidecars(folder, doc)
-        val missing = audio.missingFor(doc).size
-        if (pulled > 0) toast("Loaded $pulled recording(s)")
-        else if (missing > 0) toast("$missing recording(s) referenced but not in the audio folder")
-    }
-
-    /** Copy the sidecars the open document references into the nominated folder, beside the .xopp. */
-    internal fun pushAudioSidecars() {
-        val folder = audioFolder ?: return
-        val doc = surface?.toDocument() ?: return
-        audio.exportSidecars(folder, doc)
-    }
 
     /** Cache both panes' open tabs on the way to the background — the app may not come back. */
     override fun onPause() {
