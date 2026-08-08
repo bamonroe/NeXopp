@@ -94,20 +94,33 @@ abstract class BitmapLruCache<K : Any>(
     }
 
     /**
-     * Caller holds [lock]. Inserts, then charges the shared budget — which may call straight back
-     * into [trim] to make room, here or in another cache.
+     * Inserts, then charges the shared budget — which may call straight back into [trim] to make
+     * room, here or in another cache.
+     *
+     * **The caller must NOT hold [lock].** This takes it for the insert and releases it again
+     * *before* charging, because charging reaches into every other client's [trim], which takes
+     * that client's lock. Holding ours across that call inverts the order between two caches: with
+     * a document mirrored into both split panes there are two [PdfPageCache]s over the same PDF,
+     * and a fast scroll in each has both charging at once — the drawing thread inside cache A's
+     * lock waiting on B's while A's rasteriser sits inside B's lock waiting on A's. That deadlocks
+     * the main thread inside `doFrame` and the app is killed for not responding.
+     *
+     * [protectedKey] spares the entry we just inserted from the eviction this charge may trigger.
      */
     protected fun put(key: K, bmp: Bitmap) {
-        val replaced = cache.put(key, bmp)?.byteCount?.toLong() ?: 0L
-        cachedBytes += bmp.byteCount.toLong() - replaced
-        index(key)
-        onCacheChanged()
-        protectedKey = key
+        val replaced = synchronized(lock) {
+            val old = cache.put(key, bmp)?.byteCount?.toLong() ?: 0L
+            cachedBytes += bmp.byteCount.toLong() - old
+            index(key)
+            onCacheChanged()
+            protectedKey = key
+            old
+        }
         try {
             if (replaced > 0) budget.credit(replaced)
             budget.charge(this, bmp.byteCount.toLong())
         } finally {
-            protectedKey = null
+            synchronized(lock) { protectedKey = null }
         }
     }
 

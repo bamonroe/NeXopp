@@ -832,8 +832,15 @@ the pixels being drawn this frame survive. `InkCache.trim` gives back off-screen
 an `ImageElement`'s `equals` compares whole byte arrays; `ElementRenderer.close` recycles them and
 leaves the budget when the surface is torn down or a one-shot thumbnail is finished). Trimmed bitmaps are dropped
 but never recycled: another thread's trim can hit a bitmap the drawing thread holds for the current
-frame. `BitmapBudget` never calls a client back while holding its own lock — clients charge while
-holding *their* locks, so a callback under both would invert the lock order.
+frame. **No lock is held across a charge, in either direction.** `BitmapBudget` never calls a client
+back while holding its own lock, and `BitmapLruCache.put` releases the *cache* lock after the insert
+and before charging — because a charge reaches into every other client's `trim`, which takes that
+client's lock. Holding one cache's lock across it inverts the order between two caches, and a
+document mirrored into both split panes has exactly two `PdfPageCache`s over one PDF: a fast scroll
+in each had the drawing thread inside cache A waiting on B while A's rasteriser sat inside B waiting
+on A, hanging the main thread in `doFrame` until the system killed the app for not responding.
+`BitmapCacheDeadlockTest` (connected suite — the accounting needs real `Bitmap.byteCount`) races two
+caches over one budget and fails if they lock up.
 **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
 inherits the size and background of the page in view). Each draw, erase, add, or remove snapshots
 the whole document into the pure, tested `EditHistory`, so the top-bar **undo/redo** steps one

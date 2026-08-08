@@ -107,7 +107,8 @@ class ImageBackgroundCache(
             decoded.recycle()
             return null
         }
-        synchronized(lock) { if (closed) return null else put(key, scaled) }
+        if (closed) return null
+        put(key, scaled) // takes the cache lock itself; must not be called holding it
         return scaled
     }
 

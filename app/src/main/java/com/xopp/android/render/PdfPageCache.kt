@@ -254,7 +254,7 @@ class PdfPageCache(
         } else {
             rasterSource.rasterise(key.page, fullW, fullH, key.col, key.row)
         } ?: return null
-        synchronized(lock) { put(key, bmp) }
+        put(key, bmp) // takes the cache lock itself; must not be called holding it
         return bmp
     }
 
