@@ -482,5 +482,8 @@ class PdfPageCache(
         const val PREFETCH_HEADROOM = 0.75
 
         const val MODE = PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY
+
+        /** Round target widths up to 64px buckets so small zoom nudges reuse a cached bitmap. */
+        fun bucket(px: Int) = ((px + 63) / 64) * 64
     }
 }
