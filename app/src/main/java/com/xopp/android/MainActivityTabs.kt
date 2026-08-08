@@ -95,6 +95,9 @@ internal fun MainActivity.hydrate(p: EditorPane) {
 
 /** Copy the live canvas back into the showing tab's record, so switching away doesn't lose it. */
 internal fun MainActivity.snapshotActiveTab(p: EditorPane = pane) {
+    // A mirrored edit may still be waiting on its coalesced pass; apply it first so the records this
+    // is about to read (and the other pane's canvas) are current.
+    mirrors.flush()
     val view = p.surface ?: return
     // A tab still being parsed in the background hasn't reached the canvas yet, so what is on it
     // belongs to the tab before it — copying that in would overwrite the pending document.
@@ -257,6 +260,7 @@ internal fun MainActivity.restoreTabs(p: EditorPane, then: () -> Unit = {}) {
 
 /** Write the focused pane's session out, on every tab change and on the way to the background. */
 internal fun MainActivity.persistTabs() {
+    mirrors.flush() // don't write a session that predates a pending mirrored edit
     pane.persist()
     prunePdfCache()
 }

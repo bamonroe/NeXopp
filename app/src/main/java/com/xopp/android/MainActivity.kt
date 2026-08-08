@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Keeps two views of one mirrored document in step across the panes. */
-    private val mirrors: MirrorSync by lazy { MirrorSync(panes) }
+    internal val mirrors: MirrorSync by lazy { MirrorSync(panes) }
 
     /** Which pane every menu/toolbar action applies to — the one last touched. */
     internal var activePane = mutableStateOf(0)

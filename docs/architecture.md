@@ -433,11 +433,19 @@ The design decisions worth keeping:
   *setter* fires `onDocumentEdited`, so the one place every edit lands is also the one place the
   mirror is notified — no per-operation hooks to keep in sync. `MirrorSync` writes the new document
   into every tab record holding the key (background tabs included, so selecting one is already
-  current) and calls `applyMirroredDocument` on any pane showing one. That entry point deliberately
+  current — all of them take the *same* immutable instance, so this shares one graph rather than
+  copying it per tab) and calls `applyMirroredDocument` on any pane showing one. That entry point deliberately
   touches *nothing* but the document — scroll, zoom and columns are left alone, which is what makes
   the two views independent — and clears the receiving surface's undo history, since its snapshots
   predate the other view's edit and undoing to one would discard it. `load`/`applyMirroredDocument`
   write the backing field directly rather than the property, which is what stops an echo loop.
+- **The mirror push is coalesced.** Adopting a document costs the receiving pane a full relayout and
+  render over every page, and edits arrive as fast as the pen moves, so `MirrorSync.propagate` only
+  records the latest document and posts one `flush()` onto the main thread; a burst of edits fans out
+  once, with the last one winning. Everything that *reads* the tab records — `snapshotActiveTab`,
+  `persistTabs` — calls `mirrors.flush()` first, so the deferral is never observable and no session is
+  written that predates a pending edit. `MirrorSyncTest` covers the coalescing (the scheduler is
+  injected, so the test runs the pass inline).
 - **Which tabs are the same document is shown, not inferred.** `tabs/DocColors.kt` assigns a palette
   colour to every `docKey` open more than once across *both* panes, and `TabStrip` draws it as a dot;
   titles are file names, so they cannot distinguish "open twice" from "two files, one name".
