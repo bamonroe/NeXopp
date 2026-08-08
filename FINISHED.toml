@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "extract-bitmap-lru-base"
+title = "Extract shared BitmapLruCache base for PDF and image caches"
+description = "render/PdfPageCache.kt and render/ImageBackgroundCache.kt duplicate an LRU bitmap-cache core, in places character-for-character: bucket() (PdfPageCache:580 vs ImageBackgroundCache:237), nearest() (:456-467 vs :143-154), put() (:473-485 vs :157-168), trim() (:494-513 vs :174-188), enqueue() (:401-410 vs :89-98), unindex() (:522-527 vs :191-195), plus the access-ordered LinkedHashMap / pending set / protectedKey / cachedBytes fields, and MAX_RASTER_WIDTH=4096 exists under two names. Create render/BitmapLruCache.kt: internal abstract class BitmapLruCache<K : Any>(budget: BitmapBudget) : BitmapBudget.Client with the lock, cache map, put, enqueue, trim (with an open spared(key) hook so PdfPageCache keeps its two-pass pinned sweep and generation bump), discardAll, and companion members MAX_RASTER_WIDTH, bucket(), nearest(). Port both caches onto it; keep the PdfPageCache OOM handling; collapse the duplicated ImageBackgroundCache teardown (:203-210 vs :215-222). Do NOT fold InkCache in (different keying and recycling), but co-locate the shared 0.25 page-share constant (PdfPageCache:555 vs InkCache:175). CAREFUL: the lock ordering documented at PdfPageCache.kt:308 (outer lock never held inside renderLock) must be preserved. Full scripts/build.sh; docs/architecture.md."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-07
+tags = ["audit"]
+
+[[task]]
 id = "text-search-across-document-and-background-pdf"
 title = "Text search across document and background PDF"
 description = "Add a magnifying-glass search icon to the top-right toolbar, immediately left of the undo/redo buttons. Tapping it opens a search field that searches all text in the document: text typed into the document (text boxes) and text extracted from a background PDF, if there is one. Find every occurrence, highlight matches, and let the user tap through them (next/previous) with the view scrolling/jumping to each hit across pages."

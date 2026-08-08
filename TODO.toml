@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "extract-bitmap-lru-base"
-title = "Extract shared BitmapLruCache base for PDF and image caches"
-description = "render/PdfPageCache.kt and render/ImageBackgroundCache.kt duplicate an LRU bitmap-cache core, in places character-for-character: bucket() (PdfPageCache:580 vs ImageBackgroundCache:237), nearest() (:456-467 vs :143-154), put() (:473-485 vs :157-168), trim() (:494-513 vs :174-188), enqueue() (:401-410 vs :89-98), unindex() (:522-527 vs :191-195), plus the access-ordered LinkedHashMap / pending set / protectedKey / cachedBytes fields, and MAX_RASTER_WIDTH=4096 exists under two names. Create render/BitmapLruCache.kt: internal abstract class BitmapLruCache<K : Any>(budget: BitmapBudget) : BitmapBudget.Client with the lock, cache map, put, enqueue, trim (with an open spared(key) hook so PdfPageCache keeps its two-pass pinned sweep and generation bump), discardAll, and companion members MAX_RASTER_WIDTH, bucket(), nearest(). Port both caches onto it; keep the PdfPageCache OOM handling; collapse the duplicated ImageBackgroundCache teardown (:203-210 vs :215-222). Do NOT fold InkCache in (different keying and recycling), but co-locate the shared 0.25 page-share constant (PdfPageCache:555 vs InkCache:175). CAREFUL: the lock ordering documented at PdfPageCache.kt:308 (outer lock never held inside renderLock) must be preserved. Full scripts/build.sh; docs/architecture.md."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 330
-created = 2026-08-05
-tags = ["audit"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "split-pdfpagecache"
 title = "Split PdfPageCache: extract tile geometry and raster source"
 description = "After extract-bitmap-lru-base lands, render/PdfPageCache.kt (582 lines) still fuses tile geometry with the PdfRenderer lifecycle. Extract: (1) render/PdfTileGeometry.kt — the PdfTile data class (~16-22), rasterWidth (~380), tileScale (~395), the tile-grid math from the head of requestTiles (~150-208), and TileMemo (~359-378), as top-level internal functions taking explicit page size and target width; (2) render/PdfRasterSource.kt — the descriptor/renderer/stamp fields, reopenLock, renderLock, checkSource (~311), discard (~337), newBitmap (~446), rasterise (~416), close (~529), pageSizePt (~112). Residual PdfPageCache orchestrates (~200 lines). This is the highest-risk split in the batch: preserve the documented lock ordering (~line 308) exactly. KDoc headers on new files; scripts/build.sh testDebugUnitTest; docs/architecture.md."
