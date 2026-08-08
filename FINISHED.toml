@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "cut-peak-memory-of-the-page-overview-grid-on-large-documents"
+title = "Cut peak memory of the page-overview grid on large documents"
+description = "The overview grid is the measured memory hot spot: on a 120-page mirrored document it took PSS from 245 MB to 407 MB on open and swung to 668 MB while scrolling previews (see the mirror repro run in FINISHED.toml). Bound the preview bitmap cache, recycle previews outside the visible window, and render previews at a smaller sample size. Verify with dumpsys meminfo on the same 120-page fixture."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-08
+completed = 2026-08-08
+tags = []
+
+[[task]]
 id = "stop-mirrorsync-from-copying-the-whole-document-into-every-tab-record-per-edit"
 title = "Stop MirrorSync from copying the whole document into every tab record per edit"
 description = "MirrorSync.propagate (panes/MirrorSync.kt) writes the new Document into every matching tab record and pushes it onto the other pane's canvas on each edit, and applyMirroredDocument then does a full relayout()+render() over all pages. On a big document that is a per-stroke walk of the entire page list on the main thread plus retained duplicate document graphs. Coalesce the mirror push (post/debounce to the next frame) and avoid holding the document in the background tab records when a live view already has it."

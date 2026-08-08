@@ -123,12 +123,21 @@ internal fun DrawingSurfaceView.paint() {
  * The picture to blit behind [box] — the rasterised PDF page for a `pdf` background, the decoded
  * image for a `pixmap` one, null for anything else (the renderer then draws sheet and ruling).
  * Both caches fill asynchronously, so this never stalls a frame.
+ *
+ * In overview mode (columns > 1), the width is capped to keep memory bounded across many visible
+ * pages.
  */
-internal fun DrawingSurfaceView.pageBitmapFor(box: PageBox): Bitmap? = when (val bg = box.page.background) {
-    is Background.Pdf -> pdfSource?.request(bg.pageNo, box.widthPx.toInt())
-    is Background.Pixmap -> imageSource.request(bg.filename, box.widthPx.toInt())
-    else -> null
+internal fun DrawingSurfaceView.pageBitmapFor(box: PageBox): Bitmap? {
+    val width = if (columns > 1) box.widthPx.toInt().coerceAtMost(OVERVIEW_PREVIEW_CAP) else box.widthPx.toInt()
+    return when (val bg = box.page.background) {
+        is Background.Pdf -> pdfSource?.request(bg.pageNo, width)
+        is Background.Pixmap -> imageSource.request(bg.filename, width)
+        else -> null
+    }
 }
+
+/** Max preview width in overview mode (columns > 1). */
+private const val OVERVIEW_PREVIEW_CAP = 200
 
 /**
  * Open the bytes a `pixmap` background's `filename` points at. The local copy the loader made

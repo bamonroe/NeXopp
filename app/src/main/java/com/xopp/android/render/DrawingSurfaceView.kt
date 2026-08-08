@@ -508,7 +508,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal val elementRenderer = ElementRenderer()
 
     /** Off-screen ink rasters, so a pan/fling frame blits pages instead of re-submitting strokes. */
-    internal val inkCache = InkCache()
+    internal val inkCache = InkCache(columns = { columns })
 
     /** Set while a coalesced redraw is queued — see [requestRender]. */
     internal val renderPosted = java.util.concurrent.atomic.AtomicBoolean(false)

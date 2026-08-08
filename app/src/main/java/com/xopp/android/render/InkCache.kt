@@ -11,10 +11,10 @@ import com.xopp.android.format.model.Page
  * re-submitting every stroke to the canvas each frame.
  *
  * One bitmap per page index, rasterised at a **zoom bucket** rather than the exact on-screen size:
- * bucket widths step geometrically (see [BUCKET_RATIO]), so a pinch only re-rasterises when it
- * crosses a bucket edge and the in-between zooms are a scaled blit of at most ~19% stretch. An
- * entry is dropped when the page's content changes (page identity), when its hidden-layer set
- * changes, or when it leaves the viewport ([retain]).
+ * buckets step geometrically (see [BUCKET_RATIO]), so a pinch only re-rasterises when it crosses a
+ * bucket edge and the in-between zooms are a scaled blit of at most ~19% stretch. An entry is
+ * dropped when the page's content changes (page identity), when its hidden-layer set changes, or
+ * when it leaves the viewport ([retain]).
  *
  * The cache **declines** any page whose bucket would exceed [budgetPx] — at deep zoom a page spans
  * many screens and its full raster would dwarf the screen it feeds. [draw] returns false there and
@@ -23,14 +23,21 @@ import com.xopp.android.format.model.Page
  * Every raster is charged to a shared [BitmapBudget], so this cache and [PdfPageCache] live under
  * one bound instead of two independent guesses; when the total goes over, [trim] hands back the
  * off-screen pages first.
+ *
+ * In **overview mode** (columns > 1), the cache tightens its bounds: bucket widths are capped and
+ * the entry count is limited, so a multi-page grid on a large document can't blow the bitmap budget.
  */
 class InkCache(
     private val budget: BitmapBudget = BitmapBudget.shared,
+    private val columns: () -> Int = { 1 },
 ) : BitmapBudget.Client {
 
     /** Max pixels in one cached page raster, from this device's share of the shared budget. */
     private val budgetPx: Int =
         (budget.perEntryBytes(BitmapLruCache.PAGE_SHARE) / BYTES_PER_PX).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
+    /** Max entries in overview mode; null in single-page mode (byte budget only). */
+    private val maxEntries = { if (columns() > 1) OVERVIEW_MAX_ENTRIES else null }
 
     private class Entry(
         val bitmap: Bitmap,
@@ -120,6 +127,14 @@ class InkCache(
         val bucketH = ((box.heightPx / box.widthPx) * bucketW).toInt().coerceAtLeast(1)
         if (bucketW.toLong() * bucketH > budgetPx) return null
         synchronized(lock) {
+            // In overview mode, enforce the entry count limit by dropping the eldest entries.
+            val limit = maxEntries()
+            if (limit != null && entries.size >= limit) {
+                val eldest = entries.entries.firstOrNull()?.key
+                if (eldest != null && eldest != box.index) {
+                    entries.remove(eldest)?.bitmap?.let { budget.credit(it.byteCount.toLong()); it.recycle() }
+                }
+            }
             val cached = entries[box.index]
             if (cached != null &&
                 cached.page === box.page &&
@@ -159,15 +174,17 @@ class InkCache(
 
     /**
      * The smallest bucket width at or above [widthPx], or null once that would blow the budget on
-     * width alone. Buckets start at [BUCKET_BASE] and step by [BUCKET_RATIO].
+     * width alone. Buckets start at [BUCKET_BASE] and step by [BUCKET_RATIO]. In overview mode
+     * (columns > 1), the width is capped to keep memory bounded across many visible pages.
      */
     private fun bucketWidth(widthPx: Float): Int? {
         var w = BUCKET_BASE.toFloat()
+        val cap = if (columns() > 1) OVERVIEW_BUCKET_CAP.toFloat() else Float.POSITIVE_INFINITY
         while (w < widthPx) {
             w *= BUCKET_RATIO
-            if (w > budgetPx) return null
+            if (w > budgetPx || w > cap) return null
         }
-        return w.toInt()
+        return w.toInt().coerceAtMost(cap.toInt())
     }
 
     private companion object {
@@ -178,5 +195,11 @@ class InkCache(
 
         /** Geometric step between buckets: ≤19% upscale between rasterisations. */
         const val BUCKET_RATIO = 1.19f
+
+        /** Max bucket width in overview mode (columns > 1), keeping previews memory-bounded. */
+        private const val OVERVIEW_BUCKET_CAP = 200
+
+        /** Max cached entries in overview mode; single-page mode is byte-budget only. */
+        private const val OVERVIEW_MAX_ENTRIES = 12
     }
 }
