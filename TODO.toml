@@ -330,20 +330,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "share-one-pdfpagecache-and-pdf-text-index-between-mirrored-panes"
-title = "Share one PdfPageCache and PDF text index between mirrored panes"
-description = "showTab() (MainActivityTabs.kt:135) builds a fresh PdfPageCache per pane and calls extractPdfTextInBackground again, so mirroring a PDF-backed document opens a second PdfRenderer/ParcelFileDescriptor on the same file and duplicates the whole extracted text index. BitmapBudget.shared already bounds raster bytes across caches, but the renderer handles and text index are not shared. Key the PDF resources by file (as tabs are keyed by docKey) and hand the same instance to both panes, closing it when the last view goes."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 3
-created = 2026-08-08
-tags = ["split-view", "pdf"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "stop-mirrorsync-from-copying-the-whole-document-into-every-tab-record-per-edit"
 title = "Stop MirrorSync from copying the whole document into every tab record per edit"
 description = "MirrorSync.propagate (panes/MirrorSync.kt) writes the new Document into every matching tab record and pushes it onto the other pane's canvas on each edit, and applyMirroredDocument then does a full relayout()+render() over all pages. On a big document that is a per-stroke walk of the entire page list on the main thread plus retained duplicate document graphs. Coalesce the mirror push (post/debounce to the next frame) and avoid holding the document in the background tab records when a live view already has it."
@@ -380,6 +366,34 @@ level = "task"
 category = "bug"
 urgency = "high"
 order = 620
+created = 2026-08-08
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "stylusinputtest-eraser-cases-fail-on-the-tab-ultra"
+title = "StylusInputTest eraser cases fail on the Tab Ultra"
+description = "barrelButtonErasesWhileHeld and eraserTipErasesWithPenSelected both fail on the physical SM-X920 (Android 16): 'expected:<0> but was:<5>' — the stroke is not erased. The other 23 connected tests pass there. Unrelated to the bitmap-cache deadlock fix (that diff touches no input code); likely the synthetic TOOL_TYPE_ERASER / barrel-button events are classified differently on Samsung's stack than on the emulator. Run with: adb -s <ip>:5555 shell am instrument -w -e class com.xopp.android.StylusInputTest com.xopp.android.test/androidx.test.runner.AndroidJUnitRunner"
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 630
+created = 2026-08-08
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "share-one-pdfpagecache-and-pdf-text-index-between-mirrored-panes"
+title = "Share one PdfPageCache and PDF text index between mirrored panes"
+description = "showTab() (MainActivityTabs.kt:140) builds a fresh PdfPageCache per pane and calls extractPdfTextInBackground again, so mirroring a PDF-backed document opens a second PdfRenderer/ParcelFileDescriptor on the same file and duplicates the whole extracted text index. Key the PDF resources by file (as tabs are keyed by docKey) and hand both panes the same instance, refcounted so the last pane to drop it closes it. NOTE: the deadlock this used to trigger is already fixed — BitmapLruCache.put no longer charges the budget under the cache lock (commit f49b3b2) — so this is now a memory/duplication cleanup, not a crash fix. Measured on a Tab Ultra: a 108-page PDF mirrored into both panes sits near 900 MB PSS after heavy scrolling."
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "high"
+order = 3
 created = 2026-08-08
 tags = []
 rebuild = true

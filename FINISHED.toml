@@ -2807,10 +2807,3 @@ status = "finished"
 category = "docs"
 completed = 2026-07-30
 
-[[task]]
-id = "undated-2026-07-30-prior-art-survey-no-maintained-native-xopp-editor-exists-recorded-in-36"
-title = "Prior-art survey (no maintained native .xopp editor exists) recorded in docs/architecture.md; cloned"
-description = "Prior-art survey (no maintained native `.xopp` editor exists) recorded in `docs/architecture.md`; cloned the archived Xournal++ Mobile to `reference/` (git-ignored) as a format reference."
-status = "finished"
-category = "docs"
-completed = 2026-07-30
