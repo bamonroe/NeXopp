@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "fix-crash-in-split-view-when-mirroring-a-large-document"
+title = "Fix crash in split view when mirroring a large document"
+description = "The app crashes when split view mirroring is enabled on a big .xopp document. Investigate the split/mirror rendering path (likely memory pressure from duplicated tile/bitmap caches or an unbounded render pass across many pages) and break this into concrete atomic tasks: reproduce with a large doc, capture the logcat stack/OOM, then fix."
+status = "finished"
+level = "scope"
+category = "bug"
+created = 2026-08-08
+completed = 2026-08-08
+tags = ["crash", "split-view"]
+
+[[task]]
 id = "toolbar-popup-scaffold"
 title = "One ToolbarPopupButton scaffold for all ten toolbar popups"
 description = "Ten toolbar popups repeat the identical open-state + IconButton + DropdownMenu shell, with behavioural drift. Create ui/ToolbarPopup.kt with @Composable internal fun ToolbarPopupButton(icon, contentDescription, heading = null, active = false, tint = null, onLongClick = null, content: @Composable (dismiss: () -> Unit) -> Unit), plus an overload taking face: @Composable () -> Unit for the two non-icon faces (the Zoom percentage TextButton and the Size TipDot). Port all ten shells: ToolbarPagesPopup.kt:71-111, ToolbarSizePopup.kt:98-133, ToolbarViewPopups.kt Zoom :37-52 / Background :75-92 / Guide :102-122 / Audio :133-176, ToolbarPresetsPopup.kt:54-90, ToolbarLayersPopup.kt:60-94, ToolbarStylePopup.kt:59-76, ToolbarColorPopup.kt:39-53, and ToolGroupButton in SideToolbar.kt:194-227. Standardise the drift while porting: off-tint is onSurfaceVariant everywhere (Guide and Audio currently use LocalContentColor); every popup opens with MenuHeading — move MenuHeading from SideToolbar.kt:230-239 into ToolbarPopup.kt and delete the hand-rolled near-copy at ToolbarSizePopup.kt:107-112; dismiss-on-pick everywhere (fixes StylePopup line-style rows and PagesPopup add/remove rows staying open; remove the threaded open=false workaround at ToolbarPagesPopup.kt:94-97). Full scripts/build.sh, then emulator: open every toolbar popup, screenshot each, pick an item in each and confirm the menu closes and the action applies; check adb logcat."

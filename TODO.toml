@@ -328,3 +328,45 @@ created = 2026-08-05
 tags = ["audit", "kdoc"]
 rebuild = false
 emulator_debug = false
+
+[[task]]
+id = "reproduce-and-capture-the-split-view-mirror-crash-on-a-large-document"
+title = "Reproduce and capture the split-view mirror crash on a large document"
+description = "Build the debug APK, install on the /data/android emulator, open a large .xopp (many pages, ideally PDF-backed), long-press the tab -> 'Mirror on other view', then scroll/draw in both panes until it dies. Capture the adb logcat stack (OOM vs ANR vs PdfRenderer/native crash) and record it on this task, so the fixes below target the real failure rather than the suspects. Entry points: MainActivityTabs.sendTabToOtherPane/showTab, panes/MirrorSync.propagate, DrawingSurfaceView.applyMirroredDocument."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "critical"
+order = 2
+created = 2026-08-08
+tags = ["crash", "split-view"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "share-one-pdfpagecache-and-pdf-text-index-between-mirrored-panes"
+title = "Share one PdfPageCache and PDF text index between mirrored panes"
+description = "showTab() (MainActivityTabs.kt:135) builds a fresh PdfPageCache per pane and calls extractPdfTextInBackground again, so mirroring a PDF-backed document opens a second PdfRenderer/ParcelFileDescriptor on the same file and duplicates the whole extracted text index. BitmapBudget.shared already bounds raster bytes across caches, but the renderer handles and text index are not shared. Key the PDF resources by file (as tabs are keyed by docKey) and hand the same instance to both panes, closing it when the last view goes."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 3
+created = 2026-08-08
+tags = ["split-view", "pdf"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "stop-mirrorsync-from-copying-the-whole-document-into-every-tab-record-per-edit"
+title = "Stop MirrorSync from copying the whole document into every tab record per edit"
+description = "MirrorSync.propagate (panes/MirrorSync.kt) writes the new Document into every matching tab record and pushes it onto the other pane's canvas on each edit, and applyMirroredDocument then does a full relayout()+render() over all pages. On a big document that is a per-stroke walk of the entire page list on the main thread plus retained duplicate document graphs. Coalesce the mirror push (post/debounce to the next frame) and avoid holding the document in the background tab records when a live view already has it."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 4
+created = 2026-08-08
+tags = ["split-view", "performance"]
+rebuild = true
+emulator_debug = false
