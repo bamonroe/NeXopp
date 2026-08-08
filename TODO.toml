@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "split-settings-sections"
-title = "Split SettingsSections.kt into sections plus a widget kit"
-description = "ui/SettingsSections.kt (519 lines) is six settings pages plus a shared widget kit — a textbook mono-file, and the cleanest, lowest-risk split (good warm-up before the bigger ones). Split into: ui/SettingsWidgets.kt (DropdownRow ~396, SwitchRow ~425, OptionGroup ~497, MomentumSlider ~447, PanSensitivitySlider ~475); ui/SettingsToolbarSection.kt (ToolbarSection ~198-260 with its drag state, dragTargetIndex ~267, RailItemRow ~279); ui/SettingsStylusSection.kt (StylusSection ~57-144); residual SettingsSections.kt keeps EditorSection, StorageSection, NavigationSection, AppearanceSection (~130 lines). Mechanical move, no signature changes. KDoc header on each new file. scripts/build.sh testDebugUnitTest; docs/architecture.md."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 350
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "shared-dialogs"
 title = "Consolidate rename/confirm dialogs into ui/Dialogs.kt"
 description = "Three copies of the one-text-field dialog and three of the destructive-confirm dialog, all drifted (different labels, widths, confirm text). Create ui/Dialogs.kt. (1) Generalise TextInputDialog (currently ui/EditorOverlays.kt ~303-327) with label: String? = null and singleLine: Boolean = true parameters, move it there, then delete LayerRenameDialog (ToolbarLayersPopup.kt:167-184) and PaletteRenameDialog (PaletteManagerRow.kt:253-270), updating call sites via the confirmLabel parameter (Set / Rename). (2) Add ConfirmDialog(title, body, confirmLabel, onConfirm, onDismiss) replacing the inline delete-palette dialog (PaletteManagerRow.kt:232-244) and the PaletteBulkEditDialog scaffold (PaletteResetControls.kt:326-337). (3) Add CancelButton(onDismiss) and use it at the 11 byte-identical dismissButton sites: ColorPicker.kt:114, EditorOverlays.kt:325/371/411/509, ToolbarSizePopup.kt:201, ToolbarPagesPopup.kt:306, ToolbarLayersPopup.kt:182, PaletteManagerRow.kt:134, PaletteResetControls.kt:335. Coordinate with split-editor-overlays, which moves the remaining editor dialogs. scripts/build.sh testDebugUnitTest; docs/architecture.md."

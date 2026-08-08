@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-settings-sections"
+title = "Split SettingsSections.kt into sections plus a widget kit"
+description = "ui/SettingsSections.kt (519 lines) is six settings pages plus a shared widget kit — a textbook mono-file, and the cleanest, lowest-risk split (good warm-up before the bigger ones). Split into: ui/SettingsWidgets.kt (DropdownRow ~396, SwitchRow ~425, OptionGroup ~497, MomentumSlider ~447, PanSensitivitySlider ~475); ui/SettingsToolbarSection.kt (ToolbarSection ~198-260 with its drag state, dragTargetIndex ~267, RailItemRow ~279); ui/SettingsStylusSection.kt (StylusSection ~57-144); residual SettingsSections.kt keeps EditorSection, StorageSection, NavigationSection, AppearanceSection (~130 lines). Mechanical move, no signature changes. KDoc header on each new file. scripts/build.sh testDebugUnitTest; docs/architecture.md."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-08
+tags = ["audit"]
+
+[[task]]
 id = "split-pdfpagecache"
 title = "Split PdfPageCache: extract tile geometry and raster source"
 description = "After extract-bitmap-lru-base lands, render/PdfPageCache.kt (582 lines) still fuses tile geometry with the PdfRenderer lifecycle. Extract: (1) render/PdfTileGeometry.kt — the PdfTile data class (~16-22), rasterWidth (~380), tileScale (~395), the tile-grid math from the head of requestTiles (~150-208), and TileMemo (~359-378), as top-level internal functions taking explicit page size and target width; (2) render/PdfRasterSource.kt — the descriptor/renderer/stamp fields, reopenLock, renderLock, checkSource (~311), discard (~337), newBitmap (~446), rasterise (~416), close (~529), pageSizePt (~112). Residual PdfPageCache orchestrates (~200 lines). This is the highest-risk split in the batch: preserve the documented lock ordering (~line 308) exactly. KDoc headers on new files; scripts/build.sh testDebugUnitTest; docs/architecture.md."
