@@ -284,8 +284,49 @@ class PdfPageCache(
      */
     override fun spared(key: Key) = key in pinnedKeys
 
+    /**
+     * How many holders this instance has, for the shared instances handed out by [shared]. Only
+     * meaningful while [registered]; a directly constructed cache has exactly one owner and is torn
+     * down by the first [close].
+     */
+    private var refs = 1
+    private var registered = false
+
+    /** True for the refcounted instances [shared] hands out, where [close] is "release one claim". */
+    val isShared: Boolean get() = synchronized(registry) { registered }
+
+    /**
+     * Release this holder's claim. A shared instance is only really torn down by its **last** holder;
+     * a directly constructed one closes at once. Idempotent per holder, so the existing
+     * "set a new source, close the old one" flow needs no change.
+     */
     override fun close() {
+        synchronized(registry) {
+            if (registered) {
+                if (--refs > 0) return
+                if (registry[source.absolutePath] === this) registry.remove(source.absolutePath)
+            }
+        }
         if (!shutdown()) return
         rasterSource.close()
+    }
+
+    companion object {
+        /** Live shared caches by absolute PDF path — see [shared]. Guarded by its own monitor. */
+        private val registry = HashMap<String, PdfPageCache>()
+
+        /**
+         * The one cache for [file], creating it on first use and refcounting it after.
+         *
+         * Mirroring a PDF-backed document opens the *same* file in both panes, and a cache per pane
+         * means a second `PdfRenderer` and a second set of rasterised pages against one shared
+         * bitmap budget. Both panes take this instance instead, and the last one to [close] it
+         * releases the file.
+         */
+        fun shared(file: File): PdfPageCache = synchronized(registry) {
+            val key = file.absolutePath
+            registry[key]?.takeIf { it.refs > 0 }?.also { it.refs++ }
+                ?: PdfPageCache(file).also { it.registered = true; registry[key] = it }
+        }
     }
 }

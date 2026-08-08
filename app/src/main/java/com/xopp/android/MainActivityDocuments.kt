@@ -14,6 +14,7 @@ import com.xopp.android.render.PdfImport
 import com.xopp.android.render.blankDocument
 import com.xopp.android.render.PdfPageCache
 import com.xopp.android.render.PdfTextExtractor
+import com.xopp.android.render.PdfTextIndexCache
 import com.xopp.android.tabs.OpenTab
 import com.xopp.android.tabs.TabStore
 import com.xopp.android.ui.AppSettings
@@ -107,7 +108,7 @@ internal fun MainActivity.loadDocument(staged: File, source: Uri) {
         }
         is LoadedFile.Doc -> {
             saveFormat = loaded.format
-            surface?.setPdfSource(loaded.pdf?.let(::PdfPageCache))
+            surface?.setPdfSource(loaded.pdf?.let(PdfPageCache::shared))
             surface?.setPdfTextIndex(null) // cleared until extraction below finishes
             // The pictures behind pixmap backgrounds were copied out to local files on load;
             // hand them over before the document, so the first frame already has them.
@@ -158,7 +159,7 @@ internal fun MainActivity.adoptPdf(source: File, mode: ImportPdfMode, reference:
         appendMergedPdf(view, existing, file)
         return
     }
-    val cache = PdfPageCache(file)
+    val cache = PdfPageCache.shared(file)
     view?.setPdfSource(cache)
     view?.setPdfTextIndex(null) // cleared until extraction below finishes
     when (mode) {
@@ -169,6 +170,9 @@ internal fun MainActivity.adoptPdf(source: File, mode: ImportPdfMode, reference:
         }
         ImportPdfMode.APPEND -> view?.appendPages(PdfImport.pagesFor(cache, reference))
     }
+    if (view == null) cache.close() // nobody took the claim; don't hold the renderer open
+    // Freshly imported bytes: whatever was extracted for this path before doesn't describe them.
+    PdfTextIndexCache.forget(file)
     extractPdfTextInBackground(file)
 }
 
@@ -209,7 +213,8 @@ internal fun MainActivity.appendMergedPdf(view: DrawingSurfaceView, existing: Fi
     // Size the new pages from the incoming PDF before anything is closed or replaced.
     val added = PdfPageCache(incoming).use { PdfImport.pagesFor(it, reference = null, pageNoOffset = offset) }
     val joined = io.merge(existing, incoming)
-    view.setPdfSource(PdfPageCache(joined)) // closes the old rasteriser, releasing the old file
+    PdfTextIndexCache.forget(joined) // the merge rewrote these bytes; any cached index is stale
+    view.setPdfSource(PdfPageCache.shared(joined)) // releases the old rasteriser, freeing the old file
     view.setPdfTextIndex(null) // cleared until extraction below finishes
     view.appendPdfPages(added, joined.absolutePath)
     extractPdfTextInBackground(joined)
@@ -220,8 +225,12 @@ internal fun MainActivity.extractPdfTextInBackground(file: File, into: DrawingSu
     // Bind the destination canvas up front: with two panes open, the focus may well have moved
     // by the time a big PDF finishes extracting, and the index belongs to the pane that asked.
     val view = into ?: return
+    // The other pane may already have extracted this very file (a mirrored document); reuse its
+    // index rather than paying for the walk — and for a second copy of the words — again.
+    PdfTextIndexCache.get(file)?.let { return view.setPdfTextIndex(it) }
     Thread {
         val index = PdfTextExtractor().extract(file)
+        PdfTextIndexCache.put(file, index)
         view.post { view.setPdfTextIndex(index) }
     }.start()
 }

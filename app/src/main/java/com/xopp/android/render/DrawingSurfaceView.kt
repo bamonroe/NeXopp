@@ -580,7 +580,12 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * clear it (opening a plain `.xopp`). Closes any previously-held rasteriser.
      */
     fun setPdfSource(source: PdfPageCache?) {
-        if (source === pdfSource) return
+        // A view holds exactly one claim on its cache ([PdfPageCache.shared] is refcounted), so being
+        // handed the one it already has means giving the surplus claim straight back.
+        if (source === pdfSource) {
+            if (source != null && source.isShared) source.close()
+            return
+        }
         pdfSource?.onPageReady = null
         pdfSource?.close()
         pdfSource = source

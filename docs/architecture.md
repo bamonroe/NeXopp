@@ -587,6 +587,7 @@ app/
       PdfMerger.kt           # joins two PDFs end-to-end (PDFBox) so Append has one background PDF
       PdfText.kt             # positioned word model + grouping + range selection (pure, tested)
       PdfTextExtractor.kt    # pulls a PDF's positioned text layer via PDFBox PDFTextStripper
+      PdfTextIndexCache.kt   # one extracted text layer per PDF file, shared across mirrored views
       PdfExporter.kt         # flattens a Document to a PDF (PDFBox; preserves source vector pages)
       PdfVectorPainter.kt    # draws a page's strokes/text/images as vector overlay onto a PDFBox stream
       PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
@@ -835,10 +836,13 @@ but never recycled: another thread's trim can hit a bitmap the drawing thread ho
 frame. **No lock is held across a charge, in either direction.** `BitmapBudget` never calls a client
 back while holding its own lock, and `BitmapLruCache.put` releases the *cache* lock after the insert
 and before charging — because a charge reaches into every other client's `trim`, which takes that
-client's lock. Holding one cache's lock across it inverts the order between two caches, and a
-document mirrored into both split panes has exactly two `PdfPageCache`s over one PDF: a fast scroll
-in each had the drawing thread inside cache A waiting on B while A's rasteriser sat inside B waiting
-on A, hanging the main thread in `doFrame` until the system killed the app for not responding.
+client's lock. Holding one cache's lock across it inverts the order between two caches, and any two
+live caches over one budget can hit it: a fast scroll in each had the drawing thread inside cache A
+waiting on B while A's rasteriser sat inside B waiting on A, hanging the main thread in `doFrame`
+until the system killed the app for not responding. (The case that found it was a document mirrored
+into both split panes, which then meant two `PdfPageCache`s over one PDF; the panes now share one —
+see below — but the lock rule stands on its own, since a pane's PDF and image caches charge the same
+budget.)
 `BitmapCacheDeadlockTest` (connected suite — the accounting needs real `Bitmap.byteCount`) races two
 caches over one budget and fails if they lock up.
 **Add/remove page** edit the page list through the pure, tested `PageOps` (a new page
@@ -1022,7 +1026,18 @@ tool; the copied result is one flat bitmap rather than editable elements.
 
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
-not thread-safe) and `BackgroundRenderer` draws the rasterised page. The cache is keyed by page,
+not thread-safe) and `BackgroundRenderer` draws the rasterised page.
+
+**One cache and one text index per PDF file, not per view.** Callers take a cache through
+`PdfPageCache.shared(file)`, which keys live instances by absolute path and refcounts them; `close()`
+releases one claim and only the last holder shuts the renderer down (`DrawingSurfaceView.setPdfSource`
+owns exactly one claim, so being handed the instance it already holds gives the surplus one back).
+A directly constructed `PdfPageCache` is unshared and closes on the first `close()`. The extracted
+text layer is shared the same way through `PdfTextIndexCache` (soft-referenced by path, so an unused
+index is reclaimable, and `forget` drops it when the bytes behind a path are rewritten by an import or
+a merge). Without this, mirroring a PDF-backed document into both panes opened a second `PdfRenderer`
+over the same file, rasterised every page twice against one shared bitmap budget, and extracted and
+retained a second copy of the whole word index. The cache is keyed by page,
 target-width bucket and (for tiles) grid cell, **LRU** under a heap-proportional byte budget (`PdfPageCache.budget`, a quarter
 of the heap clamped to 24–192 MB — a page's cost varies ~64× between zoom levels, so counting pages
 budgets nothing). Rasterisation never happens on the drawing frame: `request` returns whatever

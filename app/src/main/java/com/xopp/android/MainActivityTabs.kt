@@ -137,7 +137,8 @@ internal fun MainActivity.showTab(tab: OpenTab, p: EditorPane = pane) {
     p.saveFormat = tab.format
     p.pendingSaveName = tab.title
     val pdf = tab.pdfPath?.let(::File)?.takeIf(File::exists)
-    view.setPdfSource(pdf?.let(::PdfPageCache))
+    // Shared, so a document mirrored into both panes rasterises from one renderer, not two.
+    view.setPdfSource(pdf?.let(PdfPageCache::shared))
     view.setPdfTextIndex(null) // cleared until extraction below finishes
     view.load(tab.document)
     if (tab.page > 0) view.goToPage(tab.page)
