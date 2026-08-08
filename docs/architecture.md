@@ -573,9 +573,11 @@ app/
       RadialPaletteRenderer.kt # paints the open radial palette (two rings + hovered slot) over the canvas
       LatexParser.kt         # LaTeX source -> node tree (pure, no Android deps)
       LatexRenderer.kt       # draws a parsed LaTeX tree to a Canvas (fractions, scripts, roots)
-      PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps (framework PdfRenderer)
-      BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
-      BitmapLruCache.kt      # the LRU bitmap-cache core PdfPageCache and ImageBackgroundCache share
+       PdfTileGeometry.kt     # tile grid math for high-zoom PDF rasterisation (pure geometry)
+       PdfRasterSource.kt     # the PdfRenderer lifecycle: open/close/reopen on file change (serialised)
+       PdfPageCache.kt        # rasterises an imported PDF's pages to bitmaps; orchestrates geometry + source
+       BitmapBudget.kt        # the one memory bound every bitmap cache allocates through
+       BitmapLruCache.kt      # the LRU bitmap-cache core PdfPageCache and ImageBackgroundCache share
       ImageImport.kt         # builds a one-page Document with an image as its pixmap background
       ImageBackgroundCache.kt # decodes+scales pixmap background pictures (LRU, off the frame)
       PdfBackgroundDomain.kt # the `attach` domain: the PDF travels bundled beside the .xopp
