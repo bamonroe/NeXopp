@@ -330,20 +330,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "reproduce-and-capture-the-split-view-mirror-crash-on-a-large-document"
-title = "Reproduce and capture the split-view mirror crash on a large document"
-description = "Build the debug APK, install on the /data/android emulator, open a large .xopp (many pages, ideally PDF-backed), long-press the tab -> 'Mirror on other view', then scroll/draw in both panes until it dies. Capture the adb logcat stack (OOM vs ANR vs PdfRenderer/native crash) and record it on this task, so the fixes below target the real failure rather than the suspects. Entry points: MainActivityTabs.sendTabToOtherPane/showTab, panes/MirrorSync.propagate, DrawingSurfaceView.applyMirroredDocument."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "critical"
-order = 2
-created = 2026-08-08
-tags = ["crash", "split-view"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "share-one-pdfpagecache-and-pdf-text-index-between-mirrored-panes"
 title = "Share one PdfPageCache and PDF text index between mirrored panes"
 description = "showTab() (MainActivityTabs.kt:135) builds a fresh PdfPageCache per pane and calls extractPdfTextInBackground again, so mirroring a PDF-backed document opens a second PdfRenderer/ParcelFileDescriptor on the same file and duplicates the whole extracted text index. BitmapBudget.shared already bounds raster bytes across caches, but the renderer handles and text index are not shared. Key the PDF resources by file (as tabs are keyed by docKey) and hand the same instance to both panes, closing it when the last view goes."
@@ -368,5 +354,33 @@ urgency = "high"
 order = 4
 created = 2026-08-08
 tags = ["split-view", "performance"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "cut-peak-memory-of-the-page-overview-grid-on-large-documents"
+title = "Cut peak memory of the page-overview grid on large documents"
+description = "The overview grid is the measured memory hot spot: on a 120-page mirrored document it took PSS from 245 MB to 407 MB on open and swung to 668 MB while scrolling previews (see the mirror repro run in FINISHED.toml). Bound the preview bitmap cache, recycle previews outside the visible window, and render previews at a smaller sample size. Verify with dumpsys meminfo on the same 120-page fixture."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 610
+created = 2026-08-08
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "reduce-allocation-churn-in-the-xopp-parse-path"
+title = "Reduce allocation churn in the .xopp parse path"
+description = "Loading a 14.8 MB / 120-page / 79k-stroke .xopp took ~10 minutes on the emulator with continuous GC — roughly 35 MB freed per collection for the whole parse, and a 140 MB Dalvik heap at rest. Profile DocumentIo's parse and cut the per-stroke garbage (reuse coordinate buffers, parse points into primitive arrays rather than boxed lists). Measure load time and GC volume on the same fixture before and after."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 620
+created = 2026-08-08
+tags = []
 rebuild = true
 emulator_debug = false

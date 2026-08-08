@@ -17,6 +17,27 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "reproduce-and-capture-the-split-view-mirror-crash-on-a-large-document"
+title = "Reproduce and capture the split-view mirror crash on a large document"
+description = """
+REPRO RUN 2026-08-08 (emulator, Android 14 headless, APK v340). Test doc: 120 pages / 79,620 strokes / 14.8 MB .xopp (udiff.xopp pages x20), opened from /sdcard/Download via the app's Open menu.
+
+Findings — no hard crash reproduced. The process (pid 2773) survived the whole session: no FATAL EXCEPTION, no OutOfMemoryError, no ANR, no lmkd/am_kill, no PdfRenderer native abort in logcat. What was observed instead is severe memory pressure:
+- Parsing the 14.8 MB file took ~10 minutes on the emulator, with continuous GC churn — 'Background/NativeAlloc concurrent copying GC freed ~35 MB' every few hundred ms for the whole parse. That is the loader allocating and discarding tens of MB per pass.
+- Steady state after load: ~263 MB PSS, 140 MB Dalvik heap (already past the normal 128 MB cap).
+- Mirroring the tab to the other pane worked and both panes rendered in step; drawing (40 rapid strokes) and scrolling in both panes was stable at ~225-245 MB PSS with no leak trend.
+- The page overview grid on the mirrored 120-page doc is the real hot spot: PSS jumped from 245 MB to 407 MB on open and swung between 430 MB and 668 MB while scrolling through the page previews.
+- Repeated mirror-and-draw cycles drove the app into heavy swap: TOTAL SWAP PSS reached ~550 MB with RSS down to ~110 MB, and dumpsys meminfo intermittently returned nothing because the process was thrashing.
+
+Conclusion for the follow-up fixes: on this emulator (large swap) the app degrades rather than dies, but the same memory profile on a real device would be killed by lmkd. The suspects to target are (a) the allocation-heavy .xopp parse, and (b) page-preview bitmaps in the overview, not MirrorSync.propagate itself — the shallow tab-record copy on each edit measured flat. The PdfPageCache-sharing and MirrorSync-copy tasks stay worth doing but are not the observed failure."""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-08
+completed = 2026-08-08
+tags = ["crash", "split-view"]
+
+[[task]]
 id = "fix-crash-in-split-view-when-mirroring-a-large-document"
 title = "Fix crash in split view when mirroring a large document"
 description = "The app crashes when split view mirroring is enabled on a big .xopp document. Investigate the split/mirror rendering path (likely memory pressure from duplicated tile/bitmap caches or an unbounded render pass across many pages) and break this into concrete atomic tasks: reproduce with a large doc, capture the logcat stack/OOM, then fix."
