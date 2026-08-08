@@ -2,11 +2,9 @@ package com.xopp.android.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,8 +32,10 @@ fun PaletteResetControls(palette: RadialPalette, onChange: (RadialPalette) -> Un
         ) { Text("Clear all slots") }
     }
     pending?.let { edit ->
-        PaletteBulkEditDialog(
-            edit = edit,
+        ConfirmDialog(
+            title = if (edit == PaletteBulkEdit.RESET) "Reset palette?" else "Clear every slot?",
+            text = paletteBulkEditPrompt(edit),
+            confirmLabel = if (edit == PaletteBulkEdit.RESET) "Reset" else "Clear",
             onConfirm = {
                 onChange(if (edit == PaletteBulkEdit.RESET) RadialPalette.default().copy(name = palette.name) else palette.cleared())
                 pending = null
@@ -50,20 +50,6 @@ internal fun paletteFilledSummary(palette: RadialPalette): String {
     val total = RadialRing.INNER.slotCount + RadialRing.OUTER.slotCount
     return if (palette.isEmpty) "No slots assigned — the palette would open empty."
     else "${palette.filledCount} of $total slots assigned."
-}
-
-/** The confirm step in front of a bulk edit, worded for whichever edit is pending. */
-@Composable
-private fun PaletteBulkEditDialog(edit: PaletteBulkEdit, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (edit == PaletteBulkEdit.RESET) "Reset palette?" else "Clear every slot?") },
-        text = { Text(paletteBulkEditPrompt(edit)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text(if (edit == PaletteBulkEdit.RESET) "Reset" else "Clear") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }
 
 /** The body text of the confirm dialog — kept separate so a unit test can assert the wording. */

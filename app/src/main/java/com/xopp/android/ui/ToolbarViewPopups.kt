@@ -1,6 +1,5 @@
 package com.xopp.android.ui
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -12,7 +11,6 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material.icons.filled.ZoomOut
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -22,10 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,20 +28,20 @@ import kotlin.math.roundToInt
 
 @Composable
 internal fun ZoomPopupButton(zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> Unit, onZoomReset: () -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        TextButton(onClick = { open = true }) {
-            Text("${(zoom * 100).roundToInt()}%")
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Row(
-                modifier = Modifier.padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onZoomOut) { Icon(Icons.Filled.ZoomOut, contentDescription = "Zoom out") }
-                TextButton(onClick = onZoomReset) { Text("${(zoom * 100).roundToInt()}%") }
-                IconButton(onClick = onZoomIn) { Icon(Icons.Filled.ZoomIn, contentDescription = "Zoom in") }
+    ToolbarPopupButton(
+        face = {
+            TextButton(onClick = { }) {
+                Text("${(zoom * 100).roundToInt()}%")
             }
+        },
+    ) { dismiss ->
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onZoomOut) { Icon(Icons.Filled.ZoomOut, contentDescription = "Zoom out") }
+            TextButton(onClick = onZoomReset) { Text("${(zoom * 100).roundToInt()}%") }
+            IconButton(onClick = onZoomIn) { Icon(Icons.Filled.ZoomIn, contentDescription = "Zoom in") }
         }
     }
 }
@@ -72,22 +66,19 @@ private val BACKGROUND_STYLES: List<Pair<String, String>> = listOf(
  */
 @Composable
 internal fun BackgroundPopupButton(style: String?, onBackgroundStyle: (String) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.GridOn, contentDescription = "Page background")
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            for ((value, label) in BACKGROUND_STYLES) {
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    enabled = style != null,
-                    trailingIcon = {
-                        if (value == style) Icon(Icons.Filled.Check, contentDescription = "selected")
-                    },
-                    onClick = { onBackgroundStyle(value); open = false },
-                )
-            }
+    ToolbarPopupButton(
+        icon = Icons.Filled.GridOn,
+        contentDescription = "Page background",
+    ) { dismiss ->
+        for ((value, label) in BACKGROUND_STYLES) {
+            DropdownMenuItem(
+                text = { Text(label) },
+                enabled = style != null,
+                trailingIcon = {
+                    if (value == style) Icon(Icons.Filled.Check, contentDescription = "selected")
+                },
+                onClick = { onBackgroundStyle(value); dismiss() },
+            )
         }
     }
 }
@@ -99,25 +90,19 @@ internal fun BackgroundPopupButton(style: String?, onBackgroundStyle: (String) -
  */
 @Composable
 internal fun GuidePopupButton(kind: GuideKind, onKind: (GuideKind) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(
-                Icons.Filled.ChangeHistory,
-                contentDescription = "Drawing guides",
-                tint = if (kind == GuideKind.NONE) LocalContentColor.current
-                else MaterialTheme.colorScheme.primary,
+    ToolbarPopupButton(
+        icon = Icons.Filled.ChangeHistory,
+        contentDescription = "Drawing guides",
+        tint = if (kind == GuideKind.NONE) LocalContentColor.current
+        else MaterialTheme.colorScheme.primary,
+    ) { dismiss ->
+        MenuHeading("Drawing guide")
+        for (option in GuideKind.entries) {
+            DropdownMenuItem(
+                text = { Text(option.label) },
+                trailingIcon = { if (option == kind) Icon(Icons.Filled.Check, contentDescription = "selected") },
+                onClick = { onKind(option); dismiss() },
             )
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            MenuHeading("Drawing guide")
-            for (option in GuideKind.entries) {
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    trailingIcon = { if (option == kind) Icon(Icons.Filled.Check, contentDescription = "selected") },
-                    onClick = { onKind(option); open = false },
-                )
-            }
         }
     }
 }
@@ -130,49 +115,43 @@ internal fun GuidePopupButton(kind: GuideKind, onKind: (GuideKind) -> Unit) {
  */
 @Composable
 internal fun AudioPopupButton(state: AudioUiState) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(
-                if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
-                contentDescription = "Audio",
-                tint = if (state.recording || state.playing) MaterialTheme.colorScheme.primary
-                else LocalContentColor.current,
-            )
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            MenuHeading("Audio")
-            DropdownMenuItem(
-                text = { Text(if (state.recording) "Stop recording" else "Record") },
-                leadingIcon = {
-                    Icon(
-                        if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
-                        contentDescription = null,
-                    )
-                },
-                onClick = { state.onToggleRecord(); open = false },
-            )
-            DropdownMenuItem(
-                text = { Text("Stop playback") },
-                enabled = state.playing,
-                leadingIcon = { Icon(Icons.Filled.Stop, contentDescription = null) },
-                onClick = { state.onStopPlayback(); open = false },
-            )
-            HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text(if (state.folderChosen) "Change audio folder…" else "Choose audio folder…") },
-                onClick = { state.onChooseFolder(); open = false },
-            )
-            Text(
-                text = if (state.folderChosen) {
-                    "Recordings are saved beside your .xopp files."
-                } else {
-                    "Recordings stay in the app until you choose a folder next to your .xopp files."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).width(220.dp),
-            )
-        }
+    ToolbarPopupButton(
+        icon = if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
+        contentDescription = "Audio",
+        tint = if (state.recording || state.playing) MaterialTheme.colorScheme.primary
+        else LocalContentColor.current,
+    ) { dismiss ->
+        MenuHeading("Audio")
+        DropdownMenuItem(
+            text = { Text(if (state.recording) "Stop recording" else "Record") },
+            leadingIcon = {
+                Icon(
+                    if (state.recording) Icons.Filled.Stop else Icons.Filled.Mic,
+                    contentDescription = null,
+                )
+            },
+            onClick = { state.onToggleRecord(); dismiss() },
+        )
+        DropdownMenuItem(
+            text = { Text("Stop playback") },
+            enabled = state.playing,
+            leadingIcon = { Icon(Icons.Filled.Stop, contentDescription = null) },
+            onClick = { state.onStopPlayback(); dismiss() },
+        )
+        HorizontalDivider()
+        DropdownMenuItem(
+            text = { Text(if (state.folderChosen) "Change audio folder…" else "Choose audio folder…") },
+            onClick = { state.onChooseFolder(); dismiss() },
+        )
+        Text(
+            text = if (state.folderChosen) {
+                "Recordings are saved beside your .xopp files."
+            } else {
+                "Recordings stay in the app until you choose a folder next to your .xopp files."
+            },
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).width(220.dp),
+        )
     }
 }
 

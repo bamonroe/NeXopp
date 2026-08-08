@@ -11,14 +11,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,26 +84,26 @@ fun PaletteManagerRow(
         modifier = Modifier.padding(top = 4.dp),
     ) { Text("Use this palette on the pen") }
     if (renaming) {
-        PaletteRenameDialog(
-            current = set.palettes.getOrNull(editing)?.name.orEmpty(),
+        RenameDialog(
+            title = "Rename palette",
+            label = "Name",
+            initialValue = set.palettes.getOrNull(editing)?.name.orEmpty(),
             onConfirm = { onSet(renamePalette(set, editing, it)); renaming = false },
             onDismiss = { renaming = false },
         )
     }
     if (deleting) {
         val name = set.palettes.getOrNull(editing)?.name.orEmpty()
-        AlertDialog(
-            onDismissRequest = { deleting = false },
-            title = { Text("Delete \"$name\"?") },
-            text = { Text("Its slot assignments are lost. Your other palettes are untouched.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    onSet(removePalette(set, editing))
-                    onEdit((editing - 1).coerceAtLeast(0))
-                    deleting = false
-                }) { Text("Delete") }
+        ConfirmDialog(
+            title = "Delete \"$name\"?",
+            text = "Its slot assignments are lost. Your other palettes are untouched.",
+            confirmLabel = "Delete",
+            onConfirm = {
+                onSet(removePalette(set, editing))
+                onEdit((editing - 1).coerceAtLeast(0))
+                deleting = false
             },
-            dismissButton = { TextButton(onClick = { deleting = false }) { Text("Cancel") } },
+            onDismiss = { deleting = false },
         )
     }
 }
@@ -114,23 +111,3 @@ fun PaletteManagerRow(
 /** A chip's label: the palette's name, with a dot marking the one the pen opens. */
 internal fun paletteChipLabel(palette: RadialPalette, isActive: Boolean): String =
     if (isActive) "● ${palette.name}" else palette.name
-
-/** The rename step: a single-line name field over the palette being edited. */
-@Composable
-private fun PaletteRenameDialog(current: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf(current) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename palette") },
-        text = {
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                singleLine = true,
-                label = { Text("Name") },
-            )
-        },
-        confirmButton = { TextButton(onClick = { onConfirm(name) }) { Text("Rename") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}

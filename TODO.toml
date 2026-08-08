@@ -22,48 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "shared-dialogs"
-title = "Consolidate rename/confirm dialogs into ui/Dialogs.kt"
-description = "Three copies of the one-text-field dialog and three of the destructive-confirm dialog, all drifted (different labels, widths, confirm text). Create ui/Dialogs.kt. (1) Generalise TextInputDialog (currently ui/EditorOverlays.kt ~303-327) with label: String? = null and singleLine: Boolean = true parameters, move it there, then delete LayerRenameDialog (ToolbarLayersPopup.kt:167-184) and PaletteRenameDialog (PaletteManagerRow.kt:253-270), updating call sites via the confirmLabel parameter (Set / Rename). (2) Add ConfirmDialog(title, body, confirmLabel, onConfirm, onDismiss) replacing the inline delete-palette dialog (PaletteManagerRow.kt:232-244) and the PaletteBulkEditDialog scaffold (PaletteResetControls.kt:326-337). (3) Add CancelButton(onDismiss) and use it at the 11 byte-identical dismissButton sites: ColorPicker.kt:114, EditorOverlays.kt:325/371/411/509, ToolbarSizePopup.kt:201, ToolbarPagesPopup.kt:306, ToolbarLayersPopup.kt:182, PaletteManagerRow.kt:134, PaletteResetControls.kt:335. Coordinate with split-editor-overlays, which moves the remaining editor dialogs. scripts/build.sh testDebugUnitTest; docs/architecture.md."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 360
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
-id = "split-editor-overlays"
-title = "Split EditorOverlays.kt; shrink its 98-line dispatcher"
-description = "ui/EditorOverlays.kt (553 lines) mixes contextual action bars with modal dialogs. Split into: ui/EditorActionBars.kt (SelectionActionBar ~168, RecolorMenu ~209, ReWidthMenu ~228, SelectModeBar ~249, TextSelectionBar ~277); ui/EditorDialogs.kt (SaveAsDialog ~336, ImportPdfDialog ~383, FormatOption ~417, TextBoxDialog ~449, FontFamilyPicker ~542, plus the TEXT_FAMILIES and text-size constants ~440 — note TextInputDialog moves to ui/Dialogs.kt in the shared-dialogs task, coordinate); residual EditorOverlays.kt keeps the dispatcher plus TransferOverlay (~130 lines). Also break up the 98-line BoxScope.EditorOverlays dispatcher (~63-160): extract BoxScope.SelectionOverlays for the bars block (~80-108) and TextPlacementDialog for the text-box wiring including the defaults write-back (~110-136). KDoc headers on new files. scripts/build.sh testDebugUnitTest; docs/architecture.md."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 370
-created = 2026-08-05
-tags = ["audit"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
-id = "toolbar-popup-scaffold"
-title = "One ToolbarPopupButton scaffold for all ten toolbar popups"
-description = "Ten toolbar popups repeat the identical open-state + IconButton + DropdownMenu shell, with behavioural drift. Create ui/ToolbarPopup.kt with @Composable internal fun ToolbarPopupButton(icon, contentDescription, heading = null, active = false, tint = null, onLongClick = null, content: @Composable (dismiss: () -> Unit) -> Unit), plus an overload taking face: @Composable () -> Unit for the two non-icon faces (the Zoom percentage TextButton and the Size TipDot). Port all ten shells: ToolbarPagesPopup.kt:71-111, ToolbarSizePopup.kt:98-133, ToolbarViewPopups.kt Zoom :37-52 / Background :75-92 / Guide :102-122 / Audio :133-176, ToolbarPresetsPopup.kt:54-90, ToolbarLayersPopup.kt:60-94, ToolbarStylePopup.kt:59-76, ToolbarColorPopup.kt:39-53, and ToolGroupButton in SideToolbar.kt:194-227. Standardise the drift while porting: off-tint is onSurfaceVariant everywhere (Guide and Audio currently use LocalContentColor); every popup opens with MenuHeading — move MenuHeading from SideToolbar.kt:230-239 into ToolbarPopup.kt and delete the hand-rolled near-copy at ToolbarSizePopup.kt:107-112; dismiss-on-pick everywhere (fixes StylePopup line-style rows and PagesPopup add/remove rows staying open; remove the threaded open=false workaround at ToolbarPagesPopup.kt:94-97). Full scripts/build.sh, then emulator: open every toolbar popup, screenshot each, pick an item in each and confirm the menu closes and the action applies; check adb logcat."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 380
-created = 2026-08-05
-tags = ["audit"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "split-documentio"
 title = "DocumentIo: extract reference resolution into DocumentReferences.kt"
 description = "io/DocumentIo.kt (457 lines, marginally over the limit; no function exceeds 45 lines). Extract io/DocumentReferences.kt: an internal class DocumentReferenceResolver(resolver, pdfStore, imageStore) owning both sides of the same Uri/relative-path arithmetic — reference resolution on load (~217-306: pixmapReferences, resolvePixmapBackgrounds, resolvePdfBackground, openReference, openSibling, siblingUri) and portable-reference rewriting on save (~399-443: portableReference, portablePdfReference, portablePixmapReferences, relativeTo). Residual DocumentIo ~280 lines (stores, staging facade, read/linked, encode, adopt/merge/prune). Round-trip unit tests already cover this area: scripts/build.sh testDebugUnitTest. KDoc on the new class; docs/architecture.md."

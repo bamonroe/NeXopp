@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChangeHistory
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,23 +55,20 @@ internal fun StylePopupButton(
     fill: Int?,
     onFill: (Int?) -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.Timeline, contentDescription = "Line style & fill")
+    ToolbarPopupButton(
+        icon = Icons.Filled.Timeline,
+        contentDescription = "Line style & fill",
+    ) { dismiss ->
+        MenuHeading("Line style")
+        for ((style, label) in LINE_STYLE_LABELS) {
+            DropdownMenuItem(
+                text = { Text(label) },
+                leadingIcon = { if (style == lineStyle) Icon(Icons.Filled.Check, contentDescription = "selected") },
+                onClick = { onLineStyle(style); dismiss() },
+            )
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            MenuHeading("Line style")
-            for ((style, label) in LINE_STYLE_LABELS) {
-                DropdownMenuItem(
-                    text = { Text(label) },
-                    trailingIcon = { if (style == lineStyle) Icon(Icons.Filled.Check, contentDescription = "selected") },
-                    onClick = { onLineStyle(style) },
-                )
-            }
-            MenuHeading("Fill")
-            FillControls(fill, onFill)
-        }
+        MenuHeading("Fill")
+        FillControls(fill, onFill)
     }
 }
 

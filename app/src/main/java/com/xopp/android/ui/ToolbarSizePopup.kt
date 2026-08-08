@@ -18,7 +18,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -95,38 +94,37 @@ internal fun SizePopupButton(
     onWidth: (Float) -> Unit,
     onRedefineSlot: (Int, Float) -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(-1) }
-    // Scale against the active width too, so a width bigger than every slot still fits its box.
     val maxPt = (widthSlots + width).maxOrNull() ?: width
-    Box {
-        IconButton(onClick = { open = true }) {
-            TipDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            Text(
-                "Tap to pick · long-press to resize",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            widthSlots.forEachIndexed { i, pt ->
-                Row(
-                    modifier = Modifier
-                        .combinedClickable(
-                            onClick = { onWidth(pt); open = false },
-                            onLongClick = { editing = i; open = false },
-                        )
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TipDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
-                    Spacer(Modifier.width(12.dp))
-                    Text("${ptLabel(pt)} pt")
-                    if (pt == width) {
-                        Spacer(Modifier.width(8.dp))
-                        Icon(Icons.Filled.Check, contentDescription = "selected")
-                    }
+    ToolbarPopupButton(
+        face = {
+            IconButton(onClick = { }) {
+                TipDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+    ) { dismiss ->
+        Text(
+            "Tap to pick · long-press to resize",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        widthSlots.forEachIndexed { i, pt ->
+            Row(
+                modifier = Modifier
+                    .combinedClickable(
+                        onClick = { onWidth(pt); dismiss() },
+                        onLongClick = { editing = i; dismiss() },
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TipDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
+                Spacer(Modifier.width(12.dp))
+                Text("${ptLabel(pt)} pt")
+                if (pt == width) {
+                    Spacer(Modifier.width(8.dp))
+                    Icon(Icons.Filled.Check, contentDescription = "selected")
                 }
             }
         }

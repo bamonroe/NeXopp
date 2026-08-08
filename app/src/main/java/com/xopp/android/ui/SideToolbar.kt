@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -192,17 +193,13 @@ private fun ToolGroupButton(
     onSelect: (EditorTool) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
-    val tint =
-        if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Box {
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape)
-                .then(
-                    if (active) Modifier.background(MaterialTheme.colorScheme.primaryContainer)
-                    else Modifier,
-                )
+                .then(if (active) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
                 .combinedClickable(
                     onClick = { onTool(selected) },
                     onLongClick = { if (group.tools.size > 1) open = true },
@@ -220,20 +217,9 @@ private fun ToolGroupButton(
                     trailingIcon = {
                         if (member == selected) Icon(Icons.Filled.Check, contentDescription = "selected")
                     },
-                    onClick = { onSelect(member); open = false },
+                    onClick = { onSelect(member); open = false; onTool(member) },
                 )
             }
         }
     }
-}
-
-/** A small non-clickable section heading inside a dropdown menu. */
-@Composable
-internal fun MenuHeading(text: String) {
-    Text(
-        text,
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }

@@ -20,7 +20,6 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -70,44 +69,42 @@ internal fun PagesPopupButton(
 ) {
     var open by remember { mutableStateOf(false) }
     var sizing by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.Description, contentDescription = "Pages")
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            PageNavRow(pageCount, currentPage, onGoToPage)
-            DropdownMenuItem(
-                text = { Text("Add page") },
-                leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                onClick = { onAddPage() },
-            )
-            DropdownMenuItem(
-                text = { Text("Remove page") },
-                leadingIcon = { Icon(Icons.Filled.Remove, contentDescription = null) },
-                enabled = pageCount > 1,
-                onClick = { onRemovePage() },
-            )
-            PageClipboardItems(
-                pageCount = pageCount,
-                selectedPages = selectedPages,
-                copiedPages = copiedPages,
-                onCopySelectedPages = { onCopySelectedPages(); open = false },
-                onDeleteSelectedPages = { onDeleteSelectedPages(); open = false },
-                onClearPageSelection = { onClearPageSelection(); open = false },
-                onPastePages = { onPastePages(); open = false },
-            )
-            HorizontalDivider()
-            PagesPerRowRow(pageColumns, onPageColumns)
-            OverviewModeRow(pageColumns, pagesEditMode, onPagesEditMode)
-            HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text("Page size…") },
-                leadingIcon = { Icon(Icons.Filled.AspectRatio, contentDescription = null) },
-                trailingIcon = { pageSize?.let { Text(pageSizeLabel(it.first, it.second)) } },
-                enabled = pageSize != null,
-                onClick = { sizing = true; open = false },
-            )
-        }
+    ToolbarPopupButton(
+        icon = Icons.Filled.Description,
+        contentDescription = "Pages",
+    ) { dismiss ->
+        PageNavRow(pageCount, currentPage, onGoToPage, dismiss)
+        DropdownMenuItem(
+            text = { Text("Add page") },
+            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+            onClick = { onAddPage(); dismiss() },
+        )
+        DropdownMenuItem(
+            text = { Text("Remove page") },
+            leadingIcon = { Icon(Icons.Filled.Remove, contentDescription = null) },
+            enabled = pageCount > 1,
+            onClick = { onRemovePage(); dismiss() },
+        )
+        PageClipboardItems(
+            pageCount = pageCount,
+            selectedPages = selectedPages,
+            copiedPages = copiedPages,
+            onCopySelectedPages = { onCopySelectedPages(); dismiss() },
+            onDeleteSelectedPages = { onDeleteSelectedPages(); dismiss() },
+            onClearPageSelection = { onClearPageSelection(); dismiss() },
+            onPastePages = { onPastePages(); dismiss() },
+        )
+        HorizontalDivider()
+        PagesPerRowRow(pageColumns, onPageColumns)
+        OverviewModeRow(pageColumns, pagesEditMode, onPagesEditMode)
+        HorizontalDivider()
+        DropdownMenuItem(
+            text = { Text("Page size…") },
+            leadingIcon = { Icon(Icons.Filled.AspectRatio, contentDescription = null) },
+            trailingIcon = { pageSize?.let { Text(pageSizeLabel(it.first, it.second)) } },
+            enabled = pageSize != null,
+            onClick = { sizing = true; dismiss() },
+        )
     }
     if (sizing && pageSize != null) {
         PageSizeDialog(
@@ -121,13 +118,13 @@ internal fun PagesPopupButton(
 
 /** The "‹ Page n / N ›" row at the top of the pages menu. */
 @Composable
-private fun PageNavRow(pageCount: Int, currentPage: Int, onGoToPage: (Int) -> Unit) {
+private fun PageNavRow(pageCount: Int, currentPage: Int, onGoToPage: (Int) -> Unit, dismiss: () -> Unit) {
     Row(
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(
-            onClick = { onGoToPage(currentPage - 1) },
+            onClick = { onGoToPage(currentPage - 1); dismiss() },
             enabled = currentPage > 0,
         ) { Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous page") }
         Text(
@@ -135,7 +132,7 @@ private fun PageNavRow(pageCount: Int, currentPage: Int, onGoToPage: (Int) -> Un
             style = MaterialTheme.typography.bodyMedium,
         )
         IconButton(
-            onClick = { onGoToPage(currentPage + 1) },
+            onClick = { onGoToPage(currentPage + 1); dismiss() },
             enabled = currentPage < pageCount - 1,
         ) { Icon(Icons.Filled.ChevronRight, contentDescription = "Next page") }
     }

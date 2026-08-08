@@ -18,7 +18,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,42 +51,36 @@ internal fun PresetsPopupButton(
     onActivate: (ToolPreset) -> Unit,
     onCapture: (String) -> ToolPreset,
 ) {
-    var open by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(
-                Icons.Filled.Bookmark,
-                contentDescription = "Presets",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            MenuHeading(if (presets.isEmpty()) "No presets saved yet" else "Presets")
-            presets.forEachIndexed { i, preset ->
-                PresetRow(
-                    preset = preset,
-                    slot = i + 1,
-                    canMoveUp = i > 0,
-                    canMoveDown = i < presets.lastIndex,
-                    onActivate = { onActivate(preset); open = false },
-                    onOverwrite = {
-                        onPresets(overwriteToolPreset(presets, preset.id, onCapture(preset.name)))
-                    },
-                    onMove = { delta -> onPresets(moveToolPreset(presets, i, delta)) },
-                    onDelete = { onPresets(removeToolPreset(presets, preset.id)) },
-                )
-            }
-            SavePresetRow(
-                name = newName,
-                onName = { newName = it },
-                onSave = {
-                    val name = newName.trim().ifEmpty { "Preset ${presets.size + 1}" }
-                    onPresets(addToolPreset(presets, onCapture(name)))
-                    newName = ""
+    ToolbarPopupButton(
+        icon = Icons.Filled.Bookmark,
+        contentDescription = "Presets",
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) { dismiss ->
+        MenuHeading(if (presets.isEmpty()) "No presets saved yet" else "Presets")
+        presets.forEachIndexed { i, preset ->
+            PresetRow(
+                preset = preset,
+                slot = i + 1,
+                canMoveUp = i > 0,
+                canMoveDown = i < presets.lastIndex,
+                onActivate = { onActivate(preset); dismiss() },
+                onOverwrite = {
+                    onPresets(overwriteToolPreset(presets, preset.id, onCapture(preset.name)))
                 },
+                onMove = { delta -> onPresets(moveToolPreset(presets, i, delta)) },
+                onDelete = { onPresets(removeToolPreset(presets, preset.id)) },
             )
         }
+        SavePresetRow(
+            name = newName,
+            onName = { newName = it },
+            onSave = {
+                val name = newName.trim().ifEmpty { "Preset ${presets.size + 1}" }
+                onPresets(addToolPreset(presets, onCapture(name)))
+                newName = ""
+            },
+        )
     }
 }
 

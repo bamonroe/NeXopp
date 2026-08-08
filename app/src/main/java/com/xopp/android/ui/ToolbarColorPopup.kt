@@ -1,11 +1,7 @@
 package com.xopp.android.ui
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,20 +32,18 @@ internal fun ColorPopupButton(
     palette: ColorPaletteState,
     onRedefineCustom: (Int) -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.Circle, contentDescription = "Colour", tint = Color(color))
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            ColorPaletteRows(
-                selected = color,
-                palette = palette,
-                onPick = { c -> onColor(c); open = false },
-                onEditCustom = { editing = true; open = false },
-            )
-        }
+    ToolbarPopupButton(
+        icon = Icons.Filled.Circle,
+        contentDescription = "Colour",
+        tint = Color(color),
+    ) { dismiss ->
+        ColorPaletteRows(
+            selected = color,
+            palette = palette,
+            onPick = { c -> onColor(c); dismiss() },
+            onEditCustom = { editing = true; dismiss() },
+        )
     }
     CustomColorEditor(
         visible = editing,

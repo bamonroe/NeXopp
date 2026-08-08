@@ -20,13 +20,10 @@ import androidx.compose.material.icons.filled.Merge
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,41 +57,40 @@ internal fun LayersPopupButton(
     var open by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(-1) }
     var renameLabel by remember { mutableStateOf("") }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Filled.Layers, contentDescription = "Layers")
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            MenuHeading("Layers (top first)")
-            // Show top layer first (model is bottom-up), so the list matches z-order on screen.
-            for (info in layers.asReversed()) {
-                LayerRow(
-                    info = info,
-                    canMoveUp = info.index < layers.lastIndex,
-                    canMoveDown = info.index > 0,
-                    canDelete = layers.size > 1,
-                    canMergeDown = info.index > 0,
-                    hasSelection = hasSelection,
-                    onActivate = { onActivateLayer(info.index) },
-                    onToggleHidden = { onToggleLayerHidden(info.index, info.visible) },
-                    onMoveUp = { onMoveLayer(info.index, info.index + 1) },
-                    onMoveDown = { onMoveLayer(info.index, info.index - 1) },
-                    onRename = { renaming = info.index; renameLabel = info.label },
-                    onDelete = { onDeleteLayer(info.index) },
-                    onMergeDown = { onMergeLayerDown(info.index) },
-                    onMoveSelectionHere = { onMoveSelectionToLayer(info.index) },
-                )
-            }
-            DropdownMenuItem(
-                text = { Text("Add layer") },
-                leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                onClick = { onAddLayer() },
+    ToolbarPopupButton(
+        icon = Icons.Filled.Layers,
+        contentDescription = "Layers",
+    ) { dismiss ->
+        MenuHeading("Layers (top first)")
+        for (info in layers.asReversed()) {
+            LayerRow(
+                info = info,
+                canMoveUp = info.index < layers.lastIndex,
+                canMoveDown = info.index > 0,
+                canDelete = layers.size > 1,
+                canMergeDown = info.index > 0,
+                hasSelection = hasSelection,
+                onActivate = { onActivateLayer(info.index); dismiss() },
+                onToggleHidden = { onToggleLayerHidden(info.index, info.visible) },
+                onMoveUp = { onMoveLayer(info.index, info.index + 1) },
+                onMoveDown = { onMoveLayer(info.index, info.index - 1) },
+                onRename = { renaming = info.index; renameLabel = info.label },
+                onDelete = { onDeleteLayer(info.index) },
+                onMergeDown = { onMergeLayerDown(info.index) },
+                onMoveSelectionHere = { onMoveSelectionToLayer(info.index) },
             )
         }
+        DropdownMenuItem(
+            text = { Text("Add layer") },
+            leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+            onClick = { onAddLayer(); dismiss() },
+        )
     }
     if (renaming >= 0) {
-        LayerRenameDialog(
-            initial = renameLabel,
+        RenameDialog(
+            title = "Rename layer",
+            label = "Layer name",
+            initialValue = renameLabel,
             onConfirm = { name -> onRenameLayer(renaming, name); renaming = -1 },
             onDismiss = { renaming = -1 },
         )
@@ -161,24 +157,4 @@ private fun LayerRow(
             Icon(Icons.Filled.Delete, contentDescription = "Delete layer")
         }
     }
-}
-
-/** A dialog to rename a layer (blank clears the custom name). */
-@Composable
-private fun LayerRenameDialog(initial: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var text by remember { mutableStateOf(initial) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rename layer") },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = { TextButton(onClick = { onConfirm(text) }) { Text("Set") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
 }
