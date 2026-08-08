@@ -39,11 +39,6 @@ internal class TileMemo(
 internal object PdfTileGeometry {
 
     /**
-     * Round target widths up to 64px buckets so small zoom nudges reuse a cached bitmap.
-     */
-    fun bucket(px: Int) = ((px + 63) / 64) * 64
-
-    /**
      * The bucketed width a page may be rasterised at as a *whole page*. Beyond
      * [BitmapLruCache.MAX_RASTER_WIDTH] this also clamps so one page bitmap can never cost more than
      * [PAGE_SHARE] of the cache budget: a full-page bitmap larger than the budget makes every
@@ -56,7 +51,7 @@ internal object PdfTileGeometry {
         val byteCap =
             kotlin.math.sqrt(budget.perEntryBytes(PAGE_SHARE) / (4.0 * aspect)).toInt()
         val w = targetWidthPx.coerceAtMost(minOf(BitmapLruCache.MAX_RASTER_WIDTH, byteCap.coerceAtLeast(64)))
-        return bucket(w)
+        return BitmapLruCache.bucket(w)
     }
 
     /**
@@ -65,7 +60,7 @@ internal object PdfTileGeometry {
      * widths so a small zoom nudge reuses the same grid instead of re-rasterising every cell.
      */
     fun tileScale(pageWidthPt: Double, pageHeightPt: Double, budget: BitmapBudget, targetWidthPx: Int): Int? {
-        val want = bucket(targetWidthPx.coerceAtMost(MAX_TILE_SCALE))
+        val want = BitmapLruCache.bucket(targetWidthPx.coerceAtMost(MAX_TILE_SCALE))
         val wholePageWidth = rasterWidth(pageWidthPt, pageHeightPt, budget, targetWidthPx)
         return if (want > wholePageWidth) want else null
     }
