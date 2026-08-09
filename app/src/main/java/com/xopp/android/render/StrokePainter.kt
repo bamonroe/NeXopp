@@ -7,6 +7,7 @@ import android.graphics.Path
 import com.xopp.android.format.XoppColor
 import com.xopp.android.format.XoppColor.withAlpha
 import com.xopp.android.format.model.LineStyle
+import com.xopp.android.format.model.Stroke
 import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.Tool
 
@@ -46,11 +47,10 @@ class StrokePainter {
         if (pts.size < 2) return
         if (fill != null) fillOutline(canvas, pts, color, fill, scale, offsetX, offsetY)
         paint.color = renderColor(tool, color)
-        when {
-            lineStyle != LineStyle.PLAIN ->
-                drawStyledLine(canvas, pts, lineStyle, scale, offsetX, offsetY)
-            tool == Tool.HIGHLIGHTER -> drawBand(canvas, pts, scale, offsetX, offsetY)
-            else -> drawPressureLine(canvas, pts, scale, offsetX, offsetY)
+        when (val mode = RenderMode.of(tool, lineStyle)) {
+            RenderMode.Styled -> drawStyledLine(canvas, pts, lineStyle, scale, offsetX, offsetY)
+            RenderMode.Band -> drawBand(canvas, pts, scale, offsetX, offsetY)
+            RenderMode.Pressure -> drawPressureLine(canvas, pts, scale, offsetX, offsetY)
         }
     }
 
@@ -61,11 +61,7 @@ class StrokePainter {
     ) {
         fillPaint.color = color.withAlpha(fill)
         path.rewind()
-        path.moveTo(offsetX + (pts[0].x * scale).toFloat(), offsetY + (pts[0].y * scale).toFloat())
-        for (i in 1 until pts.size) {
-            path.lineTo(offsetX + (pts[i].x * scale).toFloat(), offsetY + (pts[i].y * scale).toFloat())
-        }
-        path.close()
+        buildPath(pts, scale, offsetX, offsetY, close = true)
         canvas.drawPath(path, fillPaint)
     }
 
@@ -99,10 +95,7 @@ class StrokePainter {
         paint.strokeWidth = w.toFloat() * scale
         paint.pathEffect = dashEffect(lineStyle, w, scale)
         path.rewind()
-        path.moveTo(offsetX + (pts[0].x * scale).toFloat(), offsetY + (pts[0].y * scale).toFloat())
-        for (i in 1 until pts.size) {
-            path.lineTo(offsetX + (pts[i].x * scale).toFloat(), offsetY + (pts[i].y * scale).toFloat())
-        }
+        buildPath(pts, scale, offsetX, offsetY, close = false)
         canvas.drawPath(path, paint)
         paint.pathEffect = null
     }
@@ -117,11 +110,33 @@ class StrokePainter {
     ) {
         paint.strokeWidth = bandWidth(pts).toFloat() * scale
         path.rewind()
+        buildPath(pts, scale, offsetX, offsetY, close = false)
+        canvas.drawPath(path, paint)
+    }
+
+    /** Build a polyline Path from [pts], scaled and offset. Closes the path if [close] is true. */
+    private fun buildPath(pts: List<StrokePoint>, scale: Float, offsetX: Float, offsetY: Float, close: Boolean) {
         path.moveTo(offsetX + (pts[0].x * scale).toFloat(), offsetY + (pts[0].y * scale).toFloat())
         for (i in 1 until pts.size) {
             path.lineTo(offsetX + (pts[i].x * scale).toFloat(), offsetY + (pts[i].y * scale).toFloat())
         }
-        canvas.drawPath(path, paint)
+        if (close) path.close()
+    }
+
+    /** The render mode a stroke uses — drives the same decision tree in screen and PDF painters. */
+    sealed class RenderMode {
+        data object Styled : RenderMode()
+        data object Band : RenderMode()
+        data object Pressure : RenderMode()
+
+        companion object {
+            fun of(tool: Tool, lineStyle: LineStyle): RenderMode = when {
+                lineStyle != LineStyle.PLAIN -> Styled
+                tool == Tool.HIGHLIGHTER -> Band
+                else -> Pressure
+            }
+            fun of(stroke: Stroke): RenderMode = of(stroke.tool, stroke.lineStyle)
+        }
     }
 
     companion object {

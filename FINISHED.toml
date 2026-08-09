@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-documentio"
+title = "DocumentIo: extract reference resolution into DocumentReferences.kt"
+description = "io/DocumentIo.kt (457 lines, marginally over the limit; no function exceeds 45 lines). Extract io/DocumentReferences.kt: an internal class DocumentReferenceResolver(resolver, pdfStore, imageStore) owning both sides of the same Uri/relative-path arithmetic — reference resolution on load (~217-306: pixmapReferences, resolvePixmapBackgrounds, resolvePdfBackground, openReference, openSibling, siblingUri) and portable-reference rewriting on save (~399-443: portableReference, portablePdfReference, portablePixmapReferences, relativeTo). Residual DocumentIo ~280 lines (stores, staging facade, read/linked, encode, adopt/merge/prune). Round-trip unit tests already cover this area: scripts/build.sh testDebugUnitTest. KDoc on the new class; docs/architecture.md."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-08
+tags = ["audit"]
+
+[[task]]
 id = "reduce-allocation-churn-in-the-xopp-parse-path"
 title = "Reduce allocation churn in the .xopp parse path"
 description = "Loading a 14.8 MB / 120-page / 79k-stroke .xopp took ~10 minutes on the emulator with continuous GC — roughly 35 MB freed per collection for the whole parse, and a 140 MB Dalvik heap at rest. Profile DocumentIo's parse and cut the per-stroke garbage (reuse coordinate buffers, parse points into primitive arrays rather than boxed lists). Measure load time and GC volume on the same fixture before and after."

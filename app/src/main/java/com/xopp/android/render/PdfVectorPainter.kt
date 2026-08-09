@@ -12,6 +12,7 @@ import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.RawElement
 import com.xopp.android.format.model.Stroke
+import com.xopp.android.format.model.StrokePoint
 import com.xopp.android.format.model.TexImageElement
 import com.xopp.android.format.model.TextElement
 import com.xopp.android.format.model.Tool
@@ -55,13 +56,15 @@ class PdfVectorPainter {
         cs.setStrokingColor(red(argb), green(argb), blue(argb))
         cs.setLineCapStyle(1) // round
         cs.setLineJoinStyle(1) // round
-        StrokePainter.dashIntervalsPt(s.lineStyle, StrokePainter.bandWidth(pts))?.let {
+        val mode = StrokePainter.RenderMode.of(s)
+        val w = if (mode != StrokePainter.RenderMode.Pressure) StrokePainter.bandWidth(pts) else 0.0
+        StrokePainter.dashIntervalsPt(s.lineStyle, w)?.let {
             cs.setLineDashPattern(it, 0f)
         }
-        when {
-            s.lineStyle != com.xopp.android.format.model.LineStyle.PLAIN -> styledLine(cs, s, t)
-            s.tool == Tool.HIGHLIGHTER -> band(cs, s, t)
-            else -> pressureLine(cs, s, t)
+        when (mode) {
+            StrokePainter.RenderMode.Styled -> styledLine(cs, pts, t, w)
+            StrokePainter.RenderMode.Band -> band(cs, pts, t, w)
+            StrokePainter.RenderMode.Pressure -> pressureLine(cs, pts, t)
         }
         cs.restoreGraphicsState()
     }
@@ -72,25 +75,20 @@ class PdfVectorPainter {
         cs.saveGraphicsState()
         cs.setGraphicsStateParameters(alphaState((fill and 0xFF) / 255f))
         cs.setNonStrokingColor(red(s.color), green(s.color), blue(s.color))
-        cs.moveTo(t.x(pts[0].x), t.y(pts[0].y))
-        for (i in 1 until pts.size) cs.lineTo(t.x(pts[i].x), t.y(pts[i].y))
-        cs.closePath()
+        polyline(cs, pts, t, close = true)
         cs.fill()
         cs.restoreGraphicsState()
     }
 
     /** A dashed/dotted stroke: one constant-width polyline stroked once with the dash pattern set. */
-    private fun styledLine(cs: PDPageContentStream, s: Stroke, t: PdfPageTransform) {
-        val pts = s.points
-        cs.setLineWidth(StrokePainter.bandWidth(pts).toFloat())
-        cs.moveTo(t.x(pts[0].x), t.y(pts[0].y))
-        for (i in 1 until pts.size) cs.lineTo(t.x(pts[i].x), t.y(pts[i].y))
+    private fun styledLine(cs: PDPageContentStream, pts: List<StrokePoint>, t: PdfPageTransform, w: Double) {
+        cs.setLineWidth(w.toFloat())
+        polyline(cs, pts, t, close = false)
         cs.stroke()
     }
 
     /** The pen: a per-segment stroke so the line width can track pressure between vertices. */
-    private fun pressureLine(cs: PDPageContentStream, s: Stroke, t: PdfPageTransform) {
-        val pts = s.points
+    private fun pressureLine(cs: PDPageContentStream, pts: List<StrokePoint>, t: PdfPageTransform) {
         for (i in 1 until pts.size) {
             val a = pts[i - 1]
             val b = pts[i]
@@ -102,12 +100,17 @@ class PdfVectorPainter {
     }
 
     /** The highlighter: one constant-width polyline stroked once so its translucency stays flat. */
-    private fun band(cs: PDPageContentStream, s: Stroke, t: PdfPageTransform) {
-        val pts = s.points
-        cs.setLineWidth(StrokePainter.bandWidth(pts).toFloat())
+    private fun band(cs: PDPageContentStream, pts: List<StrokePoint>, t: PdfPageTransform, w: Double) {
+        cs.setLineWidth(w.toFloat())
+        polyline(cs, pts, t, close = false)
+        cs.stroke()
+    }
+
+    /** Build a polyline on [cs] from [pts], transformed by [t]. Closes if [close] is true. */
+    private fun polyline(cs: PDPageContentStream, pts: List<StrokePoint>, t: PdfPageTransform, close: Boolean) {
         cs.moveTo(t.x(pts[0].x), t.y(pts[0].y))
         for (i in 1 until pts.size) cs.lineTo(t.x(pts[i].x), t.y(pts[i].y))
-        cs.stroke()
+        if (close) cs.closePath()
     }
 
     private fun text(cs: PDPageContentStream, tx: TextElement, t: PdfPageTransform) {
