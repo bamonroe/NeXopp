@@ -17,6 +17,61 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "kdoc-format-package"
+title = "KDoc: format/ package (Element.kt is 2/37 documented)"
+description = "Add missing KDoc across format/. Worst file in the repo: format/model/Element.kt (2 of 37 public declarations documented) — document Element, Tool, StrokePoint, LineStyle, TextElement, ImageElement and every public field, especially round-trip-preservation fields like uniformWidth and (once added) extraAttrs. Also: format/model/Document.kt (Page); XoppReader.kt (object + read); XoppWriter.kt (object + write); Xopp.kt (open, parseXml, save, toXml); XoppColor.kt (parse, format); xml/XmlPullReader.kt (all six publics); xml/XmlWriter.kt (prolog, start, attr, text, rawText, end, newline). Each doc should state the role in the .xopp schema mapping and any invariant the code cannot show; imitate the style of format/XoppZip.kt and io/PdfReference.kt. No narration comments. Verify nothing broke with scripts/build.sh testDebugUnitTest once at the end of the kdoc batch."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit", "kdoc"]
+
+[[task]]
+id = "toolbar-parameter-objects"
+title = "Parameter objects for SideToolbar (48 params) and EditorToolbar"
+description = "ui/SideToolbar.kt SideToolbar has 48 parameters (a 63-line signature at ~49-111 over a clean 38-line body), and ui/EditorRegions.kt EditorToolbar (~96-199, 104 lines) exists only to forward them. One change fixes both. Introduce data classes: ToolbarLayerCallbacks (replaces the 10 layer params: layers, hasSelection, onAddLayer, onDeleteLayer, onMergeLayerDown, onRenameLayer, onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer), ToolbarPagesCallbacks (the 17 page params: pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize, pageColumns, onPageColumns, pagesEditMode, onPagesEditMode, selectedPages, onDeleteSelectedPages, onClearPageSelection, copiedPages, onCopySelectedPages, onPastePages), ToolbarStyleCallbacks (the 12 style params: color, onColor, palette, onRedefineCustom, width, onWidth, widthSlots, onRedefineSlot, lineStyle, onLineStyle, fill, onFill). In EditorRegions add builder helpers toolbarPagesCallbacks(pane, settings, onSettingsChange) and toolbarLayerCallbacks(surface), and extract the non-trivial inline lambdas as private funs: redefineCustomColor (~116-125), redefineWidthSlot (~129-138), applyFill (~142-147). SideToolbar drops to ~12 params and ~45 lines; EditorToolbar to ~40 lines. Adjust the Toolbar*Popup signatures that consume the grouped params where it simplifies them. Full scripts/build.sh."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "refactor-editorpaneview"
+title = "Break up the 107-line EditorPaneView; extract surface binding"
+description = "ui/EditorRegions.kt EditorPaneView (~208-314, 107 lines) — its AndroidView factory lambda alone is 53 lines wiring ~18 DrawingSurfaceView callbacks. Extract three private helpers in the same file: fun DrawingSurfaceView.bindTo(state: PaneState) owning ~246-263 (the on* callbacks onLayersChanged/onHistoryChanged/onZoomChanged/onPageCountChanged/onPageSelectionChanged/onPageClipboardChanged/onCurrentPageChanged/onScrollChanged/onSelectionChanged/onTextSelectionChanged/onClipboardChanged plus the initial layers/backgroundStyle/pageSize seeds at ~251-253); fun DrawingSurfaceView.bindEditorActions(ui, index, onActivePane, onPickImage, latestSettings, latestSettingsChange) owning ~264-287 (onToggleFullPage/onBarrelDoubleClick/onPaletteAction/onPlace); fun DrawingSurfaceView.applyInitialStyle(ui, settings) owning ~240-245. Residual EditorPaneView ~45 lines. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "refactor-scrollthumb"
+title = "Break up the 119-line ScrollThumb composable"
+description = "ui/ScrollThumb.kt ScrollThumb (~68-186, 119 lines) mixes four concerns: geometry, fade animation, drag mapping, and drawing. Extract: private data class ThumbGeometry(heightPx, travelPx, topPx, maxScroll) plus private fun thumbGeometry(scrollY, totalHeightPx, viewportPx, minThumbPx): ThumbGeometry? owning ~77-87 (return null when the document fits, replacing the early return); @Composable private fun rememberThumbAlpha(scrollY, totalHeightPx, dragging): Float owning the LaunchedEffect and when at ~90-103; @Composable private fun ThumbBand(geometry, onScrollTo, onDraggingChange, content) owning the grab-band Box and detectDragGestures at ~118-145 including the grip bookkeeping; @Composable private fun ThumbBar(alpha) owning the Canvas at ~150-164; @Composable private fun BoxScope.PageBubble(currentPage, pageCount, centerYPx) owning ~168-184. Residual ScrollThumb ~25 lines of wiring. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "consolidate-uri-copy"
+title = "Route all URI byte-copies through UriStaging"
+description = "The URI-to-file byte-copy is repeated: read side in io/UriStaging.kt:27-34 (stageIn), audio/AudioStore.kt:51-55 and MainActivity.kt:531-534 (to ByteArray); write side in UriStaging.kt:37-42 (stageOut), AudioStore.kt:75-79 and MainActivity.kt:521-524. Add UriStaging.readBytes(uri): ByteArray and UriStaging.writeTo(uri, write: (OutputStream) -> Unit); have AudioStore take a UriStaging (it already has a ContentResolver) and MainActivity use it for insertPickedImage and exportPdf. The \"w\" vs \"wt\" truncation bug is fixed by the earlier fix-pdf-export-truncate-mode task — keep \"wt\". Also dedupe the identical stream-to-File one-liners at ImageStore.kt:36 and DocumentIo.kt:307-310. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-08
+tags = ["audit"]
+
+[[task]]
 id = "consolidate-stroke-paths"
 title = "Consolidate polyline path building between screen and PDF painters"
 description = "The moveTo/lineTo polyline loop is written six times: render/StrokePainter.kt :63-68 (fill), :101-105 (styled), :119-123 (band) and render/PdfVectorPainter.kt :71-73, :82-83, :104-105. The two classes also mirror the same fill -> styled/highlighter/pressure decision tree (StrokePainter.draw :46-55 vs PdfVectorPainter.stroke :44-63) and the same pressureLine per-segment walk. Consolidate: StrokePainter gets private buildPath(pts, scale, offsetX, offsetY, close = false) used by all three sites; PdfVectorPainter gets private polyline(cs, pts, t); move the decision tree into a StrokeRenderMode.of(stroke) helper in the StrokePainter companion used by both classes so on-screen rendering and PDF export cannot diverge. Fix the existing drift: PdfVectorPainter calls bandWidth twice (:54 and :81) for line width vs dash pattern — compute once and reuse, as StrokePainter already does (:98-100). Full scripts/build.sh (both the screen path and export are affected); if practical, export a test document to PDF before and after and compare visually."

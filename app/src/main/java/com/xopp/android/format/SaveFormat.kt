@@ -10,6 +10,17 @@ package com.xopp.android.format
  *   an archive entry (see [XoppZip]). Portable, but see the mimetype caveat in [XoppZip].
  */
 enum class SaveFormat {
+    /**
+     * The original gzip-compressed `.xopp` format: XML wrapped in gzip, with PDF backgrounds
+     * referenced by external path/URI. This is the default and most compatible format for
+     * interchange with desktop Xournal++.
+     */
     ORIGINAL,
+
+    /**
+     * The ZIP-package `.xopp` format: a single self-contained ZIP archive containing `content.xml`,
+     * the mimetype declaration, and embedded assets (PDF backgrounds, images). More portable but
+     * requires Xournal++ with ZIP support.
+     */
     ZIPPED,
 }

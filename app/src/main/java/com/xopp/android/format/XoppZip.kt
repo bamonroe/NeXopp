@@ -38,9 +38,14 @@ object XoppZip {
     const val PDF_ENTRY = "bg.pdf"
 
     /**
-     * The document as it was loaded from a ZIP `.xopp`, plus the attachments extracted out of the
-     * archive: the PDF background, and [images] mapping each other entry's name — which is exactly
-     * what an attached `pixmap` background's `filename` says — to the local file it was written to.
+     * The result of opening a ZIP-package `.xopp`: the parsed [Document] plus any extracted
+     * attachments. The [pdf] file is the embedded PDF background (if present), written to a
+     * caller-allocated temporary file for rendering. [images] maps archive entry names to
+     * extracted image files for pixmap backgrounds.
+     *
+     * @param doc The parsed document from content.xml.
+     * @param pdf The extracted PDF background file, or null if the archive had none.
+     * @param images A map from archive entry name to extracted image file, for pixmap backgrounds.
      */
     data class Loaded(val doc: Document, val pdf: File?, val images: Map<String, File> = emptyMap())
 

@@ -3,13 +3,17 @@ package com.xopp.android.format.model
 /** A drawable inside a [Layer]: stroke, text, image, or LaTeX image. */
 sealed interface Element
 
-/** The pen tool that produced a stroke. */
+/** The tool that produced a [`<stroke>`][Stroke]: pen, highlighter, or eraser. */
 enum class Tool(val xml: String) {
+    /** A standard pen stroke (the default). */
     PEN("pen"),
+    /** A highlighter stroke (semi-transparent). */
     HIGHLIGHTER("highlighter"),
+    /** An eraser stroke (removes content beneath). */
     ERASER("eraser");
 
     companion object {
+        /** Parses the tool from the `tool` attribute; returns [PEN] for unknown values. */
         fun fromXml(value: String?): Tool =
             entries.firstOrNull { it.xml == value } ?: PEN
     }
@@ -20,12 +24,17 @@ data class StrokePoint(val x: Double, val y: Double, val width: Double)
 
 /** A `<stroke>`'s line pattern (`style` attribute); [PLAIN] is a solid line and omits the attr. */
 enum class LineStyle(val xml: String) {
+    /** A solid line (the default; no `style` attribute emitted). */
     PLAIN("plain"),
+    /** A dashed line. */
     DASHED("dash"),
+    /** A dash-dot pattern. */
     DASH_DOT("dashdot"),
+    /** A dotted line. */
     DOTTED("dot");
 
     companion object {
+        /** Parses the line style from the `style` attribute; returns [PLAIN] for unknown values. */
         fun fromXml(value: String?): LineStyle =
             entries.firstOrNull { it.xml == value } ?: PLAIN
     }

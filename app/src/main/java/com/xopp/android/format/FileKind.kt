@@ -9,47 +9,50 @@ import java.io.InputStream
  * ZIP-package `.xopp`, a gzip `.xopp` and a raw PDF all arrive through the same picker.
  */
 enum class FileKind {
-    /** ZIP-package `.xopp` (`PK\x03\x04`) — content.xml plus bundled assets. */
+    /** A ZIP-package `.xopp` file (`PK\x03\x04` signature) containing content.xml and bundled assets. */
     ZIP,
 
-    /** The classic gzip-compressed `.xopp` (`\x1f\x8b`). */
+    /** A gzip-compressed `.xopp` file (`\x1f\x8b` signature) — the classic desktop Xournal++ format. */
     GZIP,
 
-    /** A raw PDF (`%PDF-`) — opened as a fresh annotatable document, one page per PDF page. */
+    /** A raw PDF file (`%PDF-` signature) — opened as a fresh annotatable document with one page per PDF page. */
     PDF,
 
-    /** Uncompressed Xournal++ XML, which desktop can also write (`<?xml` / `<xournal`). */
+    /** Uncompressed Xournal++ XML (`<?xml` or `<xournal` root) — a valid `.xopp` without gzip wrapping. */
     XML,
 
-    /** Plain text (`.txt`, `.md`, source…) — typeset into a generated PDF-backed document. */
+    /** Plain text content — typeset into a generated PDF-backed document for annotation. */
     TEXT,
 
     /**
-     * A raster image (PNG, JPEG, WebP) — opened as a one-page document with the picture as the
-     * page's pixmap background, which is the only shape the `.xopp` format has for it.
+     * A raster image (PNG, JPEG, or WebP) — opened as a single-page document with the image as the
+     * page's pixmap background, the only representation the `.xopp` format supports for images.
      */
     IMAGE,
 
-    /** Nothing we recognise. */
+    /** An unrecognised file format — cannot be opened as a Xournal++ document. */
     UNKNOWN,
     ;
 
     companion object {
 
         /**
-         * Bytes we need to see to decide; also the mark/reset budget on the open stream. Well past
-         * the few magic bytes the binary formats need, because text has no magic at all: it is
-         * recognised by a whole sample decoding as printable UTF-8, and a short sample would call
-         * far too much binary "text".
+         * The number of leading bytes examined to classify a file; also the mark/reset budget on the
+         * input stream. Well past the few magic bytes binary formats need, because text has no magic
+         * signature at all: it is recognised by a whole sample decoding as printable UTF-8, and a
+         * short sample would falsely classify far too much binary data as "text".
          */
         const val MAGIC_BYTES = 512
 
-        /** A UTF-8 byte-order mark, which editors like to put in front of otherwise plain text. */
+        /** A UTF-8 byte-order mark (BOM), which some editors prepend to otherwise plain text files. */
         private val UTF8_BOM = byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte())
 
         /**
-         * Classify by leading bytes. Anything without a known signature that still decodes as
-         * printable UTF-8 is [TEXT]; empty or binary input is [UNKNOWN].
+         * Classify a file by its leading bytes. Anything without a known signature that still decodes
+         * as printable UTF-8 is [TEXT]; empty or binary input is [UNKNOWN].
+         *
+         * @param magic The leading bytes of the file to examine.
+         * @return The detected [FileKind] based on the byte signature.
          */
         fun of(magic: ByteArray): FileKind {
             fun at(i: Int): Int = if (i < magic.size) magic[i].toInt() and 0xff else -1
@@ -66,12 +69,15 @@ enum class FileKind {
         }
 
         /**
-         * Whether the leading bytes are one of the raster formats Android can decode into a page
-         * background: PNG (`\x89PNG\r\n\x1a\n`), JPEG (`\xff\xd8\xff`), or WebP — a RIFF container
-         * whose `WEBP` tag sits four bytes past the `RIFF` one, after the little-endian length.
+         * Whether the leading bytes match a raster format Android can decode into a page background:
+         * PNG (`\x89PNG\r\n\x1a\n`), JPEG (`\xff\xd8\xff`), or WebP — a RIFF container whose `WEBP`
+         * tag sits four bytes past the `RIFF` one, after the little-endian length.
          *
-         * Takes the byte accessor [of] already has rather than the array, so the "past the end reads
+         * Takes the byte accessor [at] already has rather than the array, so the "past the end reads
          * as -1" rule stays in one place.
+         *
+         * @param at A function that returns the byte at a given offset, or -1 if out of bounds.
+         * @return True if the bytes match PNG, JPEG, or WebP signatures.
          */
         private fun isImage(at: (Int) -> Int): Boolean {
             fun matches(offset: Int, signature: List<Int>) =
@@ -85,14 +91,20 @@ enum class FileKind {
             return png || jpeg || webp
         }
 
-        /** Name suffixes that mark a text file as markdown rather than prose to typeset verbatim. */
+        /**
+         * Name suffixes that identify a text file as markdown rather than prose to typeset verbatim.
+         */
         private val MARKDOWN_SUFFIXES = listOf(".md", ".markdown")
 
         /**
-         * Whether the *display name* [name] says this text file is markdown. Deliberately the one
-         * place we look at a suffix: markdown has no signature to sniff — a `.md` file is printable
-         * UTF-8 like any other, so the content verdict stays [TEXT] and only the name distinguishes
-         * "render the syntax" from "typeset it literally". SAF gives us that name at open time.
+         * Whether the [name] (display name from the file picker) indicates this text file is markdown.
+         * Deliberately the one place we look at a suffix: markdown has no magic signature — a `.md`
+         * file is printable UTF-8 like any other, so the content verdict stays [TEXT] and only the
+         * name distinguishes "render the syntax" from "typeset it literally". SAF gives us that name
+         * at open time.
+         *
+         * @param name The file's display name to check for markdown suffixes.
+         * @return True if the name ends with `.md` or `.markdown` (case-insensitive).
          */
         fun isMarkdownName(name: String): Boolean =
             MARKDOWN_SUFFIXES.any { name.endsWith(it, ignoreCase = true) }
@@ -100,8 +112,11 @@ enum class FileKind {
         /**
          * Whether [sample] looks like human-readable UTF-8 text. Empty input is not text (there is
          * nothing to typeset). The sample is a *prefix* of the file, so a multi-byte character may
-         * be cut in half at the end — trailing continuation bytes are tolerated rather than
-         * treated as corruption.
+         * be cut in half at the end — trailing continuation bytes are tolerated rather than treated
+         * as corruption.
+         *
+         * @param sample A byte array prefix of the file to test.
+         * @return True if the sample decodes as valid printable UTF-8 text.
          */
         internal fun isPrintableUtf8(sample: ByteArray): Boolean {
             val body = if (sample.size >= 3 && sample.copyOf(3).contentEquals(UTF8_BOM)) {
@@ -139,6 +154,9 @@ enum class FileKind {
         /**
          * Sniff [input] without consuming it. The stream is buffered and rewound, so the caller can
          * hand the very same stream to the loader the verdict picks.
+         *
+         * @param input A buffered input stream positioned at the start of the file to classify.
+         * @return The detected [FileKind] based on leading byte inspection.
          */
         fun sniff(input: BufferedInputStream): FileKind {
             input.mark(MAGIC_BYTES)
