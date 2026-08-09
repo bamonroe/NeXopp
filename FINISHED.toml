@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "reduce-allocation-churn-in-the-xopp-parse-path"
+title = "Reduce allocation churn in the .xopp parse path"
+description = "Loading a 14.8 MB / 120-page / 79k-stroke .xopp took ~10 minutes on the emulator with continuous GC — roughly 35 MB freed per collection for the whole parse, and a 140 MB Dalvik heap at rest. Profile DocumentIo's parse and cut the per-stroke garbage (reuse coordinate buffers, parse points into primitive arrays rather than boxed lists). Measure load time and GC volume on the same fixture before and after."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-08
+completed = 2026-08-08
+tags = []
+
+[[task]]
 id = "cut-peak-memory-of-the-page-overview-grid-on-large-documents"
 title = "Cut peak memory of the page-overview grid on large documents"
 description = "The overview grid is the measured memory hot spot: on a 120-page mirrored document it took PSS from 245 MB to 407 MB on open and swung to 668 MB while scrolling previews (see the mirror repro run in FINISHED.toml). Bound the preview bitmap cache, recycle previews outside the visible window, and render previews at a smaller sample size. Verify with dumpsys meminfo on the same 120-page fixture."
