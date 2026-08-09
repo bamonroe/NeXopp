@@ -18,6 +18,7 @@ import com.xopp.android.audio.AudioSession
 import com.xopp.android.format.SaveFormat
 import com.xopp.android.io.DocumentIo
 import com.xopp.android.io.IncomingDocument
+import com.xopp.android.io.UriStaging
 import com.xopp.android.panes.EditorPane
 import com.xopp.android.panes.MirrorSync
 import com.xopp.android.render.BitmapBudget
@@ -126,6 +127,9 @@ class MainActivity : ComponentActivity() {
         val fonts = PdfFonts(assets)
         DocumentIo(contentResolver, cacheDir, filesDir, TextPdfGenerator(fonts::load))
     }
+
+    /** Shared staging helper for URI byte transfers (export, image insert). */
+    internal val staging: UriStaging by lazy { UriStaging(contentResolver, File(cacheDir, "staging")) }
 
     /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */
     internal var busy = mutableStateOf<String?>(null)

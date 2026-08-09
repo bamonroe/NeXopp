@@ -6,6 +6,7 @@ import com.xopp.android.audio.documentAudioFiles
 import com.xopp.android.format.SaveFormat
 import com.xopp.android.io.LoadedFile
 import com.xopp.android.io.StorageLimits
+import com.xopp.android.io.UriStaging
 import com.xopp.android.io.xoppNameFor
 import com.xopp.android.render.DrawingSurfaceView
 import com.xopp.android.render.ImageImport
@@ -237,20 +238,14 @@ internal fun MainActivity.extractPdfTextInBackground(file: File, into: DrawingSu
 
 /** Flatten the current document to a PDF at the chosen location (backgrounds + annotations). */
 internal fun MainActivity.exportPdf(uri: Uri) = runCatching {
-    contentResolver.openOutputStream(uri, "wt").use { output ->
-        requireNotNull(output) { "could not write $uri" }
-        surface?.exportPdf(output)
-    }
+    staging.writeTo(uri) { output: java.io.OutputStream -> surface?.exportPdf(output) }
 }.onFailure { toast("PDF export failed: ${it.message}") }
 
 /** Read the picked image's bytes and place it at the tap that started the pick. */
 internal fun MainActivity.insertPickedImage(uri: Uri) = runCatching {
     val placement = pendingImagePlacement ?: return@runCatching
     pendingImagePlacement = null
-    val bytes = contentResolver.openInputStream(uri).use { input ->
-        requireNotNull(input) { "could not open $uri" }
-        input.readBytes()
-    }
+    val bytes = staging.readBytes(uri)
     surface?.insertImage(placement, bytes)
 }.onFailure { toast("Image insert failed: ${it.message}") }
 

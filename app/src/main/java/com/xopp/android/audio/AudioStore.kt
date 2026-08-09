@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import com.xopp.android.io.UriStaging
 import java.io.File
 
 /**
@@ -26,6 +27,7 @@ import java.io.File
 class AudioStore(context: Context) {
 
     private val resolver: ContentResolver = context.contentResolver
+    private val staging = UriStaging(resolver, File(context.cacheDir, "audio-staging"))
 
     /** The app-private folder every recording is captured into and played back from. */
     val dir: File = File(context.filesDir, "audio").apply { mkdirs() }
@@ -48,10 +50,7 @@ class AudioStore(context: Context) {
         for (name in names) {
             val src = children[sanitize(name)] ?: continue
             val ok = runCatching {
-                resolver.openInputStream(src).use { input ->
-                    requireNotNull(input)
-                    local(name).outputStream().use { input.copyTo(it) }
-                }
+                staging.readBytes(src).let { local(name).writeBytes(it) }
             }.isSuccess
             if (ok) pulled += name
         }
@@ -72,10 +71,7 @@ class AudioStore(context: Context) {
             val clean = sanitize(name)
             val target = children[clean] ?: createChild(folder, clean) ?: continue
             val ok = runCatching {
-                resolver.openOutputStream(target, "wt").use { output ->
-                    requireNotNull(output)
-                    source.inputStream().use { it.copyTo(output) }
-                }
+                staging.writeTo(target) { output -> source.inputStream().use { it.copyTo(output) } }
             }.isSuccess
             if (ok) pushed += name
         }

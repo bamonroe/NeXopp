@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "consolidate-stroke-paths"
-title = "Consolidate polyline path building between screen and PDF painters"
-description = "The moveTo/lineTo polyline loop is written six times: render/StrokePainter.kt :63-68 (fill), :101-105 (styled), :119-123 (band) and render/PdfVectorPainter.kt :71-73, :82-83, :104-105. The two classes also mirror the same fill -> styled/highlighter/pressure decision tree (StrokePainter.draw :46-55 vs PdfVectorPainter.stroke :44-63) and the same pressureLine per-segment walk. Consolidate: StrokePainter gets private buildPath(pts, scale, offsetX, offsetY, close = false) used by all three sites; PdfVectorPainter gets private polyline(cs, pts, t); move the decision tree into a StrokeRenderMode.of(stroke) helper in the StrokePainter companion used by both classes so on-screen rendering and PDF export cannot diverge. Fix the existing drift: PdfVectorPainter calls bandWidth twice (:54 and :81) for line width vs dash pattern — compute once and reuse, as StrokePainter already does (:98-100). Full scripts/build.sh (both the screen path and export are affected); if practical, export a test document to PDF before and after and compare visually."
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 400
-created = 2026-08-05
-tags = ["audit"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "consolidate-uri-copy"
 title = "Route all URI byte-copies through UriStaging"
 description = "The URI-to-file byte-copy is repeated: read side in io/UriStaging.kt:27-34 (stageIn), audio/AudioStore.kt:51-55 and MainActivity.kt:531-534 (to ByteArray); write side in UriStaging.kt:37-42 (stageOut), AudioStore.kt:75-79 and MainActivity.kt:521-524. Add UriStaging.readBytes(uri): ByteArray and UriStaging.writeTo(uri, write: (OutputStream) -> Unit); have AudioStore take a UriStaging (it already has a ContentResolver) and MainActivity use it for insertPickedImage and exportPdf. The \"w\" vs \"wt\" truncation bug is fixed by the earlier fix-pdf-export-truncate-mode task — keep \"wt\". Also dedupe the identical stream-to-File one-liners at ImageStore.kt:36 and DocumentIo.kt:307-310. scripts/build.sh testDebugUnitTest."

@@ -28,11 +28,7 @@ class ImageStore(private val dir: File) {
     fun newFile(): File = scratch.newFile("img", suffix = "")
 
     /** Copy [stream] (closed here) into a fresh file in this store and return it. */
-    fun copyIn(stream: java.io.InputStream): File {
-        val out = newFile()
-        stream.use { input -> out.outputStream().use { input.copyTo(it) } }
-        return out
-    }
+    fun copyIn(stream: java.io.InputStream): File = UriStaging.copyIn(dir, stream)
 
     /**
      * Delete the copies in this store that no live document refers to any more, then hold the folder

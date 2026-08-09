@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "consolidate-stroke-paths"
+title = "Consolidate polyline path building between screen and PDF painters"
+description = "The moveTo/lineTo polyline loop is written six times: render/StrokePainter.kt :63-68 (fill), :101-105 (styled), :119-123 (band) and render/PdfVectorPainter.kt :71-73, :82-83, :104-105. The two classes also mirror the same fill -> styled/highlighter/pressure decision tree (StrokePainter.draw :46-55 vs PdfVectorPainter.stroke :44-63) and the same pressureLine per-segment walk. Consolidate: StrokePainter gets private buildPath(pts, scale, offsetX, offsetY, close = false) used by all three sites; PdfVectorPainter gets private polyline(cs, pts, t); move the decision tree into a StrokeRenderMode.of(stroke) helper in the StrokePainter companion used by both classes so on-screen rendering and PDF export cannot diverge. Fix the existing drift: PdfVectorPainter calls bandWidth twice (:54 and :81) for line width vs dash pattern — compute once and reuse, as StrokePainter already does (:98-100). Full scripts/build.sh (both the screen path and export are affected); if practical, export a test document to PDF before and after and compare visually."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-08
+tags = ["audit"]
+
+[[task]]
 id = "split-documentio"
 title = "DocumentIo: extract reference resolution into DocumentReferences.kt"
 description = "io/DocumentIo.kt (457 lines, marginally over the limit; no function exceeds 45 lines). Extract io/DocumentReferences.kt: an internal class DocumentReferenceResolver(resolver, pdfStore, imageStore) owning both sides of the same Uri/relative-path arithmetic — reference resolution on load (~217-306: pixmapReferences, resolvePixmapBackgrounds, resolvePdfBackground, openReference, openSibling, siblingUri) and portable-reference rewriting on save (~399-443: portableReference, portablePdfReference, portablePixmapReferences, relativeTo). Residual DocumentIo ~280 lines (stores, staging facade, read/linked, encode, adopt/merge/prune). Round-trip unit tests already cover this area: scripts/build.sh testDebugUnitTest. KDoc on the new class; docs/architecture.md."
