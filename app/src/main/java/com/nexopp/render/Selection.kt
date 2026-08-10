@@ -30,7 +30,9 @@ object SelectionTester {
         val hits = LinkedHashSet<ElementRef>()
         page.layers.forEachIndexed { li, layer ->
             layer.elements.forEachIndexed { ei, el ->
-                if (ElementBounds.of(el).containedBy(rect)) hits += ElementRef(li, ei)
+                if (ElementBounds.isHitTestable(el) && ElementBounds.of(el).containedBy(rect)) {
+                    hits += ElementRef(li, ei)
+                }
             }
         }
         return hits
@@ -56,9 +58,10 @@ object SelectionTester {
     }
 
     /** True when every part of [el] we can test lies inside [poly]. */
-    private fun enclosedBy(poly: List<Vec2>, el: Element): Boolean = when (el) {
-        // An empty stroke has no geometry to enclose, and would otherwise pass vacuously.
-        is Stroke -> el.points.isNotEmpty() && el.points.all { contains(poly, it.x, it.y) }
+    private fun enclosedBy(poly: List<Vec2>, el: Element): Boolean = when {
+        // No trustworthy geometry (unmodelled element, empty stroke) — never enclosed.
+        !ElementBounds.isHitTestable(el) -> false
+        el is Stroke -> el.points.all { contains(poly, it.x, it.y) }
         else -> {
             val b = ElementBounds.of(el)
             contains(poly, b.left, b.top) && contains(poly, b.right, b.top) &&
@@ -86,7 +89,8 @@ object SelectionTester {
         for (li in page.layers.indices.reversed()) {
             val elements = page.layers[li].elements
             for (ei in elements.indices.reversed()) {
-                if (ElementBounds.of(elements[ei]).expand(TAP_PAD).contains(x, y)) {
+                val el = elements[ei]
+                if (ElementBounds.isHitTestable(el) && ElementBounds.of(el).expand(TAP_PAD).contains(x, y)) {
                     return ElementRef(li, ei)
                 }
             }

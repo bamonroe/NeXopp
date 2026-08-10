@@ -67,6 +67,19 @@ object ElementBounds {
     const val TAP_PAD = 4.0
 
     /**
+     * True when [element] has geometry we can trust enough to hit-test. Unmodelled [RawElement]s
+     * and empty strokes have none: [of] gives them an empty box at the page origin, which a
+     * containment test would happily read as a real box sitting in the top-left corner and select.
+     * Every hit test ([SelectionTester], [ElementEdits]) filters on this first rather than relying
+     * on the empty box to exclude them.
+     */
+    fun isHitTestable(element: Element): Boolean = when (element) {
+        is RawElement -> false
+        is Stroke -> element.points.isNotEmpty()
+        else -> true
+    }
+
+    /**
      * Compute the bounding box of [element] in page-local points.
      * @return Bounds in pt space, or empty box (0,0,0,0) for unmodelled elements.
      */

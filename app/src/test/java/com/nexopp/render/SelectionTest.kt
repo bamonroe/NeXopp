@@ -4,6 +4,7 @@ import com.nexopp.format.model.Background
 import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.Layer
 import com.nexopp.format.model.Page
+import com.nexopp.format.model.RawElement
 import com.nexopp.format.model.Stroke
 import com.nexopp.format.model.StrokePoint
 import com.nexopp.format.model.TexImageElement
@@ -236,6 +237,15 @@ class SelectionTest {
         val one = page(Layer(listOf(stroke())))
         val box = listOf(Vec2(0.0, 0.0), Vec2(50.0, 0.0), Vec2(50.0, 50.0), Vec2(0.0, 50.0))
         assertTrue(SelectionTester.inPolygon(one, box).isEmpty())
+    }
+
+    // An unmodelled element gets an empty box at (0,0); no gesture over the page corner may pick it.
+    @Test fun unmodelledElementIsNeverSelected() {
+        val one = page(Layer(listOf(RawElement("vendor:thing"), stroke())))
+        val box = listOf(Vec2(-5.0, -5.0), Vec2(50.0, -5.0), Vec2(50.0, 50.0), Vec2(-5.0, 50.0))
+        assertTrue(SelectionTester.inPolygon(one, box).isEmpty())
+        assertTrue(SelectionTester.inRect(one, Bounds(-5.0, -5.0, 50.0, 50.0)).isEmpty())
+        assertNull(SelectionTester.pickTopmost(one, 0.0, 0.0))
     }
 
     @Test fun inPolygonDegenerateSelectsNothing() {

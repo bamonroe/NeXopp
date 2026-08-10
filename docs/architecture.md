@@ -172,7 +172,9 @@ when omitted). Children in document order: any mix of `<stroke>`, `<text>`, `<im
 model (a vendor or future element) is captured verbatim — attributes plus raw inner markup — as
 `format/model/Element.kt`'s `RawElement` and re-emitted untouched in its original position, so it
 is never silently dropped by a save. It has no geometry, so it is invisible to hit tests,
-selection ops and PDF export. Layer *visibility* is **not** a
+selection ops and PDF export — every hit test filters on `ElementBounds.isHitTestable(...)` first
+(false for a `RawElement` or an empty stroke) rather than trusting the empty box `ElementBounds.of`
+returns, which would otherwise read as a real box at the page origin. Layer *visibility* is **not** a
 format attribute — it's a view-only editor state (a hidden layer still round-trips with its content).
 
 **`<stroke>`** — the core drawable. Attributes:

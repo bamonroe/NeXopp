@@ -1,6 +1,7 @@
 package com.nexopp.render
 
 import com.nexopp.format.model.ImageElement
+import com.nexopp.format.model.RawElement
 import com.nexopp.format.model.Stroke
 import com.nexopp.format.model.StrokePoint
 import com.nexopp.format.model.TexImageElement
@@ -108,6 +109,13 @@ class ElementBoundsTest {
         val b = ElementBounds.of(t).expand(ElementBounds.TAP_PAD)
         assertTrue(ElementEdits.hitsText(t, b.left + 0.1, b.top + 0.1))
         assertFalse(ElementEdits.hitsText(t, b.left - 0.1, b.top + 0.1))
+    }
+
+    @Test fun elementsWithoutTrustworthyGeometryAreNotHitTestable() {
+        assertFalse(ElementBounds.isHitTestable(RawElement("vendor:thing")))
+        assertFalse(ElementBounds.isHitTestable(stroke()))
+        assertTrue(ElementBounds.isHitTestable(stroke(Triple(0.0, 0.0, 1.0))))
+        assertTrue(ElementBounds.isHitTestable(ImageElement(0.0, 0.0, 1.0, 1.0, ByteArray(0))))
     }
 
     @Test fun translateAndUnion() {
