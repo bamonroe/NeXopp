@@ -6,6 +6,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -22,6 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+
+/**
+ * The touch-target square every rail slot occupies, tool buttons and popup buttons alike. Icons are
+ * 24.dp, so the extra room is what keeps the rail from reading as a squished run of glyphs.
+ */
+internal val ToolbarButtonSize = 48.dp
 
 /**
  * A small non-clickable section heading inside a dropdown menu.
@@ -63,6 +70,7 @@ internal fun ToolbarPopupButton(
     Box {
         Box(
             modifier = Modifier
+                .size(ToolbarButtonSize)
                 .clip(CircleShape)
                 .then(if (active) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
                 .combinedClickable(

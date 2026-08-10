@@ -112,9 +112,9 @@ private fun ToolbarShell(horizontal: Boolean, modifier: Modifier, buttons: @Comp
         Surface(modifier = modifier.fillMaxWidth(), tonalElevation = 3.dp) {
             Row(
                 modifier = Modifier
-                    .padding(4.dp)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) { buttons() }
         }
@@ -122,9 +122,9 @@ private fun ToolbarShell(horizontal: Boolean, modifier: Modifier, buttons: @Comp
         Surface(modifier = modifier.fillMaxHeight(), tonalElevation = 3.dp) {
             Column(
                 modifier = Modifier
-                    .padding(4.dp)
+                    .padding(horizontal = 4.dp, vertical = 8.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) { buttons() }
         }
@@ -152,7 +152,7 @@ private fun ToolGroupButton(
     Box {
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(ToolbarButtonSize)
                 .clip(CircleShape)
                 .then(if (active) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
                 .combinedClickable(

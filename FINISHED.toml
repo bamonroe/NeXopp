@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "toolbar-icons-look-squished-together"
+title = "Toolbar icons look squished together"
+description = "The icons in the blue top toolbar are spaced too tightly — they read as crowded, especially the page layout/background icons. Give them more breathing room (padding/spacing, and possibly grouping) so the bar looks balanced."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "rename-the-app-to-nexopp-on-the-about-page"
 title = "Rename the app to NeXopp on the About page"
 description = "The About page still shows the app name as 'xopp'. Update it to 'NeXopp' so it matches the project, package, and Android theme naming used everywhere else."

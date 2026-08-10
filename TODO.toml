@@ -20,3 +20,45 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "lasso-select-misses-objects-inside-the-shaded-region"
+title = "Lasso select misses objects inside the shaded region"
+description = "The lasso tool draws a shaded selection region, but not every object that falls inside that region is picked up by the selection. Investigate the hit-testing used for lasso selection (stroke/point containment, bounding-box vs. path containment, partially-enclosed items, text and image objects, layer handling) and add atomic tasks for the fixes."
+status = "active"
+level = "scope"
+category = "bug"
+urgency = "normal"
+order = 20
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "selection-after-a-background-region-select-offers-only-paste"
+title = "Selection after a background/region select offers only paste"
+description = "After selecting a background/region, the only available action is paste. There should be distinct copy and paste actions, and after pasting, the pasted item should automatically become the active selection without the user having to switch tools. Investigate the selection/clipboard flow and break it into atomic tasks."
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "bezier-tool-can-t-be-ended-and-previews-the-curve-poorly"
+title = "Bezier tool can't be ended and previews the curve poorly"
+description = "Two problems with the bezier/spline line tool: (1) there is no way to stop adding new spline points — the user can't finish or commit the curve; (2) the live preview is a poor indicator of where the curve will actually be drawn, especially once the third point is added. Add a clear way to end the spline (e.g. double-tap/confirm) and improve the in-progress preview so the drawn result matches what is shown."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 40
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = true
