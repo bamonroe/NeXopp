@@ -30,6 +30,7 @@ import com.nexopp.render.TextPdfGenerator
 import com.nexopp.render.cancelSpline
 import com.nexopp.render.finishSpline
 import com.nexopp.render.splineInProgress
+import com.nexopp.render.undoLastSplineNode
 import com.nexopp.tabs.TabManager
 import com.nexopp.tabs.TabStore
 import com.nexopp.ui.AppSettings
@@ -184,14 +185,17 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Hardware-keyboard shortcuts for the spline tool, which is the one tool whose gesture spans
-     * several taps: Enter commits the open curve, Escape throws it away. Handled here rather than in
-     * the surface so the canvas never has to take keyboard focus away from the app's text fields.
+     * several taps: Enter commits the open curve, Backspace drops its last control point, and Escape
+     * throws it away. Handled here rather than in the surface so the canvas never has to take
+     * keyboard focus away from the app's text fields.
      */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         val view = surface
         if (event.action == KeyEvent.ACTION_UP && view != null && view.splineInProgress()) {
             when (event.keyCode) {
                 KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> { view.finishSpline(); return true }
+                KeyEvent.KEYCODE_DEL, KeyEvent.KEYCODE_FORWARD_DEL ->
+                    { view.undoLastSplineNode(); return true }
                 KeyEvent.KEYCODE_ESCAPE -> { view.cancelSpline(); return true }
             }
         }

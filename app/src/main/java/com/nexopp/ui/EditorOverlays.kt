@@ -21,11 +21,14 @@ import com.nexopp.render.clearSelection
 import com.nexopp.render.clearTextSelection
 import com.nexopp.render.copySelection
 import com.nexopp.render.copyTextSelection
+import com.nexopp.render.cancelSpline
 import com.nexopp.render.cutSelection
 import com.nexopp.render.deleteSelection
 import com.nexopp.render.duplicateSelection
+import com.nexopp.render.finishSpline
 import com.nexopp.render.pasteClipboard
 import com.nexopp.render.restyleSelection
+import com.nexopp.render.undoLastSplineNode
 
 /**
  * Everything layered over the canvas: the contextual action bars along the bottom edge, and the
@@ -128,6 +131,15 @@ private fun BoxScope.SelectionOverlays(
         SelectModeBar(
             canPaste = pane.hasClipboard,
             onPaste = { surface?.pasteClipboard() },
+            modifier = barModifier,
+        )
+    }
+    if (pane.splineNodes > 0) {
+        SplineModeBar(
+            nodeCount = pane.splineNodes,
+            onFinish = { surface?.finishSpline() },
+            onUndoPoint = { surface?.undoLastSplineNode() },
+            onCancel = { surface?.cancelSpline() },
             modifier = barModifier,
         )
     }

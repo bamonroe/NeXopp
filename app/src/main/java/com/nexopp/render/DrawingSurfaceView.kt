@@ -422,6 +422,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onClipboardChanged: ((Boolean) -> Unit)? = null
 
     /**
+     * Notified with the open spline's control-point count (0 = no spline open), so the chrome can
+     * offer on-screen Finish/Undo-point/Cancel actions. A tablet has no Enter key, so without this
+     * the double-tap is the only way to close a curve.
+     */
+    var onSplineChanged: ((Int) -> Unit)? = null
+
+    /**
      * The select/transform gestures — the rubber-band that picks elements and the move/resize/rotate
      * drags of what is picked. It owns the selection and the transform snapshot; see
      * [SelectionGestureController].

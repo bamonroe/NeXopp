@@ -97,6 +97,7 @@ internal fun DrawingSurfaceView.paint() {
         prefetchAround(visible)
         drawSearchHighlights(canvas)
         drawCurrent(canvas)
+        if (splineNodes.isNotEmpty()) drawSplineOverlay(canvas)
         drawTextSelection(canvas)
         selection?.let { drawSelectionBox(canvas, it) }
         if (overview.selected.isNotEmpty()) drawPageSelection(canvas)
@@ -243,6 +244,40 @@ internal fun DrawingSurfaceView.drawCurrent(canvas: Canvas) {
         canvas, pts, tool, strokeColor(), box.scale, box.leftPx - scrollX, box.topPx - scrollY,
         currentLineStyle, currentFill,
     )
+}
+
+/**
+ * The open spline's scaffolding: an anchor dot per control point, the symmetric tangent arm through
+ * each one, and a dashed rubber band from the last anchor to a hovering stylus. The flattened curve
+ * itself is already painted by [drawCurrent]; what this adds is the part the curve can't show — where
+ * the control points are, how strongly each one is bowed, and that the curve is still open and taking
+ * taps. Without it the tool looks committed after every tap, which is what made the preview hard to
+ * read once a third point pulled the earlier segments around.
+ */
+internal fun DrawingSurfaceView.drawSplineOverlay(canvas: Canvas) {
+    val box = layout.boxes.getOrNull(currentPage) ?: return
+    for (node in splineNodes) {
+        val ax = box.toViewX(node.x, scrollX)
+        val ay = box.toViewY(node.y, scrollY)
+        if (node.tx != 0.0 || node.ty != 0.0) {
+            val ix = box.toViewX(node.x - node.tx, scrollX)
+            val iy = box.toViewY(node.y - node.ty, scrollY)
+            val ox = box.toViewX(node.x + node.tx, scrollX)
+            val oy = box.toViewY(node.y + node.ty, scrollY)
+            canvas.drawLine(ix, iy, ox, oy, chrome.splineTangent)
+            canvas.drawCircle(ix, iy, CanvasChrome.SPLINE_HANDLE_PX, chrome.splineAnchor)
+            canvas.drawCircle(ox, oy, CanvasChrome.SPLINE_HANDLE_PX, chrome.splineAnchor)
+        }
+        canvas.drawCircle(ax, ay, CanvasChrome.SPLINE_ANCHOR_PX, chrome.splineAnchor)
+    }
+    // Where the next tap would extend the curve from.
+    val last = splineNodes.lastOrNull()
+    if (last != null && hovering && !splineDragging) {
+        canvas.drawLine(
+            box.toViewX(last.x, scrollX), box.toViewY(last.y, scrollY),
+            hoverX, hoverY, chrome.splineRubber,
+        )
+    }
 }
 
 /** Highlight every search hit, with a stronger outline around the currently focused result. */

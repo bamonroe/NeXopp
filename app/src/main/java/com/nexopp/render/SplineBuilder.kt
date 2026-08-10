@@ -29,8 +29,8 @@ object SplineBuilder {
 
     /** Roughly one sample per this many pt of control polygon, clamped so tiny/huge curves stay sane. */
     private const val PT_PER_SEGMENT = 6.0
-    private const val MIN_SEGMENTS = 8
-    private const val MAX_SEGMENTS = 48
+    internal const val MIN_SEGMENTS = 8
+    internal const val MAX_SEGMENTS = 48
 
     /** All points carry the same constant [widthPt] — a spline is constant-width like the other shapes. */
     fun build(nodes: List<SplineNode>, widthPt: Double): List<StrokePoint> {

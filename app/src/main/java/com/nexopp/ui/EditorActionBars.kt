@@ -13,10 +13,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.LineWeight
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -143,6 +146,50 @@ fun SelectModeBar(
                 Icon(Icons.Filled.ContentPaste, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
                 Text("Paste")
+            }
+        }
+    }
+}
+
+/**
+ * Shown while a spline is open: finish the curve, drop the last control point, or throw it away.
+ * The keyboard bindings (Enter/Escape) and the finishing double-tap still work — this is the
+ * on-screen equivalent, since a tablet with no keyboard otherwise has only the double-tap, which is
+ * easy to miss and awkward when two control points genuinely belong close together.
+ *
+ * Finish is disabled below two points, matching the commit rule: a one-node spline draws nothing.
+ */
+@Composable
+fun SplineModeBar(
+    nodeCount: Int,
+    onFinish: () -> Unit,
+    onUndoPoint: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (nodeCount <= 0) return
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        tonalElevation = 3.dp,
+        shadowElevation = 6.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("$nodeCount ${if (nodeCount == 1) "point" else "points"}")
+            IconButton(onClick = onUndoPoint) {
+                Icon(Icons.Filled.Undo, contentDescription = "Undo last point")
+            }
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Filled.Close, contentDescription = "Discard curve")
+            }
+            TextButton(onClick = onFinish, enabled = nodeCount >= 2) {
+                Icon(Icons.Filled.Check, contentDescription = null)
+                Spacer(Modifier.width(6.dp))
+                Text("Finish")
             }
         }
     }

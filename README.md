@@ -265,9 +265,14 @@ authoritative flow; don't invent another one.
 - **Spline** — the Line slot also offers **Spline**, for a smooth curve through points you place one
   at a time. **Tap** to drop a control point; **drag** away from a tap instead of lifting to pull out
   a tangent handle that bows the curve through that point (lift where you want the curve to lean).
-  Keep tapping to extend it — the whole curve previews live as you go. **Double-tap**, or press
-  **Enter** on a hardware keyboard, to finish; **Escape** throws the curve away, and switching to
-  another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
+  Keep tapping to extend it — the whole curve previews live as you go, with a dot on every control
+  point, a line through each tangent handle showing how hard that point is bowed, and a dashed
+  rubber band from the last point to a hovering stylus, so you can see where the next tap will take
+  it. While a curve is open, a bar shows how many points it has and offers **Finish** (disabled
+  until there are two, since a single point draws nothing), an **undo** button that drops just the
+  last point, and a **close** button that discards the whole curve. **Double-tap** or **Enter** also
+  finishes it, **Backspace** drops the last point, and **Escape** or **Back** throws it away;
+  switching to another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
   the current pen colour and width, so it round-trips to desktop Xournal++ like any other stroke.
 - **Shape recognition** — turn it on from the rail's **Shape recognition** button (the triangle; it
   tints while on, and the state is the same persisted setting as **Settings → Stylus → Shape

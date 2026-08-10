@@ -126,7 +126,25 @@ internal fun DrawingSurfaceView.pairsWithPreviousSplineTap(time: Long, x: Float,
 /** Show the curve-so-far as the in-progress stroke, so it paints exactly as it will commit. */
 internal fun DrawingSurfaceView.renderSplinePreview() {
     current = ArrayList(SplineBuilder.build(splineNodes, shapeWidthPt))
+    onSplineChanged?.invoke(splineNodes.size)
     render()
+}
+
+/**
+ * Drop the most recently placed control point. The escape hatch for a mis-tapped node — before this
+ * the only recovery was cancelling the whole curve. Removing the last one leaves no spline open.
+ */
+fun DrawingSurfaceView.undoLastSplineNode() {
+    if (splineNodes.isEmpty()) return
+    splineNodes.removeAt(splineNodes.lastIndex)
+    splineTapTime = 0L
+    if (splineNodes.isEmpty()) {
+        clearSpline()
+        gestureStartDoc = null
+        render()
+    } else {
+        renderSplinePreview()
+    }
 }
 
 /** True while a spline is open — the editor uses this to decide whether Enter/Esc apply. */
@@ -162,12 +180,14 @@ fun DrawingSurfaceView.cancelSpline() {
 }
 
 internal fun DrawingSurfaceView.clearSpline() {
+    val wasOpen = splineNodes.isNotEmpty()
     splineNodes.clear()
     splineDragging = false
     splineTapTime = 0L
     current = null
     gesturePointerId = -1
     stylusOwner = false
+    if (wasOpen) onSplineChanged?.invoke(0)
 }
 
 /** The eraser: touch/drag deletes any stroke it passes over on the page under the pointer. */

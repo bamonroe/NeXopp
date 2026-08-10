@@ -979,8 +979,14 @@ so it bypasses the single-drag path: `DrawingSurfaceView` accumulates `SplineNod
 handle — a tap sets the anchor, the drag that follows sets the handle) and `SplineBuilder` (pure,
 tested) flattens the chain into one vertex list by sampling a cubic Bézier per node pair, with C¹
 continuity at every node. The curve previews through the same in-progress-stroke path as everything
-else and commits on a double-tap, on `Enter` (routed from `MainActivity.dispatchKeyEvent`, so the
-canvas never takes keyboard focus), or when the tool changes; `Escape` discards it. The **shape recogniser**
+else — identical `SplineBuilder` output, so what previews is exactly what commits — with
+`drawSplineOverlay` adding the scaffolding the flattened curve can't show: an anchor dot per node,
+each node's symmetric tangent arm, and a dashed rubber band to a hovering stylus. It commits on a
+double-tap, on `Enter` (routed from `MainActivity.dispatchKeyEvent`, so the canvas never takes
+keyboard focus), or when the tool changes; `Backspace`/`undoLastSplineNode` drops the last node and
+`Escape` discards the curve. Because a tablet has no keyboard, `onSplineChanged` reports the open
+node count out to `PaneState.splineNodes`, which drives the `SplineModeBar` — the on-screen
+finish / undo-point / discard bar. The **shape recogniser**
 (`ShapeRecognizer`, pure and tested) is the reverse direction: on commit, with the user's
 **Shape recognition** setting on and the pen active, a thinned freehand stroke is classified — closed
 strokes by an ellipse radius-spread fit and then by corner count (coarser Douglas-Peucker budget, so

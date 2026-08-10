@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "bezier-tool-can-t-be-ended-and-previews-the-curve-poorly"
+title = "Bezier tool can't be ended and previews the curve poorly"
+description = "Two problems with the bezier/spline line tool: (1) there is no way to stop adding new spline points — the user can't finish or commit the curve; (2) the live preview is a poor indicator of where the curve will actually be drawn, especially once the third point is added. Add a clear way to end the spline (e.g. double-tap/confirm) and improve the in-progress preview so the drawn result matches what is shown."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "selection-after-a-background-region-select-offers-only-paste"
 title = "Selection after a background/region select offers only paste"
 description = "After selecting a background/region, the only available action is paste. There should be distinct copy and paste actions, and after pasting, the pasted item should automatically become the active selection without the user having to switch tools. Investigate the selection/clipboard flow and break it into atomic tasks."

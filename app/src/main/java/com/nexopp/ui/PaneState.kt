@@ -57,6 +57,8 @@ class PaneState {
     var hasTextSelection by mutableStateOf(false)
     /** Whether there is content on the clipboard (cut or copied selection/pages). */
     var hasClipboard by mutableStateOf(false)
+    /** Control points in the open spline, or 0 when no spline is being laid down. */
+    var splineNodes by mutableStateOf(0)
     /** Whether the search bar is open. */
     var searchOpen by mutableStateOf(false)
     /** Current search query text. */
