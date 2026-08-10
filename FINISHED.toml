@@ -17,6 +17,39 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "investigate-recurring-app-crashes"
+title = "Investigate recurring app crashes"
+description = "The app currently crashes repeatedly at runtime. Investigate the cause: reproduce it, capture logcat stack traces, identify the failing component, then add atomic tasks for the actual fixes."
+status = "finished"
+level = "scope"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = ["crash"]
+
+[[task]]
+id = "reproduce-the-crash-on-the-emulator"
+title = "Reproduce the crash on the emulator"
+description = "First child of the crash investigation scope. Build and install the debug APK on the /data/android emulator, drive the app (screenshots + simulated touches) until it crashes, and capture the adb logcat stack trace. Record the exact reproduction steps and the trace so the failing component can be identified."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = ["crash"]
+
+[[task]]
+id = "merge-line-style-and-pen-point-size-into-the-combined-tool"
+title = "Merge line style and pen point size into the combined tool"
+description = "Alongside merging the shape tool into the line tool, fold the line style selection and the pen point size selection into the same merged tool control, so stroke style and tip size are chosen in one place rather than through separate toolbar entries. Update the tool UI and docs accordingly."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "merge-the-shape-tool-into-the-line-tool"
 title = "Merge the shape tool into the line tool"
 description = "Fold the shape tool's functionality into the line tool so there is a single tool for lines and shapes, rather than two separate tools in the toolbar. Update the tool selection UI and docs accordingly."

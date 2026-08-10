@@ -279,7 +279,7 @@ private fun ToolGroupButton(
             }
         }
         // Width slot editor dialog
-        if (editingWidth in widthSlots!!.indices) {
+        if (widthSlots != null && editingWidth in widthSlots.indices) {
             com.nexopp.ui.WidthSlotSliderDialog(
                 label = com.nexopp.ui.PEN_WIDTH_LABELS[editingWidth],
                 initial = widthSlots[editingWidth],
