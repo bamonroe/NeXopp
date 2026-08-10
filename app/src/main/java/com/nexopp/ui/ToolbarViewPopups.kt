@@ -37,8 +37,8 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ZoomPopupButton(zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> Unit, onZoomReset: () -> Unit) {
     ToolbarPopupButton(
-        face = {
-            TextButton(onClick = { }) {
+        face = { open ->
+            TextButton(onClick = open) {
                 Text("${(zoom * 100).roundToInt()}%")
             }
         },

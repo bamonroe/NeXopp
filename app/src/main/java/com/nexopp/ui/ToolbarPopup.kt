@@ -83,19 +83,20 @@ internal fun ToolbarPopupButton(
 /**
  * A toolbar popup button with a custom composable face (e.g. TextButton for Zoom, TipDot for Size).
  *
- * @param face The custom composable to use as the button face.
+ * @param face The custom composable to use as the button face, called with an `open` lambda it must
+ *   wire to its own click handler — that lambda is the only thing that opens the menu.
  * @param heading Optional heading text shown at the top of the menu.
  * @param content The menu content, called with a `dismiss` lambda to close the menu.
  */
 @Composable
 internal fun ToolbarPopupButton(
-    face: @Composable () -> Unit,
+    face: @Composable (open: () -> Unit) -> Unit,
     heading: String? = null,
     content: @Composable (dismiss: () -> Unit) -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
     Box {
-        face()
+        face { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (heading != null) MenuHeading(heading)
             content { open = false }

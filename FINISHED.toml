@@ -1,4 +1,4 @@
-# FINISHED — completed-work archive for NeXopp.
+# FINISHED — completed-work archive for xopp_android.
 #
 # Append-only, newest first (see CLAUDE.md -> documentation map). Tasks land
 # here when `scripts/todo.sh done <id>` moves them out of TODO.toml.
@@ -15,6 +15,17 @@ order = "newest first"
 [meta.rules]
 finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-only."
 growth = "This file only grows; nothing is removed from it."
+
+[[task]]
+id = "bug-stroke-size-cannot-be-changed-from-the-toolbar-size-icon"
+title = "Bug: stroke size cannot be changed from the toolbar size icon"
+description = "Tapping the size icon in the toolbar no longer lets you select a different size — the size is completely unchangeable. Investigate the size picker's state/selection wiring and restore size selection."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
 
 [[task]]
 id = "kdoc-render-members"

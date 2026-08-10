@@ -78,8 +78,8 @@ internal fun SizePopupButton(
     var editing by remember { mutableStateOf(-1) }
     val maxPt = (widthSlots + width).maxOrNull() ?: width
     ToolbarPopupButton(
-        face = {
-            IconButton(onClick = { }) {
+        face = { open ->
+            IconButton(onClick = open) {
                 WidthDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
