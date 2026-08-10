@@ -36,7 +36,7 @@ Gradle wrapper (pinned to Gradle 8.9); the toolchain supplies JDK 21 + the Andro
   - `scripts/build.sh` — the default check loop: `testDebugUnitTest assembleDebug`.
   - `scripts/build.sh <tasks…>` — arbitrary Gradle tasks, e.g. `scripts/build.sh testDebugUnitTest`
     or `scripts/build.sh clean assembleDebug`.
-  - Direct equivalent: `/data/android/build.sh /home/bam/git/personal/xopp_android <tasks…>`.
+  - Direct equivalent: `/data/android/build.sh /home/bam/git/personal/nexopp <tasks…>`.
 - **Outputs:** debug APK at `app/build/outputs/apk/debug/app-debug.apk`; unit-test reports at
   `app/build/reports/tests/testDebugUnitTest/`.
 - **Gotchas:**
