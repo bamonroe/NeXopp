@@ -1119,7 +1119,10 @@ Beyond move/delete, the outline carries **four corner resize handles** (a unifor
 opposite corner, `SelectionOps.scale`) and — for an all-stroke selection only — a **right-edge rotate knob**
 (`SelectionOps.rotate`, which bakes the angle into stroke vertices). A **lasso** marquee
 (`lassoMode`) selects everything wholly inside a traced polygon (`SelectionTester.inPolygon`),
-alongside the rectangle. **Cut / copy / paste / duplicate** run through a view-held element clipboard
+alongside the rectangle. Lasso containment tests a **stroke's own points**, not its bounding box —
+a diagonal or curved stroke inside the loop has box corners outside it, so a box test would drop
+exactly the strokes the user traced around; rectangular elements (image, TeX, text) still test
+their four corners. **Cut / copy / paste / duplicate** run through a view-held element clipboard
 (`SelectionOps.elementsAt` + `addToTopLayer`, which reports the pasted refs so the copies are
 selected); paste lands on the visible page. Dropping a move over a **different page** re-homes the
 elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' pt frames). The

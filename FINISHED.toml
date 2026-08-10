@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "lasso-test-stroke-points-not-bounding-box-corners"
+title = "Lasso: test stroke points, not bounding-box corners"
+description = "SelectionTester.inPolygon (app/src/main/java/com/nexopp/render/Selection.kt:43) requires all four corners of an element's axis-aligned bounding box to be inside the lasso polygon. A diagonal or curved stroke that lies wholly inside the shaded region has bbox corners outside it, so it is silently missed — the main reason lasso select drops objects. Fix: for Stroke elements test the stroke's own points (all points inside the polygon = selected), keeping the bbox path only for elements that really are rectangles (images, TeX). Add unit tests in SelectionTest for a diagonal stroke inside a tight lasso and for an S-curve whose bbox spills out."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "lasso-select-misses-objects-inside-the-shaded-region"
 title = "Lasso select misses objects inside the shaded region"
 description = "The lasso tool draws a shaded selection region, but not every object that falls inside that region is picked up by the selection. Investigate the hit-testing used for lasso selection (stroke/point containment, bounding-box vs. path containment, partially-enclosed items, text and image objects, layer handling) and add atomic tasks for the fixes."

@@ -1,6 +1,8 @@
 package com.nexopp.render
 
+import com.nexopp.format.model.Element
 import com.nexopp.format.model.Page
+import com.nexopp.format.model.Stroke
 
 /**
  * A stable address for one element on a page: its layer index and its index within that layer.
@@ -35,25 +37,33 @@ object SelectionTester {
     }
 
     /**
-     * Every element on [page] whose bounds lie wholly inside the lasso [polygon] (page-local pt) —
-     * the free-form analogue of [inRect], using the same "wholly enclosed" rule (all four corners of
-     * the element's bounding box inside the polygon). A degenerate polygon (< 3 points) selects
-     * nothing.
+     * Every element on [page] that lies wholly inside the lasso [polygon] (page-local pt) — the
+     * free-form analogue of [inRect]. A stroke is tested against its own points rather than its
+     * bounding box: a diagonal or curved stroke drawn inside the lasso has box corners *outside*
+     * it, so the box rule would silently drop exactly the strokes the user traced around. Elements
+     * that really are rectangles (images, TeX, text) still use their four box corners. A degenerate
+     * polygon (< 3 points) selects nothing.
      */
     fun inPolygon(page: Page, polygon: List<Vec2>): Set<ElementRef> {
         if (polygon.size < 3) return emptySet()
         val hits = LinkedHashSet<ElementRef>()
         page.layers.forEachIndexed { li, layer ->
             layer.elements.forEachIndexed { ei, el ->
-                val b = ElementBounds.of(el)
-                if (contains(polygon, b.left, b.top) && contains(polygon, b.right, b.top) &&
-                    contains(polygon, b.right, b.bottom) && contains(polygon, b.left, b.bottom)
-                ) {
-                    hits += ElementRef(li, ei)
-                }
+                if (enclosedBy(polygon, el)) hits += ElementRef(li, ei)
             }
         }
         return hits
+    }
+
+    /** True when every part of [el] we can test lies inside [poly]. */
+    private fun enclosedBy(poly: List<Vec2>, el: Element): Boolean = when (el) {
+        // An empty stroke has no geometry to enclose, and would otherwise pass vacuously.
+        is Stroke -> el.points.isNotEmpty() && el.points.all { contains(poly, it.x, it.y) }
+        else -> {
+            val b = ElementBounds.of(el)
+            contains(poly, b.left, b.top) && contains(poly, b.right, b.top) &&
+                contains(poly, b.right, b.bottom) && contains(poly, b.left, b.bottom)
+        }
     }
 
     /** Even-odd ray-cast point-in-polygon test (pt space). */

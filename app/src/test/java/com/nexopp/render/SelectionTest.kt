@@ -210,6 +210,34 @@ class SelectionTest {
         assertEquals(setOf(ElementRef(0, 0)), refs)
     }
 
+    @Test fun inPolygonSelectsDiagonalStrokeWhoseBoxCornersFallOutside() {
+        // A tight sleeve around the diagonal (10,10)-(30,30). The stroke's box corners (10,30) and
+        // (30,10) sit outside this polygon, so the old corner rule missed it.
+        val sleeve = listOf(Vec2(5.0, 12.0), Vec2(27.0, 34.0), Vec2(34.0, 27.0), Vec2(12.0, 5.0))
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inPolygon(p, sleeve))
+    }
+
+    @Test fun inPolygonRejectsStrokeWithAPointOutside() {
+        // `straddle` runs (40,40)-(80,80); this box holds only its first point.
+        val box = listOf(Vec2(0.0, 0.0), Vec2(60.0, 0.0), Vec2(60.0, 60.0), Vec2(0.0, 60.0))
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inPolygon(p, box))
+    }
+
+    @Test fun inPolygonSelectsImageByItsCorners() {
+        val img = ImageElement(10.0, 10.0, 30.0, 30.0, ByteArray(0))
+        val one = page(Layer(listOf(img)))
+        val box = listOf(Vec2(0.0, 0.0), Vec2(50.0, 0.0), Vec2(50.0, 50.0), Vec2(0.0, 50.0))
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inPolygon(one, box))
+        val tight = listOf(Vec2(0.0, 0.0), Vec2(20.0, 0.0), Vec2(20.0, 20.0), Vec2(0.0, 20.0))
+        assertTrue(SelectionTester.inPolygon(one, tight).isEmpty())
+    }
+
+    @Test fun inPolygonIgnoresEmptyStroke() {
+        val one = page(Layer(listOf(stroke())))
+        val box = listOf(Vec2(0.0, 0.0), Vec2(50.0, 0.0), Vec2(50.0, 50.0), Vec2(0.0, 50.0))
+        assertTrue(SelectionTester.inPolygon(one, box).isEmpty())
+    }
+
     @Test fun inPolygonDegenerateSelectsNothing() {
         assertTrue(SelectionTester.inPolygon(p, listOf(Vec2(0.0, 0.0), Vec2(1.0, 1.0))).isEmpty())
     }

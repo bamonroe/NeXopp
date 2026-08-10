@@ -50,20 +50,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "lasso-test-stroke-points-not-bounding-box-corners"
-title = "Lasso: test stroke points, not bounding-box corners"
-description = "SelectionTester.inPolygon (app/src/main/java/com/nexopp/render/Selection.kt:43) requires all four corners of an element's axis-aligned bounding box to be inside the lasso polygon. A diagonal or curved stroke that lies wholly inside the shaded region has bbox corners outside it, so it is silently missed — the main reason lasso select drops objects. Fix: for Stroke elements test the stroke's own points (all points inside the polygon = selected), keeping the bbox path only for elements that really are rectangles (images, TeX). Add unit tests in SelectionTest for a diagonal stroke inside a tight lasso and for an S-curve whose bbox spills out."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 50
-created = 2026-08-10
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "lasso-don-t-select-unmodelled-rawelements-at-the-page-origin"
 title = "Lasso: don't select unmodelled RawElements at the page origin"
 description = "ElementBounds.of gives RawElement an empty box at (0,0,0,0) (app/src/main/java/com/nexopp/render/ElementBounds.kt:80). That is meant to keep it out of every hit test, but inPolygon/inRect treat the degenerate box as a real one, so any lasso or rubber-band drawn over the top-left corner of the page wholly encloses it and selects every unmodelled element. Make the hit tests skip elements with no trustworthy geometry explicitly rather than relying on the empty box, and cover it with a unit test."
