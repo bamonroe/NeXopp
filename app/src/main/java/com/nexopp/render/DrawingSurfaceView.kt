@@ -341,7 +341,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var backgroundSelectMode: Boolean = false
         set(value) {
             field = value
-            if (!value) backgroundSelecting = false
+            if (!value) { backgroundSelecting = false; clearBackgroundRegion() }
         }
 
     /** When true, a drag inserts/removes vertical space on a page instead of drawing (see [VerticalSpaceOps]). */
@@ -464,6 +464,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var backgroundSelectX1 = 0f
     internal var backgroundSelectY1 = 0f
 
+    // The marquee that survives the release, kept in page-local pt so it stays put while scrolling
+    // and zooming. It is what the Copy/Cut actions act on; -1 / null means there is no region.
+    internal var backgroundRegionPage = -1
+    internal var backgroundRegion: Bounds? = null
+
+    /** Notified when a background-select region appears or clears (drives Copy/Cut in the bar). */
+    var onBackgroundRegionChanged: ((Boolean) -> Unit)? = null
+
     /** When true, a one-finger/stylus drag selects text over an imported PDF's extracted text layer. */
     var textSelectMode: Boolean = false
         set(value) {
@@ -545,6 +553,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         scrollY = 0f
         scrollX = 0f
         selection = null
+        clearBackgroundRegion()
         onSelectionChanged?.invoke(false)
         hiddenLayers.clear()
         activeLayerIndex = -1

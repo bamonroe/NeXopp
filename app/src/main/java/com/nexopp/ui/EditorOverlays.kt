@@ -17,7 +17,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.nexopp.format.SaveFormat
 import com.nexopp.render.ImportPdfMode
+import com.nexopp.render.captureBackgroundRegion
+import com.nexopp.render.clearBackgroundRegion
 import com.nexopp.render.clearSelection
+import com.nexopp.render.cutBackgroundRegion
 import com.nexopp.render.clearTextSelection
 import com.nexopp.render.copySelection
 import com.nexopp.render.copyTextSelection
@@ -132,6 +135,10 @@ private fun BoxScope.SelectionOverlays(
             canPaste = pane.hasClipboard,
             onPaste = { surface?.pasteClipboard() },
             modifier = barModifier,
+            hasRegion = pane.hasBackgroundRegion,
+            onCopyRegion = { surface?.captureBackgroundRegion() },
+            onCutRegion = { surface?.cutBackgroundRegion() },
+            onClearRegion = { surface?.clearBackgroundRegion() },
         )
     }
     if (pane.splineNodes > 0) {

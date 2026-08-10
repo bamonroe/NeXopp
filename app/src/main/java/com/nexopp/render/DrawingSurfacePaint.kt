@@ -102,7 +102,7 @@ internal fun DrawingSurfaceView.paint() {
         selection?.let { drawSelectionBox(canvas, it) }
         if (overview.selected.isNotEmpty()) drawPageSelection(canvas)
         if (overview.dragging) drawPageDrag(canvas)
-        if (backgroundSelecting) drawBackgroundSelectBand(canvas)
+        if (backgroundSelecting) drawBackgroundSelectBand(canvas) else drawBackgroundRegion(canvas)
         if (gestures.banding) drawBand(canvas)
         if (vspace.active) drawVerticalSpaceGuide(canvas)
         drawGuide(canvas)
@@ -445,6 +445,21 @@ internal fun DrawingSurfaceView.drawBackgroundSelectBand(canvas: Canvas) {
     val t = min(backgroundSelectY0, backgroundSelectY1)
     val r = max(backgroundSelectX0, backgroundSelectX1)
     val bot = max(backgroundSelectY0, backgroundSelectY1)
+    canvas.drawRect(l, t, r, bot, chrome.bandFill)
+    canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
+}
+
+/**
+ * Draw the region a released background-select marquee left behind, so the Copy/Cut buttons in the
+ * bar have something visible to act on. It is held in page pt, so it tracks the page under scroll.
+ */
+internal fun DrawingSurfaceView.drawBackgroundRegion(canvas: Canvas) {
+    val region = backgroundRegion ?: return
+    val box = layout.boxes.getOrNull(backgroundRegionPage) ?: return
+    val l = box.toViewX(region.left, scrollX)
+    val t = box.toViewY(region.top, scrollY)
+    val r = box.toViewX(region.right, scrollX)
+    val bot = box.toViewY(region.bottom, scrollY)
     canvas.drawRect(l, t, r, bot, chrome.bandFill)
     canvas.drawRect(l, t, r, bot, chrome.selectionStroke)
 }

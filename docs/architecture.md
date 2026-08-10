@@ -1157,6 +1157,18 @@ is wrapped as one `ImageElement` in the same view-held clipboard the normal Sele
 Paste can drop the flattened region like any other copied image. There is no lasso path for this
 tool; the copied result is one flat bitmap rather than editable elements.
 
+The marquee **survives the release**: `commitBackgroundSelect` keeps it as `backgroundRegion` (page
+index + `Bounds` in page-local pt, so it stays put under scroll and zoom — `drawBackgroundRegion`
+maps it back through the `PageBox`) and reports it through `onBackgroundRegionChanged`, which drives
+the **Copy** and **Cut** buttons in `SelectModeBar`. Copy re-runs `captureBackgroundRegion` — the same
+capture the release does — so the region can be re-copied after the clipboard has moved on; **Cut**
+captures and then deletes, as **one undoable edit**, the elements `SelectionTester.inRect` finds
+wholly inside the region on the page's **active layer** (the same containment and active-layer rule
+the rectangle marquee selects by, so a cut never takes ink the user can't currently edit). The page
+background is a page attribute rather than part of the region, so it is copied but never erased. The
+region is view state only — never recorded in history — and clears on a new marquee drag, on a tool
+change (the `backgroundSelectMode` setter), on Back, and on `load`.
+
 **PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
 not thread-safe) and `BackgroundRenderer` draws the rasterised page.

@@ -22,6 +22,7 @@ internal fun DrawingSurfaceView.beginBackgroundSelect(event: MotionEvent) {
     gestures.clearSelection()
     clearTextSelection()
     val page = layout.pageAt(event.x + scrollX, event.y + scrollY) ?: return
+    clearBackgroundRegion()
     backgroundSelecting = true
     backgroundSelectPage = page.index
     backgroundSelectX0 = event.x
@@ -60,19 +61,67 @@ internal fun DrawingSurfaceView.commitBackgroundSelect() {
         render()
         return
     }
+    backgroundRegionPage = pageIndex
+    backgroundRegion = region
+    onBackgroundRegionChanged?.invoke(true)
+    captureBackgroundRegion()
+    render()
+}
+
+/** True while a released background-select region is still on the page, ready to copy or cut. */
+fun DrawingSurfaceView.hasBackgroundRegion(): Boolean =
+    backgroundRegion != null && backgroundRegionPage >= 0
+
+/**
+ * Drop the retained region (view-only, never recorded in history). Called when the marquee is
+ * re-dragged, when the tool changes, and from the Back handler.
+ */
+fun DrawingSurfaceView.clearBackgroundRegion() {
+    if (!hasBackgroundRegion()) return
+    backgroundRegion = null
+    backgroundRegionPage = -1
+    onBackgroundRegionChanged?.invoke(false)
+    render()
+}
+
+/**
+ * Re-render the retained region and put it on the element clipboard as a flattened image. This is
+ * what the bar's Copy button runs, and what a release does once, so the same region can be re-copied
+ * after the clipboard has moved on. The region stays selected.
+ * @return true when the clipboard was replaced.
+ */
+fun DrawingSurfaceView.captureBackgroundRegion(): Boolean {
+    val region = backgroundRegion ?: return false
+    val box = layout.boxes.getOrNull(backgroundRegionPage) ?: return false
+    val page = doc.pages.getOrNull(backgroundRegionPage) ?: return false
     val pageImage = backgroundSelectionPageImage(page.background, box.widthPx.toInt())
-    val bitmap = PageRegionRenderer.render(page, region, box.scale, pageImage = pageImage) ?: run {
-        render()
-        return
-    }
+    val bitmap = PageRegionRenderer.render(page, region, box.scale, pageImage = pageImage) ?: return false
     val bytes = bitmap.toPngBytes()
     bitmap.recycle()
-    if (bytes == null) {
-        render()
-        return
-    }
+    if (bytes == null) return false
     clipboard = listOf(ImageElement(region.left, region.top, region.right, region.bottom, bytes))
     onClipboardChanged?.invoke(true)
+    return true
+}
+
+/**
+ * Copy the region, then erase what it covers as one undoable edit. Only elements wholly inside the
+ * region on the page's active layer are removed — the same containment rule the rectangle marquee
+ * uses — so a cut never takes ink the user cannot currently edit. The page background is part of the
+ * file's page attributes, not of the region, so it is copied but never erased.
+ */
+fun DrawingSurfaceView.cutBackgroundRegion() {
+    val region = backgroundRegion ?: return
+    val pageIndex = backgroundRegionPage
+    if (!captureBackgroundRegion()) return
+    val page = doc.pages.getOrNull(pageIndex) ?: return
+    val refs = SelectionTester.inRect(page, region, resolvedActiveLayer(page))
+    if (refs.isEmpty()) { render(); return }
+    val before = doc
+    doc = doc.copy(pages = SelectionOps.delete(doc.pages, pageIndex, refs))
+    history.record(before)
+    notifyHistory()
+    relayout()
     render()
 }
 

@@ -120,17 +120,23 @@ private fun ReWidthMenu(widthSlots: List<Float>, onReWidth: (Float) -> Unit) {
 }
 
 /**
- * Shown in a marquee mode when nothing is selected: paste the clipboard onto the visible page. The
- * marquee shape isn't picked here — rectangle and lasso are separate rail tools (see [EditorTool]) —
- * so the bar composes to nothing when there's nothing on the clipboard.
+ * Shown in a marquee mode when nothing is selected: paste the clipboard onto the visible page, and —
+ * once a background-select marquee has been dragged — Copy or Cut the region it left behind. Copy
+ * re-captures the region (so it can be re-copied after the clipboard has moved on) and Cut also
+ * erases the ink it covers. The marquee shape isn't picked here — rectangle and lasso are separate
+ * rail tools (see [EditorTool]) — so the bar composes to nothing when there is nothing to act on.
  */
 @Composable
 fun SelectModeBar(
     canPaste: Boolean,
     onPaste: () -> Unit,
     modifier: Modifier = Modifier,
+    hasRegion: Boolean = false,
+    onCopyRegion: () -> Unit = {},
+    onCutRegion: () -> Unit = {},
+    onClearRegion: () -> Unit = {},
 ) {
-    if (!canPaste) return
+    if (!canPaste && !hasRegion) return
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
@@ -142,10 +148,29 @@ fun SelectModeBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TextButton(onClick = onPaste) {
-                Icon(Icons.Filled.ContentPaste, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Paste")
+            if (hasRegion) {
+                TextButton(onClick = onCopyRegion) {
+                    Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Copy")
+                }
+                TextButton(onClick = onCutRegion) {
+                    Icon(Icons.Filled.ContentCut, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Cut")
+                }
+            }
+            if (canPaste) {
+                TextButton(onClick = onPaste) {
+                    Icon(Icons.Filled.ContentPaste, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Paste")
+                }
+            }
+            if (hasRegion) {
+                IconButton(onClick = onClearRegion) {
+                    Icon(Icons.Filled.Close, contentDescription = "Clear region")
+                }
             }
         }
     }

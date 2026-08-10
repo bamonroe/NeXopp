@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "background-select-offer-explicit-copy-and-cut-alongside-paste"
+title = "Background select: offer explicit Copy and Cut alongside Paste"
+description = "The BG_SELECT/SELECT/LASSO action bar (SelectModeBar, app/src/main/java/com/nexopp/ui/EditorActionBars.kt:125) renders exactly one button, Paste. Region select silently copies the flattened region to the element clipboard on release (BackgroundSelection.kt:74 commitBackgroundSelect), so the user never sees a Copy action and cannot re-copy or cut. Add distinct Copy and Cut buttons: Copy re-captures the current marquee region into the clipboard, Cut does that and erases the covered region. Keep the bar composing to nothing when there is nothing to act on. Update README.md and docs/architecture.md in the same commit."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "lasso-decide-whether-selection-should-be-limited-to-the-active-layer"
 title = "Lasso: decide whether selection should be limited to the active layer"
 description = "inPolygon and inRect sweep every layer on the page, so a lasso can pick up objects on layers the user is not editing. Desktop Xournal++ selects within the current layer. Check the desktop behaviour, then make NeXopp match it (probably: restrict both containment queries to the active layer), and cover the choice with a unit test."

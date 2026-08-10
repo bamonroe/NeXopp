@@ -384,6 +384,7 @@ private fun DrawingSurfaceView.bindTo(state: PaneState) {
     onSelectionChanged = { s -> state.hasSelection = s }
     onTextSelectionChanged = { s -> state.hasTextSelection = s }
     onClipboardChanged = { c -> state.hasClipboard = c }
+    onBackgroundRegionChanged = { r -> state.hasBackgroundRegion = r }
     onSplineChanged = { n -> state.splineNodes = n }
     onSearchChanged = { s -> state.searchCurrent = s.current; state.searchTotal = s.total }
 }

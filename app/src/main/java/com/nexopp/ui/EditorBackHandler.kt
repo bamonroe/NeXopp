@@ -3,6 +3,7 @@ package com.nexopp.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import com.nexopp.render.cancelSpline
+import com.nexopp.render.clearBackgroundRegion
 import com.nexopp.render.clearSelection
 import com.nexopp.render.closePalette
 import com.nexopp.render.splineInProgress
@@ -48,6 +49,7 @@ fun EditorBackHandler(
             // Editing inside a text box, then a plain element selection.
             pane.hasTextSelection -> surface?.cancelTextEdit()
             pane.hasSelection -> surface?.clearSelection()
+            pane.hasBackgroundRegion -> surface?.clearBackgroundRegion()
 
             // In the page overview: drop the picked pages first, then leave edit mode.
             pane.selectedPages > 0 -> surface?.clearPageSelection()

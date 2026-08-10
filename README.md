@@ -384,10 +384,14 @@ authoritative flow; don't invent another one.
     the page you're viewing.
   - **Select background (flatten)** is rectangle-only: drag a box and release to copy that region as
     one flat image, including the page background and all layers. Paste then drops that image back
-    onto the current page.
+    onto the current page. The box **stays on the page** after you let go, and the bottom bar gains
+    **Copy**, **Cut** and a **✕** for it: **Copy** re-copies the region (handy once the clipboard has
+    moved on to something else), **Cut** copies it and then **erases the objects inside it** on the
+    active layer, and **✕** (or Back) drops the box. The page background itself is copied but never
+    erased — it belongs to the page, not to the region.
 
-  Object selection edits are undoable. Background copy only fills the clipboard; the later paste is
-  undoable. (Selection is per page; two-finger pan still works.)
+  Object selection edits are undoable, and so is a background **Cut**. A background **Copy** only
+  fills the clipboard; the later paste is undoable. (Selection is per page; two-finger pan still works.)
 - **Text** — pick **Text** from the Tool pop-up and **tap** where you want a text box; a dialog
   takes the content from the keyboard and lets you style it: **font family** (Sans / Serif /
   Monospace), **bold**, **italic**, a **size** slider (6–96 pt), and a **colour** — the same picker
