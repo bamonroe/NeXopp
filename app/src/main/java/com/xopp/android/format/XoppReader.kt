@@ -33,7 +33,7 @@ class XoppReader(xml: String) {
 
     fun read(): Document {
         val pages = mutableListOf<Page>()
-        var creator = "xopp_android"
+        var creator = "NeXopp"
         var fileVersion = "4"
         var preview: String? = null
         var title: String? = null

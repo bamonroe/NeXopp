@@ -21,7 +21,7 @@ import com.xopp.android.BuildConfig
 
 /** Where the About page sends people; kept in one place so a link is never spelled out twice. */
 object AboutLinks {
-    const val SOURCE = "https://github.com/bamonroe/xopp_android"
+    const val SOURCE = "https://github.com/bamonroe/NeXopp"
     const val LICENSE = "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html"
     const val SUPPORT = "https://www.patreon.com/bamonroe"
     const val XOURNALPP = "https://github.com/xournalpp/xournalpp"
@@ -69,7 +69,7 @@ fun AboutSection() {
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(bottom = 4.dp),
     )
-    LinkRow("github.com/bamonroe/xopp_android", AboutLinks.SOURCE, open)
+    LinkRow("github.com/bamonroe/NeXopp", AboutLinks.SOURCE, open)
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
     Text("Buy me a coffee", style = MaterialTheme.typography.bodyLarge)

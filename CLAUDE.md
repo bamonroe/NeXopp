@@ -33,7 +33,7 @@ you pull in a spoke only when the task touches it, instead of reading everything
 
 ## What this project is
 
-**xopp_android** is an **Android app that reads and writes Xournal++ (`.xopp`) files** — the
+**NeXopp** is an **Android app that reads and writes Xournal++ (`.xopp`) files** — the
 native document format of [Xournal++](https://github.com/xournalpp/xournalpp), the
 handwriting/notetaking app the owner uses daily on Linux. The goal is a stylus-first Android
 companion: open a `.xopp` file on an Android tablet/phone, draw, handwrite, annotate, and

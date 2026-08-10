@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "xopp_android"
+rootProject.name = "NeXopp"
 include(":app")

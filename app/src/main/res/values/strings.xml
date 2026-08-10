@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Xopp</string>
+    <string name="app_name">NeXopp</string>
     <string name="open_document">Open .xopp</string>
     <string name="save_document">Save</string>
     <string name="tool_pen">Pen</string>

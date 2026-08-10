@@ -7,7 +7,7 @@ package com.xopp.android.format.model
  */
 data class Document(
     /** The `creator` attribute from the root `<xournal>` element. */
-    val creator: String = "xopp_android",
+    val creator: String = "NeXopp",
     /** The `fileversion` attribute from the root `<xournal>` element (desktop Xournal++ uses "4"). */
     val fileVersion: String = "4",
     /** The pages in document order — z-order for layers within each page. */

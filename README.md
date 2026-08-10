@@ -1,6 +1,6 @@
-# Xopp — a stylus-first Xournal++ editor for Android
+# NeXopp — a stylus-first Xournal++ editor for Android
 
-**Xopp** opens, edits, and saves [Xournal++](https://github.com/xournalpp/xournalpp) `.xopp`
+**NeXopp** opens, edits, and saves [Xournal++](https://github.com/xournalpp/xournalpp) `.xopp`
 files on Android. Draw and handwrite with a pen/stylus on a tablet or phone, then save back to
 the **same `.xopp` format** so the file round-trips cleanly to and from desktop Xournal++ on
 Linux. The guiding principle is **format fidelity and round-trip safety**: a file edited on
@@ -656,7 +656,7 @@ authoritative flow; don't invent another one.
   - **Licence** — Xopp is free software under the **GNU GPL, version 2 or later**, the same licence
     as Xournal++; the full text is in [`LICENSE`](LICENSE), and the page links to the GPL and to the
     Xournal++ project.
-  - **Source** — a link to [github.com/bamonroe/xopp_android](https://github.com/bamonroe/xopp_android).
+  - **Source** — a link to [github.com/bamonroe/NeXopp](https://github.com/bamonroe/NeXopp).
   - **Buy me a coffee** — a link to [patreon.com/bamonroe](https://www.patreon.com/bamonroe) if you'd
     like to support the work. Every link opens in your browser.
 - **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
