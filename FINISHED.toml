@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "lasso-confirm-the-shaded-region-matches-the-polygon-that-is-tested"
+title = "Lasso: confirm the shaded region matches the polygon that is tested"
+description = "The lasso path is captured in view px in SelectionGestureController.lassoPts and converted to page-local pt only at ACTION_UP (SelectionGestureController.kt:288). The shaded region drawn on screen comes from the same point list, but nothing verifies the two agree once the page is scrolled or zoomed mid-gesture, and the drawn path's implicit closing segment must match the closing segment the even-odd test in SelectionTester.contains assumes. Verify both, and fix any mismatch so what the user sees shaded is exactly what gets selected."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "lasso-give-thin-strokes-and-text-the-same-tap-padding-as-a-tap-pick"
 title = "Lasso: give thin strokes and text the same tap padding as a tap pick"
 description = "pickTopmost expands bounds by ElementBounds.TAP_PAD before hit-testing, but inPolygon/inRect do not. A hairline stroke or an empty text box traced closely by the lasso can fall just outside the polygon and be missed even though the user clearly enclosed it. Decide the rule (likely: no pad for containment, but tolerate points within TAP_PAD of the polygon edge) and apply it consistently across the containment tests, with unit tests."

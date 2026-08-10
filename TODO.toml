@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "lasso-confirm-the-shaded-region-matches-the-polygon-that-is-tested"
-title = "Lasso: confirm the shaded region matches the polygon that is tested"
-description = "The lasso path is captured in view px in SelectionGestureController.lassoPts and converted to page-local pt only at ACTION_UP (SelectionGestureController.kt:288). The shaded region drawn on screen comes from the same point list, but nothing verifies the two agree once the page is scrolled or zoomed mid-gesture, and the drawn path's implicit closing segment must match the closing segment the even-odd test in SelectionTester.contains assumes. Verify both, and fix any mismatch so what the user sees shaded is exactly what gets selected."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "normal"
-order = 80
-created = 2026-08-10
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "lasso-decide-whether-selection-should-be-limited-to-the-active-layer"
 title = "Lasso: decide whether selection should be limited to the active layer"
 description = "inPolygon and inRect sweep every layer on the page, so a lasso can pick up objects on layers the user is not editing. Desktop Xournal++ selects within the current layer. Check the desktop behaviour, then make NeXopp match it (probably: restrict both containment queries to the active layer), and cover the choice with a unit test."

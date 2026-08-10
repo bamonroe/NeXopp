@@ -54,7 +54,8 @@ internal class SelectionGestureController(
     // Live rubber-band marquee (view px) and the page it selects within.
     var banding = false
         private set
-    private var bandPage = 0
+    var bandPage = 0
+        private set
     var bandX0 = 0f
         private set
     var bandY0 = 0f
@@ -64,8 +65,15 @@ internal class SelectionGestureController(
     var bandY1 = 0f
         private set
 
-    /** Free-form lasso path (view px, x/y interleaved) captured while banding in lasso mode. */
-    val lassoPts = ArrayList<Float>()
+    /**
+     * Free-form lasso path captured while banding in lasso mode, in **page-local pt** on [bandPage].
+     *
+     * Points are converted on capture, not on release: a view-px path would silently shift under the
+     * content if the page scrolls or zooms mid-gesture, so the shaded region and the polygon actually
+     * tested would disagree. Storing pt means the overlay converts back with the *current* scroll each
+     * frame, and the shading is exactly the polygon [commitBand] tests.
+     */
+    val lassoPoly = ArrayList<Vec2>()
 
     // Live move of the current selection (also the base snapshot for resize/rotate, so a live
     // transform recomputes from the gesture-start document each frame and never drifts).
@@ -262,16 +270,22 @@ internal class SelectionGestureController(
         bandPage = layout().pageAt(event.x + viewport.scrollX, event.y + viewport.scrollY)?.index ?: 0
         bandX0 = event.x; bandY0 = event.y
         bandX1 = event.x; bandY1 = event.y
-        lassoPts.clear()
-        if (lassoMode()) { lassoPts.add(event.x); lassoPts.add(event.y) }
+        lassoPoly.clear()
+        if (lassoMode()) addLassoPoint(event.x, event.y)
         render()
     }
 
     fun bandMove(event: MotionEvent) {
         bandX1 = event.x
         bandY1 = event.y
-        if (lassoMode()) { lassoPts.add(event.x); lassoPts.add(event.y) }
+        if (lassoMode()) addLassoPoint(event.x, event.y)
         render()
+    }
+
+    /** Record one lasso sample, converting view px -> page-local pt against the banding page. */
+    private fun addLassoPoint(viewX: Float, viewY: Float) {
+        val box = layout().boxes.getOrNull(bandPage) ?: return
+        lassoPoly.add(Vec2(box.toPtX(viewX, viewport.scrollX), box.toPtY(viewY, viewport.scrollY)))
     }
 
     /**
@@ -284,12 +298,7 @@ internal class SelectionGestureController(
         val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= DrawingSurfaceDefaults.TAP_SLOP_PX
         val refs: Set<ElementRef> = when {
             isTap -> SelectionTester.pickTopmost(page, box.toPtX(bandX0, viewport.scrollX), box.toPtY(bandY0, viewport.scrollY))?.let { setOf(it) } ?: emptySet()
-            lassoMode() -> {
-                val poly = ArrayList<Vec2>(lassoPts.size / 2)
-                var i = 0
-                while (i < lassoPts.size) { poly.add(Vec2(box.toPtX(lassoPts[i], viewport.scrollX), box.toPtY(lassoPts[i + 1], viewport.scrollY))); i += 2 }
-                SelectionTester.inPolygon(page, poly)
-            }
+            lassoMode() -> SelectionTester.inPolygon(page, lassoPoly)
             else -> {
                 val rect = Bounds(
                     min(box.toPtX(bandX0, viewport.scrollX), box.toPtX(bandX1, viewport.scrollX)), min(box.toPtY(bandY0, viewport.scrollY), box.toPtY(bandY1, viewport.scrollY)),

@@ -1133,7 +1133,11 @@ exactly the strokes the user traced around; rectangular elements (image, TeX, te
 their four corners. Both containment tests are **tolerant by `ElementBounds.TAP_PAD`** — the same
 margin a tap pick uses: a rect-select box is grown by the pad, and a lasso point counts as inside
 when it is within the pad of a polygon edge, so a hairline stroke or an empty text box traced
-closely isn't dropped for landing a hair outside. **Cut / copy / paste / duplicate** run through a view-held element clipboard
+closely isn't dropped for landing a hair outside. The traced path is stored in **page-local pt**
+(`SelectionGestureController.lassoPoly`), converted as each sample arrives rather than on release,
+and the overlay converts it back to view px with the *current* scroll each frame — so scrolling or
+zooming mid-trace can't drift the shaded region away from the polygon that is tested, and the
+overlay's closing segment is the same last→first wrap `inPolygon` assumes. **Cut / copy / paste / duplicate** run through a view-held element clipboard
 (`SelectionOps.elementsAt` + `addToTopLayer`, which reports the pasted refs so the copies are
 selected); paste lands on the visible page. Dropping a move over a **different page** re-homes the
 elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' pt frames). The

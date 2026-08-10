@@ -416,12 +416,16 @@ internal fun DrawingSurfaceView.drawVerticalSpaceGuide(canvas: Canvas) {
 
 /** Draw the live marquee (view px): a rectangle, or the traced lasso path in lasso mode. */
 internal fun DrawingSurfaceView.drawBand(canvas: Canvas) {
-    val pts = gestures.lassoPts
-    if (lassoMode && pts.size >= 4) {
+    val poly = gestures.lassoPoly
+    val lassoBox = layout.boxes.getOrNull(gestures.bandPage)
+    if (lassoMode && lassoBox != null && poly.size >= 2) {
+        // The path is closed the same way SelectionTester.inPolygon wraps last -> first, so the
+        // shaded region is exactly the polygon that gets tested.
         chrome.lassoPath.reset()
-        chrome.lassoPath.moveTo(pts[0], pts[1])
-        var i = 2
-        while (i < pts.size) { chrome.lassoPath.lineTo(pts[i], pts[i + 1]); i += 2 }
+        chrome.lassoPath.moveTo(lassoBox.toViewX(poly[0].x, scrollX), lassoBox.toViewY(poly[0].y, scrollY))
+        for (i in 1 until poly.size) {
+            chrome.lassoPath.lineTo(lassoBox.toViewX(poly[i].x, scrollX), lassoBox.toViewY(poly[i].y, scrollY))
+        }
         chrome.lassoPath.close()
         canvas.drawPath(chrome.lassoPath, chrome.bandFill)
         canvas.drawPath(chrome.lassoPath, chrome.selectionStroke)
