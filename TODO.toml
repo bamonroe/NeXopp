@@ -20,31 +20,3 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "paste-should-leave-the-pasted-content-as-the-active-editable-selection"
-title = "Paste should leave the pasted content as the active, editable selection"
-description = "pasteOnto (app/src/main/java/com/nexopp/render/DrawingSurfaceSelection.kt:103) sets ActiveSelection and fires onSelectionChanged(true), but if the active tool is BG_SELECT the gesture layer never reaches SelectionGestureController (DrawingSurfaceInput.kt:221 activeTool()), so the pasted elements draw as selected yet cannot be dragged, resized or rotated — and the next touch starts a new marquee, which calls gestures.clearSelection() (BackgroundSelection.kt:22) and destroys the selection outright. On paste, switch the tool to EditorTool.SELECT so the pasted item is immediately manipulable. Either add a surface->chrome tool-change callback next to onSelectionChanged (DrawingSurfaceView.kt:418) or set ui.tool/applyTool at the onPaste lambda (EditorOverlays.kt:130). Update README.md and docs/architecture.md in the same commit."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "normal"
-order = 110
-created = 2026-08-10
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
-id = "warn-or-confirm-before-a-region-copy-overwrites-the-element-clipboard"
-title = "Warn or confirm before a region copy overwrites the element clipboard"
-description = "Committing a background/region marquee overwrites the shared element clipboard with no feedback (BackgroundSelection.kt:74). Once explicit Copy/Cut exist, decide the interaction: either only write the clipboard on an explicit Copy/Cut, or surface a brief confirmation that the region was copied. Depends on the explicit Copy/Cut task. Update the owning docs in the same commit."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 120
-created = 2026-08-10
-tags = []
-rebuild = true
-emulator_debug = false

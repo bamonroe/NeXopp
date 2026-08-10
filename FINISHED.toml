@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "warn-or-confirm-before-a-region-copy-overwrites-the-element-clipboard"
+title = "Warn or confirm before a region copy overwrites the element clipboard"
+description = "Committing a background/region marquee overwrites the shared element clipboard with no feedback (BackgroundSelection.kt:74). Once explicit Copy/Cut exist, decide the interaction: either only write the clipboard on an explicit Copy/Cut, or surface a brief confirmation that the region was copied. Depends on the explicit Copy/Cut task. Update the owning docs in the same commit."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
+id = "paste-should-leave-the-pasted-content-as-the-active-editable-selection"
+title = "Paste should leave the pasted content as the active, editable selection"
+description = "pasteOnto (app/src/main/java/com/nexopp/render/DrawingSurfaceSelection.kt:103) sets ActiveSelection and fires onSelectionChanged(true), but if the active tool is BG_SELECT the gesture layer never reaches SelectionGestureController (DrawingSurfaceInput.kt:221 activeTool()), so the pasted elements draw as selected yet cannot be dragged, resized or rotated — and the next touch starts a new marquee, which calls gestures.clearSelection() (BackgroundSelection.kt:22) and destroys the selection outright. On paste, switch the tool to EditorTool.SELECT so the pasted item is immediately manipulable. Either add a surface->chrome tool-change callback next to onSelectionChanged (DrawingSurfaceView.kt:418) or set ui.tool/applyTool at the onPaste lambda (EditorOverlays.kt:130). Update README.md and docs/architecture.md in the same commit."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "background-select-offer-explicit-copy-and-cut-alongside-paste"
 title = "Background select: offer explicit Copy and Cut alongside Paste"
 description = "The BG_SELECT/SELECT/LASSO action bar (SelectModeBar, app/src/main/java/com/nexopp/ui/EditorActionBars.kt:125) renders exactly one button, Paste. Region select silently copies the flattened region to the element clipboard on release (BackgroundSelection.kt:74 commitBackgroundSelect), so the user never sees a Copy action and cannot re-copy or cut. Add distinct Copy and Cut buttons: Copy re-captures the current marquee region into the clipboard, Cut does that and erases the covered region. Keep the bar composing to nothing when there is nothing to act on. Update README.md and docs/architecture.md in the same commit."
