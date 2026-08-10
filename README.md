@@ -631,6 +631,9 @@ authoritative flow; don't invent another one.
     **Dark**. The choice repaints the whole app from one Material 3 scheme: the top bar, the tool
     rail and its swatch rings, the settings pages, and the canvas backdrop, selection and guide
     colours. Page and ink colours are document data and never change with the theme.
+  - **Use system colours** — On Android 12+ takes colours from your wallpaper (Material You). When
+    off, the app uses its fixed purple accent. Works alongside **Theme** to control the overall
+    colour scheme.
   - **Page counter position** — two drop-downs placing the always-visible "page X of Y" badge:
     **Vertical** (Top / Center / **Bottom**) and **Horizontal** (Left / Center / **Right**). The
     default is the bottom-right corner.

@@ -22,6 +22,15 @@ fun AppearanceSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     )
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
+
+    SwitchRow(
+        title = "Use system colours",
+        subtitle = "On Android 12+ takes colours from your wallpaper. Off uses the app's fixed purple.",
+        checked = settings.dynamicColor,
+        onCheckedChange = { onChange(settings.copy(dynamicColor = it)) },
+    )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
     Text("Page counter position", style = MaterialTheme.typography.bodyLarge)
     Text(
         "Which corner of the canvas the always-visible \"page X of Y\" badge sits in.",

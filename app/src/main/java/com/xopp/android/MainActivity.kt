@@ -212,7 +212,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             // Settings live above the theme so the Appearance choice re-colours the whole app.
             var settings by remember { mutableStateOf(store.load().also { applyStorageLimits(it) }) }
-            XoppTheme(darkTheme = settings.themeMode.isDark()) {
+            XoppTheme(darkTheme = settings.themeMode.isDark(), dynamicColor = settings.dynamicColor) {
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
                     onSave = { saveActiveTab() },

@@ -17,6 +17,160 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "dynamic-color-setting"
+title = "Surface dynamicColor as a Use-system-colours setting (or drop it)"
+description = "ui/theme/Theme.kt:35 XoppTheme(dynamicColor = ...) is a parameter that is always its default — the sole call site (MainActivity.kt:225) never passes it. Make it real: add dynamicColor: Boolean (default true) to ui/AppSettings.kt with a pref key and load/save wiring, a \"Use system colours\" SwitchRow in AppearanceSection (currently ui/SettingsSections.kt ~360; may have moved to a split-out file by the time this runs), and pass it through from MainActivity. Unit-test the settings persistence. Document the new toggle in the README Appearance section in the same commit. Full scripts/build.sh."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "cleanup-leftovers"
+title = "Delete dead STYLE_TOKENS; annotate test-only scrollY"
+description = "Two leftovers. (1) format/FontDescription.kt declares STYLE_TOKENS, the only private declaration in the tree with zero references — delete it (or wire it into the font-string parser it was written for, if that is a small obvious change). (2) render/DrawingSurfaceView.kt:91 scrollY is internal solely so on-device input tests can read it, while the paired scrollX two lines below is private — annotate it @VisibleForTesting (androidx.annotation) so the reason is machine-checkable, or have the test read it via ViewportState and make it private. Note: after the split-dsv tasks land, the line numbers will have moved; search by name."
+status = "finished"
+level = "task"
+category = "chore"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "page-label-helper"
+title = "One pageLabel helper; remove the load-bearing guard in PageCounter"
+description = "The \"page X of Y\" label is computed three ways: ui/PageCounter.kt:56 uses (currentPage + 1).coerceIn(1, pageCount), which throws if pageCount == 0 and is saved only by the guard at :48, while ui/ScrollThumb.kt:179 and ui/ToolbarPagesPopup.kt:134 use the hazard-free coerceAtMost(pageCount). Extract internal fun pageLabel(currentPage: Int, pageCount: Int): String using the coerceAtMost form (a sensible home: ui/PageCounter.kt or a small ui/PageLabels.kt) and use it at all three sites so no copy depends on a guard the others lack."
+status = "finished"
+level = "task"
+category = "chore"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "fill-alpha-range-decision"
+title = "Resolve fill-alpha range disagreement (0..255 vs 1..255)"
+description = "Stroke fill alpha is clamped to different ranges: format/XoppReader.kt:97 coerces 0..255 (the file format legitimately allows fill=\"0\"), while ui/AppSettings.kt:250 and ui/ToolPresetCodec.kt:65 coerce 1..255 — so a document read with fill=0 cannot be reproduced by the editor controls. Decide and record: the model keeps 0..255 and the UI pickers keep 1..255, with a comment at each site explaining why they differ (or widen the UI to 0). Minimal code change; the point is that the divergence becomes deliberate instead of accidental."
+status = "finished"
+level = "task"
+category = "chore"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "refactor-editorscreen"
+title = "EditorScreen: extract top-bar slot and pane-chrome params (optional)"
+description = "ui/EditorScreen.kt EditorScreen (~118-211, 94 lines) is borderline — much of the excess is per-parameter KDoc and a flat list of top-level regions, so this is optional polish. If done: extract @Composable private fun EditorTopBarSlot(ui, pane, tabs, activePane, onOpen, onSave, onExportPdf, splitView, onToggleSplitView) owning ~152-165 including the fullPage guard and the coerceIn index math, and group splitView/activePane/onToggleSplitView/onActivePane into a PaneChromeState parameter object. Skip if it fights the existing KDoc-per-param style; if skipped, close this task with a note."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "refactor-tabchip"
+title = "Break up the 95-line TabChip composable"
+description = "ui/TabStrip.kt TabChip (~175-269, 95 lines, borderline — lowest priority of the function breakups). Extract: private fun Modifier.tabChipInteractions(selected, onSelect, onLongClick, drag, chipWidth) owning the 26-line modifier chain at ~204-221 (clip/background/combinedClickable/pointerInput); @Composable private fun TabChipMenu(expanded, onDismiss, onMove, onMirror) owning ~225-234; @Composable private fun TabCloseButton(title, selected, onClose) owning ~257-267. Residual TabChip ~45 lines. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "consolidate-argb-helpers"
+title = "Centralise ARGB channel helpers and background rule colours"
+description = "ARGB channel extraction is written out six times: render/PdfVectorPainter.kt:189-192 (named alpha/red/green/blue helpers), render/PdfBackgroundPainter.kt:39, :68 and :78 (the same shifts inline, three times), format/XoppColor.kt:54. Move alpha/red/green/blue into format/XoppColor.kt as Int extension properties next to the existing withAlpha (:50), and add render/PdfColor.kt with PDPageContentStream.setStrokingArgb(argb) / setNonStrokingArgb(argb), collapsing the PdfBackgroundPainter stroking() helper (:77-80) and inline calls. Also: BackgroundRenderer.kt:26-30 and PdfBackgroundPainter.kt:22-24 duplicate the rule/margin/dot colours (0xA9C7E8, 0xE79B9B, 0xFF8FB0D6) — move them into BackgroundGrid (already the shared home for spacings) as RULE_RGB / MARGIN_RGB / DOT_RGB. scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "consolidate-reorder-controls"
+title = "One ReorderControls row for presets, layers and palettes"
+description = "The up/down/delete IconButton triplet is copied with three different icon pairs and two sizes: ToolbarPresetsPopup.kt:132-140 (ArrowDropUp/Down), ToolbarLayersPopup.kt:143-162 (ArrowUpward/Downward, 32.dp), PaletteManagerRow.kt:205-216 (ArrowBack/Forward). Create ui/ListRowControls.kt with @Composable internal fun ReorderControls(canMoveUp, canMoveDown, canDelete = true, vertical = true, itemName, onMove: (delta: Int) -> Unit, onDelete). Normalise the move convention on delta: presets already pass a delta (ToolbarPresetsPopup.kt:76) while layers pass an absolute target index (ToolbarLayersPopup.kt:80-81) — adapt the layers call site. Pick one icon pair per orientation and one size."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "consolidate-width-swatches"
+title = "One WidthDot swatch; fix drifted sizing rules"
+description = "Three width-dot swatches have drifted: TipDot (ToolbarSizePopup.kt:71-78 — 28dp box, dot scaled relative to the largest slot present, no border), PresetSwatch (ToolbarPresetsPopup.kt:148-160 — 24dp box, scaled absolute against PEN_WIDTH_MAX, 1dp outline border; its KDoc claim of matching TipDot is stale), and ColorSwatch (ColorPalette.kt:160-192 — 32dp, bordered, selection ring). Create ui/Swatches.kt with @Composable internal fun WidthDot(pt, maxPt, tint, boxSize = 28.dp, bordered = true) using relative-to-maxPt scaling (ToolbarSizePopup.kt:100-101 documents why absolute scaling overflows the box); port TipDot and PresetSwatch onto it and fix the stale KDoc; move ColorSwatch into the same file. scripts/build.sh testDebugUnitTest at the end of the low-priority UI batch."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
+id = "stylusinputtest-eraser-cases-fail-on-the-tab-ultra"
+title = "StylusInputTest eraser cases fail on the Tab Ultra"
+description = "barrelButtonErasesWhileHeld and eraserTipErasesWithPenSelected both fail on the physical SM-X920 (Android 16): 'expected:<0> but was:<5>' — the stroke is not erased. The other 23 connected tests pass there. Unrelated to the bitmap-cache deadlock fix (that diff touches no input code); likely the synthetic TOOL_TYPE_ERASER / barrel-button events are classified differently on Samsung's stack than on the emulator. Run with: adb -s <ip>:5555 shell am instrument -w -e class com.xopp.android.StylusInputTest com.xopp.android.test/androidx.test.runner.AndroidJUnitRunner"
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-08
+completed = 2026-08-09
+tags = []
+
+[[task]]
+id = "kdoc-ui-chrome"
+title = "KDoc: remaining ui/ chrome, settings, toolbar popups, theme"
+description = "Add KDoc to the remaining undocumented ui/ surface (do LAST among the kdoc tasks, after the ui splits and consolidations, so docs land on final files): EditorScreen.kt, EditorRegions.kt (EditorTopBar, EditorToolbar, EditorPaneView + extracted binders), EditorOverlays.kt and the files split from it, EditorBackHandler.kt (0/1), ScrollThumb.kt (post-refactor), SettingsSections.kt sections and their split-out files, SideToolbar.kt, TabStrip.kt members, TabOverviewPopup.kt, SplitLayout.kt, PageCounter.kt, AppSettings.kt (ToolbarPosition, PageCounterVertical, PageCounterHorizontal, ThemeMode, SettingsStore, and at minimum every public type and non-obvious field of the ~45 undocumented members), PaneState.kt (0/19 members), EditorUiState.kt, RailItems.kt, ToolPreset.kt, ToolPresetCodec.kt, ToolPresetList.kt, VectorIconPath.kt, theme/Theme.kt, theme/Color.kt, theme/ChromeColors.kt, AboutSection.kt, and every Toolbar*Popup public plus shared constants (PEN_COLORS, PEN_WIDTH_LABELS/MIN/MAX/STEP, DEFAULT_FILL_ALPHA, PagePreset, SizeUnit, AudioUiState). Close the kdoc batch with one scripts/build.sh testDebugUnitTest."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit", "kdoc"]
+
+[[task]]
+id = "kdoc-ui-palette"
+title = "KDoc: the ui/ palette family (geometry, codecs, pickers)"
+description = "The palette family is almost entirely undocumented. Add KDoc to: PaletteSection.kt (0/23), RadialPalette.kt (RadialRing, RadialSlot, PalettePageOp, RadialPalette — including the width require() precondition), RadialPaletteHitTest.kt (RadialPaletteGeometry, RadialHit, slotIndexAt), RadialPaletteLayout.kt (RadialPoint, slotDrawRadius, DEFAULT_ANCHOR_MARGIN), RadialPaletteCodec.kt (encode side; decode is documented — match its style), PaletteActionCatalog.kt (PaletteActionGroup, paletteActionGroups), PaletteActionPicker.kt, PaletteEditorLayout.kt (PaletteEditorSlot, slotMarkRadius and the two radius constants), PaletteList.kt (PaletteSet, addPalette, movePalette, renamePalette, activatePalette), PaletteManagerRow.kt, PaletteResetControls.kt (PaletteBulkEdit and helpers), ColorPalette.kt (ColorPaletteState, rememberColorPaletteState, ColorSwatch, ColorPaletteRows, CustomColorEditor), ColorPicker.kt (0/11 — argbToHex, hexToArgb, CustomColorPickerDialog). Document geometry units and the codec string formats especially. Do after the palette-touching refactor tasks (shared-dialogs, consolidate-reorder-controls) so docs land on final code."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit", "kdoc"]
+
+[[task]]
+id = "kdoc-render-core"
+title = "KDoc: render/ types with no class docs at all"
+description = "Add class-level KDoc to render/ files whose primary types have none: LatexParser.kt (0/16 — LatexNode and all its variants Row/SymbolRun/Superscript/Subscript/SubSup/Fraction/Sqrt, plus the parser), PageEraser.kt (EraserMode, ERASER_RADIUS_MIN_PT), PdfText.kt (CharBox, PdfWord), PixmapBackgroundDomain.kt (PixmapAttachments, attachPixmapFilename), PdfBackgroundDomain.kt (ATTACH_DOMAIN, ABSOLUTE_DOMAIN), SelectionGestureController.kt (ActiveSelection), ShapeBuilder.kt (ShapeKind), DrawingGuide.kt (GuideKind), Fling.kt (FlingStep), InputClassifier.kt (BarrelAction, GestureIntent, InputSettings), PressureCurve.kt (PressureSensitivity), Selection.kt (Vec2), VelocityEstimator.kt (Velocity), markdown/MarkdownBlock.kt (ListItem), markdown/MarkdownLayoutItem.kt (MarkdownPage), and the DrawingSurface*.kt files created by the split-dsv tasks if any type still lacks a header. State units (pt vs px) and threading expectations where relevant; imitate render/StrokeSmoother.kt and render/PageOps.kt. Do after the split-dsv and PdfPageCache tasks so docs land on final files."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit", "kdoc"]
+
+[[task]]
+id = "kdoc-io-audio-tabs"
+title = "KDoc: io/, audio/ and tabs/ gaps"
+description = "Add missing KDoc: io/SaveTarget.kt (file header + XOPP_SUFFIX), io/ImageStore.kt (newFile, copyIn, prune), io/ScratchDir.kt, io/UriStaging.kt (remaining members), io/TextImport.kt (TextTooLargeException), io/IncomingDocument.kt if bare; audio/WavWriter.kt (write, durationMs, close), audio/AudioSession.kt (the ~9 undocumented members), audio/AudioPlayer.kt, audio/AudioStore.kt; tabs/OpenTab.kt (TabSession). Imitate io/PdfReference.kt and io/DocumentIo.kt, the best-documented files in the tree. Coordinate with the io/ refactor tasks (consolidate-store-newfile, split-documentio) — document the post-refactor shape."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit", "kdoc"]
+
+[[task]]
 id = "kdoc-format-package"
 title = "KDoc: format/ package (Element.kt is 2/37 documented)"
 description = "Add missing KDoc across format/. Worst file in the repo: format/model/Element.kt (2 of 37 public declarations documented) — document Element, Tool, StrokePoint, LineStyle, TextElement, ImageElement and every public field, especially round-trip-preservation fields like uniformWidth and (once added) extraAttrs. Also: format/model/Document.kt (Page); XoppReader.kt (object + read); XoppWriter.kt (object + write); Xopp.kt (open, parseXml, save, toXml); XoppColor.kt (parse, format); xml/XmlPullReader.kt (all six publics); xml/XmlWriter.kt (prolog, start, attr, text, rawText, end, newline). Each doc should state the role in the .xopp schema mapping and any invariant the code cannot show; imitate the style of format/XoppZip.kt and io/PdfReference.kt. No narration comments. Verify nothing broke with scripts/build.sh testDebugUnitTest once at the end of the kdoc batch."
