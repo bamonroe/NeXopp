@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "kdoc-render-members"
+title = "KDoc: render/ member-level gaps (units and invariants)"
+description = "These render/ files have class docs but mostly bare public members — add one-line KDoc per member stating units and invariants (pt vs px matters everywhere here): CanvasChrome.kt (the ~14 paint accessors: backdropColor, selectionStroke, selectionFill, handle, handleArm, bandFill, guideStroke, guideFill, guideHandle, pageLift, pageDrop, pageSelectFill, pageSelect, hover), PageOverview.kt (~11: editMode, selected, clipboard, dragIndex, dropIndex, armed, clearSelection, toggleSelection, copyToClipboard, arm, lift), PageStacker.kt (PageBox fields + boxes/totalHeightPx/contentWidthPx/columns, plus the toPt/toView members once consolidate-page-transforms lands), PageCommands.kt (~12 commands), ViewportState.kt (~11), ElementBounds.kt (~9), SelectionOps.kt, EditHistory.kt (canUndo/canRedo/undo/redo/clear), BitmapBudget.kt (register/unregister/used/headroom/credit), MomentumDriver.kt, GuideDrag.kt, Snapping.kt, StrokeHitTester.kt, TextEditController.kt, LayerOps.kt, PdfOverlayMatrix.kt; markdown/MarkdownStyle.kt (all ~20 geometry constants), MarkdownLine.kt (~10 helpers), StyledRun.kt, and the single entry points parse/compose/layout/paginate/scan/resolve in MarkdownParser/Composer/Layout/InlineScanner/InlineEmphasis."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-05
+completed = 2026-08-10
+tags = ["audit", "kdoc"]
+
+[[task]]
+id = "xoppzip-mimetype-check"
+title = "Check upstream Xournal++ for the mimetype fix behind XoppZip hack"
+description = "format/XoppZip.kt:24-37: MIMETYPE = \"application/x-xopp-zip\" is a documented deliberate workaround for the inverted mimetype check in Xournal++ 1.3.5, with no expiry condition. Check current upstream (github.com/xournalpp/xournalpp release notes or source) for whether the inverted check is fixed. If fixed: flip the constant back to \"application/xournal++\", set this task rebuild=true before working it, run the round-trip tests, and ideally verify a file opens in a current desktop build. If not fixed: add a version-gated note in the KDoc naming the upstream issue and the last-checked version so the next check is mechanical."
+status = "finished"
+level = "task"
+category = "chore"
+created = 2026-08-05
+completed = 2026-08-09
+tags = ["audit"]
+
+[[task]]
 id = "dynamic-color-setting"
 title = "Surface dynamicColor as a Use-system-colours setting (or drop it)"
 description = "ui/theme/Theme.kt:35 XoppTheme(dynamicColor = ...) is a parameter that is always its default — the sole call site (MainActivity.kt:225) never passes it. Make it real: add dynamicColor: Boolean (default true) to ui/AppSettings.kt with a pref key and load/save wiring, a \"Use system colours\" SwitchRow in AppearanceSection (currently ui/SettingsSections.kt ~360; may have moved to a split-out file by the time this runs), and pass it through from MainActivity. Unit-test the settings persistence. Document the new toggle in the README Appearance section in the same commit. Full scripts/build.sh."
