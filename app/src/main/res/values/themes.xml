@@ -2,7 +2,7 @@
     <!-- Base theme is a Material 3 splash/launch theme; the live UI is a Compose
          Material 3 theme (see ui/Theme.kt). This exists so the window has Material
          chrome before Compose takes over. -->
-    <style name="Theme.XoppAndroid" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.NeXopp" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 </resources>
