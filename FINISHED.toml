@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "selection-after-a-background-region-select-offers-only-paste"
+title = "Selection after a background/region select offers only paste"
+description = "After selecting a background/region, the only available action is paste. There should be distinct copy and paste actions, and after pasting, the pasted item should automatically become the active selection without the user having to switch tools. Investigate the selection/clipboard flow and break it into atomic tasks."
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "lasso-test-stroke-points-not-bounding-box-corners"
 title = "Lasso: test stroke points, not bounding-box corners"
 description = "SelectionTester.inPolygon (app/src/main/java/com/nexopp/render/Selection.kt:43) requires all four corners of an element's axis-aligned bounding box to be inside the lasso polygon. A diagonal or curved stroke that lies wholly inside the shaded region has bbox corners outside it, so it is silently missed — the main reason lasso select drops objects. Fix: for Stroke elements test the stroke's own points (all points inside the polygon = selected), keeping the bbox path only for elements that really are rectangles (images, TeX). Add unit tests in SelectionTest for a diagonal stroke inside a tight lasso and for an S-curve whose bbox spills out."
