@@ -62,8 +62,8 @@ class ToolGroupsTest {
             startingTool(EditorTool.PEN, mapOf(draw.id to EditorTool.HIGHLIGHTER)),
         )
         // A choice in another group doesn't move the starting tool.
-        val shape = groupOf(EditorTool.RECTANGLE)!!
-        assertEquals(EditorTool.PEN, startingTool(EditorTool.PEN, mapOf(shape.id to EditorTool.ELLIPSE)))
+        val select = groupOf(EditorTool.SELECT)!!
+        assertEquals(EditorTool.PEN, startingTool(EditorTool.PEN, mapOf(select.id to EditorTool.LASSO_SELECT)))
     }
 
     @Test

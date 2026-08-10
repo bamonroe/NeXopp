@@ -973,7 +973,7 @@ and a Unicode table for Greek letters and common operators/relations; the tree i
 reference size then uniformly scaled to fit the element's box. Any parse/draw failure falls back to
 the raw source text, so a malformed formula can't crash a frame.
 
-**Shapes, styles, partial eraser, layers.** The **shape tools** (Line/Arrow/Double arrow/Rectangle/Ellipse/Coordinate axis) turn a
+**Shapes, styles, partial eraser, layers.** The **line and shape tools** (Line/Arrow/Double arrow/Rectangle/Ellipse/Coordinate axis/Spline) turn a
 one-finger drag into an ordinary constant-width pen stroke: `ShapeBuilder` (pure, tested) converts the
 drag's start/end into a vertex list, previewed live and committed as one undoable stroke, so shapes
 round-trip like any stroke. The **spline tool** is the one shape whose gesture spans several touches,
@@ -1005,7 +1005,7 @@ snapped drag returns exactly to the element's original orientation. A **drawing 
 `GRAB_PT` onto its nearest edge and leaves anything further away untouched. `DrawingSurfaceView`
 owns the live pose, paints the overlay in `paint()` (it is chrome, not ink, so it stays out of
 `InkCache`), and funnels *every* drawn vertex through `guided()` — freehand samples in `point()` and
-shape-tool endpoints in `startStroke`/`extendStroke`, applied **after** the grid snap so the guide
+line/shape endpoints in `startStroke`/`extendStroke`, applied **after** the grid snap so the guide
 wins. A finger that lands on the guide's *body* (the triangle's interior, the compass's hub) drives it on
 its own pointer id, running alongside the drawing gesture rather than replacing it, which is what
 lets the pen rule along a guide the other hand is holding; the edges are deliberately excluded from
@@ -1013,7 +1013,7 @@ the grab test so drawing against one never drags the instrument away with it. No
 the background style, so the pt spacings live once in `BackgroundGrid` and are shared by
 `BackgroundRenderer`, `PdfBackgroundPainter` and `Snapping`. The **setsquare/compass guides**
 (`DrawingGuide`, pure and tested) are a third constraint at that same input edge: the surface holds
-one live pose pinned to a page, and every drawn vertex — freehand via `point()` and shape-tool
+one live pose pinned to a page, and every drawn vertex — freehand via `point()` and line/shape
 endpoints alike — passes through `guided()`, which projects the point onto the guide's nearest edge
 when it is within `DrawingGuide.GRAB_PT`. The guide is applied *after* grid snapping, so a placed
 guide wins. It is drawn as a canvas overlay outside the ink cache (it is not page content) and is

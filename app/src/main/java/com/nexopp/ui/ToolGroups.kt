@@ -30,11 +30,10 @@ val TOOL_GROUPS: List<ToolGroup> = listOf(
     ToolGroup("eraser", "Eraser", listOf(EditorTool.ERASER, EditorTool.ERASER_WHOLE)),
     ToolGroup(
         "line", "Line",
-        listOf(EditorTool.LINE, EditorTool.ARROW, EditorTool.DOUBLE_ARROW, EditorTool.SPLINE),
-    ),
-    ToolGroup(
-        "shape", "Shape",
-        listOf(EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.COORDINATE_AXIS),
+        listOf(
+            EditorTool.LINE, EditorTool.ARROW, EditorTool.DOUBLE_ARROW, EditorTool.SPLINE,
+            EditorTool.RECTANGLE, EditorTool.ELLIPSE, EditorTool.COORDINATE_AXIS,
+        ),
     ),
     ToolGroup("pan", "Pan", listOf(EditorTool.HAND)),
     ToolGroup(

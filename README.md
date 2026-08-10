@@ -256,13 +256,12 @@ authoritative flow; don't invent another one.
   colour/width you were last drawing with are all remembered across restarts, so the app reopens with
   the pen you left off with. New strokes land on the **active layer**
   (see **Layers** below) of whichever page you draw on.
-- **Shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Double arrow**, **Rectangle**,
-  **Ellipse**, and **Coordinate axis**. Pick one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
+- **Line & shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Double arrow**, **Rectangle**,
+  **Ellipse**, **Coordinate axis**, and **Spline**. Pick one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
   shape commits on release. Shapes are saved as ordinary strokes in the current pen colour and width,
   so they round-trip to desktop Xournal++ like any other stroke. A double arrow gets a head at each
   end; a coordinate axis puts its origin where the drag started and runs an arrowed x and y axis out
-  to the drag's width and height.
-- **Spline** — the Line slot also offers **Spline**, for a smooth curve through points you place one
+  to the drag's width and height. The **Spline** tool is for a smooth curve through points you place one
   at a time. **Tap** to drop a control point; **drag** away from a tap instead of lifting to pull out
   a tangent handle that bows the curve through that point (lift where you want the curve to lean).
   Keep tapping to extend it — the whole curve previews live as you go, with a dot on every control
