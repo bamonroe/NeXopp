@@ -11,7 +11,16 @@ import kotlin.math.sqrt
  */
 object StrokeHitTester {
 
-    /** Shortest distance from point (px, py) to the segment (ax, ay)-(bx, by). */
+    /**
+     * Shortest distance from point (px, py) to the segment (ax, ay)-(bx, by).
+     * @param px Point X coordinate.
+     * @param py Point Y coordinate.
+     * @param ax Segment endpoint A X coordinate.
+     * @param ay Segment endpoint A Y coordinate.
+     * @param bx Segment endpoint B X coordinate.
+     * @param by Segment endpoint B Y coordinate.
+     * @return Minimum distance from point to segment.
+     */
     fun pointSegmentDistance(px: Double, py: Double, ax: Double, ay: Double, bx: Double, by: Double): Double {
         val dx = bx - ax
         val dy = by - ay
@@ -21,7 +30,14 @@ object StrokeHitTester {
         return dist(px, py, ax + t * dx, ay + t * dy)
     }
 
-    /** True if an eraser disc of [radius] centred at ([px], [py]) touches [stroke]. */
+    /**
+     * True if an eraser disc of [radius] centred at ([px], [py]) touches [stroke].
+     * @param stroke Stroke to test against.
+     * @param px Eraser center X in page points.
+     * @param py Eraser center Y in page points.
+     * @param radius Eraser disc radius in points.
+     * @return true if eraser touches any segment of the stroke.
+     */
     fun hits(stroke: Stroke, px: Double, py: Double, radius: Double): Boolean {
         val pts = stroke.points
         if (pts.isEmpty()) return false

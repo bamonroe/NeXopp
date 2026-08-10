@@ -19,10 +19,6 @@ object PdfBackgroundPainter {
     private const val MARGIN_PT = BackgroundGrid.MARGIN_PT
     private const val DOT_HALF_PT = 1.0f
 
-    private const val LINE_RGB = 0xA9C7E8
-    private const val MARGIN_RGB = 0xE79B9B
-    private const val DOT_RGB = 0x8FB0D6
-
     fun draw(cs: PDPageContentStream, page: Page, t: PdfPageTransform) {
         val solid = page.background as? Background.Solid
         fill(cs, page, t, solid?.color ?: WHITE)
@@ -36,25 +32,28 @@ object PdfBackgroundPainter {
     }
 
     private fun fill(cs: PDPageContentStream, page: Page, t: PdfPageTransform, color: Int) {
-        cs.setNonStrokingColor((color ushr 16) and 0xFF, (color ushr 8) and 0xFF, color and 0xFF)
+        cs.setNonStrokingArgb(color)
         cs.addRect(t.x(0.0), t.y(page.height), page.width.toFloat(), page.height.toFloat())
         cs.fill()
     }
 
     private fun horizontals(cs: PDPageContentStream, page: Page, t: PdfPageTransform) {
-        stroking(cs, LINE_RGB, 1f)
+        cs.setStrokingArgb(BackgroundGrid.LINE_RGB)
+        cs.setLineWidth(1f)
         for (y in BackgroundGrid.lines(page.height, RULE_SPACING_PT)) {
             cs.moveTo(t.x(0.0), t.y(y)); cs.lineTo(t.x(page.width), t.y(y)); cs.stroke()
         }
     }
 
     private fun marginLine(cs: PDPageContentStream, page: Page, t: PdfPageTransform) {
-        stroking(cs, MARGIN_RGB, 1.5f)
+        cs.setStrokingArgb(BackgroundGrid.MARGIN_RGB)
+        cs.setLineWidth(1.5f)
         cs.moveTo(t.x(MARGIN_PT), t.y(0.0)); cs.lineTo(t.x(MARGIN_PT), t.y(page.height)); cs.stroke()
     }
 
     private fun grid(cs: PDPageContentStream, page: Page, t: PdfPageTransform) {
-        stroking(cs, LINE_RGB, 1f)
+        cs.setStrokingArgb(BackgroundGrid.LINE_RGB)
+        cs.setLineWidth(1f)
         for (y in BackgroundGrid.lines(page.height, GRID_SPACING_PT)) {
             cs.moveTo(t.x(0.0), t.y(y)); cs.lineTo(t.x(page.width), t.y(y)); cs.stroke()
         }
@@ -65,18 +64,13 @@ object PdfBackgroundPainter {
 
     /** Dots have no PDF primitive; approximate each with a tiny filled square at the intersection. */
     private fun dots(cs: PDPageContentStream, page: Page, t: PdfPageTransform) {
-        cs.setNonStrokingColor((DOT_RGB ushr 16) and 0xFF, (DOT_RGB ushr 8) and 0xFF, DOT_RGB and 0xFF)
+        cs.setNonStrokingArgb(BackgroundGrid.DOT_RGB)
         for (y in BackgroundGrid.lines(page.height, GRID_SPACING_PT)) {
             for (x in BackgroundGrid.lines(page.width, GRID_SPACING_PT)) {
                 cs.addRect(t.x(x) - DOT_HALF_PT, t.y(y) - DOT_HALF_PT, DOT_HALF_PT * 2, DOT_HALF_PT * 2)
             }
         }
         cs.fill()
-    }
-
-    private fun stroking(cs: PDPageContentStream, rgb: Int, width: Float) {
-        cs.setStrokingColor((rgb ushr 16) and 0xFF, (rgb ushr 8) and 0xFF, rgb and 0xFF)
-        cs.setLineWidth(width)
     }
 
     private const val WHITE = 0xFFFFFF

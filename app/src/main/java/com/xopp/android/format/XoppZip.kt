@@ -31,6 +31,10 @@ object XoppZip {
      * the released Xournal++ 1.3.5 rejects the canonical string, so we write a distinct one that its
      * inverted check accepts. Kept short (well under the reader's 25-byte cap) so its buffer stays
      * NUL-terminated. Flip this back to the canonical value once upstream fixes the check.
+     *
+     * **Last checked:** Xournal++ 1.3.7 (Aug 2026) — bug still present. The inverted check remains
+     * in `LoadHandler.cpp:if (!strcmp(mimetype, "application/xournal++")) → "Mimetype wrong"`.
+     * Next check: inspect `src/core/control/xojfile/LoadHandler.cpp` in the v1.3.8 release or later.
      */
     const val MIMETYPE = "application/x-xopp-zip"
 

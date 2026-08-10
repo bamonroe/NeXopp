@@ -23,10 +23,10 @@ object BackgroundRenderer {
     private const val MARGIN_PT = BackgroundGrid.MARGIN_PT
 
     private val fill = Paint()
-    private val line = Paint().apply { color = 0xFFA9C7E8.toInt(); strokeWidth = 1f }
-    private val margin = Paint().apply { color = 0xFFE79B9B.toInt(); strokeWidth = 1.5f }
+    private val line = Paint().apply { color = 0xFF000000.toInt() or BackgroundGrid.LINE_RGB; strokeWidth = 1f }
+    private val margin = Paint().apply { color = 0xFF000000.toInt() or BackgroundGrid.MARGIN_RGB; strokeWidth = 1.5f }
     private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF8FB0D6.toInt(); style = Paint.Style.FILL
+        color = 0xFF000000.toInt() or BackgroundGrid.DOT_RGB; style = Paint.Style.FILL
     }
     private val image = Paint(Paint.FILTER_BITMAP_FLAG)
 

@@ -22,9 +22,6 @@ data class FontDescription(val family: String, val bold: Boolean, val italic: Bo
     companion object {
         const val DEFAULT_FAMILY = "Sans"
 
-        /** Style tokens Pango appends after the family; stripped to recover family + flags. */
-        private val STYLE_TOKENS = setOf("bold", "italic", "oblique")
-
         /**
          * Parse a `.xopp` font string into family + bold/italic. Trailing style tokens
          * (`Bold`/`Italic`/`Oblique`, case-insensitive) are consumed as flags; whatever

@@ -18,24 +18,40 @@ object Snapping {
     /** The rotation increment, in degrees, a snapped rotate handle lands on. */
     const val ROTATION_STEP_DEG: Double = 15.0
 
-    /** Horizontal ruling spacing (pt) for [background], or 0 when it rules no vertical lines. */
+    /**
+     * Horizontal ruling spacing (pt) for [background], or 0 when it rules no vertical lines.
+     * @return Spacing in points, or 0.0 if no horizontal snapping.
+     */
     fun spacingX(background: Background?): Double = when (styleOf(background)) {
         "graph", "dotted" -> BackgroundGrid.GRID_SPACING_PT
         else -> 0.0
     }
 
-    /** Vertical ruling spacing (pt) for [background], or 0 when it rules no horizontal lines. */
+    /**
+     * Vertical ruling spacing (pt) for [background], or 0 when it rules no horizontal lines.
+     * @return Spacing in points, or 0.0 if no vertical snapping.
+     */
     fun spacingY(background: Background?): Double = when (styleOf(background)) {
         "lined", "ruled" -> BackgroundGrid.RULE_SPACING_PT
         "graph", "dotted" -> BackgroundGrid.GRID_SPACING_PT
         else -> 0.0
     }
 
-    /** [v] pulled to the nearest multiple of [spacing]; a non-positive spacing leaves it alone. */
+    /**
+     * [v] pulled to the nearest multiple of [spacing]; a non-positive spacing leaves it alone.
+     * @param v Value to snap in points.
+     * @param spacing Grid spacing in points.
+     * @return Snapped value, or [v] if spacing <= 0.
+     */
     fun snap(v: Double, spacing: Double): Double =
         if (spacing <= 0.0) v else round(v / spacing) * spacing
 
-    /** [radians] pulled to the nearest multiple of [stepDeg] degrees. */
+    /**
+     * [radians] pulled to the nearest multiple of [stepDeg] degrees.
+     * @param radians Angle in radians.
+     * @param stepDeg Snap step in degrees (default [ROTATION_STEP_DEG]).
+     * @return Snapped angle in radians, or original if stepDeg <= 0.
+     */
     fun snapAngle(radians: Double, stepDeg: Double = ROTATION_STEP_DEG): Double {
         if (stepDeg <= 0.0) return radians
         val step = stepDeg * PI / 180.0

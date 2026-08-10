@@ -13,7 +13,9 @@ import com.xopp.android.format.model.TextElement
  * Kept free of Android types so it's unit-testable on the JVM.
  */
 data class Bounds(val left: Double, val top: Double, val right: Double, val bottom: Double) {
+    /** Width in points (right - left). */
     val width: Double get() = right - left
+    /** Height in points (bottom - top). */
     val height: Double get() = bottom - top
 
     /** True if (x, y) lies within this box (inclusive of the edges). */
@@ -23,10 +25,17 @@ data class Bounds(val left: Double, val top: Double, val right: Double, val bott
     fun containedBy(outer: Bounds): Boolean =
         left >= outer.left && top >= outer.top && right <= outer.right && bottom <= outer.bottom
 
-    /** This box grown by [pad] pt on every side (a hit-test / handle margin). */
+    /**
+     * This box grown by [pad] pt on every side (a hit-test / handle margin).
+     * @param pad Padding in points to expand on each side.
+     */
     fun expand(pad: Double): Bounds = Bounds(left - pad, top - pad, right + pad, bottom + pad)
 
-    /** This box shifted by (dx, dy) pt. */
+    /**
+     * This box shifted by (dx, dy) pt.
+     * @param dx Horizontal translation in points.
+     * @param dy Vertical translation in points.
+     */
     fun translate(dx: Double, dy: Double): Bounds = Bounds(left + dx, top + dy, right + dx, bottom + dy)
 
     /** True if this box overlaps [other] at all (edge contact counts). */
@@ -57,6 +66,10 @@ object ElementBounds {
      */
     const val TAP_PAD = 4.0
 
+    /**
+     * Compute the bounding box of [element] in page-local points.
+     * @return Bounds in pt space, or empty box (0,0,0,0) for unmodelled elements.
+     */
     fun of(element: Element): Bounds = when (element) {
         is Stroke -> strokeBounds(element)
         is TextElement -> textBounds(element)

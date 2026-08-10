@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.xopp.android.format.model.LineStyle
 import com.xopp.android.render.GuideKind
-import com.xopp.android.render.LayerInfo
 
 /**
  * The vertical control rail down the left edge: Tool, Colour, Size, Zoom, and a page navigator —
@@ -53,59 +52,23 @@ fun SideToolbar(
     onTool: (EditorTool) -> Unit,
     toolGroupSelections: Map<String, EditorTool>,
     onToolGroupSelections: (Map<String, EditorTool>) -> Unit,
-    color: Int,
-    onColor: (Int) -> Unit,
-    palette: ColorPaletteState,
-    onRedefineCustom: (Int) -> Unit,
-    width: Float,
-    onWidth: (Float) -> Unit,
-    widthSlots: List<Float>,
-    onRedefineSlot: (Int, Float) -> Unit,
-    lineStyle: LineStyle,
-    onLineStyle: (LineStyle) -> Unit,
-    fill: Int?,
-    onFill: (Int?) -> Unit,
+    styleCallbacks: ToolbarStyleCallbacks,
     presets: List<ToolPreset> = emptyList(),
     onPresets: (List<ToolPreset>) -> Unit = {},
     onActivatePreset: (ToolPreset) -> Unit = {},
-    onCapturePreset: (String) -> ToolPreset = { ToolPreset(it, it, tool, color, width) },
+    onCapturePreset: (String) -> ToolPreset = { ToolPreset(it, it, tool, styleCallbacks.color, styleCallbacks.width) },
     recognizeShapes: Boolean = false,
     onRecognizeShapes: (Boolean) -> Unit = {},
     guideKind: GuideKind,
     onGuideKind: (GuideKind) -> Unit,
-    layers: List<LayerInfo>,
-    hasSelection: Boolean,
-    onAddLayer: () -> Unit,
-    onDeleteLayer: (Int) -> Unit,
-    onMergeLayerDown: (Int) -> Unit,
-    onRenameLayer: (Int, String) -> Unit,
-    onMoveLayer: (Int, Int) -> Unit,
-    onActivateLayer: (Int) -> Unit,
-    onToggleLayerHidden: (Int, Boolean) -> Unit,
-    onMoveSelectionToLayer: (Int) -> Unit,
+    layerCallbacks: ToolbarLayerCallbacks,
     zoom: Float,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onZoomReset: () -> Unit,
-    pageCount: Int,
-    currentPage: Int,
-    onAddPage: () -> Unit,
-    onRemovePage: () -> Unit,
-    onGoToPage: (Int) -> Unit,
+    pageCallbacks: ToolbarPagesCallbacks,
     backgroundStyle: String?,
     onBackgroundStyle: (String) -> Unit,
-    pageSize: Pair<Double, Double>?,
-    onPageSize: (Double, Double) -> Unit,
-    pageColumns: Int,
-    onPageColumns: (Int) -> Unit,
-    pagesEditMode: Boolean = false,
-    onPagesEditMode: (Boolean) -> Unit = {},
-    selectedPages: Int = 0,
-    onDeleteSelectedPages: () -> Unit = {},
-    onClearPageSelection: () -> Unit = {},
-    copiedPages: Int = 0,
-    onCopySelectedPages: () -> Unit = {},
-    onPastePages: () -> Unit = {},
     audio: AudioUiState = AudioUiState(),
     railOrder: List<String> = emptyList(),
     railHidden: Set<String> = emptySet(),
@@ -126,24 +89,16 @@ fun SideToolbar(
                     },
                 )
             } else when (item.id) {
-                "color" -> ColorPopupButton(color, onColor, palette, onRedefineCustom)
-                "size" -> SizePopupButton(width, widthSlots, onWidth, onRedefineSlot)
-                "style" -> StylePopupButton(lineStyle, onLineStyle, fill, onFill)
+                "color" -> ColorPopupButton(styleCallbacks.color, styleCallbacks.onColor, styleCallbacks.palette, styleCallbacks.onRedefineCustom)
+                "size" -> SizePopupButton(styleCallbacks.width, styleCallbacks.widthSlots, styleCallbacks.onWidth, styleCallbacks.onRedefineSlot)
+                "style" -> StylePopupButton(styleCallbacks.lineStyle, styleCallbacks.onLineStyle, styleCallbacks.fill, styleCallbacks.onFill)
                 "presets" -> PresetsPopupButton(presets, onPresets, onActivatePreset, onCapturePreset)
                 "shapes" -> ShapeRecognitionButton(recognizeShapes, onRecognizeShapes)
                 "guides" -> GuidePopupButton(guideKind, onGuideKind)
-                "layers" -> LayersPopupButton(
-                    layers, hasSelection, onAddLayer, onDeleteLayer, onMergeLayerDown, onRenameLayer,
-                    onMoveLayer, onActivateLayer, onToggleLayerHidden, onMoveSelectionToLayer,
-                )
+                "layers" -> LayersPopupButton(layerCallbacks)
                 "zoom" -> ZoomPopupButton(zoom, onZoomIn, onZoomOut, onZoomReset)
                 "background" -> BackgroundPopupButton(backgroundStyle, onBackgroundStyle)
-                "pages" -> PagesPopupButton(
-                    pageCount, currentPage, onAddPage, onRemovePage, onGoToPage, pageSize, onPageSize,
-                    pageColumns, onPageColumns, pagesEditMode, onPagesEditMode,
-                    selectedPages, onDeleteSelectedPages, onClearPageSelection,
-                    copiedPages, onCopySelectedPages, onPastePages,
-                )
+                "pages" -> PagesPopupButton(pageCallbacks)
                 "audio" -> AudioPopupButton(audio)
             }
         }

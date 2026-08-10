@@ -14,17 +14,30 @@ package com.xopp.android.render
  */
 internal class ViewportState {
 
+    /** Horizontal scroll offset in pixels (clamped to 0..maxScrollX). */
     var scrollX = 0f
+    /** Vertical scroll offset in pixels (clamped to 0..maxScrollY). */
     var scrollY = 0f
+    /** Zoom scale factor (clamped to [MIN_ZOOM]..[MAX_ZOOM]); 1.0 = 100%. */
     var zoom = 1f
         private set
 
+    /** Current view width in pixels; set via [setBounds]. */
     private var viewWidth = 0f
+    /** Current view height in pixels; set via [setBounds]. */
     private var viewHeight = 0f
+    /** Current content width in pixels after zoom; set via [setBounds]. */
     private var contentWidthPx = 0f
+    /** Current content height in pixels after zoom; set via [setBounds]. */
     private var contentHeightPx = 0f
 
-    /** Adopt the current view size and content extent, then clamp the offsets into the new range. */
+    /**
+     * Adopt the current view size and content extent, then clamp the offsets into the new range.
+     * @param viewWidth View width in pixels.
+     * @param viewHeight View height in pixels.
+     * @param contentWidthPx Content width in pixels (after zoom).
+     * @param contentHeightPx Content height in pixels (after zoom).
+     */
     fun setBounds(viewWidth: Float, viewHeight: Float, contentWidthPx: Float, contentHeightPx: Float) {
         this.viewWidth = viewWidth
         this.viewHeight = viewHeight
@@ -33,24 +46,34 @@ internal class ViewportState {
         clamp()
     }
 
+    /** Maximum horizontal scroll in pixels (contentWidthPx - viewWidth, minimum 0). */
     fun maxScrollX(): Float = (contentWidthPx - viewWidth).coerceAtLeast(0f)
+    /** Maximum vertical scroll in pixels (contentHeightPx - viewHeight, minimum 0). */
     fun maxScrollY(): Float = (contentHeightPx - viewHeight).coerceAtLeast(0f)
 
     /** True when there is anywhere left to scroll in either axis. */
     fun canScroll(): Boolean = maxScrollX() > 0f || maxScrollY() > 0f
 
-    /** Pull both offsets back inside the scrollable range. */
+    /** Pull both offsets back inside the scrollable range (0..maxScroll). */
     fun clamp() {
         scrollX = scrollX.coerceIn(0f, maxScrollX())
         scrollY = scrollY.coerceIn(0f, maxScrollY())
     }
 
-    /** Set the vertical offset (clamped). */
+    /**
+     * Set the vertical offset (clamped to 0..maxScrollY).
+     * @param y Target scroll position in pixels.
+     */
     fun scrollToY(y: Float) {
         scrollY = y.coerceIn(0f, maxScrollY())
     }
 
-    /** Scroll by ([dx], [dy]) px, clamped; false when nothing moved (pinned at a bound). */
+    /**
+     * Scroll by ([dx], [dy]) pixels, clamped; false when nothing moved (pinned at a bound).
+     * @param dx Horizontal delta in pixels.
+     * @param dy Vertical delta in pixels.
+     * @return true if scroll position changed.
+     */
     fun scrollBy(dx: Float, dy: Float): Boolean {
         val prevX = scrollX
         val prevY = scrollY
@@ -60,16 +83,23 @@ internal class ViewportState {
     }
 
     /**
-     * Zoom to [target] (clamped), keeping the viewport centre roughly fixed. [relayout] must
-     * re-stack the pages at the new zoom and push the fresh extent back in via [setBounds].
-     * False when the clamp bit and nothing changed.
+     * Zoom to [target] (clamped to [MIN_ZOOM]..[MAX_ZOOM]), keeping the viewport centre roughly fixed.
+     * [relayout] must re-stack the pages at the new zoom and push the fresh extent back in via [setBounds].
+     * @param target Target zoom scale (1.0 = 100%).
+     * @param relayout Callback to recompute layout at the new zoom.
+     * @return false if zoom didn't change (already at clamp boundary).
      */
     fun zoomTo(target: Float, relayout: () -> Unit): Boolean =
         zoomAbout(viewWidth / 2f, viewHeight / 2f, target.coerceIn(MIN_ZOOM, MAX_ZOOM) / zoom, relayout)
 
     /**
-     * Multiply the zoom by [factor] (clamped) while keeping the content point under the viewport
-     * pixel ([focusVx], [focusVy]) fixed — the anchor for pinch-zoom. False when the clamp bit.
+     * Multiply the zoom by [factor] (clamped to [MIN_ZOOM]..[MAX_ZOOM]) while keeping the content point
+     * under the viewport pixel ([focusVx], [focusVy]) fixed — the anchor for pinch-zoom.
+     * @param focusVx Focus X in viewport pixels (e.g. pinch centroid).
+     * @param focusVy Focus Y in viewport pixels.
+     * @param factor Zoom multiplier (>1 zooms in, <1 zooms out).
+     * @param relayout Callback to recompute layout at the new zoom.
+     * @return false if zoom didn't change (already at clamp boundary).
      */
     fun zoomAbout(focusVx: Float, focusVy: Float, factor: Float, relayout: () -> Unit): Boolean {
         val next = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
@@ -84,7 +114,7 @@ internal class ViewportState {
         return true
     }
 
-    /** Reset to the top-left at 100%, for adopting a fresh document. */
+    /** Reset to the top-left at 100% zoom, for adopting a fresh document. */
     fun reset() {
         scrollX = 0f
         scrollY = 0f

@@ -8,6 +8,10 @@ import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import com.xopp.android.format.FontDescription
+import com.xopp.android.format.XoppColor.alpha
+import com.xopp.android.format.XoppColor.red
+import com.xopp.android.format.XoppColor.green
+import com.xopp.android.format.XoppColor.blue
 import com.xopp.android.format.model.ImageElement
 import com.xopp.android.format.model.Page
 import com.xopp.android.format.model.RawElement
@@ -52,8 +56,8 @@ class PdfVectorPainter {
         s.fill?.let { fillPoly(cs, s, t, it) }
         val argb = StrokePainter.renderColor(s.tool, s.color)
         cs.saveGraphicsState()
-        cs.setGraphicsStateParameters(alphaState(alpha(argb)))
-        cs.setStrokingColor(red(argb), green(argb), blue(argb))
+        cs.setGraphicsStateParameters(alphaState(argb.alpha / 255f))
+        cs.setStrokingArgb(argb)
         cs.setLineCapStyle(1) // round
         cs.setLineJoinStyle(1) // round
         val mode = StrokePainter.RenderMode.of(s)
@@ -74,7 +78,7 @@ class PdfVectorPainter {
         val pts = s.points
         cs.saveGraphicsState()
         cs.setGraphicsStateParameters(alphaState((fill and 0xFF) / 255f))
-        cs.setNonStrokingColor(red(s.color), green(s.color), blue(s.color))
+        cs.setNonStrokingArgb(s.color)
         polyline(cs, pts, t, close = true)
         cs.fill()
         cs.restoreGraphicsState()
@@ -119,7 +123,7 @@ class PdfVectorPainter {
         val ascent = tx.size * ASCENT_RATIO
         val lineHeight = tx.size * LINE_HEIGHT_RATIO
         cs.beginText()
-        cs.setNonStrokingColor(red(tx.color), green(tx.color), blue(tx.color))
+        cs.setNonStrokingArgb(tx.color)
         cs.setFont(font, size)
         cs.newLineAtOffset(t.x(tx.x), t.y(tx.y + ascent))
         val lines = TextBlock.lines(tx.content)
@@ -145,7 +149,7 @@ class PdfVectorPainter {
         if (tex.latex.isBlank()) return
         val size = ((tex.bottom - tex.top) * 0.5).coerceIn(6.0, 14.0)
         cs.beginText()
-        cs.setNonStrokingColor(red(tex.color), green(tex.color), blue(tex.color))
+        cs.setNonStrokingArgb(tex.color)
         cs.setFont(PDType1Font.COURIER, size.toFloat())
         cs.newLineAtOffset(t.x(tex.left), t.y(tex.top + size))
         cs.showText(sanitize(tex.latex))
@@ -192,11 +196,6 @@ class PdfVectorPainter {
             strokingAlphaConstant = a
             nonStrokingAlphaConstant = a
         }
-
-        fun alpha(argb: Int): Float = ((argb ushr 24) and 0xFF) / 255f
-        fun red(argb: Int): Int = (argb ushr 16) and 0xFF
-        fun green(argb: Int): Int = (argb ushr 8) and 0xFF
-        fun blue(argb: Int): Int = argb and 0xFF
 
         /** The base-14 fonts only encode WinAnsi; drop anything outside it so `showText` can't throw. */
         fun sanitize(s: String): String =

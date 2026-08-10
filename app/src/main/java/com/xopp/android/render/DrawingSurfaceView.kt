@@ -11,6 +11,7 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewConfiguration
+import androidx.annotation.VisibleForTesting
 import com.xopp.android.audio.AudioRef
 import com.xopp.android.audio.audioRef
 import com.xopp.android.audio.withAudio
@@ -83,7 +84,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var layout: StackedLayout = StackedLayout(emptyList(), 0f, 0f)
     /** The scroll/zoom offsets and their clamps ([ViewportState] owns the numbers and the maths). */
     internal val viewport = ViewportState()
-    /** Internal (not private) so on-device input tests can read where the viewport ended up. */
+    @VisibleForTesting
     internal var scrollY: Float
         get() = viewport.scrollY
         set(value) { viewport.scrollY = value }

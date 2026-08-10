@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -42,18 +40,7 @@ import com.xopp.android.render.LayerInfo
  * layer below, renaming, and deleting; plus "Add layer" and — when something is selected — "Move selection here".
  */
 @Composable
-internal fun LayersPopupButton(
-    layers: List<LayerInfo>,
-    hasSelection: Boolean,
-    onAddLayer: () -> Unit,
-    onDeleteLayer: (Int) -> Unit,
-    onMergeLayerDown: (Int) -> Unit,
-    onRenameLayer: (Int, String) -> Unit,
-    onMoveLayer: (Int, Int) -> Unit,
-    onActivateLayer: (Int) -> Unit,
-    onToggleLayerHidden: (Int, Boolean) -> Unit,
-    onMoveSelectionToLayer: (Int) -> Unit,
-) {
+internal fun LayersPopupButton(callbacks: ToolbarLayerCallbacks) {
     var open by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(-1) }
     var renameLabel by remember { mutableStateOf("") }
@@ -62,28 +49,27 @@ internal fun LayersPopupButton(
         contentDescription = "Layers",
     ) { dismiss ->
         MenuHeading("Layers (top first)")
-        for (info in layers.asReversed()) {
+        for (info in callbacks.layers.asReversed()) {
             LayerRow(
                 info = info,
-                canMoveUp = info.index < layers.lastIndex,
+                canMoveUp = info.index < callbacks.layers.lastIndex,
                 canMoveDown = info.index > 0,
-                canDelete = layers.size > 1,
+                canDelete = callbacks.layers.size > 1,
                 canMergeDown = info.index > 0,
-                hasSelection = hasSelection,
-                onActivate = { onActivateLayer(info.index); dismiss() },
-                onToggleHidden = { onToggleLayerHidden(info.index, info.visible) },
-                onMoveUp = { onMoveLayer(info.index, info.index + 1) },
-                onMoveDown = { onMoveLayer(info.index, info.index - 1) },
+                hasSelection = callbacks.hasSelection,
+                onActivate = { callbacks.onActivateLayer(info.index); dismiss() },
+                onToggleHidden = { callbacks.onToggleLayerHidden(info.index, info.visible) },
+                onMoveLayer = { from, to -> callbacks.onMoveLayer(from, to) },
                 onRename = { renaming = info.index; renameLabel = info.label },
-                onDelete = { onDeleteLayer(info.index) },
-                onMergeDown = { onMergeLayerDown(info.index) },
-                onMoveSelectionHere = { onMoveSelectionToLayer(info.index) },
+                onDelete = { callbacks.onDeleteLayer(info.index) },
+                onMergeDown = { callbacks.onMergeLayerDown(info.index) },
+                onMoveSelectionHere = { callbacks.onMoveSelectionToLayer(info.index) },
             )
         }
         DropdownMenuItem(
             text = { Text("Add layer") },
             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            onClick = { onAddLayer(); dismiss() },
+            onClick = { callbacks.onAddLayer(); dismiss() },
         )
     }
     if (renaming >= 0) {
@@ -91,13 +77,13 @@ internal fun LayersPopupButton(
             title = "Rename layer",
             label = "Layer name",
             initialValue = renameLabel,
-            onConfirm = { name -> onRenameLayer(renaming, name); renaming = -1 },
+            onConfirm = { name -> callbacks.onRenameLayer(renaming, name); renaming = -1 },
             onDismiss = { renaming = -1 },
         )
     }
 }
 
-/** One layer row: an active-dot + name (tap to activate), then visibility / up / down / rename / delete. */
+/** One layer row: an active-dot + name (tap to activate), then visibility / merge / move-selection / rename, then reorder controls. */
 @Composable
 private fun LayerRow(
     info: LayerInfo,
@@ -108,8 +94,7 @@ private fun LayerRow(
     hasSelection: Boolean,
     onActivate: () -> Unit,
     onToggleHidden: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    onMoveLayer: (from: Int, to: Int) -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
     onMergeDown: () -> Unit,
@@ -136,12 +121,6 @@ private fun LayerRow(
                 contentDescription = if (info.visible) "Hide layer" else "Show layer",
             )
         }
-        IconButton(onClick = onMoveUp, enabled = canMoveUp, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.ArrowUpward, contentDescription = "Move up")
-        }
-        IconButton(onClick = onMoveDown, enabled = canMoveDown, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.ArrowDownward, contentDescription = "Move down")
-        }
         IconButton(onClick = onMergeDown, enabled = canMergeDown, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Filled.Merge, contentDescription = "Merge layer down")
         }
@@ -153,8 +132,13 @@ private fun LayerRow(
         IconButton(onClick = onRename, modifier = Modifier.size(32.dp)) {
             Icon(Icons.Filled.Edit, contentDescription = "Rename layer")
         }
-        IconButton(onClick = onDelete, enabled = canDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete layer")
-        }
+        ReorderControls(
+            canMoveUp = canMoveUp,
+            canMoveDown = canMoveDown,
+            canDelete = canDelete,
+            itemName = info.label,
+            onMove = { delta -> onMoveLayer(info.index, info.index + delta) },
+            onDelete = onDelete,
+        )
     }
 }

@@ -34,8 +34,10 @@ class BitmapBudget(val totalBytes: Long) {
     private val clients = ArrayList<Client>()
     private var used = 0L
 
+    /** Register a cache client so it can be asked to trim when over budget. */
     fun register(client: Client) = synchronized(lock) { if (client !in clients) clients += client }
 
+    /** Unregister a client (e.g. on teardown). */
     fun unregister(client: Client) = synchronized(lock) { clients -= client }
 
     /** Bytes currently charged across every client. */
@@ -48,6 +50,8 @@ class BitmapBudget(val totalBytes: Long) {
      * The most one cached bitmap may cost: [share] of the whole budget. A single entry larger than
      * this makes every insert evict everything else, so each cache clamps its rasters to it rather
      * than thrashing.
+     * @param share Fraction of total budget (e.g. 0.25 for 25%).
+     * @return Maximum bytes per entry, at least 1 MB.
      */
     fun perEntryBytes(share: Double): Long = (totalBytes * share).toLong().coerceAtLeast(1L shl 20)
 
@@ -55,6 +59,8 @@ class BitmapBudget(val totalBytes: Long) {
      * Account [bytes] just allocated by [client] and, if that puts the total over [totalBytes], ask
      * the clients to give the overage back — the other clients first, [client] itself last, since
      * the bytes it just charged are the ones it actually wants to draw with.
+     * @param client The cache that allocated the bytes.
+     * @param bytes Bytes just allocated.
      */
     fun charge(client: Client, bytes: Long) {
         val (overage, order) = synchronized(lock) {
@@ -71,7 +77,10 @@ class BitmapBudget(val totalBytes: Long) {
         }
     }
 
-    /** Account [bytes] released by a client outside a [Client.trim] call (its own eviction, clear). */
+    /**
+     * Account [bytes] released by a client outside a [Client.trim] call (its own eviction, clear).
+     * @param bytes Bytes freed by the client.
+     */
     fun credit(bytes: Long) = synchronized(lock) { used = (used - bytes).coerceAtLeast(0) }
 
     companion object {

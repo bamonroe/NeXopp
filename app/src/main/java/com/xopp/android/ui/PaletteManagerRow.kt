@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.FilterChip
@@ -65,18 +63,17 @@ fun PaletteManagerRow(
         IconButton(onClick = { renaming = true }) {
             Icon(Icons.Filled.Edit, contentDescription = "Rename palette")
         }
-        IconButton(onClick = { onSet(movePalette(set, editing, -1)); onEdit(editing - 1) }, enabled = editing > 0) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Move palette earlier")
-        }
-        IconButton(
-            onClick = { onSet(movePalette(set, editing, 1)); onEdit(editing + 1) },
-            enabled = editing < set.palettes.lastIndex,
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = "Move palette later")
-        }
-        IconButton(onClick = { deleting = true }, enabled = set.palettes.size > 1) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete palette")
-        }
+        ReorderControls(
+            canMoveUp = editing > 0,
+            canMoveDown = editing < set.palettes.lastIndex,
+            vertical = false,
+            itemName = set.palettes.getOrNull(editing)?.name.orEmpty(),
+            onMove = { delta ->
+                onSet(movePalette(set, editing, delta))
+                onEdit(editing + delta)
+            },
+            onDelete = { deleting = true },
+        )
     }
     OutlinedButton(
         onClick = { onSet(activatePalette(set, editing)) },

@@ -27,7 +27,13 @@ import kotlin.math.sin
  */
 object SelectionOps {
 
-    /** Shift a single element by (dx, dy) pt, preserving everything else about it. */
+    /**
+     * Shift a single element by (dx, dy) pt, preserving everything else about it.
+     * @param element Element to translate.
+     * @param dx Horizontal delta in points.
+     * @param dy Vertical delta in points.
+     * @return Translated element, or unchanged if unmodelled (RawElement).
+     */
     fun translate(element: Element, dx: Double, dy: Double): Element = when (element) {
         is Stroke -> element.copy(points = element.points.map { StrokePoint(it.x + dx, it.y + dy, it.width) })
         is TextElement -> element.copy(x = element.x + dx, y = element.y + dy)
@@ -43,7 +49,15 @@ object SelectionOps {
         is RawElement -> element
     }
 
-    /** Return [pages] with the elements at [refs] on page [pageIndex] shifted by (dx, dy) pt. */
+    /**
+     * Return [pages] with the elements at [refs] on page [pageIndex] shifted by (dx, dy) pt.
+     * @param pages Document page list.
+     * @param pageIndex Index of page to modify (0-based).
+     * @param refs Set of element references to translate.
+     * @param dx Horizontal delta in points.
+     * @param dy Vertical delta in points.
+     * @return New page list with translated elements, or [pages] if no change.
+     */
     fun translate(pages: List<Page>, pageIndex: Int, refs: Set<ElementRef>, dx: Double, dy: Double): List<Page> {
         if (refs.isEmpty() || (dx == 0.0 && dy == 0.0)) return pages
         return mapPage(pages, pageIndex) { li, ei, el ->
@@ -56,6 +70,11 @@ object SelectionOps {
      * per-vertex width, a text box's font size) scale by [s]. This single primitive backs both
      * uniform resize (a scale about an anchor) and cross-page re-homing (a scale+shift between two
      * pages' pt frames). [s] is expected positive so image/box corner order is preserved.
+     * @param element Element to transform.
+     * @param s Scale factor (positive).
+     * @param dx Translation X in points.
+     * @param dy Translation Y in points.
+     * @return Transformed element, or unchanged if unmodelled.
      */
     fun affine(element: Element, s: Double, dx: Double, dy: Double): Element = when (element) {
         is Stroke -> element.copy(points = element.points.map { StrokePoint(it.x * s + dx, it.y * s + dy, it.width * s) })
@@ -75,6 +94,13 @@ object SelectionOps {
      * Return [pages] with the elements at [refs] on page [pageIndex] uniformly scaled by [factor]
      * about the anchor point (`anchorX`, `anchorY`) pt — the opposite corner of a resize drag, which
      * stays fixed. [factor] should be positive.
+     * @param pages Document page list.
+     * @param pageIndex Index of page to modify (0-based).
+     * @param refs Set of element references to scale.
+     * @param factor Scale factor (1.0 = no change).
+     * @param anchorX Anchor X in points (fixed point of transform).
+     * @param anchorY Anchor Y in points.
+     * @return New page list with scaled elements, or [pages] if no change.
      */
     fun scale(
         pages: List<Page>, pageIndex: Int, refs: Set<ElementRef>,
@@ -88,8 +114,15 @@ object SelectionOps {
         }
     }
 
-    /** Rotate a single element by [angle] rad about the pivot (`px`, `py`) pt. See the class note:
-     * only a [Stroke] carries a rotatable point list, so text/images are returned unchanged. */
+    /**
+     * Rotate a single element by [angle] rad about the pivot (`px`, `py`) pt. See the class note:
+     * only a [Stroke] carries a rotatable point list, so text/images are returned unchanged.
+     * @param element Element to rotate.
+     * @param angle Rotation angle in radians.
+     * @param px Pivot X in points.
+     * @param py Pivot Y in points.
+     * @return Rotated element, or unchanged if not a stroke.
+     */
     fun rotate(element: Element, angle: Double, px: Double, py: Double): Element = when (element) {
         is Stroke -> {
             val c = cos(angle); val s = sin(angle)
@@ -101,8 +134,17 @@ object SelectionOps {
         else -> element
     }
 
-    /** Return [pages] with the strokes at [refs] on page [pageIndex] rotated by [angle] rad about
-     * the pivot (`pivotX`, `pivotY`) pt. */
+    /**
+     * Return [pages] with the strokes at [refs] on page [pageIndex] rotated by [angle] rad about
+     * the pivot (`pivotX`, `pivotY`) pt.
+     * @param pages Document page list.
+     * @param pageIndex Index of page to modify (0-based).
+     * @param refs Set of element references to rotate.
+     * @param angle Rotation angle in radians.
+     * @param pivotX Pivot X in points.
+     * @param pivotY Pivot Y in points.
+     * @return New page list with rotated strokes, or [pages] if no change.
+     */
     fun rotate(
         pages: List<Page>, pageIndex: Int, refs: Set<ElementRef>,
         angle: Double, pivotX: Double, pivotY: Double,
@@ -113,9 +155,15 @@ object SelectionOps {
         }
     }
 
-    /** Recolour ([color]) and/or re-width ([widthPt]) one element. Width applies to strokes only
+    /**
+     * Recolour ([color]) and/or re-width ([widthPt]) one element. Width applies to strokes only
      * (as a uniform width); colour applies to strokes/text/LaTeX (images have no colour). A null
-     * field leaves that property unchanged. */
+     * field leaves that property unchanged.
+     * @param element Element to restyle.
+     * @param color New ARGB color, or null to leave unchanged.
+     * @param widthPt New stroke width in points, or null to leave unchanged.
+     * @return Restyled element, or unchanged if unmodelled.
+     */
     fun restyle(element: Element, color: Int?, widthPt: Double?): Element = when (element) {
         is Stroke -> {
             var e = if (color != null) element.copy(color = color) else element
@@ -128,7 +176,15 @@ object SelectionOps {
         is RawElement -> element
     }
 
-    /** Return [pages] with the elements at [refs] on page [pageIndex] recoloured/re-widthed. */
+    /**
+     * Return [pages] with the elements at [refs] on page [pageIndex] recoloured/re-widthed.
+     * @param pages Document page list.
+     * @param pageIndex Index of page to modify (0-based).
+     * @param refs Set of element references to restyle.
+     * @param color New ARGB color, or null to leave unchanged.
+     * @param widthPt New stroke width in points, or null to leave unchanged.
+     * @return New page list with restyled elements, or [pages] if no change.
+     */
     fun restyle(
         pages: List<Page>, pageIndex: Int, refs: Set<ElementRef>, color: Int?, widthPt: Double?,
     ): List<Page> {
@@ -138,7 +194,12 @@ object SelectionOps {
         }
     }
 
-    /** The elements named by [refs] on [page], in a stable layer-then-index order (for copy/cut). */
+    /**
+     * The elements named by [refs] on [page], in a stable layer-then-index order (for copy/cut).
+     * @param page Page to read from.
+     * @param refs Set of element references to fetch.
+     * @return List of elements in stable order, skipping missing refs.
+     */
     fun elementsAt(page: Page, refs: Set<ElementRef>): List<Element> =
         refs.sortedWith(compareBy({ it.layerIndex }, { it.elementIndex }))
             .mapNotNull { page.layers.getOrNull(it.layerIndex)?.elements?.getOrNull(it.elementIndex) }
@@ -147,6 +208,10 @@ object SelectionOps {
      * Append [elements] to page [pageIndex]'s top (last) layer — creating a layer if the page has
      * none — and return the new page list paired with the [ElementRef]s of the appended elements
      * (used to select a freshly pasted/duplicated set).
+     * @param pages Document page list.
+     * @param pageIndex Index of page to modify (0-based).
+     * @param elements Elements to append.
+     * @return Pair of (new page list, refs of appended elements).
      */
     fun addToTopLayer(
         pages: List<Page>, pageIndex: Int, elements: List<Element>,
@@ -171,6 +236,14 @@ object SelectionOps {
      * `x' = x·s + dx`, `y' = y·s + dy` so they land where the drop point is in the target page's pt
      * frame (equal-width pages → a pure shift; differing widths → also rescaled to keep the visual
      * position). Returns the new page list and the refs of the moved elements on [to].
+     * @param pages Document page list.
+     * @param from Source page index (0-based).
+     * @param to Destination page index (0-based).
+     * @param refs Set of element references to move.
+     * @param s Scale factor for cross-page transform.
+     * @param dx Translation X in points.
+     * @param dy Translation Y in points.
+     * @return Pair of (new page list, refs of moved elements on destination page).
      */
     fun moveToPage(
         pages: List<Page>, from: Int, to: Int, refs: Set<ElementRef>, s: Double, dx: Double, dy: Double,
@@ -182,7 +255,13 @@ object SelectionOps {
         return addToTopLayer(afterDelete, to, moved)
     }
 
-    /** Return [pages] with the elements at [refs] on page [pageIndex] removed. */
+    /**
+     * Return [pages] with the elements at [refs] on page [pageIndex] removed.
+     * @param pages Document page list.
+     * @param pageIndex Index of page to modify (0-based).
+     * @param refs Set of element references to delete.
+     * @return New page list with elements removed, or [pages] if no change.
+     */
     fun delete(pages: List<Page>, pageIndex: Int, refs: Set<ElementRef>): List<Page> {
         if (refs.isEmpty()) return pages
         val page = pages.getOrNull(pageIndex) ?: return pages

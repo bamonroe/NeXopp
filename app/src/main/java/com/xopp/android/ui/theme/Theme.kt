@@ -20,7 +20,11 @@ import com.xopp.android.ui.ThemeMode
 private val LightColors = lightColorScheme(primary = Purple, secondary = Amber)
 private val DarkColors = darkColorScheme(primary = PurpleDark, secondary = Amber)
 
-/** Whether [mode] means "paint dark" right now — SYSTEM defers to the OS setting. */
+/**
+ * Whether [mode] means "paint dark" right now — SYSTEM defers to the OS setting.
+ *
+ * Use this to decide which Material 3 colour scheme to apply.
+ */
 @Composable
 fun ThemeMode.isDark(): Boolean = when (this) {
     ThemeMode.SYSTEM -> isSystemInDarkTheme()
@@ -28,7 +32,13 @@ fun ThemeMode.isDark(): Boolean = when (this) {
     ThemeMode.DARK -> true
 }
 
-/** The app's Material 3 (Material You) theme. Uses dynamic colour on Android 12+. */
+/**
+ * The app's Material 3 (Material You) theme. Uses dynamic colour on Android 12+.
+ *
+ * @param darkTheme Whether to use the dark colour scheme. Defaults to the system setting.
+ * @param dynamicColor Whether to use Android 12+ dynamic colours from the wallpaper.
+ * @param content The composable content to render with this theme.
+ */
 @Composable
 fun XoppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),

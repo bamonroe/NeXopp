@@ -23,12 +23,15 @@ class EditHistory<T>(private val maxDepth: Int = DEFAULT_MAX_DEPTH) {
     private val undoStack = ArrayDeque<T>()
     private val redoStack = ArrayDeque<T>()
 
+    /** True when there is at least one undo step available. */
     val canUndo: Boolean get() = undoStack.isNotEmpty()
+    /** True when there is at least one redo step available. */
     val canRedo: Boolean get() = redoStack.isNotEmpty()
 
     /**
      * Record that the state changed away from [before]; clears any redo branch. Once the history is
      * [maxDepth] deep the oldest step is dropped, so the newest edits are always undoable.
+     * @param before State before the edit (to restore on undo).
      */
     fun record(before: T) {
         undoStack.addLast(before)
@@ -36,20 +39,29 @@ class EditHistory<T>(private val maxDepth: Int = DEFAULT_MAX_DEPTH) {
         redoStack.clear()
     }
 
-    /** The snapshot to restore for an undo, pushing [current] onto the redo branch; null if empty. */
+    /**
+     * The snapshot to restore for an undo, pushing [current] onto the redo branch; null if empty.
+     * @param current Current state before undo.
+     * @return Previous state to restore, or null if no undo available.
+     */
     fun undo(current: T): T? {
         val prev = undoStack.removeLastOrNull() ?: return null
         redoStack.addLast(current)
         return prev
     }
 
-    /** The snapshot to restore for a redo, pushing [current] onto the undo branch; null if empty. */
+    /**
+     * The snapshot to restore for a redo, pushing [current] onto the undo branch; null if empty.
+     * @param current Current state before redo.
+     * @return Next state to restore, or null if no redo available.
+     */
     fun redo(current: T): T? {
         val next = redoStack.removeLastOrNull() ?: return null
         undoStack.addLast(current)
         return next
     }
 
+    /** Clear both undo and redo stacks. */
     fun clear() {
         undoStack.clear()
         redoStack.clear()

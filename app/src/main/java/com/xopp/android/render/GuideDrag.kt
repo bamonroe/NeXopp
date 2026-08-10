@@ -48,6 +48,10 @@ internal class GuideDrag(
      * ([x], [y]) page pt pulled onto the guide's nearest edge when one is placed on [boxIndex]'s
      * page and the point is within reach. Every drawn vertex — freehand and shape-tool alike — goes
      * through here, which is what makes the guide behave like a straightedge held against the page.
+     * @param boxIndex Page box index to check against.
+     * @param x Point X in page points.
+     * @param y Point Y in page points.
+     * @return Snapped (x, y) pair, or original if no guide or wrong page.
      */
     fun project(boxIndex: Int, x: Double, y: Double): Pair<Double, Double> {
         val g = pose ?: return x to y
@@ -59,6 +63,9 @@ internal class GuideDrag(
      * Start dragging the guide if this finger landed on it: on the tip handle it re-poses the guide
      * (rotate + resize the setsquare, open the compass), anywhere else on its body it slides it.
      * Returns false when the touch missed, so the gesture falls through to the ordinary pan/draw.
+     * @param event MotionEvent containing the pointer.
+     * @param pointerIndex Index of the pointer in the event.
+     * @return true if guide was grabbed, false if touch missed.
      */
     fun begin(event: MotionEvent, pointerIndex: Int): Boolean {
         val g = pose ?: return false
@@ -80,6 +87,10 @@ internal class GuideDrag(
         return true
     }
 
+    /**
+     * Drag the guide to follow the finger. Body drags slide the guide; tip drags re-pose it.
+     * @param event MotionEvent containing the pointer movement.
+     */
     fun move(event: MotionEvent) {
         val g = pose ?: return
         val box = layout().boxes.getOrNull(page) ?: return
@@ -96,7 +107,10 @@ internal class GuideDrag(
         render()
     }
 
-    /** Release the guide when the finger holding it lifts; other pointers lifting leave it held. */
+    /**
+     * Release the guide when the finger holding it lifts; other pointers lifting leave it held.
+     * @param event MotionEvent of the pointer up, or null if synthetic release.
+     */
     fun end(event: MotionEvent?) {
         if (!dragging) return
         if (event != null && event.getPointerId(event.actionIndex) != pointerId) return
@@ -105,7 +119,11 @@ internal class GuideDrag(
         onGuideChanged(pose)
     }
 
-    /** The re-pose handle: the setsquare's long-leg tip, or the compass's pencil point. */
+    /**
+     * The re-pose handle: the setsquare's long-leg tip, or the compass's pencil point.
+     * @param g Guide to get tip position from.
+     * @return (x, y) of the tip in page points.
+     */
     fun tipOf(g: DrawingGuide): Pair<Double, Double> = when (g) {
         is DrawingGuide.Setsquare -> g.corners()[1]
         is DrawingGuide.Compass -> (g.x + g.radius) to g.y

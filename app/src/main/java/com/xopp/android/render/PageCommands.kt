@@ -43,14 +43,20 @@ internal class PageCommands(
 
     // --- pages ---------------------------------------------------------------------------------
 
-    /** Insert a blank page after the page in view (see [PageOps.addAfter]: keeps size and solid ruling,
-     *  drops a PDF/pixmap background to a plain sheet so it isn't a duplicate). */
+    /**
+     * Insert a blank page after the page in view (see [PageOps.addAfter]: keeps size and solid ruling,
+     * drops a PDF/pixmap background to a plain sheet so it isn't a duplicate).
+     */
     fun addPage() = editPages(PageOps.addAfter(document().pages, currentPage()))
 
-    /** Insert a blank page before the page in view (see [PageOps.addBefore]). */
+    /**
+     * Insert a blank page before the page in view (see [PageOps.addBefore]).
+     */
     fun addPageBefore() = editPages(PageOps.addBefore(document().pages, currentPage()))
 
-    /** Copy the page in view, content and all, in straight after itself (see [PageOps.duplicateAt]). */
+    /**
+     * Copy the page in view, content and all, in straight after itself (see [PageOps.duplicateAt]).
+     */
     fun duplicatePage() = editPages(PageOps.duplicateAt(document().pages, currentPage()))
 
     /**
@@ -71,16 +77,24 @@ internal class PageCommands(
         editPages(PageOps.appendPages(retargeted.pages, pages))
     }
 
-    /** Delete the page currently in view. No-op when only one page remains. */
+    /**
+     * Delete the page currently in view. No-op when only one page remains.
+     * Invariant: document always has at least one page.
+     */
     fun removePage() = editPages(PageOps.removeAt(document().pages, currentPage()))
 
-    /** Reorder page [from] to [to] as one undoable edit (the overview's drag-to-reorder drop). */
+    /**
+     * Reorder page [from] to [to] as one undoable edit (the overview's drag-to-reorder drop).
+     * @param from Source page index (0-based).
+     * @param to Destination page index (0-based, after reordering).
+     */
     fun movePage(from: Int, to: Int) = editPages(PageOps.move(document().pages, from, to))
 
     /**
      * Delete every selected page as one undoable edit and clear the selection. A selection covering
      * the whole document is refused by [PageOps.removeAll] (a document always keeps a page), so
      * nothing is deleted in that case.
+     * Invariant: document always has at least one page after this call.
      */
     fun deleteSelectedPages() {
         val pages = PageOps.removeAll(document().pages, overview.selected)
@@ -99,7 +113,7 @@ internal class PageCommands(
      * Paste the clipboard pages as one undoable edit, directly after the last selected page — or after
      * the page nearest the viewport centre when nothing is selected. The pasted pages carry their
      * strokes, layers, size and background verbatim (see [PageOps.copyOf]), so they round-trip.
-     * Returns the index of the first pasted page, or null when the clipboard is empty.
+     * @return Index of the first pasted page, or null when the clipboard is empty.
      */
     fun pasteCopiedPages(): Int? {
         val copied = overview.clipboard
@@ -124,6 +138,8 @@ internal class PageCommands(
      * Set the visible page's size to [widthPt] × [heightPt] points as one undoable edit; both are
      * clamped to a sane range. The stacked layout re-fits every page to the view width, so this
      * changes the page's on-screen aspect ratio (and the dimensions written to the `.xopp`).
+     * @param widthPt Width in points (clamped to [DrawingSurfaceDefaults.PAGE_SIZE_MIN_PT]..[DrawingSurfaceDefaults.PAGE_SIZE_MAX_PT]).
+     * @param heightPt Height in points (clamped to same range).
      */
     fun setPageSize(widthPt: Double, heightPt: Double) = editVisiblePage(resetViewState = false, op = { page ->
         val w = widthPt.coerceIn(DrawingSurfaceDefaults.PAGE_SIZE_MIN_PT, DrawingSurfaceDefaults.PAGE_SIZE_MAX_PT)
@@ -133,29 +149,51 @@ internal class PageCommands(
 
     // --- layers --------------------------------------------------------------------------------
 
-    /** Add a fresh empty layer above the top and make it active. */
+    /**
+     * Add a fresh empty layer above the top and make it active.
+     * Invariant: after this call, the new layer is the active layer.
+     */
     fun addLayer() = editVisiblePage(resetViewState = true, op = {
         val (p, _) = LayerOps.add(it); p
     }, after = { clearActiveLayer() /* "top layer" already resolves to the new one */ })
 
-    /** Delete layer [index] (never the last remaining layer). */
+    /**
+     * Delete layer [index] (never the last remaining layer).
+     * @param index Layer index to delete (0-based).
+     * Invariant: page always has at least one layer after this call.
+     */
     fun deleteLayer(index: Int) = editVisiblePage(resetViewState = true, op = { LayerOps.remove(it, index) })
 
-    /** Merge layer [index] into the layer below it (never the bottom layer). */
+    /**
+     * Merge layer [index] into the layer below it (never the bottom layer).
+     * @param index Layer index to merge down (0-based, cannot be 0).
+     */
     fun mergeLayerDown(index: Int) =
         editVisiblePage(resetViewState = true, op = { LayerOps.mergeDown(it, index) })
 
-    /** Rename layer [index] ([name] blank clears the custom name). */
+    /**
+     * Rename layer [index] ([name] blank clears the custom name).
+     * @param index Layer index to rename (0-based).
+     * @param name New name, or blank to clear the custom name.
+     */
     fun renameLayer(index: Int, name: String) =
         editVisiblePage(resetViewState = false, op = { LayerOps.rename(it, index, name) })
 
-    /** Reorder layer [from] to position [to] (changes z-order). */
+    /**
+     * Reorder layer [from] to position [to] (changes z-order).
+     * @param from Source layer index (0-based).
+     * @param to Destination layer index (0-based, after reordering).
+     */
     fun moveLayer(from: Int, to: Int) =
         editVisiblePage(resetViewState = true, op = { LayerOps.move(it, from, to) })
 
     // --- the two commit pipelines ----------------------------------------------------------------
 
-    /** Apply a new page list as one undoable edit, if it actually differs. */
+    /**
+     * Apply a new page list as one undoable edit, if it actually differs.
+     * Side effects: clears selection, resets layer visibility and active layer, refreshes layout.
+     * @param pages New page list; no-op if identical to current.
+     */
     fun editPages(pages: List<Page>) {
         val doc = document()
         if (pages === doc.pages) return
@@ -169,7 +207,12 @@ internal class PageCommands(
         onLayersChanged()
     }
 
-    /** Apply [op] to the visible page as one undoable edit; [after] runs post-commit, pre-refresh. */
+    /**
+     * Apply [op] to the visible page as one undoable edit; [after] runs post-commit, pre-refresh.
+     * @param resetViewState Whether to reset layer visibility (needed when layer list changes).
+     * @param op Transform function for the visible page; return same instance for no-op.
+     * @param after Optional callback after commit, before refresh (e.g. to reset active layer).
+     */
     fun editVisiblePage(resetViewState: Boolean, op: (Page) -> Page, after: () -> Unit = {}) {
         val doc = document()
         val pi = visiblePage()

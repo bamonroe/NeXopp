@@ -69,6 +69,18 @@ object XoppColor {
      */
     fun Int.withAlpha(alpha: Int): Int = (this and 0x00FFFFFF) or ((alpha and 0xFF) shl 24)
 
+    /** Extract the alpha channel (0..255) from an ARGB int. */
+    val Int.alpha: Int get() = (this ushr 24) and 0xFF
+
+    /** Extract the red channel (0..255) from an ARGB int. */
+    val Int.red: Int get() = (this ushr 16) and 0xFF
+
+    /** Extract the green channel (0..255) from an ARGB int. */
+    val Int.green: Int get() = (this ushr 8) and 0xFF
+
+    /** Extract the blue channel (0..255) from an ARGB int. */
+    val Int.blue: Int get() = this and 0xFF
+
     /**
      * Serialise an ARGB int to the on-disk `#RRGGBBAA` form (red, green, blue, then alpha), lowercase
      * hex with leading `#`. This is the inverse of [parse] for 8-digit hex strings.

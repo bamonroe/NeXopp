@@ -19,10 +19,15 @@ const val TEXT_SIZE_MAX = 96f
  * instead; confirming a brand-new box writes its choices back here so the next one matches.
  */
 class TextDefaults {
+    /** Font family name for new text boxes (e.g. "Sans", "Serif"). */
     var family by mutableStateOf(FontDescription.DEFAULT_FAMILY)
+    /** Whether new text boxes are bold. */
     var bold by mutableStateOf(false)
+    /** Whether new text boxes are italic. */
     var italic by mutableStateOf(false)
+    /** Font size in points for new text boxes. */
     var size by mutableStateOf(TEXT_SIZE_PT)
+    /** Font colour (opaque ARGB) for new text boxes. */
     var color by mutableStateOf(PEN_COLORS.first())
 }
 
@@ -38,13 +43,19 @@ class TextDefaults {
 class EditorUiState(tool: EditorTool, color: Int, width: Float) {
     /** The live pen: the rail's selected tool and the colour/width/style pushed onto the surface. */
     var tool by mutableStateOf(tool)
+    /** Current pen colour (opaque ARGB). */
     var color by mutableStateOf(color)
+    /** Current pen width in points. */
     var width by mutableStateOf(width)
+    /** Current line style (plain/dashed/dash-dot/dotted). */
     var lineStyle by mutableStateOf(LineStyle.PLAIN)
 
     // Dialog / overlay visibility.
+    /** Whether the Settings screen is showing. */
     var showSettings by mutableStateOf(false)
+    /** Whether the Save As dialog is showing. */
     var showSaveAs by mutableStateOf(false)
+    /** Whether the Import PDF dialog is showing. */
     var showImportPdf by mutableStateOf(false)
 
     /** Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar. */
@@ -54,9 +65,12 @@ class EditorUiState(tool: EditorTool, color: Int, width: Float) {
     var splitFraction by mutableStateOf(0.5f)
 
     // An authoring tap is waiting on its dialog: where the text / LaTeX element goes.
+    /** Pending text box placement, or null if none. */
     var textPlacement by mutableStateOf<Placement?>(null)
+    /** Pending LaTeX image placement, or null if none. */
     var texPlacement by mutableStateOf<Placement?>(null)
 
+    /** Defaults for new text boxes; updated when a new box is confirmed. */
     val textDefaults = TextDefaults()
 
     /** One mirror of canvas state per pane; the chrome reads whichever pane has focus. */

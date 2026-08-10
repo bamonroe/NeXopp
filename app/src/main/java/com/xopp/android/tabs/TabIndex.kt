@@ -22,7 +22,9 @@ import com.xopp.android.format.SaveFormat
  */
 object TabIndex {
 
+    /** The field separator — a tab character, since the format is tab-separated. */
     private const val SEP = '\t'
+    /** The marker for the first line: `active<TAB>index` says which tab is showing. */
     private const val ACTIVE = "active"
 
     /** Render [session]'s tab records (documents excluded) as the index text. */

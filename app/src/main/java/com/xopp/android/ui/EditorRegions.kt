@@ -211,41 +211,20 @@ fun EditorToolbar(
         railHidden = settings.railHidden,
         toolGroupSelections = settings.toolGroupSelections,
         onToolGroupSelections = { onSettingsChange(settings.copy(toolGroupSelections = it)) },
-        color = ui.color,
-        onColor = { ui.color = it; surface?.colorArgb = it; onSettingsChange(settings.withColorUsed(it)) },
-        palette = rememberColorPaletteState(settings, onSettingsChange),
-        onRedefineCustom = { newColor ->
-            val old = settings.customColor
-            onSettingsChange(settings.copy(customColor = newColor))
-            // Keep the canvas in sync if the custom colour was the one currently selected.
-            if (ui.color == old) {
-                ui.color = newColor
-                surface?.colorArgb = newColor
-                onSettingsChange(settings.copy(customColor = newColor).withColorUsed(newColor))
-            }
-        },
-        width = ui.width,
-        onWidth = { ui.width = it; surface?.baseWidthPt = it; onSettingsChange(settings.copy(lastWidth = it)) },
-        widthSlots = settings.penWidths,
-        onRedefineSlot = { i, newPt ->
-            val old = settings.penWidths[i]
-            val slots = settings.penWidths.toMutableList().also { it[i] = newPt }
-            // Keep the canvas in sync if the slot being resized is the one currently selected.
-            val active = ui.width == old
-            onSettingsChange(
-                settings.copy(penWidths = slots, lastWidth = if (active) newPt else settings.lastWidth)
-            )
-            if (active) { ui.width = newPt; surface?.baseWidthPt = newPt }
-        },
-        lineStyle = ui.lineStyle,
-        onLineStyle = { ui.lineStyle = it; surface?.currentLineStyle = it },
-        fill = settings.currentFill,
-        onFill = {
-            surface?.currentFill = it
-            onSettingsChange(
-                settings.copy(fillEnabled = it != null, fillAlpha = it ?: settings.fillAlpha)
-            )
-        },
+        styleCallbacks = ToolbarStyleCallbacks(
+            color = ui.color,
+            onColor = { ui.color = it; surface?.colorArgb = it; onSettingsChange(settings.withColorUsed(it)) },
+            palette = rememberColorPaletteState(settings, onSettingsChange),
+            onRedefineCustom = { newColor -> redefineCustomColor(newColor, ui, surface, settings, onSettingsChange) },
+            width = ui.width,
+            onWidth = { ui.width = it; surface?.baseWidthPt = it; onSettingsChange(settings.copy(lastWidth = it)) },
+            widthSlots = settings.penWidths,
+            onRedefineSlot = { i, newPt -> redefineWidthSlot(i, newPt, ui, surface, settings, onSettingsChange) },
+            lineStyle = ui.lineStyle,
+            onLineStyle = { ui.lineStyle = it; surface?.currentLineStyle = it },
+            fill = settings.currentFill,
+            onFill = { applyFill(it, surface, settings, onSettingsChange) },
+        ),
         presets = settings.presets,
         onPresets = { onSettingsChange(settings.copy(presets = it)) },
         onActivatePreset = { applyToolPreset(it, ui, surface, settings, onSettingsChange) },
@@ -260,27 +239,90 @@ fun EditorToolbar(
             surface?.placeGuide(it)
             onSettingsChange(settings.copy(guideKind = it))
         },
+        layerCallbacks = toolbarLayerCallbacks(surface, pane),
+        zoom = pane.zoom,
+        onZoomIn = { surface?.zoomIn() },
+        onZoomOut = { surface?.zoomOut() },
+        onZoomReset = { surface?.resetZoom() },
+        pageCallbacks = toolbarPagesCallbacks(pane, settings, onSettingsChange, surface),
+        backgroundStyle = pane.backgroundStyle,
+        onBackgroundStyle = { surface?.setPageBackgroundStyle(it) },
+    )
+}
+
+private fun redefineCustomColor(
+    newColor: Int,
+    ui: EditorUiState,
+    surface: DrawingSurfaceView?,
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    val old = settings.customColor
+    onSettingsChange(settings.copy(customColor = newColor))
+    if (ui.color == old) {
+        ui.color = newColor
+        surface?.colorArgb = newColor
+        onSettingsChange(settings.copy(customColor = newColor).withColorUsed(newColor))
+    }
+}
+
+private fun redefineWidthSlot(
+    i: Int,
+    newPt: Float,
+    ui: EditorUiState,
+    surface: DrawingSurfaceView?,
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    val old = settings.penWidths[i]
+    val slots = settings.penWidths.toMutableList().also { it[i] = newPt }
+    val active = ui.width == old
+    onSettingsChange(
+        settings.copy(penWidths = slots, lastWidth = if (active) newPt else settings.lastWidth)
+    )
+    if (active) { ui.width = newPt; surface?.baseWidthPt = newPt }
+}
+
+private fun applyFill(
+    fill: Int?,
+    surface: DrawingSurfaceView?,
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    surface?.currentFill = fill
+    onSettingsChange(
+        settings.copy(fillEnabled = fill != null, fillAlpha = fill ?: settings.fillAlpha)
+    )
+}
+
+@Composable
+private fun toolbarLayerCallbacks(surface: DrawingSurfaceView?, pane: PaneState): ToolbarLayerCallbacks =
+    ToolbarLayerCallbacks(
         layers = pane.layers,
         hasSelection = pane.hasSelection,
         onAddLayer = { surface?.addLayer() },
-        onDeleteLayer = { surface?.deleteLayer(it) },
-        onMergeLayerDown = { surface?.mergeLayerDown(it) },
+        onDeleteLayer = { i -> surface?.deleteLayer(i) },
+        onMergeLayerDown = { i -> surface?.mergeLayerDown(i) },
         onRenameLayer = { i, name -> surface?.renameLayer(i, name) },
         onMoveLayer = { from, to -> surface?.moveLayer(from, to) },
         onActivateLayer = { surface?.setActiveLayer(it) },
         onToggleLayerHidden = { i, visible -> surface?.setLayerHidden(i, visible) },
         onMoveSelectionToLayer = { surface?.moveSelectionToLayer(it) },
-        zoom = pane.zoom,
-        onZoomIn = { surface?.zoomIn() },
-        onZoomOut = { surface?.zoomOut() },
-        onZoomReset = { surface?.resetZoom() },
+    )
+
+@Composable
+private fun toolbarPagesCallbacks(
+    pane: PaneState,
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+    surface: DrawingSurfaceView?,
+): ToolbarPagesCallbacks =
+    ToolbarPagesCallbacks(
         pageCount = pane.pageCount,
         currentPage = pane.currentPage,
         onAddPage = { surface?.addPage() },
         onRemovePage = { surface?.removePage() },
         onGoToPage = { surface?.goToPage(it) },
-        backgroundStyle = pane.backgroundStyle,
-        onBackgroundStyle = { surface?.setPageBackgroundStyle(it) },
         pageSize = pane.pageSize,
         onPageSize = { w, h -> surface?.setPageSize(w, h) },
         pageColumns = settings.pageColumns,
@@ -297,7 +339,6 @@ fun EditorToolbar(
         onCopySelectedPages = { surface?.copySelectedPages() },
         onPastePages = { surface?.pasteCopiedPages() },
     )
-}
 
 /**
  * One pane: its tab strip over its canvas. All of the surface's callbacks write into *that* pane's
@@ -305,6 +346,81 @@ fun EditorToolbar(
  * to date while the toolbar drives the other. A touch anywhere in the pane (observed on the initial
  * pass, so the canvas still gets the event) hands it focus.
  */
+/**
+ * Applies the initial tool and style settings to the drawing surface.
+ */
+private fun DrawingSurfaceView.applyInitialStyle(ui: EditorUiState, settings: AppSettings) {
+    applyTool(ui.tool)
+    applySettings(settings)
+    colorArgb = ui.color
+    baseWidthPt = ui.width
+    currentLineStyle = ui.lineStyle
+    currentFill = settings.currentFill
+}
+
+/**
+ * Binds the surface's state callbacks to the pane state holder.
+ */
+private fun DrawingSurfaceView.bindTo(state: PaneState) {
+    onLayersChanged = {
+        state.layers = visibleLayers()
+        state.backgroundStyle = visiblePageBackgroundStyle()
+        state.pageSize = visiblePageSize()
+    }
+    state.layers = visibleLayers()
+    state.backgroundStyle = visiblePageBackgroundStyle()
+    state.pageSize = visiblePageSize()
+    onHistoryChanged = { u, r -> state.canUndo = u; state.canRedo = r }
+    onZoomChanged = { z -> state.zoom = z }
+    onPageCountChanged = { n -> state.pageCount = n }
+    onPageSelectionChanged = { n -> state.selectedPages = n }
+    onPageClipboardChanged = { n -> state.copiedPages = n }
+    onCurrentPageChanged = { page ->
+        state.currentPage = page
+        state.backgroundStyle = visiblePageBackgroundStyle()
+        state.pageSize = visiblePageSize()
+    }
+    onScrollChanged = { y, total, vp -> state.scrollY = y; state.contentHeight = total; state.viewportHeight = vp }
+    onSelectionChanged = { s -> state.hasSelection = s }
+    onTextSelectionChanged = { s -> state.hasTextSelection = s }
+    onClipboardChanged = { c -> state.hasClipboard = c }
+    onSearchChanged = { s -> state.searchCurrent = s.current; state.searchTotal = s.total }
+}
+
+/**
+ * Binds editor action callbacks that need access to the editor UI and settings.
+ */
+private fun DrawingSurfaceView.bindEditorActions(
+    ui: EditorUiState,
+    index: Int,
+    onActivePane: (Int) -> Unit,
+    onPickImage: (Placement) -> Unit,
+    getSettings: () -> AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
+) {
+    onToggleFullPage = { ui.fullPage = !ui.fullPage }
+    onBarrelDoubleClick = { action ->
+        when (action) {
+            BarrelDoubleAction.TOGGLE_ERASER -> ui.toggleTool(EditorTool.ERASER)
+            BarrelDoubleAction.TOGGLE_SELECT -> ui.toggleTool(EditorTool.SELECT)
+            BarrelDoubleAction.TOGGLE_FULL_PAGE -> ui.fullPage = !ui.fullPage
+            else -> Unit
+        }
+        applyTool(ui.tool)
+    }
+    onPaletteAction = { action ->
+        applyPaletteAction(action, ui, this, getSettings(), onSettingsChange)
+    }
+    onPlace = { kind, placement ->
+        onActivePane(index)
+        when (kind) {
+            PlaceKind.TEXT -> ui.textPlacement = placement
+            PlaceKind.TEX -> ui.texPlacement = placement
+            PlaceKind.IMAGE -> onPickImage(placement)
+        }
+    }
+}
+
 @Composable
 fun EditorPaneView(
     index: Int,
@@ -318,12 +434,8 @@ fun EditorPaneView(
     modifier: Modifier = Modifier,
 ) {
     val state = ui.panes[index]
-    // The canvas lives outside the Compose tree, so its chrome colours are pushed in.
     val chrome = rememberCanvasChromeColors()
-    // The surface factory runs once, so its long-lived callbacks would capture the first settings
-    // forever; these keep the palette applier reading whatever is current when a slot fires.
     val latestSettings = rememberUpdatedState(settings)
-    val latestSettingsChange = rememberUpdatedState(onSettingsChange)
     Column(
         modifier = modifier.pointerInput(index) {
             awaitEachGesture {
@@ -332,61 +444,14 @@ fun EditorPaneView(
             }
         },
     ) {
-        // Only drawn once a document is open (see [TabStrip]).
         if (!ui.fullPage) TabStrip(tabs[index.coerceIn(tabs.indices)], modifier = Modifier.fillMaxWidth())
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             AndroidView(
                 factory = { ctx ->
                     DrawingSurfaceView(ctx).also {
-                        it.applyTool(ui.tool)
-                        it.applySettings(settings)
-                        it.colorArgb = ui.color
-                        it.baseWidthPt = ui.width
-                        it.currentLineStyle = ui.lineStyle
-                        it.currentFill = settings.currentFill
-                        it.onLayersChanged = {
-                            state.layers = it.visibleLayers()
-                            state.backgroundStyle = it.visiblePageBackgroundStyle()
-                            state.pageSize = it.visiblePageSize()
-                        }
-                        state.layers = it.visibleLayers()
-                        state.backgroundStyle = it.visiblePageBackgroundStyle()
-                        state.pageSize = it.visiblePageSize()
-                        it.onHistoryChanged = { u, r -> state.canUndo = u; state.canRedo = r }
-                        it.onZoomChanged = { z -> state.zoom = z }
-                        it.onPageCountChanged = { n -> state.pageCount = n }
-                        it.onPageSelectionChanged = { n -> state.selectedPages = n }
-                        it.onPageClipboardChanged = { n -> state.copiedPages = n }
-                        it.onCurrentPageChanged = { page -> state.currentPage = page; state.backgroundStyle = it.visiblePageBackgroundStyle(); state.pageSize = it.visiblePageSize() }
-                        it.onScrollChanged = { y, total, vp -> state.scrollY = y; state.contentHeight = total; state.viewportHeight = vp }
-                        it.onSelectionChanged = { s -> state.hasSelection = s }
-                        it.onTextSelectionChanged = { s -> state.hasTextSelection = s }
-                        it.onClipboardChanged = { c -> state.hasClipboard = c }
-                        it.onSearchChanged = { s -> state.searchCurrent = s.current; state.searchTotal = s.total }
-                        it.onToggleFullPage = { ui.fullPage = !ui.fullPage }
-                        // Undo/redo are handled on the surface itself; these need the editor's tool
-                        // state, and each flips back to the previous tool on a second double-click.
-                        it.onBarrelDoubleClick = { action ->
-                            when (action) {
-                                BarrelDoubleAction.TOGGLE_ERASER -> ui.toggleTool(EditorTool.ERASER)
-                                BarrelDoubleAction.TOGGLE_SELECT -> ui.toggleTool(EditorTool.SELECT)
-                                BarrelDoubleAction.TOGGLE_FULL_PAGE -> ui.fullPage = !ui.fullPage
-                                else -> Unit
-                            }
-                            it.applyTool(ui.tool)
-                        }
-                        // The palette opens itself on the surface; the editor only runs what it picked.
-                        it.onPaletteAction = { action ->
-                            applyPaletteAction(action, ui, it, latestSettings.value, latestSettingsChange.value)
-                        }
-                        it.onPlace = { kind, placement ->
-                            onActivePane(index)
-                            when (kind) {
-                                PlaceKind.TEXT -> ui.textPlacement = placement
-                                PlaceKind.TEX -> ui.texPlacement = placement
-                                PlaceKind.IMAGE -> onPickImage(placement)
-                            }
-                        }
+                        it.applyInitialStyle(ui, settings)
+                        it.bindTo(state)
+                        it.bindEditorActions(ui, index, onActivePane, onPickImage, { latestSettings.value }, onSettingsChange)
                         state.surface = it
                         onSurfaceCreated(index, it)
                     }

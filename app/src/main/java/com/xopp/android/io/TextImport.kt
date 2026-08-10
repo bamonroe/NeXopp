@@ -73,7 +73,9 @@ class TextImport(private val store: PdfStore, private val generator: TextPdfGene
     }
 
     private companion object {
+        /** Bytes in a mebibyte, for the [mb] helper in error messages. */
         const val BYTES_PER_MB = 1024L * 1024L
+        /** Streaming buffer for the SHA-256 digest — large enough to amortise reads, small enough to stay off the heap. */
         const val DIGEST_BUFFER_BYTES = 64 * 1024
     }
 }

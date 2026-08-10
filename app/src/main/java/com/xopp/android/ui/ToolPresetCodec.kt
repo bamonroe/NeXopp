@@ -62,7 +62,8 @@ private fun decodePreset(raw: String): ToolPreset? {
         widthPt = width,
         lineStyle = style,
         fillEnabled = f[6].trim() == "1",
-        fillAlpha = (f[7].trim().toIntOrNull() ?: DEFAULT_FILL_ALPHA).coerceIn(1, 255),
+        // 0..255 matches the .xopp file format; 0 is valid for transparent fill.
+        fillAlpha = (f[7].trim().toIntOrNull() ?: DEFAULT_FILL_ALPHA).coerceIn(0, 255),
     )
 }
 

@@ -36,13 +36,21 @@ import androidx.compose.ui.unit.dp
  * so a single screen never has to carry every preference at once.
  */
 enum class SettingsSection(val title: String, val summary: String) {
+    /** Stylus and finger input settings: pressure curve, barrel buttons, hover, finger drawing. */
     STYLUS("Stylus", "Finger drawing, hover preview, barrel button, pressure feel."),
+    /** Editor behaviour: default tool, shape recognition, snapping to grid or angles. */
     EDITOR("Editor", "Default tool and snapping to the grid or to 15° rotations."),
+    /** Toolbar configuration: which rail buttons appear and their order. */
     TOOLBAR("Toolbar", "Which rail buttons appear, and in what order."),
+    /** Radial palette configuration: what each ring slot does at the pen tip. */
     PALETTE("Palette", "The radial palette's rings — what each slot does at the pen tip."),
+    /** Navigation: momentum scrolling strength and panning sensitivity. */
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
+    /** Appearance: theme mode and page counter position. */
     APPEARANCE("Appearance", "Theme, and where the page counter sits on the canvas."),
+    /** Storage: text import limit and PDF cache budget. */
     STORAGE("Storage", "How big a text file may be imported, and how much cache to keep."),
+    /** About: version, licence, source, and support links. */
     ABOUT("About", "Version, licence, source code, and how to support the work."),
 }
 

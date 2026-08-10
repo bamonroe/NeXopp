@@ -39,6 +39,7 @@ class InkCache(
     /** Max entries in overview mode; null in single-page mode (byte budget only). */
     private val maxEntries = { if (columns() > 1) OVERVIEW_MAX_ENTRIES else null }
 
+    /** One cached raster: the bitmap, the page identity it was drawn from, and the hidden-layer set. */
     private class Entry(
         val bitmap: Bitmap,
         val page: Page,

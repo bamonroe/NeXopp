@@ -24,6 +24,7 @@ internal class PageOverview(
     private val invalidate: () -> Unit,
 ) {
 
+    /** True when the grid allows tap-to-select and drag-to-reorder; false for navigation-only viewing. */
     var editMode = false
         private set
 
@@ -44,11 +45,14 @@ internal class PageOverview(
     /** True between touch-down and the long-press firing (or the touch disqualifying itself). */
     var armed = false
         private set
+    /** Touch-down X coordinate for the arming gesture, in view pixels. */
     var armDownX = 0f
         private set
+    /** Touch-down Y coordinate for the arming gesture, in view pixels. */
     var armDownY = 0f
         private set
 
+    /** True when a drag-to-reorder is in flight ([dragIndex] >= 0). */
     val dragging: Boolean get() = dragIndex >= 0
 
     /**
@@ -72,7 +76,10 @@ internal class PageOverview(
         invalidate()
     }
 
-    /** Add or remove page [index] from the selection; [pageCount] bounds the valid indices. */
+    /**
+     * Add or remove page [index] from the selection; [pageCount] bounds the valid indices.
+     * Invariant: selection count is always accurate — [onSelectionChanged] fires after every change.
+     */
     fun toggleSelection(index: Int, pageCount: Int) {
         if (index < 0 || index >= pageCount) return
         if (!picked.remove(index)) picked.add(index)
@@ -80,22 +87,31 @@ internal class PageOverview(
         invalidate()
     }
 
-    /** Put [pages] on the clipboard. The selection is left alone, so "copy, then paste after these"
-     *  reads naturally. No-op for an empty copy, so the clipboard survives a stray Copy. */
+    /**
+     * Put [pages] on the clipboard. The selection is left alone, so "copy, then paste after these"
+     * reads naturally. No-op for an empty copy, so the clipboard survives a stray Copy.
+     */
     fun copyToClipboard(pages: List<Page>) {
         if (pages.isEmpty()) return
         clipboard = pages
         onClipboardChanged(pages.size)
     }
 
-    /** Arm the long-press that lifts a page, remembering where the finger went down. */
+    /**
+     * Arm the long-press that lifts a page, remembering where the finger went down.
+     * @param x Touch-down X in view pixels.
+     * @param y Touch-down Y in view pixels.
+     */
     fun arm(x: Float, y: Float) {
         armed = true
         armDownX = x
         armDownY = y
     }
 
-    /** The long-press fired: [index] is lifted and is its own initial drop slot. */
+    /**
+     * The long-press fired: [index] is lifted and is its own initial drop slot.
+     * Invariant: after lift, [dragIndex] == [dropIndex] == [index].
+     */
     fun lift(index: Int) {
         armed = false
         dragIndex = index
@@ -105,14 +121,21 @@ internal class PageOverview(
     /** Disarm a pending long-press without lifting (the touch turned into a pan). */
     fun disarm() { armed = false }
 
-    /** Track the finger onto slot [index]; false when it hasn't changed and no repaint is due. */
+    /**
+     * Track the finger onto slot [index]; false when it hasn't changed and no repaint is due.
+     * @return true if [dropIndex] changed and canvas should repaint.
+     */
     fun moveDropTo(index: Int): Boolean {
         if (index == dropIndex) return false
         dropIndex = index
         return true
     }
 
-    /** End any lift, returning the (from, to) reorder it commits — or null when there is nothing to do. */
+    /**
+     * End any lift, returning the (from, to) reorder it commits — or null when there is nothing to do.
+     * Invariant: after this call, [dragIndex] and [dropIndex] are both -1.
+     * @return Pair of (source index, destination index), or null if no valid reorder occurred.
+     */
     fun endDrag(): Pair<Int, Int>? {
         val from = dragIndex
         val to = dropIndex

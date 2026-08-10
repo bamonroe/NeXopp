@@ -141,6 +141,30 @@ fun EditorScreen(
     busy: String? = null,
     /** Back was pressed with nothing left to dismiss: leave the app. */
     onExit: () -> Unit = {},
+    /** The top app bar content; defaults to [EditorTopBar]. */
+    topBar: @Composable (EditorUiState, PaneState, TabsUiState) -> Unit = { ui, pane, tabs ->
+        EditorTopBar(
+            ui = ui,
+            pane = pane,
+            tabs = tabs,
+            onOpen = onOpen,
+            onNewTab = { tabs.onNew() },
+            onSave = onSave,
+            onExportPdf = onExportPdf,
+            splitView = splitView,
+            onToggleSplitView = onToggleSplitView,
+        )
+    },
+    /** The rail/toolbar content; defaults to [EditorToolbar]. */
+    paneChrome: @Composable (EditorUiState, PaneState, AppSettings, (AppSettings) -> Unit, AudioUiState) -> Unit = { ui, pane, settings, onSettingsChange, audio ->
+        EditorToolbar(
+            ui = ui,
+            pane = pane,
+            settings = settings,
+            onSettingsChange = onSettingsChange,
+            audio = audio,
+        )
+    },
 ) {
     val ui = rememberEditorUiState(settings)
     val pane = ui.pane(activePane)
@@ -152,17 +176,7 @@ fun EditorScreen(
         Scaffold(
             topBar = {
                 if (!ui.fullPage) {
-                    EditorTopBar(
-                        ui = ui,
-                        pane = pane,
-                        tabs = tabs[activePane.coerceIn(tabs.indices)],
-                        onOpen = onOpen,
-                        onNewTab = { tabs[activePane.coerceIn(tabs.indices)].onNew() },
-                        onSave = onSave,
-                        onExportPdf = onExportPdf,
-                        splitView = splitView,
-                        onToggleSplitView = onToggleSplitView,
-                    )
+                    topBar(ui, pane, tabs[activePane.coerceIn(tabs.indices)])
                 }
             },
         ) { padding ->
@@ -177,6 +191,7 @@ fun EditorScreen(
                 onActivePane = onActivePane,
                 onSurfaceCreated = onSurfaceCreated,
                 onPickImage = onPickImage,
+                paneChrome = paneChrome,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -228,17 +243,12 @@ private fun EditorBody(
     onActivePane: (Int) -> Unit,
     onSurfaceCreated: (Int, DrawingSurfaceView) -> Unit,
     onPickImage: (Placement) -> Unit,
+    paneChrome: @Composable (EditorUiState, PaneState, AppSettings, (AppSettings) -> Unit, AudioUiState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val toolbar: @Composable () -> Unit = {
         if (!ui.fullPage) {
-            EditorToolbar(
-                ui = ui,
-                pane = pane,
-                settings = settings,
-                onSettingsChange = onSettingsChange,
-                audio = audio,
-            )
+            paneChrome(ui, pane, settings, onSettingsChange, audio)
         }
     }
     val paneAt: @Composable (Int, Modifier) -> Unit = { index, paneModifier ->

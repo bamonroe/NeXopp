@@ -188,8 +188,6 @@ private fun TabChip(
 ) {
     val colors = MaterialTheme.colorScheme
     var menuOpen by remember { mutableStateOf(false) }
-    // The gesture outlives recomposition, so read the callbacks through a live handle rather than
-    // capturing the ones that existed when the pointer session started.
     val drag = rememberUpdatedState(Triple(onDragStart, onDrag, onDragEnd))
     var chipWidth by remember { mutableFloatStateOf(1f) }
     Row(
@@ -201,40 +199,12 @@ private fun TabChip(
             .onGloballyPositioned {
                 if (selected) onBounds(it.positionInParent().x, it.size.width.toFloat())
             }
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (selected) colors.secondaryContainer else colors.surfaceVariant)
-            .combinedClickable(onClick = onSelect, onLongClick = { menuOpen = true })
-            // Sideways drag reorders, but only on the *selected* tab: the drag consumes the gesture, so
-            // if every chip claimed it the strip could never be scrolled and tabs past the edge would be
-            // unreachable. Dragging anywhere else therefore falls through to the strip's own scroll.
-            // A tap still selects and a stationary hold still opens the long-press menu.
-            .pointerInput(selected) {
-                if (!selected) return@pointerInput
-                detectHorizontalDragGestures(
-                    onDragStart = { drag.value.first() },
-                    onDragEnd = { drag.value.third() },
-                    onDragCancel = { drag.value.third() },
-                ) { change, dx ->
-                    change.consume()
-                    drag.value.second(dx, chipWidth)
-                }
-            }
+            .tabChipInteractions(selected, onSelect, { menuOpen = true }, drag, chipWidth)
             .padding(start = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(
-                text = { Text("Move to other view") },
-                onClick = { menuOpen = false; onMove() },
-            )
-            DropdownMenuItem(
-                text = { Text("Mirror on other view") },
-                onClick = { menuOpen = false; onMirror() },
-            )
-        }
+        TabChipMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, onMove = onMove, onMirror = onMirror)
         if (dotColor != null) {
-            // Marks this tab as one of two views of the same document; the matching view carries the
-            // same colour, which is what distinguishes it from a different file of the same name.
             Box(
                 modifier = Modifier
                     .padding(end = 8.dp)
@@ -251,20 +221,74 @@ private fun TabChip(
             color = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
             modifier = Modifier.widthIn(min = 64.dp, max = 180.dp),
         )
-        // Shown on every tab, not just the selected one, so a background tab can be closed without
-        // first switching to it. A full touch target of its own, so closing the tab never lands on
-        // "select" by mistake.
-        Box(
-            modifier = Modifier.size(TAB_TOUCH_TARGET).clickable(onClick = onClose),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.Filled.Close,
-                contentDescription = "Close $title",
-                modifier = Modifier.size(TAB_CLOSE_ICON),
-                tint = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
-            )
+        TabCloseButton(title = title, selected = selected, onClose = onClose)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun Modifier.tabChipInteractions(
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onLongClick: () -> Unit,
+    drag: androidx.compose.runtime.State<Triple<() -> Unit, (Float, Float) -> Unit, () -> Unit>>,
+    chipWidth: Float,
+): Modifier {
+    return this
+        .clip(RoundedCornerShape(8.dp))
+        .background(
+            if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant
+        )
+        .combinedClickable(onClick = onSelect, onLongClick = onLongClick)
+        .pointerInput(selected) {
+            if (!selected) return@pointerInput
+            detectHorizontalDragGestures(
+                onDragStart = { drag.value.first },
+                onDragEnd = { drag.value.third },
+                onDragCancel = { drag.value.third },
+            ) { change, dx ->
+                change.consume()
+                drag.value.second(dx, chipWidth)
+            }
         }
+}
+
+@Composable
+private fun TabChipMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onMove: () -> Unit,
+    onMirror: () -> Unit,
+) {
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text("Move to other view") },
+            onClick = { onDismiss(); onMove() },
+        )
+        DropdownMenuItem(
+            text = { Text("Mirror on other view") },
+            onClick = { onDismiss(); onMirror() },
+        )
+    }
+}
+
+@Composable
+private fun TabCloseButton(
+    title: String,
+    selected: Boolean,
+    onClose: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier = Modifier.size(TAB_TOUCH_TARGET).clickable(onClick = onClose),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Filled.Close,
+            contentDescription = "Close $title",
+            modifier = Modifier.size(TAB_CLOSE_ICON),
+            tint = if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
+        )
     }
 }
 

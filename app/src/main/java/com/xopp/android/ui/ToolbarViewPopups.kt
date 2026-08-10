@@ -26,6 +26,14 @@ import androidx.compose.ui.unit.dp
 import com.xopp.android.render.GuideKind
 import kotlin.math.roundToInt
 
+/**
+ * The zoom level popup: shows the current zoom percentage with −/+/reset controls.
+ *
+ * @param zoom Current zoom factor (1.0 = 100%).
+ * @param onZoomIn Zoom in by one step.
+ * @param onZoomOut Zoom out by one step.
+ * @param onZoomReset Reset to fit-to-width (100%).
+ */
 @Composable
 internal fun ZoomPopupButton(zoom: Float, onZoomIn: () -> Unit, onZoomOut: () -> Unit, onZoomReset: () -> Unit) {
     ToolbarPopupButton(
@@ -155,12 +163,27 @@ internal fun AudioPopupButton(state: AudioUiState) {
     }
 }
 
-/** Everything the [AudioPopupButton] needs, bundled so the rail's parameter list stays readable. */
+/**
+ * Everything the [AudioPopupButton] needs, bundled so the rail's parameter list stays readable.
+ *
+ * @property recording Whether the microphone is currently recording.
+ * @property playing Whether audio playback is in progress.
+ * @property folderChosen Whether the user has nominated a folder for audio sidecars.
+ * @property onToggleRecord Callback to start or stop recording.
+ * @property onStopPlayback Callback to stop playback.
+ * @property onChooseFolder Callback to open the folder picker.
+ */
 data class AudioUiState(
+    /** Whether the microphone is currently recording. */
     val recording: Boolean = false,
+    /** Whether audio playback is in progress. */
     val playing: Boolean = false,
+    /** Whether the user has nominated a folder for audio sidecars. */
     val folderChosen: Boolean = false,
+    /** Callback to start or stop recording. */
     val onToggleRecord: () -> Unit = {},
+    /** Callback to stop playback. */
     val onStopPlayback: () -> Unit = {},
+    /** Callback to open the folder picker. */
     val onChooseFolder: () -> Unit = {},
 )

@@ -178,22 +178,29 @@ internal fun DrawingSurfaceView.startErase(event: MotionEvent, pointerIndex: Int
     gesturePointerId = event.getPointerId(pointerIndex)
     val box = layout.pageAt(event.getX(pointerIndex) + scrollX, event.getY(pointerIndex) + scrollY) ?: return
     currentPage = box.index
-    eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
+    // Eraser tip and barrel button both use WHOLE_STROKE mode to delete entire strokes.
+    val isEraserTip = event.getToolType(pointerIndex) == android.view.MotionEvent.TOOL_TYPE_ERASER
+    val isBarrelPressed = barrelPressed(event)
+    val mode = if (isEraserTip || isBarrelPressed) EraserMode.WHOLE_STROKE else eraserMode
+    eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex), mode)
 }
 
 internal fun DrawingSurfaceView.eraseMove(event: MotionEvent) {
     val pointerIndex = event.findPointerIndex(gesturePointerId)
     if (pointerIndex < 0) return
     val box = layout.boxes.getOrNull(currentPage) ?: return
-    eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex))
+    // Eraser tip and barrel button both use WHOLE_STROKE mode to delete entire strokes.
+    val isEraserTip = event.getToolType(pointerIndex) == android.view.MotionEvent.TOOL_TYPE_ERASER
+    val isBarrelPressed = barrelPressed(event)
+    val mode = if (isEraserTip || isBarrelPressed) EraserMode.WHOLE_STROKE else eraserMode
+    eraseAt(box, event.getX(pointerIndex), event.getY(pointerIndex), mode)
 }
 
-internal fun DrawingSurfaceView.eraseAt(box: PageBox, vx: Float, vy: Float) {
+internal fun DrawingSurfaceView.eraseAt(box: PageBox, vx: Float, vy: Float, mode: EraserMode = eraserMode) {
     val px = box.toPtX(vx, scrollX)
     val py = box.toPtY(vy, scrollY)
     eraseX = vx; eraseY = vy
-    eraseOnPage(currentPage, px, py, eraserRadiusPt)
-    // Always repaint: even a rub over blank paper has to move the tip outline with the pointer.
+    eraseOnPage(currentPage, px, py, eraserRadiusPt, mode)
     render()
 }
 
@@ -351,12 +358,11 @@ internal fun DrawingSurfaceView.resolvedActiveLayer(page: Page): Int =
  * Apply the eraser disc to page [pageIndex] in the current [eraserMode], on the selected layer
  * only and skipping hidden layers ([PageEraser]). Returns true if anything on the page changed.
  */
-internal fun DrawingSurfaceView.eraseOnPage(pageIndex: Int, px: Double, py: Double, radius: Double): Boolean {
+internal fun DrawingSurfaceView.eraseOnPage(pageIndex: Int, px: Double, py: Double, radius: Double, mode: EraserMode = eraserMode): Boolean {
     val page = doc.pages.getOrNull(pageIndex) ?: return false
     val hidden = page.layers.indices.filter { isLayerHidden(pageIndex, it) }.toSet()
     val target = resolvedActiveLayer(page)
-    val erased = PageEraser.erase(page, px, py, radius, eraserMode, hidden, target)
-        ?: return false
+    val erased = PageEraser.erase(page, px, py, radius, mode, hidden, target) ?: return false
     val pages = doc.pages.toMutableList()
     pages[pageIndex] = erased
     doc = doc.copy(pages = pages)

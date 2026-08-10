@@ -10,6 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
+ * A hazard-free "page X of Y" label. Uses coerceAtMost so it never throws when pageCount == 0.
+ */
+internal fun pageLabel(currentPage: Int, pageCount: Int): String =
+    "${(currentPage + 1).coerceAtMost(pageCount)} / $pageCount"
+
+/**
  * The badge's corner as a Compose [Alignment], from the two configured axes (Appearance settings).
  */
 fun pageCounterAlignment(
@@ -45,7 +51,6 @@ fun PageCounter(
     pageCount: Int,
     modifier: Modifier = Modifier,
 ) {
-    if (pageCount <= 0) return
     Surface(
         modifier = modifier,
         shape = MaterialTheme.shapes.small,
@@ -53,7 +58,7 @@ fun PageCounter(
         tonalElevation = 3.dp,
     ) {
         Text(
-            text = "${(currentPage + 1).coerceIn(1, pageCount)} / $pageCount",
+            text = pageLabel(currentPage, pageCount),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),

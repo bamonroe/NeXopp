@@ -705,6 +705,109 @@ The **`format/` package is the heart** and is deliberately free of Android depen
 round-trip logic is fully unit-testable on the JVM (see `app/src/test/`). `render/` and `ui/`
 are the Android-facing shell around it.
 
+## UI palette family — geometry, codecs, pickers
+
+The radial palette system — the two-ring menu that opens at the pen tip on a barrel double-click —
+is factored into three pure layers, each unit-testable on the JVM with no Compose or Android
+dependencies:
+
+### Geometry (`RadialPaletteHitTest.kt`, `RadialPaletteLayout.kt`)
+
+The geometry layer defines **where the palette sits** and **which slot the pen is over**:
+
+- **`RadialPaletteGeometry`** — the canonical radii: `deadZoneRadius` (hollow centre),
+  `innerRingRadius` (8 slots), `outerRingRadius` (16 slots), and `dismissRadius` (where a
+  release closes the menu). The bands are only as wide as their icons need — the menu covers
+  roughly a third of the area a full-radius disc would — so the geometry is tight and the
+  angular packing (16 outer slots) is the limiting factor.
+- **`RadialPalette.hitTest`** — turns a pointer at `(x, y)` into a `RadialHit`: `Inert` (dead
+  zone), `Outside` (dismiss), or `Slot(slot, action)`. Distance picks the ring, angle picks the
+  slot within it (measured clockwise from 12 o'clock, matching the slot order in
+  `RadialPalette.ring`). Crucially, ring and angle only name the *candidate* slot: the point
+  must then land inside the slot's drawn mark (`slotMarkRadius` around `drawCenter`) for the
+  hit to count. Anywhere else on the menu reads as `Outside`, so selection takes a **direct
+  hit** and the gaps between icons remain available to dismiss.
+- **`clampAnchor`** — where the palette actually draws when the pen opens it at `(x, y)`. The
+  anchor is pulled in from every edge far enough that a flick in any direction still lands on
+  screen (the outer ring must stay reachable). A view too small to fit the menu centres it
+  rather than fighting itself.
+- **`drawCenter`** — where a slot's mark is drawn given the anchor. Uses `slotDrawRadius` to
+  pick the ring's mid-band radius (the middle of the band, where the icons sit).
+
+All geometry is in **view pixels** with y growing downwards (Android's coordinate space). The
+same geometry serves the live menu (`RadialPaletteRenderer`) and the settings diagram
+(`PaletteSection`'s `PaletteDiagram`), scaled via `paletteEditorScale`.
+
+### Codecs (`RadialPaletteCodec.kt`, `PaletteList.kt`)
+
+The codec layer persists palettes to and from `SharedPreferences` as a single line per palette:
+
+- **Wire form** — three `;`-separated fields: `name;innerSlots;outerSlots`. Each ring is a
+  comma-separated list of action tokens, empty tokens meaning empty slots:
+  ```
+  Palette;tool:PEN,toggle:ERASER,,undo,,,,;color:-16777216,color:-65536,,,,,,,,,,,,,,
+  ```
+- **`encodeRadialPalette` / `decodeRadialPalette`** — one palette. The palette name has
+  separators escaped (replaced with spaces) so it survives the wire form.
+- **`encodeRadialPalettes` / `decodeRadialPalettes`** — the full list, `|`-separated (the same
+  record separator `ToolPresetList` uses).
+- **`encodeAction` / `decodeAction`** — one slot: `kind` or `kind:argument`. Unknown tokens,
+  unknown enum names, and unparsable numbers become empty slots rather than failing the whole
+  palette. A ring with too few/many slots is padded/truncated to the ring's current size. This
+  forgiveness is what lets a palette written by an older or newer build still load — a slot
+  type this build doesn't understand costs the user one slot, not the whole palette.
+- **`PaletteSet`** — the user's palette list plus which one the pen opens (`activeIndex`).
+  Every edit (add/rename/reorder/delete) returns a new `PaletteSet` with the index adjusted to
+  stay valid, so the UI and persistence can't drift. `migratedPaletteSet` handles the pre-list
+  migration: a legacy single-palette pref becomes a one-entry list.
+
+Decoding is the authoritative home for **what action tokens exist** — the `kind:argument` forms
+(`tool:`, `toggle:`, `color:`, `width:`, `undo`, `redo`, `fullpage`, `page:`, `preset:`,
+`presetslot:`, `palette:`) — and the tolerance rules that keep old/new prefs readable.
+
+### Pickers (`ColorPalette.kt`, `ColorPicker.kt`, `PaletteList.kt`)
+
+The picker layer is the UI face — what the user sees and touches:
+
+- **`ColorPaletteState`** — the shared colour state: the editable custom slot and the
+  recently-used list, both persisted in `AppSettings`. One instance is threaded to every picker
+  (toolbar palette, text-box dialog, selection recolour menu), so a colour picked anywhere
+  lands in the *same* recents and reads the *same* custom slot. `note(color, asPen)` records a
+  use; `asPen = true` also makes it the pen colour restored on launch.
+- **`ColorPaletteRows`** — the one colour picker composable: the fixed `PEN_COLORS` row, the
+  editable custom slot (marked with a pencil, long-press to redefine), then the recents row.
+  A tap reports the colour through `onPick`; the host decides what it means (set the pen,
+  restyle the selection, colour the text) and records the use.
+- **`CustomColorPickerDialog`** — the HSV/hex dialog behind the custom slot: a
+  saturation/value square over a hue slider, plus a two-way `#RRGGBB` hex field and a live
+  preview. Always opaque; the parent persists the result.
+- **`PaletteList`** functions — the pure list edits behind the palette manager:
+  `addPalette`, `removePalette`, `movePalette`, `renamePalette`, `activatePalette`. Each
+  returns a new `PaletteSet` with the active index following the surviving entries, so deleting
+  or moving a palette doesn't leave the pen pointing at nothing.
+- **`PaletteSection`** — the settings page: a tappable two-ring diagram (drawn from the same
+  geometry as the live menu), plus the `PaletteActionPickerSheet` that fills one slot. The
+  sheet lists every assignable action — tools, edit/page ops, the shared colour swatches, a
+  width slider, and **Clear** — and reports the choice through `onPick`.
+- **`PaletteActionCatalog`** — the catalogue of assignable actions and how each reads in
+  prose (`describeAction`). Colour and width actions are not listed (they carry a value the
+  user has to dial in), so the sheet hands those to the shared colour palette and width slider
+  instead of a fixed row.
+- **`PaletteIcons`** — the picture on a slot: the same Material icon the toolbar rail uses for
+  that tool, so a tool wears one face everywhere. Only preset slots tint (they wear the colour
+  they will apply), passed through `legibleOnSlot` to ensure the icon reads against the dark
+  slot disc.
+- **`RadialPaletteLabel`** — how a slot presents itself: a short glyph (2 characters at most)
+  or, for colour slots, the swatch that fills the mark. The glyph set (`✎`, `⌫`, `↶`, `↷`,
+  `⛶`, `★`, `◎`, etc.) is defined here, next to the data model, so it's testable on the JVM
+  and reusable by the configuration UI.
+
+All picker logic is factored so the **model** (`RadialPalette`, `PaletteAction`) is plain
+Kotlin, the **geometry** is pure and shared, and the **Compose UI** only renders what it
+finds. That's what makes the palette system unit-testable (`RadialPaletteTest`,
+`RadialPaletteHitTestTest`, `RadialPaletteLayoutTest`, `RadialPaletteCodecTest`, `PaletteListTest`,
+`PaletteActionCatalogTest`, etc.) and keeps the settings diagram in sync with the live menu.
+
 **What the unit tests cover** (this section is the one authoritative inventory — `README.md`
 and `docs/tools.md` link here rather than restating it). The `format/` tests exercise the
 `.xopp` round-trip: the colour codec, every element type, XML escaping, model reserialization,

@@ -119,13 +119,13 @@ internal fun DrawingSurfaceView.beginPointer(event: MotionEvent, pointerIndex: I
     stylusOwner = (kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP) &&
         (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE)
     when (intent) {
+        GestureIntent.ERASE -> startErase(event, pointerIndex)
         GestureIntent.PLACE -> beginPlace(event, pointerIndex)
         GestureIntent.PAN -> beginScroll(event)
         GestureIntent.SELECT -> beginSelect(event)
         GestureIntent.BACKGROUND_SELECT -> beginBackgroundSelect(event)
         GestureIntent.SELECT_TEXT -> beginTextSelect(event)
         GestureIntent.VERTICAL_SPACE -> beginVerticalSpace(event)
-        GestureIntent.ERASE -> startErase(event, pointerIndex)
         // The spline tool is laid down over many taps, so it gets its own gesture path.
         GestureIntent.DRAW ->
             if (shapeKind == ShapeKind.SPLINE) splineDown(event, pointerIndex)

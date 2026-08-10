@@ -42,8 +42,10 @@ import kotlin.math.roundToInt
 /** Fixed labels for the three configurable pen-width slots (the widths themselves live in [AppSettings]). */
 val PEN_WIDTH_LABELS: List<String> = listOf("S", "M", "L")
 
-/** Bounds of the long-press slot-resize slider, in points. */
+/** Minimum allowed pen width in points for the size slider and slot editor. */
 const val PEN_WIDTH_MIN: Float = 0.5f
+
+/** Maximum allowed pen width in points for the size slider and slot editor. */
 const val PEN_WIDTH_MAX: Float = 15f
 
 /** Increment for the −/+ fine-adjust buttons in the slot-resize dialog, in points. */
@@ -53,28 +55,7 @@ const val PEN_WIDTH_STEP: Float = 0.1f
 fun ptLabel(pt: Float): String =
     String.format(java.util.Locale.US, "%.2f", pt).trimEnd('0').trimEnd('.')
 
-/** The box a tip dot is drawn in, and the largest dot that fits comfortably inside it. */
-private val TIP_DOT_BOX: Dp = 28.dp
-private val TIP_DOT_MAX: Dp = 22.dp
 
-/** The smallest a tip dot is drawn, so a hair-thin slot is still a visible target. */
-private val TIP_DOT_MIN: Dp = 5.dp
-
-/**
- * A filled dot standing for a pen tip of [pt], sized *relatively*: the widest slot on offer
- * ([maxPt]) draws at [TIP_DOT_MAX] and everything else in proportion, so the set reads as a size
- * ladder and the biggest still sits inside its box instead of overflowing it. Letters (S/M/L) can't
- * do this job any more — the three slots are arbitrary user-set widths, so only the drawn size says
- * how thick the line will be.
- */
-@Composable
-private fun TipDot(pt: Float, maxPt: Float, tint: Color) {
-    val diameter = if (maxPt <= 0f) TIP_DOT_MIN
-    else (TIP_DOT_MAX * (pt / maxPt)).coerceIn(TIP_DOT_MIN, TIP_DOT_MAX)
-    Box(modifier = Modifier.size(TIP_DOT_BOX), contentAlignment = Alignment.Center) {
-        Box(modifier = Modifier.size(diameter).clip(CircleShape).background(tint))
-    }
-}
 
 /**
  * The pen-size slot picker: three configurable width slots ([widthSlots]), each shown as a [TipDot]
@@ -99,7 +80,7 @@ internal fun SizePopupButton(
     ToolbarPopupButton(
         face = {
             IconButton(onClick = { }) {
-                TipDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
+                WidthDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
     ) { dismiss ->
@@ -119,7 +100,7 @@ internal fun SizePopupButton(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TipDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
+                WidthDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.width(12.dp))
                 Text("${ptLabel(pt)} pt")
                 if (pt == width) {

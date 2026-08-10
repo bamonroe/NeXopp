@@ -22,61 +22,69 @@ internal class CanvasChrome {
     var backdropColor = BACKDROP
         private set
 
+    /** Selection outline: 2 px dashed stroke (10 px dash, 8 px gap). */
     val selectionStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f
         color = SELECTION_COLOR
         pathEffect = DashPathEffect(floatArrayOf(10f, 8f), 0f)
     }
+    /** Selection fill: translucent wash under the dashed outline. */
     val selectionFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = SELECTION_FILL
     }
+    /** Selection handle dots: solid fill, [HANDLE_DRAW_PX] radius. */
     val handle = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = SELECTION_COLOR
     }
+    /** Selection handle arms: 2 px solid stroke connecting handles. */
     val handleArm = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f
         color = SELECTION_COLOR
     }
+    /** Drag-select band fill: translucent wash under the lasso. */
     val bandFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = BAND_FILL
     }
 
-    // The setsquare/compass overlay: a solid outline (it is a physical-feeling instrument, not a
-    // marquee, so no dashes) over a faint wash, plus filled grab handles.
+    /** Setsquare/compass guide outline: 2 px solid amber stroke (no dash — physical instrument feel). */
     val guideStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 2f
         color = GUIDE_COLOR
     }
+    /** Setsquare/compass guide fill: faint amber wash ([GUIDE_FILL_ALPHA]). */
     val guideFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = GUIDE_COLOR.withAlpha(GUIDE_FILL_ALPHA)
     }
+    /** Setsquare/compass guide handle dots: solid amber fill. */
     val guideHandle = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = GUIDE_COLOR
     }
 
-    // Page-overview reorder feedback: the lifted page is washed out, the drop slot outlined.
+    /** Page-overview reorder: lifted page wash (translucent white). */
     val pageLift = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = 0x66FFFFFF
     }
+    /** Page-overview reorder: drop slot outline, 6 px amber stroke. */
     val pageDrop = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6f
         color = GUIDE_COLOR
     }
-    // Page-overview multi-select: a picked page is tinted and outlined so the selection reads at a glance.
+    /** Page-overview multi-select: picked page tint ([PAGE_SELECT_FILL_ALPHA] amber wash). */
     val pageSelectFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = GUIDE_COLOR.withAlpha(PAGE_SELECT_FILL_ALPHA)
     }
+    /** Page-overview multi-select: picked page outline, 6 px amber stroke. */
     val pageSelect = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 6f
@@ -97,49 +105,56 @@ internal class CanvasChrome {
         strokeWidth = 1.5f
         color = 0xFF000000.toInt()
     }
+    /** PDF-text selection highlight: translucent blue wash. */
     val textSelect = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = TEXT_SELECT_FILL
     }
+    /** Document/PDF search result highlight: translucent yellow wash. */
     val searchHit = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = SEARCH_HIT_FILL
     }
+    /** Current search result outline: 3 px amber stroke. */
     val searchCurrent = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
         color = SEARCH_CURRENT_STROKE
     }
 
-    // The radial palette: a dimmed disc under two rings of slot marks. Filled slots read solidly,
-    // empty ones stay faint, and the slot the pen is over is ringed in the selection colour.
+    /** Radial palette: dimmed disc under the slot rings ([PALETTE_SCRIM]). */
     val paletteScrim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = PALETTE_SCRIM
     }
+    /** Radial palette: slot ring outlines, 1.5 px faint white stroke. */
     val paletteRing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 1.5f
         color = PALETTE_RING
     }
+    /** Radial palette: assigned slot fill (dark gray). */
     val paletteSlot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = PALETTE_SLOT
     }
+    /** Radial palette: unassigned slot fill (faint white — [PALETTE_SLOT_EMPTY]). */
     val paletteSlotEmpty = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = PALETTE_SLOT_EMPTY
     }
+    /** Radial palette: slot hover highlight, 3 px selection-color stroke. */
     val paletteHighlight = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
         color = SELECTION_COLOR
     }
-    /** Fills a slot's rail icon; the glyph paint below still draws the width numbers. */
+    /** Radial palette: slot rail icon fill (white or preset color). */
     val paletteIcon = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = PALETTE_ICON
     }
+    /** Radial palette: slot width number glyph, 20 px white centered text. */
     val paletteGlyph = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = 0xFFFFFFFF.toInt()
@@ -147,8 +162,9 @@ internal class CanvasChrome {
         textSize = PALETTE_GLYPH_PX
     }
 
-    /** Scratch paths reused each frame so drawing the lasso/guide allocates nothing. */
+    /** Scratch path for lasso drawing — reused each frame to avoid allocation. */
     val lassoPath = Path()
+    /** Scratch path for guide drawing — reused each frame to avoid allocation. */
     val guidePath = Path()
 
     /**

@@ -48,69 +48,51 @@ import kotlin.math.roundToInt
  * a page. [currentPage] is 0-based; the label and jump targets present it 1-based.
  */
 @Composable
-internal fun PagesPopupButton(
-    pageCount: Int,
-    currentPage: Int,
-    onAddPage: () -> Unit,
-    onRemovePage: () -> Unit,
-    onGoToPage: (Int) -> Unit,
-    pageSize: Pair<Double, Double>?,
-    onPageSize: (Double, Double) -> Unit,
-    pageColumns: Int,
-    onPageColumns: (Int) -> Unit,
-    pagesEditMode: Boolean,
-    onPagesEditMode: (Boolean) -> Unit,
-    selectedPages: Int,
-    onDeleteSelectedPages: () -> Unit,
-    onClearPageSelection: () -> Unit,
-    copiedPages: Int,
-    onCopySelectedPages: () -> Unit,
-    onPastePages: () -> Unit,
-) {
+internal fun PagesPopupButton(callbacks: ToolbarPagesCallbacks) {
     var open by remember { mutableStateOf(false) }
     var sizing by remember { mutableStateOf(false) }
     ToolbarPopupButton(
         icon = Icons.Filled.Description,
         contentDescription = "Pages",
     ) { dismiss ->
-        PageNavRow(pageCount, currentPage, onGoToPage, dismiss)
+        PageNavRow(callbacks.pageCount, callbacks.currentPage, callbacks.onGoToPage, dismiss)
         DropdownMenuItem(
             text = { Text("Add page") },
             leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            onClick = { onAddPage(); dismiss() },
+            onClick = { callbacks.onAddPage(); dismiss() },
         )
         DropdownMenuItem(
             text = { Text("Remove page") },
             leadingIcon = { Icon(Icons.Filled.Remove, contentDescription = null) },
-            enabled = pageCount > 1,
-            onClick = { onRemovePage(); dismiss() },
+            enabled = callbacks.pageCount > 1,
+            onClick = { callbacks.onRemovePage(); dismiss() },
         )
         PageClipboardItems(
-            pageCount = pageCount,
-            selectedPages = selectedPages,
-            copiedPages = copiedPages,
-            onCopySelectedPages = { onCopySelectedPages(); dismiss() },
-            onDeleteSelectedPages = { onDeleteSelectedPages(); dismiss() },
-            onClearPageSelection = { onClearPageSelection(); dismiss() },
-            onPastePages = { onPastePages(); dismiss() },
+            pageCount = callbacks.pageCount,
+            selectedPages = callbacks.selectedPages,
+            copiedPages = callbacks.copiedPages,
+            onCopySelectedPages = { callbacks.onCopySelectedPages(); dismiss() },
+            onDeleteSelectedPages = { callbacks.onDeleteSelectedPages(); dismiss() },
+            onClearPageSelection = { callbacks.onClearPageSelection(); dismiss() },
+            onPastePages = { callbacks.onPastePages(); dismiss() },
         )
         HorizontalDivider()
-        PagesPerRowRow(pageColumns, onPageColumns)
-        OverviewModeRow(pageColumns, pagesEditMode, onPagesEditMode)
+        PagesPerRowRow(callbacks.pageColumns, callbacks.onPageColumns)
+        OverviewModeRow(callbacks.pageColumns, callbacks.pagesEditMode, callbacks.onPagesEditMode)
         HorizontalDivider()
         DropdownMenuItem(
             text = { Text("Page size…") },
             leadingIcon = { Icon(Icons.Filled.AspectRatio, contentDescription = null) },
-            trailingIcon = { pageSize?.let { Text(pageSizeLabel(it.first, it.second)) } },
-            enabled = pageSize != null,
+            trailingIcon = { callbacks.pageSize?.let { Text(pageSizeLabel(it.first, it.second)) } },
+            enabled = callbacks.pageSize != null,
             onClick = { sizing = true; dismiss() },
         )
     }
-    if (sizing && pageSize != null) {
+    if (sizing && callbacks.pageSize != null) {
         PageSizeDialog(
-            initialWidthPt = pageSize.first,
-            initialHeightPt = pageSize.second,
-            onConfirm = { w, h -> onPageSize(w, h); sizing = false },
+            initialWidthPt = callbacks.pageSize.first,
+            initialHeightPt = callbacks.pageSize.second,
+            onConfirm = { w, h -> callbacks.onPageSize(w, h); sizing = false },
             onDismiss = { sizing = false },
         )
     }
@@ -128,7 +110,7 @@ private fun PageNavRow(pageCount: Int, currentPage: Int, onGoToPage: (Int) -> Un
             enabled = currentPage > 0,
         ) { Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous page") }
         Text(
-            "Page ${(currentPage + 1).coerceAtMost(pageCount)} / $pageCount",
+            "Page " + pageLabel(currentPage, pageCount),
             style = MaterialTheme.typography.bodyMedium,
         )
         IconButton(
@@ -180,7 +162,11 @@ private fun PageClipboardItems(
     }
 }
 
-/** A named page-size preset in points (1/72 in), portrait orientation. */
+/**
+ * A named page-size preset in points (1/72 in), portrait orientation.
+ *
+ * Used in the page-size dialog to offer common paper sizes (A4, A5, Letter, Legal).
+ */
 private data class PagePreset(val name: String, val widthPt: Double, val heightPt: Double)
 
 /** The presets offered in the page-size dialog — desktop Xournal++'s common sizes. */
@@ -191,13 +177,23 @@ private val PAGE_PRESETS: List<PagePreset> = listOf(
     PagePreset("Legal", 612.0, 1008.0),
 )
 
-/** Point measurements the dialog can display/enter; [perPt] converts points into that unit. */
+/**
+ * Unit of measurement for the page-size dialog.
+ *
+ * Each unit knows how to convert points (1/72 in) to and from its own scale.
+ */
 private enum class SizeUnit(val label: String, val perPt: Double) {
+    /** Millimetres: 1 pt = 25.4/72 mm. */
     MM("mm", 25.4 / 72.0),
+    /** Inches: 1 pt = 1/72 in. */
     IN("in", 1.0 / 72.0),
+    /** Points: 1 pt = 1 pt (identity). */
     PT("pt", 1.0);
 
+    /** Convert points to this unit. */
     fun fromPt(pt: Double): Double = pt * perPt
+    
+    /** Convert a value in this unit to points. */
     fun toPt(value: Double): Double = value / perPt
 }
 

@@ -21,12 +21,19 @@ package com.xopp.android.render
  * coefficients into a `Matrix`.
  */
 data class PdfOverlayMatrix(
+    /** Matrix coefficient a (x' = a·x + c·y + e). */
     val a: Float,
+    /** Matrix coefficient b (y' = b·x + d·y + f). */
     val b: Float,
+    /** Matrix coefficient c (x' = a·x + c·y + e). */
     val c: Float,
+    /** Matrix coefficient d (y' = b·x + d·y + f). */
     val d: Float,
+    /** Matrix translation e (x offset). */
     val e: Float,
+    /** Matrix translation f (y offset). */
     val f: Float,
+    /** Page height in visual space (what PdfPageTransform must flip about). */
     val visualHeight: Float,
 ) {
     companion object {
@@ -34,6 +41,12 @@ data class PdfOverlayMatrix(
          * Build the overlay matrix for a source page whose crop box lower-left is ([cropX], [cropY])
          * with unrotated dimensions [cropW]×[cropH] and a `/Rotate` of [rotation] degrees (any
          * multiple of 90; normalised here). For `/Rotate 0` this is a pure crop-origin translation.
+         * @param cropX Crop box left X in PDF units.
+         * @param cropY Crop box bottom Y in PDF units.
+         * @param cropW Crop box width in PDF units.
+         * @param cropH Crop box height in PDF units.
+         * @param rotation Page rotation in degrees (multiple of 90).
+         * @return PdfOverlayMatrix for the given page.
          */
         fun forPage(cropX: Float, cropY: Float, cropW: Float, cropH: Float, rotation: Int): PdfOverlayMatrix {
             return when (((rotation % 360) + 360) % 360) {

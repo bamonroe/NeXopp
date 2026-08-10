@@ -123,15 +123,13 @@ private fun PresetRow(
             Spacer(Modifier.width(8.dp))
             Text(preset.name, style = MaterialTheme.typography.bodyMedium)
         }
-        IconButton(onClick = { onMove(-1) }, enabled = canMoveUp) {
-            Icon(Icons.Filled.ArrowDropUp, contentDescription = "Move ${preset.name} up")
-        }
-        IconButton(onClick = { onMove(1) }, enabled = canMoveDown) {
-            Icon(Icons.Filled.ArrowDropDown, contentDescription = "Move ${preset.name} down")
-        }
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, contentDescription = "Delete ${preset.name}")
-        }
+        ReorderControls(
+            canMoveUp = canMoveUp,
+            canMoveDown = canMoveDown,
+            itemName = preset.name,
+            onMove = onMove,
+            onDelete = onDelete,
+        )
     }
 }
 
@@ -141,16 +139,7 @@ private fun PresetRow(
  */
 @Composable
 private fun PresetSwatch(preset: ToolPreset) {
-    val diameter = (SWATCH_MAX * (preset.widthPt / PEN_WIDTH_MAX)).coerceIn(SWATCH_MIN, SWATCH_MAX)
-    Box(modifier = Modifier.size(SWATCH_MAX), contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .size(diameter)
-                .clip(CircleShape)
-                .background(Color(preset.colorArgb))
-                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
-        )
-    }
+    WidthDot(preset.widthPt, PEN_WIDTH_MAX, Color(preset.colorArgb), bordered = true)
 }
 
 /** The "save the live tool" row: a name field plus the button that captures it. */
@@ -174,6 +163,3 @@ private fun SavePresetRow(name: String, onName: (String) -> Unit, onSave: () -> 
     }
 }
 
-/** The swatch box, and the smallest dot drawn in it so a hair-thin preset is still a target. */
-private val SWATCH_MAX = 24.dp
-private val SWATCH_MIN = 8.dp

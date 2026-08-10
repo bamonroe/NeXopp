@@ -1,21 +1,10 @@
 package com.xopp.android.ui
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,11 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 
 /**
@@ -153,40 +138,4 @@ private fun PaletteHint(text: String) {
     )
 }
 
-/**
- * A colour swatch: a filled circle with a selection ring. Passing [onLongClick] makes it respond to a
- * long-press (used by the editable custom slot); [editable] overlays a small pencil to mark that slot.
- */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun ColorSwatch(
-    color: Int,
-    selected: Boolean,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null,
-    editable: Boolean = false,
-) {
-    val ring = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    val ringWidth = if (selected) 3.dp else 1.dp
-    val clickModifier = if (onLongClick != null)
-        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-    else Modifier.clickable(onClick = onClick)
-    Box(
-        modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape)
-            .background(Color(color))
-            .border(ringWidth, ring, CircleShape)
-            .then(clickModifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (editable) {
-            Icon(
-                Icons.Filled.Edit,
-                contentDescription = "Edit custom colour",
-                tint = if (Color(color).luminance() < 0.5f) Color.White else Color.Black,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
+

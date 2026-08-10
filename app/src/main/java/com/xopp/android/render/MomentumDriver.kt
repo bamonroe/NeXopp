@@ -51,12 +51,20 @@ internal class MomentumDriver(
     /** True when the last release was a real flick — i.e. something would coast. */
     val hasRelease: Boolean get() = releaseVx != 0f || releaseVy != 0f
 
-    /** Feed the pan's current focus (view px) to the velocity estimate. */
+    /**
+     * Feed the pan's current focus (view px) to the velocity estimate.
+     * @param eventTimeMs Event timestamp in milliseconds.
+     * @param x Focus X in view pixels.
+     * @param y Focus Y in view pixels.
+     */
     fun track(eventTimeMs: Long, x: Float, y: Float) = velocityEstimator.add(eventTimeMs, x, y)
 
     /**
      * Re-baseline the estimate at ([x], [y]) — used when a pan starts, and when a finger leaving
      * jumps the focus, so that discontinuity isn't read as a huge phantom flick.
+     * @param eventTimeMs Event timestamp in milliseconds.
+     * @param x Focus X in view pixels.
+     * @param y Focus Y in view pixels.
      */
     fun rebaseline(eventTimeMs: Long, x: Float, y: Float) {
         velocityEstimator.reset()
@@ -71,10 +79,13 @@ internal class MomentumDriver(
 
     /**
      * Read the pan's release velocity at ([x], [y]) and latch it as the fling seed, but only when the
-     * release was a real flick (>= [Fling.MIN_SPEED_PX]); a slow drift, or the near-motionless
+     * release was a real flick (>= [Fling.MIN_SPEED_PX]). A slow drift, or the near-motionless
      * single-finger tail of a two-finger release, leaves the seed at zero, so only a genuine
      * one-finger flick coasts. The content glides opposite the finger, clamped to the platform's max
      * fling speed. The magnitude→coast response is shaped later by [Momentum.seed].
+     * @param eventTimeMs Event timestamp in milliseconds.
+     * @param x Release X in view pixels.
+     * @param y Release Y in view pixels.
      */
     fun captureRelease(eventTimeMs: Long, x: Float, y: Float) {
         velocityEstimator.add(eventTimeMs, x, y)
@@ -88,6 +99,7 @@ internal class MomentumDriver(
      * Launch a decelerating glide from the latched release velocity, if it's fast enough. The seed
      * runs through [Momentum.seed]'s response curve so a slow flick barely coasts while a fast swipe
      * flies; [panSensitivity] then scales the glide to match the visual pan gain.
+     * @param panSensitivity Scale factor for scroll gain (typically 1.0).
      */
     fun launch(panSensitivity: Float) {
         if (!canScroll()) return

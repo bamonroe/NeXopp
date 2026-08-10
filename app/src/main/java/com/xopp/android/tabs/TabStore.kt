@@ -90,7 +90,9 @@ class TabStore(private val dir: File) {
     private fun snapshotFile(id: String) = File(dir, "$id$SNAPSHOT_SUFFIX")
 
     companion object {
+        /** The index file name — the small text record of which tabs were open and which was showing. */
         private const val INDEX_NAME = "session.index"
+        /** Suffix for tab snapshot files — each tab's document is saved as `<id>.xopp`. */
         private const val SNAPSHOT_SUFFIX = ".xopp"
 
         /**

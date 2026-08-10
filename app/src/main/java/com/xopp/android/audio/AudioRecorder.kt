@@ -94,7 +94,9 @@ class AudioRecorder {
     private companion object {
         /** 44.1 kHz mono: the rate every Android device is required to support for capture. */
         const val SAMPLE_RATE = 44_100
+        /** Mono channel config — the only input configuration guaranteed on Android. */
         const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
+        /** 16-bit PCM encoding — the only audio format guaranteed on Android. */
         const val ENCODING = AudioFormat.ENCODING_PCM_16BIT
 
         /** Read in chunks several times the driver minimum so a scheduling hiccup can't drop audio. */

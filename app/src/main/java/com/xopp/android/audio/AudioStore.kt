@@ -107,6 +107,7 @@ class AudioStore(context: Context) {
     }.getOrNull()
 
     private companion object {
+        /** MIME type for a WAV file, used when creating sidecar documents in the SAF tree. */
         const val WAV_MIME = "audio/x-wav"
 
         /**

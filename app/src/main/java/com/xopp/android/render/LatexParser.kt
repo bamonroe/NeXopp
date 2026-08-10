@@ -76,12 +76,19 @@ private val COMMANDS: Map<String, String> = buildMap {
 
 // --- Tokenizer ---------------------------------------------------------------------------
 
+/** A lexical token from a LaTeX math source — the parser's input alphabet. */
 private sealed interface Token {
+    /** A single literal character (letter, digit, operator). */
     data class CharTok(val c: Char) : Token
+    /** A `\command` name without the backslash (e.g. `"alpha"`, `"frac"`). */
     data class CommandTok(val name: String) : Token
+    /** Opening brace `{` — starts a group. */
     data object LBrace : Token
+    /** Closing brace `}` — ends a group. */
     data object RBrace : Token
+    /** Caret `^` — superscript marker. */
     data object Caret : Token
+    /** Underscore `_` — subscript marker. */
     data object Underscore : Token
 }
 
@@ -116,6 +123,7 @@ private fun readCommand(src: String, start: Int, out: MutableList<Token>): Int {
 
 // --- Recursive-descent parser ------------------------------------------------------------
 
+/** Recursive-descent parser state: a cursor over [tokens] with helpers for atom/group parsing. */
 private class ParserState(private val tokens: List<Token>) {
     private var i = 0
 
