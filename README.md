@@ -368,7 +368,8 @@ authoritative flow; don't invent another one.
 - **Select** — the rail's **Select** slot selects objects the way desktop Xournal++ does. The
   marquee shape is the tool itself: **long-press** the slot to pick **Select rectangle** (drag a box;
   every object fully inside is selected), **Select lasso** (trace a free-form loop; everything wholly
-  inside is selected), **Select text (PDF)**, or **Select background (flatten)**.
+  inside is selected), **Select text (PDF)**, or **Select background (flatten)**. Both shapes allow a
+  few points of slack at the edge, so tracing tightly around a hairline stroke still catches it.
   Or **tap** a single object to select just that one. Selected objects get a dashed outline with
   handles:
   - **Drag inside the outline** to move them — drag onto a **different page** to move them there.

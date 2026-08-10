@@ -248,6 +248,26 @@ class SelectionTest {
         assertNull(SelectionTester.pickTopmost(one, 0.0, 0.0))
     }
 
+    // --- tap padding: containment tolerates TAP_PAD, the same margin a tap pick uses ------------
+
+    @Test fun inPolygonToleratesAPointJustOutsideTheTracedLine() {
+        // A hairline stroke traced closely: (30,30) sits ~1.4pt outside the 0..29 box, within pad.
+        val box = listOf(Vec2(0.0, 0.0), Vec2(29.0, 0.0), Vec2(29.0, 29.0), Vec2(0.0, 29.0))
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inPolygon(p, box))
+    }
+
+    @Test fun inPolygonStillRejectsPointsBeyondThePad() {
+        // (30,30) is 10pt outside this 0..20 box — well past TAP_PAD.
+        val box = listOf(Vec2(0.0, 0.0), Vec2(20.0, 0.0), Vec2(20.0, 20.0), Vec2(0.0, 20.0))
+        assertTrue(SelectionTester.inPolygon(p, box).isEmpty())
+    }
+
+    @Test fun inRectToleratesAnElementJustOutsideTheDraggedBox() {
+        // `near` spans 10..30; a rect stopping at 29 still catches it, but 20 does not.
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inRect(p, Bounds(0.0, 0.0, 29.0, 29.0)))
+        assertTrue(SelectionTester.inRect(p, Bounds(0.0, 0.0, 20.0, 20.0)).isEmpty())
+    }
+
     @Test fun inPolygonDegenerateSelectsNothing() {
         assertTrue(SelectionTester.inPolygon(p, listOf(Vec2(0.0, 0.0), Vec2(1.0, 1.0))).isEmpty())
     }

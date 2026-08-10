@@ -1130,7 +1130,10 @@ opposite corner, `SelectionOps.scale`) and — for an all-stroke selection only 
 alongside the rectangle. Lasso containment tests a **stroke's own points**, not its bounding box —
 a diagonal or curved stroke inside the loop has box corners outside it, so a box test would drop
 exactly the strokes the user traced around; rectangular elements (image, TeX, text) still test
-their four corners. **Cut / copy / paste / duplicate** run through a view-held element clipboard
+their four corners. Both containment tests are **tolerant by `ElementBounds.TAP_PAD`** — the same
+margin a tap pick uses: a rect-select box is grown by the pad, and a lasso point counts as inside
+when it is within the pad of a polygon edge, so a hairline stroke or an empty text box traced
+closely isn't dropped for landing a hair outside. **Cut / copy / paste / duplicate** run through a view-held element clipboard
 (`SelectionOps.elementsAt` + `addToTopLayer`, which reports the pasted refs so the copies are
 selected); paste lands on the visible page. Dropping a move over a **different page** re-homes the
 elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' pt frames). The
