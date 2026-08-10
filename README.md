@@ -240,21 +240,21 @@ authoritative flow; don't invent another one.
   constant-width translucent band** (pressure-independent, ~6× the pen width) that shows the page
   through it — it saves as a `highlighter` stroke and reopens the same way in desktop Xournal++.
   Choose a **colour** (swatches) and a base **width**
-  from the other two pop-ups. The Colour pop-up ends with an editable **custom slot** (marked with a
-  pencil): **tap** it to draw with its current colour, or **long-press** it to open a picker —
-  a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any colour. The Size
-  pop-up offers three width **slots**, each drawn as a **filled dot sized to that slot's width** (the
-  widest slot fills the row, the rest scale down in proportion) next to its exact point size, so the
-  three read as a tip-size ladder rather than three arbitrary letters: **tap** a slot to draw with it, or
-  **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines that slot's width — drag
-  the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at a time, or type an exact
-  point size into the **text field**. Below the swatches the Colour pop-up shows a **Recent** row —
-  the last seven colours you picked, most-recent-first — so a colour mixed in the custom picker stays
-  one tap away after you move on. That same palette — swatches, custom slot and Recent row — is what
-  the text-box dialog and the selection recolour menu offer, so a colour picked anywhere shows up in
-  the recents everywhere. The custom colour, the three widths, the recent row, and the
-  colour/width you were last drawing with are all remembered across restarts, so the app reopens with
-  the pen you left off with. New strokes land on the **active layer**
+  from the Colour pop-up or the Line tool menu. The Colour pop-up ends with an editable **custom
+  slot** (marked with a pencil): **tap** it to draw with its current colour, or **long-press** it to
+  open a picker — a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any
+  colour. The Line tool menu offers three width **slots**, each drawn as a **filled dot sized to that
+  slot's width** (the widest slot fills the row, the rest scale down in proportion) next to its exact
+  point size, so the three read as a tip-size ladder rather than three arbitrary letters: **tap** a
+  slot to draw with it, or **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines
+  that slot's width — drag the **slider** for a broad sweep, tap **−** / **+** to nudge it 0.1 pt at
+  a time, or type an exact point size into the **text field**. Below the swatches the Colour pop-up
+  shows a **Recent** row — the last seven colours you picked, most-recent-first — so a colour mixed
+  in the custom picker stays one tap away after you move on. That same palette — swatches, custom
+  slot and Recent row — is what the text-box dialog and the selection recolour menu offer, so a
+  colour picked anywhere shows up in the recents everywhere. The custom colour, the three widths,
+  the recent row, and the colour/width you were last drawing with are all remembered across restarts,
+  so the app reopens with the pen you left off with. New strokes land on the **active layer**
   (see **Layers** below) of whichever page you draw on.
 - **Line & shapes** — the Tool pop-up also offers **Line**, **Arrow**, **Double arrow**, **Rectangle**,
   **Ellipse**, **Coordinate axis**, and **Spline**. Pick one and **drag** from one corner/endpoint to the other; a live preview follows your finger and the
@@ -273,6 +273,11 @@ authoritative flow; don't invent another one.
   finishes it, **Backspace** drops the last point, and **Escape** or **Back** throws it away;
   switching to another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
   the current pen colour and width, so it round-trips to desktop Xournal++ like any other stroke.
+  **Long-press** the Line tool slot to open its menu, which also sets **Line style** (Solid, Dashed,
+  Dash-dot, Dotted), **Fill** (on/off with an opacity slider), and **Tip size** (the same three
+  configurable width slots as the Size pop-up — tap to pick, long-press to redefine). These settings
+  apply to all shapes and strokes drawn with the line/shape tools and save on the `<stroke>` element
+  (`style` / `fill`), reopening the same way in desktop Xournal++.
 - **Shape recognition** — turn it on from the rail's **Shape recognition** button (the triangle; it
   tints while on, and the state is the same persisted setting as **Settings → Stylus → Shape
   recognition**, so you can flip it mid-page without leaving the editor) and a freehand stroke is
@@ -314,12 +319,6 @@ authoritative flow; don't invent another one.
   **Off** to take it away. The guide is purely an input aid: it is never written to the `.xopp` file,
   so what you draw with it is ordinary stroke geometry. Which guide is out is remembered across
   launches.
-- **Line style & fill** — the **Style** pop-up sets the pattern for strokes and shapes you draw next:
-  **Solid**, **Dashed**, **Dash-dot**, or **Dotted**; and a **Fill** switch with an opacity slider
-  (1–100%) that floods the inside of a closed stroke or shape with the pen/highlighter colour.
-  Turning fill off keeps the opacity you last picked, so switching it back on restores it. The
-  switch and its opacity are remembered across launches. Both save on the `<stroke>` element
-  (`style` / `fill`) and reopen the same way in desktop Xournal++.
 - **Presets** — the **Presets** pop-up (the bookmark slot on the rail) saves the whole tool
   configuration under a name: the tool itself plus its colour, width, line style and fill. Type a
   name in **Save current tool as…** and tap **+** (leave the name blank for "Preset 1", "Preset 2",
@@ -334,14 +333,15 @@ authoritative flow; don't invent another one.
   which eraser it stands for: **Eraser (partial)** rubs out just the part of a stroke the eraser
   passes over, splitting it into the surviving pieces; **Eraser (whole stroke)** removes any stroke
   the eraser touches entirely. Like every tool slot, the choice is remembered across restarts. The
-  eraser has no size of its own — its tip follows the **Size** pop-up's three width slots: the tip's
-  *radius* is the selected pen's full width, so the rubber is twice as wide as the ink it removes —
-  wide enough to bite, narrow enough to erase precisely — and the three slots still give three
-  clearly different tips. It is measured in document points, so it rubs out the same amount of ink
-  whatever the zoom. A thin black circle shows exactly
-  where the tip's edge falls — it follows a hovering stylus, and follows the contact point while you
-  rub (finger touches included). When you erase by **holding the stylus barrel button**, the circle
-  appears the moment the button goes down, so you can see the tip's reach before touching the page. It is on-screen chrome only: it is never part of the page and never
+  eraser has no size of its own — its tip follows the **Tip size** slots in the Line tool menu (or
+  the legacy Size pop-up if you still have it on the rail): the tip's *radius* is the selected pen's
+  full width, so the rubber is twice as wide as the ink it removes — wide enough to bite, narrow
+  enough to erase precisely — and the three slots still give three clearly different tips. It is
+  measured in document points, so it rubs out the same amount of ink whatever the zoom. A thin black
+  circle shows exactly where the tip's edge falls — it follows a hovering stylus, and follows the
+  contact point while you rub (finger touches included). When you erase by **holding the stylus
+  barrel button**, the circle appears the moment the button goes down, so you can see the tip's reach
+  before touching the page. It is on-screen chrome only: it is never part of the page and never
   written to the `.xopp` file. The eraser only affects the
   **selected layer** — ink on other layers is left alone — and hidden layers are never erased. If your stylus has an **eraser tip** (the flip-over
   end), using it erases no matter which tool is selected; so does holding the stylus **barrel button**
