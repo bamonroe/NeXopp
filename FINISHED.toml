@@ -140,7 +140,7 @@ tags = ["audit"]
 [[task]]
 id = "stylusinputtest-eraser-cases-fail-on-the-tab-ultra"
 title = "StylusInputTest eraser cases fail on the Tab Ultra"
-description = "barrelButtonErasesWhileHeld and eraserTipErasesWithPenSelected both fail on the physical SM-X920 (Android 16): 'expected:<0> but was:<5>' — the stroke is not erased. The other 23 connected tests pass there. Unrelated to the bitmap-cache deadlock fix (that diff touches no input code); likely the synthetic TOOL_TYPE_ERASER / barrel-button events are classified differently on Samsung's stack than on the emulator. Run with: adb -s <ip>:5555 shell am instrument -w -e class com.xopp.android.StylusInputTest com.xopp.android.test/androidx.test.runner.AndroidJUnitRunner"
+description = "barrelButtonErasesWhileHeld and eraserTipErasesWithPenSelected both fail on the physical SM-X920 (Android 16): 'expected:<0> but was:<5>' — the stroke is not erased. The other 23 connected tests pass there. Unrelated to the bitmap-cache deadlock fix (that diff touches no input code); likely the synthetic TOOL_TYPE_ERASER / barrel-button events are classified differently on Samsung's stack than on the emulator. Run with: adb -s <ip>:5555 shell am instrument -w -e class com.nexopp.StylusInputTest com.nexopp.test/androidx.test.runner.AndroidJUnitRunner"
 status = "finished"
 level = "task"
 category = "bug"

@@ -8,7 +8,7 @@
 # adb. See docs/tools.md.
 #
 # Usage: scripts/connected-test.sh [extra `am instrument` args...]
-#        scripts/connected-test.sh -e class com.xopp.android.SmokeTest
+#        scripts/connected-test.sh -e class com.nexopp.SmokeTest
 set -eu
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

@@ -1,0 +1,97 @@
+package com.nexopp.ui
+
+/**
+ * The catalogue of assignable [PaletteAction]s — what the slot picker offers, and how each action
+ * reads in prose. Kept free of Compose so the list of choices (and every label in it) is
+ * unit-testable on the JVM; the sheet in `PaletteActionPicker.kt` only renders what it finds here.
+ *
+ * The colour and width actions are *not* listed: they carry a value the user has to dial in, so the
+ * sheet hands those to the shared colour palette and the width slider instead of a fixed row.
+ */
+data class PaletteActionChoice(val label: String, val action: PaletteAction)
+
+/** One titled block of the picker — the sheet renders the groups in order, with headers. */
+data class PaletteActionGroup(val title: String, val choices: List<PaletteActionChoice>)
+
+/** Every fixed (value-free) action a slot can hold, grouped the way the picker shows them. */
+fun paletteActionGroups(
+    presets: List<ToolPreset> = emptyList(),
+    palettes: List<RadialPalette> = emptyList(),
+): List<PaletteActionGroup> = listOfNotNull(
+    presets.takeIf { it.isNotEmpty() }?.let { saved ->
+        PaletteActionGroup(
+            "Preset",
+            // Numbered so the slot a preset currently occupies is visible where it's picked.
+            saved.mapIndexed { i, preset ->
+                PaletteActionChoice("${i + 1}. ${preset.name}", PaletteAction.ApplyPreset(preset.id))
+            },
+        )
+    },
+    // The position-based twin: as many slots as there are presets to fill them, so the picker never
+    // offers a number that can't fire anything today.
+    presets.takeIf { it.isNotEmpty() }?.let { saved ->
+        PaletteActionGroup(
+            "Preset slot",
+            saved.mapIndexed { i, preset ->
+                PaletteActionChoice("Preset ${i + 1}: ${preset.name}", PaletteAction.ApplyPresetSlot(i))
+            },
+        )
+    },
+    // Only worth offering once there is somewhere to switch *to* — a lone palette has no targets.
+    palettes.takeIf { it.size > 1 }?.let { saved ->
+        PaletteActionGroup(
+            "Switch palette",
+            saved.map { PaletteActionChoice(it.name, PaletteAction.SwitchPalette(it.name)) },
+        )
+    },
+    PaletteActionGroup(
+        "Select tool",
+        EditorTool.entries.map { PaletteActionChoice(it.label, PaletteAction.SelectTool(it)) },
+    ),
+    PaletteActionGroup(
+        "Toggle tool",
+        EditorTool.entries.map { PaletteActionChoice(it.label, PaletteAction.ToggleTool(it)) },
+    ),
+    PaletteActionGroup(
+        "Edit",
+        listOf(
+            PaletteActionChoice("Undo", PaletteAction.Undo),
+            PaletteActionChoice("Redo", PaletteAction.Redo),
+            PaletteActionChoice("Toggle full page", PaletteAction.ToggleFullPage),
+        ),
+    ),
+    PaletteActionGroup(
+        "Page",
+        PalettePageOp.entries.map { PaletteActionChoice(it.label, PaletteAction.Page(it)) },
+    ),
+)
+
+/** Human-readable label for a page operation, matching the toolbar's pages popup wording. */
+val PalettePageOp.label: String
+    get() = when (this) {
+        PalettePageOp.NEW_AFTER -> "New page after"
+        PalettePageOp.NEW_BEFORE -> "New page before"
+        PalettePageOp.DUPLICATE -> "Duplicate page"
+        PalettePageOp.DELETE -> "Delete page"
+        PalettePageOp.NEXT -> "Next page"
+        PalettePageOp.PREVIOUS -> "Previous page"
+    }
+
+/** How an assigned action reads in the "Selected slot" line and in the picker's current-value row. */
+fun PaletteAction.describeAction(presets: List<ToolPreset> = emptyList()): String = when (this) {
+    is PaletteAction.SelectTool -> "Select ${tool.label.lowercase()}"
+    is PaletteAction.ToggleTool -> "Toggle ${tool.label.lowercase()}"
+    is PaletteAction.SetColor -> "Colour #%06X".format(argb and 0xFFFFFF)
+    is PaletteAction.SetWidth -> "Width ${ptLabel(widthPt)} pt"
+    PaletteAction.Undo -> "Undo"
+    PaletteAction.Redo -> "Redo"
+    PaletteAction.ToggleFullPage -> "Toggle full page"
+    is PaletteAction.Page -> op.label
+    // Named where the preset still exists; a slot pointing at a deleted preset says so plainly.
+    is PaletteAction.ApplyPreset ->
+        presets.firstOrNull { it.id == presetId }?.let { "Preset ${it.name}" } ?: "Preset (deleted)"
+    // Named where the position is filled, so the picker shows what it fires *right now*.
+    is PaletteAction.ApplyPresetSlot ->
+        presets.getOrNull(index)?.let { "Preset ${index + 1} (${it.name})" } ?: "Preset ${index + 1} (empty)"
+    is PaletteAction.SwitchPalette -> "Switch to $paletteName"
+}

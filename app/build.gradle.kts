@@ -19,11 +19,11 @@ fun gitCommit(): String = runCatching {
 }.getOrNull()?.takeIf { it.isNotEmpty() } ?: "unknown"
 
 android {
-    namespace = "com.xopp.android"
+    namespace = "com.nexopp"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.xopp.android"
+        applicationId = "com.nexopp"
         minSdk = 26
         targetSdk = 34
         versionCode = 2

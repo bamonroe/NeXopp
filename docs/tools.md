@@ -64,14 +64,14 @@ change with a runtime surface must be installed and exercised on the emulator, n
   container adb → emulator). Full details in that directory's `README.md`; don't duplicate them here.
 - **How to run it:** `emulator.sh` dispatches `status | up | boot-wait | down | install <apk> |
   launch <pkg> | screenshot [png] | ui | logcat | shell | adb` — so `emulator.sh up` to boot, then
-  `emulator.sh install <apk>`, `emulator.sh launch com.xopp.android`, `emulator.sh screenshot <png>`,
+  `emulator.sh install <apk>`, `emulator.sh launch com.nexopp`, `emulator.sh screenshot <png>`,
   `emulator.sh ui`, and `emulator.sh logcat` for logs. Run `adb-targets.sh` to see which devices and
   the emulator are reachable. Physical devices install via the host adb:
   `adb -s <ip>:5555 install -r app/build/outputs/apk/debug/app-debug.apk`.
 - **Testing a change on the emulator (the expected loop):** after a green
   `scripts/build.sh`, install the fresh APK and actually drive it:
   1. `emulator.sh install app/build/outputs/apk/debug/app-debug.apk` then
-     `emulator.sh launch com.xopp.android`.
+     `emulator.sh launch com.nexopp`.
   2. **Take screenshots** (`emulator.sh screenshot <png>`) and look at them to confirm the UI
      rendered as intended — this is how you *see* the change, not infer it.
   3. **Read the error logs** — `adb logcat` (filter to the app) — to catch crashes, stack
@@ -95,6 +95,6 @@ change with a runtime surface must be installed and exercised on the emulator, n
   instrumentation component from the test APK's manifest, then installs and runs it through the
   emulator container's own adb; its exit status is the test result (non-zero if any test fails).
   - `scripts/connected-test.sh` — build + run the whole `SmokeTest` suite on the emulator.
-  - `scripts/connected-test.sh -e class com.xopp.android.SmokeTest` — extra args pass through to
+  - `scripts/connected-test.sh -e class com.nexopp.SmokeTest` — extra args pass through to
     `am instrument` (class/method/size filters, etc.).
 - **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS).
