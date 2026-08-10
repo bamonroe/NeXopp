@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "lasso-select-misses-objects-inside-the-shaded-region"
-title = "Lasso select misses objects inside the shaded region"
-description = "The lasso tool draws a shaded selection region, but not every object that falls inside that region is picked up by the selection. Investigate the hit-testing used for lasso selection (stroke/point containment, bounding-box vs. path containment, partially-enclosed items, text and image objects, layer handling) and add atomic tasks for the fixes."
-status = "active"
-level = "scope"
-category = "bug"
-urgency = "normal"
-order = 20
-created = 2026-08-10
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "selection-after-a-background-region-select-offers-only-paste"
 title = "Selection after a background/region select offers only paste"
 description = "After selecting a background/region, the only available action is paste. There should be distinct copy and paste actions, and after pasting, the pasted item should automatically become the active selection without the user having to switch tools. Investigate the selection/clipboard flow and break it into atomic tasks."
@@ -62,3 +48,73 @@ created = 2026-08-10
 tags = []
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "lasso-test-stroke-points-not-bounding-box-corners"
+title = "Lasso: test stroke points, not bounding-box corners"
+description = "SelectionTester.inPolygon (app/src/main/java/com/nexopp/render/Selection.kt:43) requires all four corners of an element's axis-aligned bounding box to be inside the lasso polygon. A diagonal or curved stroke that lies wholly inside the shaded region has bbox corners outside it, so it is silently missed — the main reason lasso select drops objects. Fix: for Stroke elements test the stroke's own points (all points inside the polygon = selected), keeping the bbox path only for elements that really are rectangles (images, TeX). Add unit tests in SelectionTest for a diagonal stroke inside a tight lasso and for an S-curve whose bbox spills out."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 50
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "lasso-don-t-select-unmodelled-rawelements-at-the-page-origin"
+title = "Lasso: don't select unmodelled RawElements at the page origin"
+description = "ElementBounds.of gives RawElement an empty box at (0,0,0,0) (app/src/main/java/com/nexopp/render/ElementBounds.kt:80). That is meant to keep it out of every hit test, but inPolygon/inRect treat the degenerate box as a real one, so any lasso or rubber-band drawn over the top-left corner of the page wholly encloses it and selects every unmodelled element. Make the hit tests skip elements with no trustworthy geometry explicitly rather than relying on the empty box, and cover it with a unit test."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 60
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "lasso-give-thin-strokes-and-text-the-same-tap-padding-as-a-tap-pick"
+title = "Lasso: give thin strokes and text the same tap padding as a tap pick"
+description = "pickTopmost expands bounds by ElementBounds.TAP_PAD before hit-testing, but inPolygon/inRect do not. A hairline stroke or an empty text box traced closely by the lasso can fall just outside the polygon and be missed even though the user clearly enclosed it. Decide the rule (likely: no pad for containment, but tolerate points within TAP_PAD of the polygon edge) and apply it consistently across the containment tests, with unit tests."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 70
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "lasso-confirm-the-shaded-region-matches-the-polygon-that-is-tested"
+title = "Lasso: confirm the shaded region matches the polygon that is tested"
+description = "The lasso path is captured in view px in SelectionGestureController.lassoPts and converted to page-local pt only at ACTION_UP (SelectionGestureController.kt:288). The shaded region drawn on screen comes from the same point list, but nothing verifies the two agree once the page is scrolled or zoomed mid-gesture, and the drawn path's implicit closing segment must match the closing segment the even-odd test in SelectionTester.contains assumes. Verify both, and fix any mismatch so what the user sees shaded is exactly what gets selected."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 80
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "lasso-decide-whether-selection-should-be-limited-to-the-active-layer"
+title = "Lasso: decide whether selection should be limited to the active layer"
+description = "inPolygon and inRect sweep every layer on the page, so a lasso can pick up objects on layers the user is not editing. Desktop Xournal++ selects within the current layer. Check the desktop behaviour, then make NeXopp match it (probably: restrict both containment queries to the active layer), and cover the choice with a unit test."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 90
+created = 2026-08-10
+tags = []
+rebuild = true
+emulator_debug = false
