@@ -1143,7 +1143,11 @@ and the overlay converts it back to view px with the *current* scroll each frame
 zooming mid-trace can't drift the shaded region away from the polygon that is tested, and the
 overlay's closing segment is the same last→first wrap `inPolygon` assumes. **Cut / copy / paste / duplicate** run through a view-held element clipboard
 (`SelectionOps.elementsAt` + `addToTopLayer`, which reports the pasted refs so the copies are
-selected); paste lands on the visible page. Dropping a move over a **different page** re-homes the
+selected); paste lands on the visible page. The bar's **Paste** first switches the tool to
+`EditorTool.SELECT` unless a select tool is already active: only `SELECT`/`LASSO_SELECT` route
+touches to `SelectionGestureController`, so pasting under `BG_SELECT` would otherwise draw the copies
+as selected while they stayed undraggable — and the next touch would start a new marquee and clear
+them. Dropping a move over a **different page** re-homes the
 elements onto that page (`SelectionOps.moveToPage`, mapping through both pages' pt frames). The
 floating action bar also **recolours / re-widths** the selection (`SelectionOps.restyle`). The scope
 and round-trip reasoning for what rotate/resize can touch lives in
@@ -1160,9 +1164,10 @@ tool; the copied result is one flat bitmap rather than editable elements.
 The marquee **survives the release**: `commitBackgroundSelect` keeps it as `backgroundRegion` (page
 index + `Bounds` in page-local pt, so it stays put under scroll and zoom — `drawBackgroundRegion`
 maps it back through the `PageBox`) and reports it through `onBackgroundRegionChanged`, which drives
-the **Copy** and **Cut** buttons in `SelectModeBar`. Copy re-runs `captureBackgroundRegion` — the same
-capture the release does — so the region can be re-copied after the clipboard has moved on; **Cut**
-captures and then deletes, as **one undoable edit**, the elements `SelectionTester.inRect` finds
+the **Copy** and **Cut** buttons in `SelectModeBar`. The release itself **never writes the clipboard**
+— only an explicit Copy/Cut does — so marking out a region can't silently discard what the user had
+copied. Copy runs `captureBackgroundRegion`, and can be pressed again after the clipboard has moved
+on; **Cut** captures and then deletes, as **one undoable edit**, the elements `SelectionTester.inRect` finds
 wholly inside the region on the page's **active layer** (the same containment and active-layer rule
 the rectangle marquee selects by, so a cut never takes ink the user can't currently edit). The page
 background is a page attribute rather than part of the region, so it is copied but never erased. The

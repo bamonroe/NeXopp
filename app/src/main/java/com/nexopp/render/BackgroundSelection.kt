@@ -39,7 +39,11 @@ internal fun DrawingSurfaceView.backgroundSelectMove(event: MotionEvent) {
     render()
 }
 
-/** Release the background-copy rectangle and put the flattened region on the image clipboard. */
+/**
+ * Release the background-copy rectangle and retain it as the pending region. The clipboard is left
+ * alone: only the bar's explicit Copy/Cut writes it, so merely marking out a region never silently
+ * discards whatever was copied before.
+ */
 internal fun DrawingSurfaceView.commitBackgroundSelect() {
     if (!backgroundSelecting) return
     val pageIndex = backgroundSelectPage
@@ -64,7 +68,6 @@ internal fun DrawingSurfaceView.commitBackgroundSelect() {
     backgroundRegionPage = pageIndex
     backgroundRegion = region
     onBackgroundRegionChanged?.invoke(true)
-    captureBackgroundRegion()
     render()
 }
 
@@ -85,9 +88,9 @@ fun DrawingSurfaceView.clearBackgroundRegion() {
 }
 
 /**
- * Re-render the retained region and put it on the element clipboard as a flattened image. This is
- * what the bar's Copy button runs, and what a release does once, so the same region can be re-copied
- * after the clipboard has moved on. The region stays selected.
+ * Render the retained region and put it on the element clipboard as a flattened image. This is what
+ * the bar's Copy button runs — the only way a region reaches the clipboard — so the same region can
+ * be copied again after the clipboard has moved on. The region stays selected.
  * @return true when the clipboard was replaced.
  */
 fun DrawingSurfaceView.captureBackgroundRegion(): Boolean {

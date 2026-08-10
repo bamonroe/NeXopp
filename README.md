@@ -382,12 +382,14 @@ authoritative flow; don't invent another one.
     a **line-weight** menu to re-width the selection, **Delete**, and **Done** (deselect).
   - **Paste** appears in the bottom bar (when nothing is selected) and drops the copied objects onto
     the page you're viewing.
-  - **Select background (flatten)** is rectangle-only: drag a box and release to copy that region as
-    one flat image, including the page background and all layers. Paste then drops that image back
+  - **Select background (flatten)** is rectangle-only: drag a box to mark out a region, then copy it
+    as one flat image including the page background and all layers. Paste then drops that image back
     onto the current page. The box **stays on the page** after you let go, and the bottom bar gains
-    **Copy**, **Cut** and a **✕** for it: **Copy** re-copies the region (handy once the clipboard has
-    moved on to something else), **Cut** copies it and then **erases the objects inside it** on the
-    active layer, and **✕** (or Back) drops the box. The page background itself is copied but never
+    **Copy**, **Cut** and a **✕** for it: **Copy** puts the region on the clipboard (you can press it
+    again later, once the clipboard has moved on to something else), **Cut** copies it and then
+    **erases the objects inside it** on the active layer, and **✕** (or Back) drops the box. Marking
+    out a box does *not* touch the clipboard on its own — only **Copy**/**Cut** do, so drawing a
+    region never silently throws away what you had copied. The page background itself is copied but never
     erased — it belongs to the page, not to the region.
 
   Object selection edits are undoable, and so is a background **Cut**. A background **Copy** only
