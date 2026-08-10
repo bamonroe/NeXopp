@@ -438,6 +438,7 @@ class DrawingSurfaceView @JvmOverloads constructor(
         setDocument = { doc = it },
         layout = { layout },
         viewport = viewport,
+        activeLayerOf = { resolvedActiveLayer(it) },
         lassoMode = { lassoMode },
         snapRotation = { snapRotation },
         beginGesture = { gestureStartDoc = it },

@@ -31,12 +31,14 @@ object SelectionTester {
      * The region is grown by [TAP_PAD] first, for the same reason [pickTopmost] pads: a hairline
      * stroke or an empty text box has a box of (near) zero extent, and a user who drags the
      * rectangle right along it has clearly enclosed it even if it lands a fraction outside.
+     *
+     * [onlyLayer] restricts the sweep to one layer — see [layerRange].
      */
-    fun inRect(page: Page, rect: Bounds): Set<ElementRef> {
+    fun inRect(page: Page, rect: Bounds, onlyLayer: Int? = null): Set<ElementRef> {
         val padded = rect.expand(TAP_PAD)
         val hits = LinkedHashSet<ElementRef>()
-        page.layers.forEachIndexed { li, layer ->
-            layer.elements.forEachIndexed { ei, el ->
+        for (li in layerRange(page, onlyLayer)) {
+            page.layers[li].elements.forEachIndexed { ei, el ->
                 if (ElementBounds.isHitTestable(el) && ElementBounds.of(el).containedBy(padded)) {
                     hits += ElementRef(li, ei)
                 }
@@ -44,6 +46,18 @@ object SelectionTester {
         }
         return hits
     }
+
+    /**
+     * The layer indices a containment query sweeps: just [onlyLayer] when it names a real layer,
+     * every layer otherwise.
+     *
+     * Desktop Xournal++ selects within the current layer only, so the marquee never grabs ink the
+     * user cannot currently edit; NeXopp matches that. A null or out-of-range [onlyLayer] (no layer
+     * chosen yet) falls back to the whole page rather than selecting nothing.
+     */
+    private fun layerRange(page: Page, onlyLayer: Int?): IntRange =
+        if (onlyLayer != null && onlyLayer in page.layers.indices) onlyLayer..onlyLayer
+        else page.layers.indices
 
     /**
      * Every element on [page] that lies wholly inside the lasso [polygon] (page-local pt) — the
@@ -57,12 +71,14 @@ object SelectionTester {
      * polygon *or* within [TAP_PAD] pt of one of its edges. This matches the padding [pickTopmost]
      * and [inRect] apply, so a thin stroke traced closely by the lasso isn't dropped for landing a
      * hair outside the traced line.
+     *
+     * [onlyLayer] restricts the sweep to one layer — see [layerRange].
      */
-    fun inPolygon(page: Page, polygon: List<Vec2>): Set<ElementRef> {
+    fun inPolygon(page: Page, polygon: List<Vec2>, onlyLayer: Int? = null): Set<ElementRef> {
         if (polygon.size < 3) return emptySet()
         val hits = LinkedHashSet<ElementRef>()
-        page.layers.forEachIndexed { li, layer ->
-            layer.elements.forEachIndexed { ei, el ->
+        for (li in layerRange(page, onlyLayer)) {
+            page.layers[li].elements.forEachIndexed { ei, el ->
                 if (enclosedBy(polygon, el)) hits += ElementRef(li, ei)
             }
         }

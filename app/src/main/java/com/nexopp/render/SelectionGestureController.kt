@@ -34,6 +34,8 @@ internal class SelectionGestureController(
     private val layout: () -> StackedLayout,
     /** The scroll offsets a touch is measured against. */
     private val viewport: ViewportState,
+    /** The layer a marquee selects within — matching desktop's current-layer-only selection. */
+    private val activeLayerOf: (Page) -> Int,
     /** True when the marquee traces a free-form lasso instead of a rectangle. */
     private val lassoMode: () -> Boolean,
     /** True when a rotate snaps to fixed angle steps. */
@@ -295,16 +297,17 @@ internal class SelectionGestureController(
     fun commitBand() {
         val box = layout().boxes.getOrNull(bandPage) ?: return
         val page = document().pages.getOrNull(bandPage) ?: return
+        val layer = activeLayerOf(page)
         val isTap = hypot(bandX1 - bandX0, bandY1 - bandY0) <= DrawingSurfaceDefaults.TAP_SLOP_PX
         val refs: Set<ElementRef> = when {
             isTap -> SelectionTester.pickTopmost(page, box.toPtX(bandX0, viewport.scrollX), box.toPtY(bandY0, viewport.scrollY))?.let { setOf(it) } ?: emptySet()
-            lassoMode() -> SelectionTester.inPolygon(page, lassoPoly)
+            lassoMode() -> SelectionTester.inPolygon(page, lassoPoly, layer)
             else -> {
                 val rect = Bounds(
                     min(box.toPtX(bandX0, viewport.scrollX), box.toPtX(bandX1, viewport.scrollX)), min(box.toPtY(bandY0, viewport.scrollY), box.toPtY(bandY1, viewport.scrollY)),
                     max(box.toPtX(bandX0, viewport.scrollX), box.toPtX(bandX1, viewport.scrollX)), max(box.toPtY(bandY0, viewport.scrollY), box.toPtY(bandY1, viewport.scrollY)),
                 )
-                SelectionTester.inRect(page, rect)
+                SelectionTester.inRect(page, rect, layer)
             }
         }
         selection = if (refs.isEmpty()) null else ActiveSelection(bandPage, refs)

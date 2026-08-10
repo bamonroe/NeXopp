@@ -42,6 +42,26 @@ class SelectionTest {
         assertEquals(setOf(ElementRef(0, 0), ElementRef(1, 0)), all)
     }
 
+    @Test fun inRectRestrictedToTheActiveLayer() {
+        val two = page(Layer(listOf(near)), Layer(listOf(far)))
+        val rect = Bounds(0.0, 0.0, 200.0, 200.0)
+        assertEquals(setOf(ElementRef(1, 0)), SelectionTester.inRect(two, rect, onlyLayer = 1))
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inRect(two, rect, onlyLayer = 0))
+    }
+
+    @Test fun inPolygonRestrictedToTheActiveLayer() {
+        val two = page(Layer(listOf(near)), Layer(listOf(far)))
+        val box = listOf(Vec2(-5.0, -5.0), Vec2(200.0, -5.0), Vec2(200.0, 200.0), Vec2(-5.0, 200.0))
+        assertEquals(setOf(ElementRef(1, 0)), SelectionTester.inPolygon(two, box, onlyLayer = 1))
+        assertEquals(setOf(ElementRef(0, 0)), SelectionTester.inPolygon(two, box, onlyLayer = 0))
+    }
+
+    @Test fun anOutOfRangeActiveLayerFallsBackToTheWholePage() {
+        val two = page(Layer(listOf(near)), Layer(listOf(far)))
+        val rect = Bounds(0.0, 0.0, 200.0, 200.0)
+        assertEquals(setOf(ElementRef(0, 0), ElementRef(1, 0)), SelectionTester.inRect(two, rect, onlyLayer = -1))
+    }
+
     @Test fun pickTopmostReturnsLastDrawnAtPoint() {
         // Two overlapping images; the later one wins.
         val lo = ImageElement(0.0, 0.0, 50.0, 50.0, ByteArray(0))
