@@ -126,7 +126,7 @@ internal fun SizePopupButton(
  * [PEN_WIDTH_STEP]-pt nudges, and a text field for typing an exact value.
  */
 @Composable
-private fun WidthSlotSliderDialog(
+internal fun WidthSlotSliderDialog(
     label: String,
     initial: Float,
     onConfirm: (Float) -> Unit,

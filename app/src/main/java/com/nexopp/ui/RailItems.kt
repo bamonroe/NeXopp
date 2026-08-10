@@ -15,8 +15,6 @@ data class RailItem(
 /** The popup-panel positions, in factory order. Tool slots come from [TOOL_GROUPS]. */
 val PANEL_RAIL_ITEMS: List<RailItem> = listOf(
     RailItem("color", "Colour"),
-    RailItem("size", "Size"),
-    RailItem("style", "Style"),
     RailItem("presets", "Presets"),
     RailItem("shapes", "Shape recognition"),
     RailItem("guides", "Guides"),

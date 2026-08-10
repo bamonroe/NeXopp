@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,7 +21,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +35,43 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.nexopp.format.model.LineStyle
 import com.nexopp.render.GuideKind
+
+private val LINE_STYLE_LABELS: List<Pair<LineStyle, String>> = listOf(
+    LineStyle.PLAIN to "Solid",
+    LineStyle.DASHED to "Dashed",
+    LineStyle.DASH_DOT to "Dash-dot",
+    LineStyle.DOTTED to "Dotted",
+)
+
+/** Mini fill controls for the inline line tool menu. */
+@Composable
+private fun FillControlsMini(fill: Int?, onFill: (Int?) -> Unit, onDismiss: () -> Unit) {
+    var lastAlpha by remember { mutableStateOf(fill ?: DEFAULT_FILL_ALPHA) }
+    val alpha = fill ?: lastAlpha
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(if (fill == null) "Off" else "${alphaPercent(alpha)}%")
+        androidx.compose.material3.Switch(
+            checked = fill != null,
+            onCheckedChange = { on ->
+                onFill(if (on) lastAlpha else null)
+                onDismiss()
+            },
+        )
+    }
+    androidx.compose.material3.Slider(
+        value = alpha.toFloat(),
+        onValueChange = { v ->
+            lastAlpha = v.toInt().coerceIn(1, 255)
+            onFill(lastAlpha)
+        },
+        valueRange = 1f..255f,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+    )
+}
 
 /**
  * The vertical control rail down the left edge: Tool, Colour, Size, Zoom, and a page navigator —
@@ -78,6 +115,9 @@ fun SideToolbar(
         for (item in visibleRailItems(railOrder, railHidden)) {
             val group = toolGroupForRailItem(item.id)
             if (group != null) {
+                // Line group gets inline style/width controls
+                val passStyle = group.id == "line"
+                val passWidth = group.id == "line"
                 ToolGroupButton(
                     group = group,
                     selected = group.selected(toolGroupSelections),
@@ -87,6 +127,14 @@ fun SideToolbar(
                         onToolGroupSelections(group.withSelection(toolGroupSelections, picked))
                         onTool(picked)
                     },
+                    lineStyle = if (passStyle) styleCallbacks.lineStyle else null,
+                    onLineStyle = if (passStyle) styleCallbacks.onLineStyle else null,
+                    fill = if (passStyle) styleCallbacks.fill else null,
+                    onFill = if (passStyle) styleCallbacks.onFill else null,
+                    width = if (passWidth) styleCallbacks.width else null,
+                    widthSlots = if (passWidth) styleCallbacks.widthSlots else null,
+                    onWidth = if (passWidth) styleCallbacks.onWidth else null,
+                    onRedefineSlot = if (passWidth) styleCallbacks.onRedefineSlot else null,
                 )
             } else when (item.id) {
                 "color" -> ColorPopupButton(styleCallbacks.color, styleCallbacks.onColor, styleCallbacks.palette, styleCallbacks.onRedefineCustom)
@@ -146,8 +194,17 @@ private fun ToolGroupButton(
     active: Boolean,
     onTool: (EditorTool) -> Unit,
     onSelect: (EditorTool) -> Unit,
+    lineStyle: LineStyle? = null,
+    onLineStyle: ((LineStyle) -> Unit)? = null,
+    fill: Int? = null,
+    onFill: ((Int?) -> Unit)? = null,
+    width: Float? = null,
+    widthSlots: List<Float>? = null,
+    onWidth: ((Float) -> Unit)? = null,
+    onRedefineSlot: ((Int, Float) -> Unit)? = null,
 ) {
     var open by remember { mutableStateOf(false) }
+    var editingWidth by remember { mutableStateOf(-1) }
     val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Box {
         Box(
@@ -157,7 +214,7 @@ private fun ToolGroupButton(
                 .then(if (active) Modifier.background(MaterialTheme.colorScheme.primaryContainer) else Modifier)
                 .combinedClickable(
                     onClick = { onTool(selected) },
-                    onLongClick = { if (group.tools.size > 1) open = true },
+                    onLongClick = { open = true },
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -175,6 +232,60 @@ private fun ToolGroupButton(
                     onClick = { onSelect(member); open = false; onTool(member) },
                 )
             }
+            // Line group gets style and width sections
+            if (group.id == "line" && lineStyle != null && onLineStyle != null) {
+                MenuHeading("Line style")
+                for ((style, label) in LINE_STYLE_LABELS) {
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        leadingIcon = {
+                            if (style == lineStyle) Icon(Icons.Filled.Check, contentDescription = "selected")
+                        },
+                        onClick = { onLineStyle(style); open = false },
+                    )
+                }
+            }
+            if (group.id == "line" && fill != null && onFill != null) {
+                MenuHeading("Fill")
+                FillControlsMini(fill, onFill) { open = false }
+            }
+            if (group.id == "line" && width != null && widthSlots != null && onWidth != null && onRedefineSlot != null) {
+                MenuHeading("Tip size")
+                widthSlots.forEachIndexed { i, pt ->
+                    Row(
+                        modifier = Modifier
+                            .combinedClickable(
+                                onClick = { onWidth(pt); open = false },
+                                onLongClick = { editingWidth = i; open = false },
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        com.nexopp.ui.WidthDot(pt, (widthSlots + width).maxOrNull()!!, MaterialTheme.colorScheme.onSurface)
+                        Spacer(Modifier.padding(horizontal = 12.dp))
+                        Text("${com.nexopp.ui.ptLabel(pt)} pt")
+                        if (pt == width) {
+                            Spacer(Modifier.padding(horizontal = 8.dp))
+                            Icon(Icons.Filled.Check, contentDescription = "selected")
+                        }
+                    }
+                }
+                Text(
+                    "Tap to pick · long-press to resize",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        // Width slot editor dialog
+        if (editingWidth in widthSlots!!.indices) {
+            com.nexopp.ui.WidthSlotSliderDialog(
+                label = com.nexopp.ui.PEN_WIDTH_LABELS[editingWidth],
+                initial = widthSlots[editingWidth],
+                onConfirm = { newPt -> onRedefineSlot?.invoke(editingWidth, newPt); editingWidth = -1 },
+                onDismiss = { editingWidth = -1 },
+            )
         }
     }
 }

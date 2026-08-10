@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "merge-the-shape-tool-into-the-line-tool"
+title = "Merge the shape tool into the line tool"
+description = "Fold the shape tool's functionality into the line tool so there is a single tool for lines and shapes, rather than two separate tools in the toolbar. Update the tool selection UI and docs accordingly."
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "warn-or-confirm-before-a-region-copy-overwrites-the-element-clipboard"
 title = "Warn or confirm before a region copy overwrites the element clipboard"
 description = "Committing a background/region marquee overwrites the shared element clipboard with no feedback (BackgroundSelection.kt:74). Once explicit Copy/Cut exist, decide the interaction: either only write the clipboard on an explicit Copy/Cut, or surface a brief confirmation that the region was copied. Depends on the explicit Copy/Cut task. Update the owning docs in the same commit."
