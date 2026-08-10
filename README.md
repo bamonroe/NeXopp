@@ -74,16 +74,16 @@ authoritative flow; don't invent another one.
   a **path relative to the `.xopp` itself** (`bg.pdf` or `scans/bg.pdf` — how a portable,
   desktop-authored document usually stores it), and an attached `yourfile.xopp.bg.pdf` sibling.
   If the referenced PDF can't be found (e.g. a desktop path that doesn't exist on the device, or a
-  folder Xopp wasn't given access to), those pages open blank and a notice is shown — the
+  folder NeXopp wasn't given access to), those pages open blank and a notice is shown — the
   reference itself is kept, so saving the file doesn't throw the background away.
-- **Open a PDF from another app** — Xopp registers as a **PDF handler**, so it shows up in the
+- **Open a PDF from another app** — NeXopp registers as a **PDF handler**, so it shows up in the
   **Open with** / **Share** sheet of file managers, browsers, and mail clients. Tap a PDF there,
-  pick **Xopp**, and it opens straight into a **new tab** as a fresh annotatable document over the
+  pick **NeXopp**, and it opens straight into a **new tab** as a fresh annotatable document over the
   PDF's pages — the same result as opening that PDF through the menu's **Open**. This works whether
   the app was closed or already running; a PDF handed over while it's running is added as another
   tab, leaving the documents you already had open untouched. The tab is named after the PDF.
   **The first Save asks where to put the `.xopp`.** A PDF handed over this way has no `.xopp` file
-  behind it, and Xopp never writes document bytes over your original PDF — so the first **Save**
+  behind it, and NeXopp never writes document bytes over your original PDF — so the first **Save**
   opens the destination picker, pre-filled with the PDF's own name and a `.xopp` extension
   (`bhm_prior.pdf` → `bhm_prior.xopp`), which normally puts the annotations beside the original.
   After that first save the tab belongs to the `.xopp` it was written to, and later Saves write
@@ -182,9 +182,9 @@ authoritative flow; don't invent another one.
   saved `.xopp` points at the picture where it already lives, so keep it in place — and, as with a
   PDF, **the first Save asks where to put the `.xopp`**, since an image has no `.xopp` of its own.
   A truncated or corrupt image is refused with a *"Couldn't read that image"* notice.
-  Xopp also registers as an **image handler**, so — exactly as with a PDF — it appears in the
+  NeXopp also registers as an **image handler**, so — exactly as with a PDF — it appears in the
   **Open with** / **Share** sheet of gallery apps, file managers, browsers, and mail clients: tap a
-  picture there, pick **Xopp**, and it opens in a **new tab** without disturbing the tabs you
+  picture there, pick **NeXopp**, and it opens in a **new tab** without disturbing the tabs you
   already had.
   Reopening such a `.xopp` finds its picture again the same ways desktop Xournal++ does: by
   `content://` URI, by absolute path, by a path **relative to the `.xopp`'s own folder**, or from
@@ -208,7 +208,7 @@ authoritative flow; don't invent another one.
   kept separate from the PDF and the `pdf` backgrounds round-trip when you **Save** the `.xopp`.
   The source PDF's reference is recorded in the saved file, so reopening the `.xopp` later
   **reloads that PDF** and shows the same backgrounds again — no need to re-import.
-  **Xopp writes that reference as a relative path whenever it can:** if the PDF sits in the same
+  **NeXopp writes that reference as a relative path whenever it can:** if the PDF sits in the same
   folder you save the `.xopp` into, the file records just `thepdf.pdf` rather than a device-specific
   location. That's the portable form — copy the two files to a Linux box together and desktop
   Xournal++ finds the background exactly as it does here. When the PDF lives somewhere else
@@ -653,7 +653,7 @@ authoritative flow; don't invent another one.
   - **Version** and **Git commit** — the version name and code, plus the short commit the APK was
     built from (baked in at build time; it reads `unknown` when built outside a git checkout). Quote
     both when filing a bug.
-  - **Licence** — Xopp is free software under the **GNU GPL, version 2 or later**, the same licence
+  - **Licence** — NeXopp is free software under the **GNU GPL, version 2 or later**, the same licence
     as Xournal++; the full text is in [`LICENSE`](LICENSE), and the page links to the GPL and to the
     Xournal++ project.
   - **Source** — a link to [github.com/bamonroe/NeXopp](https://github.com/bamonroe/NeXopp).
@@ -667,7 +667,7 @@ authoritative flow; don't invent another one.
   vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
   editable `.xopp`.
-- **Fonts in generated PDFs** — when Xopp *generates* a PDF page for you (the text-import path), it
+- **Fonts in generated PDFs** — when NeXopp *generates* a PDF page for you (the text-import path), it
   typesets with **DejaVu Sans** (plus its **bold**, *oblique* and ***bold-oblique*** companions, used
   for markdown emphasis) and **DejaVu Sans Mono**, which ship inside the app. Because they are
   embedded (and subsetted) into the PDF, imported text in Cyrillic, Greek, CJK, or box-drawing
@@ -686,7 +686,7 @@ authoritative flow; don't invent another one.
   Audio is **not** stored inside the `.xopp` — it lives in a `.wav` file *beside* it, exactly as on
   the desktop. Android only grants an app access to the one file you picked, not its folder, so the
   first time you record, use **Choose audio folder…** in the Audio pop-up and pick the folder your
-  `.xopp` files live in. Xopp then writes new recordings there when you save, and loads a document's
+  `.xopp` files live in. NeXopp then writes new recordings there when you save, and loads a document's
   recordings from there when you open it. Until you choose a folder, recording and playback still
   work for the session, but the `.wav` never leaves the app — so a file you take back to the desktop
   won't have its audio.
@@ -708,9 +708,9 @@ authoritative flow; don't invent another one.
     reopening it reloads that PDF from where it lives — the interchange-safe default.
   - **Zipped (single file)** — one self-contained `.xopp` with the **PDF embedded inside** it, so
     the document is fully portable and moves as a single file. It reopens with its background intact
-    in Xopp itself (the PDF travels in the same file) as well as on desktop Xournal++.
+    in NeXopp itself (the PDF travels in the same file) as well as on desktop Xournal++.
     - **Note — targeting release Xournal++ on Arch Linux.** The current released desktop Xournal++
-      (1.3.5) has a bug in its ZIP reader that rejects a *correctly* labelled archive, so Xopp
+      (1.3.5) has a bug in its ZIP reader that rejects a *correctly* labelled archive, so NeXopp
       deliberately writes a slightly non-standard internal marker to open on that release. This is a
       temporary workaround; it will be reverted to the standard once upstream fixes the bug.
 
@@ -728,9 +728,9 @@ the containerized build in `Dockerfile`, `compose.yaml` and `scripts/build.sh`.
 
 ## Licence
 
-Xopp is free software under the **GNU General Public License, version 2 or later** — the same
+NeXopp is free software under the **GNU General Public License, version 2 or later** — the same
 licence as [Xournal++](https://github.com/xournalpp/xournalpp). The full text is in
 [`LICENSE`](LICENSE). It comes with no warranty.
 
-If Xopp is useful to you, you can support its development at
+If NeXopp is useful to you, you can support its development at
 [patreon.com/bamonroe](https://www.patreon.com/bamonroe).

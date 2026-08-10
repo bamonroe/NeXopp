@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rename-the-app-to-nexopp-on-the-about-page"
+title = "Rename the app to NeXopp on the About page"
+description = "The About page still shows the app name as 'xopp'. Update it to 'NeXopp' so it matches the project, package, and Android theme naming used everywhere else."
+status = "finished"
+level = "task"
+category = "docs"
+created = 2026-08-10
+completed = 2026-08-10
+tags = []
+
+[[task]]
 id = "bug-stroke-size-cannot-be-changed-from-the-toolbar-size-icon"
 title = "Bug: stroke size cannot be changed from the toolbar size icon"
 description = "Tapping the size icon in the toolbar no longer lets you select a different size — the size is completely unchangeable. Investigate the size picker's state/selection wiring and restore size selection."

@@ -39,7 +39,7 @@ fun AboutSection() {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     }
 
-    Text("Xopp", style = MaterialTheme.typography.titleLarge)
+    Text("NeXopp", style = MaterialTheme.typography.titleLarge)
     Text(
         "A stylus-first Android reader and editor for Xournal++ documents.",
         style = MaterialTheme.typography.bodyMedium,
@@ -52,7 +52,7 @@ fun AboutSection() {
 
     Text("Licence", style = MaterialTheme.typography.bodyLarge)
     Text(
-        "Xopp is free software under the GNU General Public License, version 2 or later — the same " +
+        "NeXopp is free software under the GNU General Public License, version 2 or later — the same " +
             "licence as Xournal++ itself. You may use, study, share, and modify it; if you " +
             "distribute a modified version, it must stay free under the same terms and ship its " +
             "source. It comes with no warranty. The full text is in the LICENSE file in the source.",
@@ -65,7 +65,7 @@ fun AboutSection() {
 
     Text("Source", style = MaterialTheme.typography.bodyLarge)
     Text(
-        "Xopp is developed in the open. Bug reports and patches are welcome.",
+        "NeXopp is developed in the open. Bug reports and patches are welcome.",
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(bottom = 4.dp),
     )
@@ -74,7 +74,7 @@ fun AboutSection() {
 
     Text("Buy me a coffee", style = MaterialTheme.typography.bodyLarge)
     Text(
-        "Xopp is written in spare hours and given away for free. If it saves you some, consider " +
+        "NeXopp is written in spare hours and given away for free. If it saves you some, consider " +
             "chipping in — it keeps the work going.",
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(bottom = 4.dp),

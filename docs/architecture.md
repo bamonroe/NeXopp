@@ -71,14 +71,14 @@ no signature at all — it is recognised by the whole sample decoding as printab
 | Magic | `FileKind` | Loaded as | Sticky `SaveFormat` |
 |---|---|---|---|
 | `PK` | `ZIP` | ZIP-package `.xopp` (`XoppZip.open`) — the PDF travels inside | `ZIPPED` |
-| `1f 8b` | `GZIP` | gzip `.xopp` (`Xopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
+| `1f 8b` | `GZIP` | gzip `.xopp` (`NeXopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
-| `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`Xopp.parseXml`); saved back compressed | `ORIGINAL` |
+| `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`NeXopp.parseXml`); saved back compressed | `ORIGINAL` |
 | `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, one page the size of the image with it as the page's pixmap background (`render/ImageImport.kt`) | `ORIGINAL` |
 | none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `ZIPPED` |
 | anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
-- **`ORIGINAL`** — the legacy gzip `.xopp` (`format/Xopp.kt`, JDK `GZIPOutputStream`). A PDF
+- **`ORIGINAL`** — the legacy gzip `.xopp` (`format/NeXopp.kt`, JDK `GZIPOutputStream`). A PDF
   background stays **linked by location** (`domain="absolute"`, its path/URI). The
   interchange-safe default desktop Xournal++ also writes.
 - **`ZIPPED`** — a self-contained ZIP-package `.xopp` (`format/XoppZip.kt`) with the PDF
@@ -519,7 +519,7 @@ app/
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
       XoppWriter.kt          # Document -> XML
-      Xopp.kt                # gzip open/save + parse/serialize entry points
+      NeXopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
       FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / IMAGE / UNKNOWN
