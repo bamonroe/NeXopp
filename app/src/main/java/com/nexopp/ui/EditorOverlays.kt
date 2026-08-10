@@ -52,7 +52,7 @@ fun BoxScope.EditorOverlays(
     val palette = rememberColorPaletteState(settings, onSettingsChange)
     val barModifier = Modifier.align(Alignment.BottomCenter).padding(24.dp)
 
-    SelectionOverlays(ui, pane, palette, barModifier, settings)
+    SelectionOverlays(ui, pane, palette, barModifier, settings, onSettingsChange)
 
     ui.textPlacement?.let { placement ->
         val existing = placement.existing
@@ -115,6 +115,7 @@ private fun BoxScope.SelectionOverlays(
     palette: ColorPaletteState,
     barModifier: Modifier,
     settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
 ) {
     val surface = pane.surface
     if (pane.hasSelection) {
@@ -133,7 +134,26 @@ private fun BoxScope.SelectionOverlays(
     } else if (ui.tool == EditorTool.SELECT || ui.tool == EditorTool.LASSO_SELECT || ui.tool == EditorTool.BG_SELECT) {
         SelectModeBar(
             canPaste = pane.hasClipboard,
-            onPaste = { surface?.pasteClipboard() },
+            onPaste = {
+                // Paste lands a fresh selection, so switch to SELECT first: under BG_SELECT the
+                // gesture layer never reaches the selection controller, and the pasted elements
+                // would draw as selected yet be undraggable (and die on the next touch).
+                if (ui.tool != EditorTool.SELECT && ui.tool != EditorTool.LASSO_SELECT) {
+                    ui.tool = EditorTool.SELECT
+                    surface?.applyTool(ui.tool)
+                    // Point the rail's Select slot at SELECT too, or it would keep facing the
+                    // tool we just left and misreport what the canvas is actually in.
+                    groupOf(EditorTool.SELECT)?.let {
+                        onSettingsChange(
+                            settings.copy(
+                                toolGroupSelections =
+                                    it.withSelection(settings.toolGroupSelections, EditorTool.SELECT),
+                            ),
+                        )
+                    }
+                }
+                surface?.pasteClipboard()
+            },
             modifier = barModifier,
             hasRegion = pane.hasBackgroundRegion,
             onCopyRegion = { surface?.captureBackgroundRegion() },
