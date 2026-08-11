@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "export-flattened-documents-to-pdf-svg-png-jpg-and-other-raster-vector-formats"
+title = "Export flattened documents to PDF, SVG, PNG, JPG and other raster/vector formats"
+description = "Investigate and break down export support: render pages (strokes, text, images, backgrounds, PDF-backed pages) flattened into common output formats — vector (PDF, SVG) and raster (PNG, JPG, and other common types such as WEBP). Needs decisions on: page-range/selection UI, DPI/scale options for raster, whether to embed or rasterize the underlying PDF background, SAF file-picker output targets, and which rendering path (shared Canvas renderer vs a separate export renderer) to reuse. Produce concrete atomic tasks per format/pipeline, not code."
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-11
+tags = ["export", "pdf", "svg", "raster"]
+
+[[task]]
 id = "investigate-recurring-app-crashes"
 title = "Investigate recurring app crashes"
 description = "The app currently crashes repeatedly at runtime. Investigate the cause: reproduce it, capture logcat stack traces, identify the failing component, then add atomic tasks for the actual fixes."

@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "export-flattened-documents-to-pdf-svg-png-jpg-and-other-raster-vector-formats"
-title = "Export flattened documents to PDF, SVG, PNG, JPG and other raster/vector formats"
-description = "Investigate and break down export support: render pages (strokes, text, images, backgrounds, PDF-backed pages) flattened into common output formats — vector (PDF, SVG) and raster (PNG, JPG, and other common types such as WEBP). Needs decisions on: page-range/selection UI, DPI/scale options for raster, whether to embed or rasterize the underlying PDF background, SAF file-picker output targets, and which rendering path (shared Canvas renderer vs a separate export renderer) to reuse. Produce concrete atomic tasks per format/pipeline, not code."
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 10
-created = 2026-08-11
-tags = ["export", "pdf", "svg", "raster"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "support-rnote-file-format"
 title = "Support rnote file format"
 description = "Support reading and saving Rnote (.rnote) files alongside .xopp, so notes taken in NeXopp can round-trip with Rnote on the desktop. Scope out over several rounds: the .rnote container/serialization format, how its stroke/pen model maps to the internal document model, layers/pages/backgrounds equivalence, lossy-mapping policy, and save/save-as filename+extension handling in the file picker. Spawn scope items for investigation and task items where the work is already clear."
@@ -47,4 +33,284 @@ order = 20
 created = 2026-08-11
 tags = ["rnote", "format", "interop"]
 rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "add-a-pagerange-parser-for-export-page-selection"
+title = "Add a PageRange parser for export page selection"
+description = "Create app/src/main/java/com/nexopp/format/PageRange.kt with an object PageRange exposing fun parse(spec: String, pageCount: Int): List<Int>. It turns a user-typed 1-based page spec into sorted, de-duplicated ZERO-based page indices. Rules: a blank/whitespace-only spec means all pages (0 until pageCount); comma-separated tokens; a token may be a single number (\"5\") or a range (\"1-3\"); an open-ended range (\"8-\") runs to the last page; whitespace around tokens is trimmed; numbers outside 1..pageCount are clamped away (dropped, not an error); a reversed range (\"5-2\") is read as 2-5; a token that is not numeric is ignored. Never throw — a fully unparseable spec returns an empty list, and the caller decides what to do. Add KDoc in the house style (explain WHY zero-based indices are returned: the Document model indexes pages from 0). Add app/src/test/java/com/nexopp/format/PageRangeTest.kt covering: blank spec, single page, comma list, range, open-ended range, reversed range, out-of-bounds clamping, duplicates collapsing, garbage input. Verify with scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "add-an-exportformat-enum-describing-every-export-target"
+title = "Add an ExportFormat enum describing every export target"
+description = "Create app/src/main/java/com/nexopp/format/ExportFormat.kt with an enum class ExportFormat carrying the per-format facts every export path needs, so mime strings and extensions are not scattered through MainActivity. Entries: PDF, SVG, PNG, JPEG, WEBP. Each entry has: val mime: String (\"application/pdf\", \"image/svg+xml\", \"image/png\", \"image/jpeg\", \"image/webp\"), val extension: String (\"pdf\", \"svg\", \"png\", \"jpg\", \"webp\"), val label: String (shown in the export dialog: \"PDF\", \"SVG\", \"PNG\", \"JPEG\", \"WebP\"). Add val isRaster: Boolean = this in setOf(PNG, JPEG, WEBP) (or an equivalent constructor flag) and val isMultiFile: Boolean — true for SVG and every raster format (one file per page), false for PDF (one file for the whole document). Add a helper fun fileName(base: String, pageIndex: Int?): String returning \"base.ext\" when pageIndex is null and \"base-001.ext\" (1-based, zero-padded to 3) otherwise. Write KDoc explaining WHY multi-file matters: SAF CreateDocument can only make one file, so multi-file formats must go through OpenDocumentTree instead. Add app/src/test/java/com/nexopp/format/ExportFormatTest.kt asserting the mime/extension/isRaster/isMultiFile of each entry and the fileName padding for page 0 and page 99. Verify with scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 40
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "add-a-full-page-rasteriser-for-raster-export"
+title = "Add a full-page rasteriser for raster export"
+description = "Create app/src/main/java/com/nexopp/render/PageRasterizer.kt, an object modelled directly on app/src/main/java/com/nexopp/render/PageRegionRenderer.kt (read it first — the same BackgroundRenderer + PageRenderer pair, but the WHOLE page instead of a region). Signature: fun render(page: Page, dpi: Int, pageImage: android.graphics.Bitmap? = null, hiddenLayers: Set<Int> = emptySet()): Bitmap?. The .xopp model is in POINTS (72 pt = 1 inch), so scale = dpi / 72f. Build the bitmap at (page.width * scale) x (page.height * scale), each coerced to at least 1 px. Cap the longest side at a new const MAX_SIDE_PX = 8192 by shrinking scale, so a 600-dpi A0 page cannot blow the bitmap budget. Return null for a degenerate page (width or height <= 0, or scale <= 0) rather than throwing. Build the PageBox with topPx = 0f, leftPx = 0f, heightPx = page.height * scale, then call BackgroundRenderer.draw(canvas, box, scrollX = 0f, scrollY = 0f, pageImage = pageImage), then PageRenderer.drawElements(canvas, page, scale, 0f, 0f, StrokePainter(), elements, hiddenLayers) inside a try/finally that calls elements.close() — exactly as PageRegionRenderer does, and for the same reason (a one-shot ElementRenderer must not hold decoded images in the shared bitmap budget). Add KDoc in the house style. Add app/src/test/java/com/nexopp/render/PageRasterizerTest.kt for the pure arithmetic only — extract the scale/size maths into an internal fun sizeFor(widthPt: Double, heightPt: Double, dpi: Int): Pair<Int, Int>? so it is testable on the JVM without Android graphics, and test 72 dpi (1:1), 300 dpi, the MAX_SIDE_PX cap, and a degenerate page returning null. Verify with scripts/build.sh testDebugUnitTest."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 50
+created = 2026-08-11
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "export-selected-pages-as-png-jpeg-webp-into-a-picked-folder"
+title = "Export selected pages as PNG/JPEG/WebP into a picked folder"
+description = """
+Wire raster export end to end, reusing PageRasterizer (see the "Add a full-page rasteriser" task — do that one first).
+
+1. In app/src/main/java/com/nexopp/render/DrawingSurfaceView.kt, next to the existing `fun exportPdf(out: OutputStream)` (search for "exportPdf"), add `fun rasterizePage(index: Int, dpi: Int): android.graphics.Bitmap?`. It reads doc.pages.getOrNull(index) ?: return null, obtains the background picture the same way the surface already does for a pdf/pixmap background (pdfSource?.render(...) / imageSource?.render(...) — copy the synchronous calls PageRegionRenderer callers use), and returns PageRasterizer.render(page, dpi, pageImage, hiddenLayers).
+
+2. In app/src/main/java/com/nexopp/MainActivityDocuments.kt, next to `internal fun MainActivity.exportPdf(uri: Uri)` (around line 240), add `internal fun MainActivity.exportRaster(treeUri: Uri, format: ExportFormat, pages: List<Int>, dpi: Int, baseName: String)`. For each page index it calls surface?.rasterizePage(index, dpi), creates a child document in the picked tree with android.provider.DocumentsContract.createDocument(contentResolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri)), format.mime, format.fileName(baseName, index)) — follow the pattern already in app/src/main/java/com/nexopp/audio/AudioStore.kt (see its createDocument call) — then writes the bitmap through staging.writeTo(childUri) { out -> bitmap.compress(fmt, quality, out) }. Map the format: PNG -> Bitmap.CompressFormat.PNG (quality 100), JPEG -> JPEG (quality 92), WEBP -> WEBP_LOSSY (quality 92). Recycle each bitmap after writing. Wrap the whole thing in runCatching { }.onFailure { toast("Export failed: ${it.message}") } exactly as exportPdf does, and toast the number of pages written on success.
+
+3. In app/src/main/java/com/nexopp/MainActivity.kt, register a new launcher next to exportPdfLauncher (around line 181): `private val exportFolderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let { exportRaster(it, pendingExportFormat, pendingExportPages, pendingExportDpi, pendingExportBaseName) } }`, with those four `pending…` fields declared alongside the existing `pendingImportMode` field.
+
+4. Document it: add a bullet to the Export section of README.md (near line 674, where "Export PDF" is described) covering the raster formats, the DPI, and the "pick a folder, one file per page" behaviour; and add PageRasterizer.kt to the render/ file listing in docs/architecture.md (near line 601, where PdfExporter.kt is listed).
+
+Verify: scripts/build.sh, then install on the /data/android emulator, export a two-page document as PNG at 300 dpi, and screenshot the resulting files to confirm two images landed in the folder."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 60
+created = 2026-08-11
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "add-an-svg-exporter-for-page-backgrounds-and-strokes"
+title = "Add an SVG exporter for page backgrounds and strokes"
+description = """
+Create app/src/main/java/com/nexopp/render/SvgExporter.kt: a dependency-free class that writes ONE page of a Document as an SVG 1.1 document to a java.io.Writer. Signature: class SvgExporter { fun export(page: Page, out: Writer) }. Read app/src/main/java/com/nexopp/render/PdfVectorPainter.kt and PdfBackgroundPainter.kt first — this is the same flattening job against a different output syntax, and the geometry decisions there are the ones to mirror.
+
+Coordinates: SVG y grows DOWN, exactly like the .xopp model, so unlike the PDF path NO y-flip is needed — do not reuse PdfPageTransform. Emit the root as <svg xmlns="http://www.w3.org/2000/svg" width="{page.width}pt" height="{page.height}pt" viewBox="0 0 {page.width} {page.height}">.
+
+This task covers only the background and strokes; text/images/LaTeX are a separate task and must be skipped silently here (leave a TODO comment naming the follow-up).
+
+Background: for Background.Solid emit a full-page <rect> filled with the sheet colour, then the ruling as <line> elements matching what app/src/main/java/com/nexopp/render/BackgroundGrid.kt computes (call into BackgroundGrid rather than re-deriving the spacing). For Background.Pdf and Background.Pixmap emit only the plain sheet rect in this task.
+
+Strokes: one <path> per Stroke. For a uniform-width stroke emit a single polyline path with stroke-width = the stroke width, fill="none", stroke-linecap="round", stroke-linejoin="round". For a pressure stroke (per-point widths) emit one <path> segment per point pair, each with its own stroke-width, matching how StrokePainter draws the pressure polyline on screen. Colour comes from com.nexopp.format.XoppColor — emit "#rrggbb" plus a separate stroke-opacity attribute when alpha < 255 (highlighter). Honour LineStyle by emitting stroke-dasharray from StrokePainter.dashIntervalsPt (it is already pure and shared — reuse it, do not re-derive the dash pattern). A filled stroke (element.fill) additionally gets fill="#rrggbb" with fill-opacity.
+
+Escape all attribute text through the existing app/src/main/java/com/nexopp/format/xml/XmlWriter.kt escaping helper rather than string-concatenating raw values. Format all numbers with java.util.Locale.ROOT so a comma decimal separator cannot corrupt the output.
+
+Add app/src/test/java/com/nexopp/render/SvgExporterTest.kt (pure JVM, no Android graphics): build a small Document in code, export one page to a StringWriter, and assert the root element attributes, that a plain stroke produces one <path> with the expected d and stroke, that a highlighter stroke carries stroke-opacity, that a dashed stroke carries stroke-dasharray, and that the output parses as well-formed XML via the existing XmlPullReader. Verify with scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 70
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "extend-the-svg-exporter-to-text-images-and-latex-elements"
+title = "Extend the SVG exporter to text, images and LaTeX elements"
+description = """
+Follow-on to the "Add an SVG exporter for page backgrounds and strokes" task (do that first). Fill in the element types it left as a TODO, in app/src/main/java/com/nexopp/render/SvgExporter.kt. Mirror how app/src/main/java/com/nexopp/render/PdfVectorPainter.kt and ElementRenderer.kt handle each type.
+
+- TextElement -> <text x=".." y=".." font-family=".." font-size=".." fill="#rrggbb"> with one <tspan x=".." dy=".."> per wrapped line, so multi-line text boxes keep their line breaks. Take the font family/size from the element FontDescription (app/src/main/java/com/nexopp/format/FontDescription.kt) and the line breaking from the same helper the on-screen renderer uses. SVG text baselines sit on the baseline like the model does, so no extra offset is needed beyond the first line ascent — match what ElementRenderer computes.
+- ImageElement -> <image x y width height xlink:href="data:image/png;base64,{...}"> embedding the image bytes inline so the SVG is self-contained. The base64 payload is already stored in the model (see ImageElement in app/src/main/java/com/nexopp/format/model/Element.kt) — emit it directly rather than decoding and re-encoding. Also declare xmlns:xlink on the root <svg> element when at least one image is emitted.
+- TexImageElement -> same <image> treatment as ImageElement, using its rendered PNG payload.
+- RawElement -> skip silently (it is preserved-but-unmodelled markup and has no visual form we can render).
+
+Extend app/src/test/java/com/nexopp/render/SvgExporterTest.kt with cases for: a two-line TextElement producing two <tspan> children, an ImageElement producing a data: URI and the xlink namespace on the root, a TexImageElement producing an <image>, and a RawElement producing no output. Verify with scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 80
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "honour-a-page-range-in-pdf-export"
+title = "Honour a page range in PDF export"
+description = """
+Make PDF export respect a page selection instead of always flattening the whole document. Depends on the PageRange parser task.
+
+1. In app/src/main/java/com/nexopp/render/PdfExporter.kt, change `fun export(doc: Document, out: OutputStream)` to `fun export(doc: Document, out: OutputStream, pages: List<Int>? = null)`. Inside, replace `doc.pages.forEach { page -> writePage(outDoc, source, page) }` with an iteration over the selected indices: when pages is null use doc.pages.indices, otherwise use pages filtered to doc.pages.indices, and call writePage with doc.pages[i]. The default null argument keeps every existing caller working unchanged.
+
+2. In app/src/main/java/com/nexopp/render/DrawingSurfaceView.kt update `fun exportPdf(out: java.io.OutputStream)` (search for "exportPdf") to `fun exportPdf(out: java.io.OutputStream, pages: List<Int>? = null)` and pass pages through to PdfExporter.
+
+3. In app/src/main/java/com/nexopp/MainActivityDocuments.kt update `internal fun MainActivity.exportPdf(uri: Uri)` to take the page list and forward it.
+
+4. Add a test in app/src/test/java/com/nexopp/render/ — assert that the selection maths (which indices survive) is right by extracting the filter into an internal helper `fun selectedPages(doc: Document, pages: List<Int>?): List<Page>` on PdfExporter and unit-testing it on the JVM (null -> all pages, a subset -> that subset in order, out-of-range indices dropped, an empty list -> no pages). PDFBox itself is not exercised in a JVM unit test.
+
+5. Document it: update the "Export PDF" bullet in README.md (near line 674) to mention that a page range can be chosen.
+
+Verify with scripts/build.sh."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 90
+created = 2026-08-11
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "add-an-export-dialog-with-format-page-range-and-dpi"
+title = "Add an Export dialog with format, page range and DPI"
+description = """
+Replace the single "Export PDF" overflow item with an "Export…" dialog that drives every export path. Do the PageRange, ExportFormat, raster-export, SVG and PDF-page-range tasks first; this one wires them to the UI.
+
+1. In app/src/main/java/com/nexopp/ui/EditorDialogs.kt add a @Composable ExportDialog(pageCount: Int, currentPage: Int, onDismiss: () -> Unit, onExport: (ExportFormat, String /*range spec*/, Int /*dpi*/, String /*base name*/) -> Unit). Follow the layout and styling of the existing dialogs in that file (AlertDialog with a confirm/dismiss button pair). Contents: a format row of Material 3 FilterChips, one per ExportFormat.entries, using format.label; an OutlinedTextField for the base file name (default "document"); an OutlinedTextField for the page range, with placeholder "all pages" and supporting text showing how many pages the current spec resolves to via PageRange.parse(spec, pageCount).size; and a DPI row of FilterChips (150, 300, 600, default 300) that is only shown when the selected format.isRaster. Disable the confirm button when PageRange.parse resolves to zero pages.
+
+2. In app/src/main/java/com/nexopp/ui/EditorRegions.kt rename the OverflowMenu parameter `onExportPdf: () -> Unit` to `onExport: () -> Unit` and change the "Export PDF" DropdownMenuItem (around line 518) to read "Export…" with the Icons.Filled.FileDownload icon. Thread the rename through app/src/main/java/com/nexopp/ui/EditorScreen.kt (parameters at lines ~125 and ~153) and the EditorRegions call site (~line 79 and ~101).
+
+3. In app/src/main/java/com/nexopp/MainActivity.kt replace `onExportPdf = { exportPdfLauncher.launch("document.pdf") }` (around line 232) with `onExport = { showExportDialog = true }`, hold showExportDialog as remembered state next to the other editor dialog state, and render ExportDialog. Its onExport callback stores the choice into the pendingExport… fields and launches the right picker: for a single-file format (PDF — format.isMultiFile == false) launch a CreateDocument(format.mime) with format.fileName(baseName, null); for a multi-file format (SVG and every raster format) launch exportFolderLauncher (the OpenDocumentTree picker). Extend the folder-export handler so it writes SVG through SvgExporter as well as raster through PageRasterizer, picking on format.isRaster.
+
+4. Document it: rewrite the Export section of README.md (near line 674) to describe the new dialog — the format list, the page-range syntax ("1-3,5", blank means all), the DPI choice for raster, and the single-file vs pick-a-folder distinction. Update the overflow-menu item list in docs/architecture.md (near line 1533, which currently reads "Open, Import PDF, Export PDF, Save…") to say "Export…".
+
+Verify: scripts/build.sh, then install on the /data/android emulator and drive it — open the dialog, screenshot it, export a three-page document as PNG with the range "1,3", and confirm exactly two files land in the picked folder. Check adb logcat for errors."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 100
+created = 2026-08-11
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "generate-rnote-test-fixtures-with-rnote-cli"
+title = "Generate .rnote test fixtures with rnote-cli"
+description = """
+This box has Rnote installed: /usr/bin/rnote and /usr/bin/rnote-cli. `rnote-cli import` converts a `.xopp` file into a `.rnote` save file, `rnote-cli create` makes an empty one, and `rnote-cli test` validates that a file opens as a valid rnote file. That gives us ground-truth fixtures without hand-authoring anything.
+
+Steps:
+1. Run `rnote-cli help import` and `rnote-cli help export` and record the exact flag syntax in the commit message.
+2. For each existing .xopp fixture in app/src/test/resources/fixtures/ (plain, backgrounds, layers, text-image — see app/src/test/java/com/nexopp/format/FormatDriftTest.kt), run `rnote-cli import` to produce the matching `.rnote` file, and validate each result with `rnote-cli test`.
+3. Also run `rnote-cli create` once to capture a minimal empty document.
+4. Commit the results to a NEW directory app/src/test/resources/fixtures/rnote/ named to match their .xopp sources (plain.rnote, backgrounds.rnote, layers.rnote, text-image.rnote, empty.rnote). Check their total size first — if the set exceeds a couple of MB, keep only plain, layers and empty and say so in the commit message.
+5. Add a short README section: document in docs/tools.md (the external-tools spoke) that rnote/rnote-cli is available on the build box, the exact commands used to regenerate these fixtures, and that `rnote-cli test` is the validity check. This is a load-bearing command that must not live only in shell history.
+
+No app code changes and no APK build are needed — this task only adds test resources and a tools-doc entry. Verify with `scripts/todo.sh validate` and by re-running `rnote-cli test` over every committed fixture."""
+status = "active"
+level = "task"
+category = "test"
+urgency = "normal"
+order = 110
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "investigate-the-rnote-container-and-serialisation-format"
+title = "Investigate the .rnote container and serialisation format"
+description = """
+Work out exactly what a `.rnote` file IS on disk, so a dependency-free Kotlin reader can be specified. Depends on the "Generate .rnote test fixtures with rnote-cli" task for real sample files.
+
+Investigate and write down: the magic bytes / file signature (needed to extend app/src/main/java/com/nexopp/format/FileKind.kt, which classifies by content and not by extension); the compression wrapper, if any (gzip? zstd? none?); the serialisation inside it (JSON? MessagePack? a versioned header plus a payload?); and how the format has changed across Rnote versions — a reader must tolerate the versions the owner actually has files from. Cross-check findings against the Rnote source (github.com/flatpak/../flatpak-builder aside, the upstream repo is github.com/flxzt/rnote) rather than guessing from bytes alone.
+
+Then decide, and record in docs/architecture.md as a dated design decision alongside the existing format decisions: whether the payload can be parsed with the repo`s dependency-free approach (the project already hand-rolls its XML layer — see app/src/main/java/com/nexopp/format/xml/) or genuinely needs a new dependency, and if so which one and why.
+
+Output of this scope is TODO items, not code: add atomic `task` items for the reader — e.g. "extend FileKind with an RNOTE verdict", "add the container decompression layer", "parse the payload into an intermediate model", each fully specified with file paths and verification steps. Close this scope with `scripts/todo.sh done` once those children exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 120
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "map-rnote-s-stroke-and-pen-model-onto-the-nexopp-document-model"
+title = "Map Rnote's stroke and pen model onto the NeXopp document model"
+description = """
+Decide how Rnote content maps onto the internal model in app/src/main/java/com/nexopp/format/model/ (Document, Page, Layer, Stroke, StrokePoint, TextElement, ImageElement, TexImageElement, RawElement, Tool, LineStyle) — and, just as importantly, what is LOST in each direction.
+
+The leverage here is that `rnote-cli import` (see the fixtures task) converts an existing `.xopp` into `.rnote`, giving a known-input/known-output pair: take each committed .xopp fixture and its converted .rnote twin and diff what survived. That tells us empirically how Rnote itself maps the Xournal++ model, which is the same mapping we need in reverse.
+
+Investigate and record: how Rnote represents a brush stroke (its pen/brush styles and their width/pressure curves) versus our pressure polyline of StrokePoint(x, y, width); whether its shape strokes are stored as parametric shapes or flattened polylines, and what that means for our ShapeBuilder-produced strokes; how colour and alpha are stored versus XoppColor; whether it has a highlighter equivalent for Tool.HIGHLIGHTER; how text and embedded images are stored versus TextElement/ImageElement; and whether anything in Rnote has no `.xopp` representation at all.
+
+Then write down a **lossy-mapping policy** in docs/architecture.md, as a dated decision: what we drop silently, what we preserve verbatim (RawElement already exists for exactly this — unmodelled markup that must survive a round trip), and what we refuse to import. The project`s guiding principle is round-trip safety, so the policy must state explicitly what a .rnote -> edit -> .rnote round trip is guaranteed to preserve.
+
+Output is TODO items, not code: add atomic `task` items per element type conversion. Close this scope once they exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 130
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers"
+title = "Decide how Rnote's canvas layout maps to fixed pages and layers"
+description = """
+Rnote is built around a continuous/infinite canvas with configurable layouts, while the NeXopp model (app/src/main/java/com/nexopp/format/model/Document.kt) is a list of fixed-size Pages each holding ordered Layers. Work out the correspondence before any reader is written, because it decides the shape of the whole importer.
+
+Investigate against the real fixtures from the "Generate .rnote test fixtures with rnote-cli" task: what layout modes Rnote supports and how each is stored; whether a .rnote file records page boundaries at all or only a document extent plus a page size hint; how Rnote represents backgrounds (its pattern types and colours) versus our Background sealed interface in app/src/main/java/com/nexopp/format/model/Background.kt (Solid ruling styles, Pdf, Pixmap); whether Rnote has layers in our sense, and if not, what a multi-layer .xopp collapses to when `rnote-cli import` converts it (test this directly with the layers fixture); and how an embedded/annotated PDF is carried, versus our Background.Pdf plus the app/src/main/java/com/nexopp/io/PdfStore.kt reference machinery.
+
+Then record the decision in docs/architecture.md: how an infinite-canvas document is cut into pages on import, and how our fixed pages are laid out on export. State the rule concretely enough that it can be implemented and tested.
+
+Output is TODO items, not code: add atomic `task` items for the pagination and background conversion. Close this scope once they exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 140
+created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "scope-save-save-as-and-file-picker-handling-for-a-second-document-format"
+title = "Scope save/save-as and file-picker handling for a second document format"
+description = """
+Every save path in the app currently assumes the document on disk is a `.xopp`. Before .rnote can be written, work out what has to become format-aware.
+
+Read and map the current assumptions: app/src/main/java/com/nexopp/format/SaveFormat.kt (an enum of ORIGINAL vs ZIPPED — both `.xopp` variants; the "Save As makes it sticky" rule lives here); the saveLauncher registered with CreateDocument(XOPP_MIME) and the XOPP_MIME constant in app/src/main/java/com/nexopp/MainActivity.kt; the save path in app/src/main/java/com/nexopp/MainActivityDocuments.kt; app/src/main/java/com/nexopp/io/SaveTarget.kt; and the Save As dialog in app/src/main/java/com/nexopp/ui/EditorDialogs.kt (which offers the format choice today).
+
+Decide: whether SaveFormat grows an RNOTE entry or whether a new orthogonal axis (document format x container variant) is the right model — the current enum conflates "which format" with "which .xopp container", and adding a third unlike entry may be the wrong shape. Also decide how the picker mime type and default extension follow the choice, what happens on a plain Save of a file that was opened as .rnote (does it stay .rnote?), and how the tab/session store in app/src/main/java/com/nexopp/tabs/ records which format a restored tab came from.
+
+Note the overlap with the export work already broken out: ExportFormat (see the "Add an ExportFormat enum" task) carries mime/extension/label for every export target. Decide whether save formats should share that type or stay separate, and say why in the decision record.
+
+Record the decision in docs/architecture.md next to the existing format decisions. Output is TODO items, not code: add the atomic `task` items the refactor breaks into. Close this scope once they exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 150
+created = 2026-08-11
+tags = []
+rebuild = false
 emulator_debug = false
