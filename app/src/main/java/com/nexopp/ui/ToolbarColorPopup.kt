@@ -20,35 +20,50 @@ val PEN_COLORS: List<Int> = listOf(
 )
 
 /**
- * The pen's colour button: the shared [ColorPaletteRows] in a drop-down. The palette itself (fixed
- * swatches, the editable custom slot, recents) lives in `ColorPalette.kt` and is the same component
- * the text-box dialog and the selection recolour menu use; this only adds the button and the menu
- * around it, and the extra step of pushing the pick onto the canvas via [onColor].
+ * The rail's stroke-appearance slot: colour **and** tip size in one drop-down. The face is the size
+ * dot from [WidthDot], scaled to the live width and filled with the live colour, so the button shows
+ * both settings at a glance. The menu stacks the shared [ColorPaletteRows] over the width slots from
+ * [WidthSlotRows] — the two things you change together, in one place.
  */
 @Composable
-internal fun ColorPopupButton(
-    color: Int,
-    onColor: (Int) -> Unit,
-    palette: ColorPaletteState,
-    onRedefineCustom: (Int) -> Unit,
-) {
+internal fun ColorSizePopupButton(callbacks: ToolbarStyleCallbacks) {
     var editing by remember { mutableStateOf(false) }
+    var editingSlot by remember { mutableStateOf(-1) }
+    val maxPt = (callbacks.widthSlots + callbacks.width).maxOrNull() ?: callbacks.width
     ToolbarPopupButton(
-        icon = Icons.Filled.Circle,
-        contentDescription = "Colour",
-        tint = Color(color),
+        face = { open ->
+            androidx.compose.material3.IconButton(onClick = open) {
+                WidthDot(callbacks.width, maxPt, Color(callbacks.color), bordered = true)
+            }
+        },
     ) { dismiss ->
+        MenuHeading("Colour")
         ColorPaletteRows(
-            selected = color,
-            palette = palette,
-            onPick = { c -> onColor(c); dismiss() },
+            selected = callbacks.color,
+            palette = callbacks.palette,
+            onPick = { c -> callbacks.onColor(c); dismiss() },
             onEditCustom = { editing = true; dismiss() },
+        )
+        MenuHeading("Size")
+        WidthSlotRows(
+            width = callbacks.width,
+            widthSlots = callbacks.widthSlots,
+            onWidth = { pt -> callbacks.onWidth(pt); dismiss() },
+            onEditSlot = { i -> editingSlot = i; dismiss() },
         )
     }
     CustomColorEditor(
         visible = editing,
-        palette = palette,
+        palette = callbacks.palette,
         onDismiss = { editing = false },
-        onRedefine = onRedefineCustom,
+        onRedefine = callbacks.onRedefineCustom,
     )
+    if (editingSlot in callbacks.widthSlots.indices) {
+        WidthSlotSliderDialog(
+            label = PEN_WIDTH_LABELS[editingSlot],
+            initial = callbacks.widthSlots[editingSlot],
+            onConfirm = { newPt -> callbacks.onRedefineSlot(editingSlot, newPt); editingSlot = -1 },
+            onDismiss = { editingSlot = -1 },
+        )
+    }
 }

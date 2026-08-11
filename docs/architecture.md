@@ -659,8 +659,8 @@ app/
       EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import dialogs
       SideToolbar.kt         # left vertical rail: the shell + tool-group slots; each pop-up is a Toolbar*.kt below
       EditorTool.kt          # the editor's tool modes + their labels/icons (pure)
-      ToolbarColorPopup.kt   # rail slot: the pen colour drop-down (wraps ColorPalette.kt)
-      ToolbarSizePopup.kt    # rail slot: the three pen-width slots + their long-press resize dialog
+      ToolbarColorPopup.kt   # rail slot: the merged colour + tip-size drop-down (wraps ColorPalette.kt)
+      ToolbarSizePopup.kt    # the three pen-width slot rows + their long-press resize dialog
       ToolbarPresetsPopup.kt # rail slot: the saved tool presets — activate, save-current, reorder, delete
       ToolbarStylePopup.kt   # rail slots: line style + fill controls, and the shape-recognition toggle
       ToolbarViewPopups.kt   # rail slots: zoom, page background, drawing guides, audio

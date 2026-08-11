@@ -58,65 +58,46 @@ fun ptLabel(pt: Float): String =
 
 
 /**
- * The pen-size slot picker: three configurable width slots ([widthSlots]), each shown as a [TipDot]
- * scaled to its width. A tap selects a slot's width; a **long-press** opens a
- * [WidthSlotSliderDialog] that redefines that slot's width (the parent persists it via
- * [onRedefineSlot]). The button face is a dot for the active width, whether or not it matches a slot
- * (it won't right after a re-width of a selection).
+ * The three configurable width slots ([widthSlots]), each shown as a [WidthDot] scaled to its width.
+ * A tap selects a slot's width via [onWidth]; a **long-press** asks the caller to redefine that slot
+ * via [onEditSlot] (which opens a [WidthSlotSliderDialog]).
  *
  * The same slots size the **eraser** — its radius is derived from the pen width
- * (see [com.nexopp.render.eraserRadiusPt]), so this one popup is the whole tip-size story.
+ * (see [com.nexopp.render.eraserRadiusPt]), so these rows are the whole tip-size story.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun SizePopupButton(
+internal fun WidthSlotRows(
     width: Float,
     widthSlots: List<Float>,
     onWidth: (Float) -> Unit,
-    onRedefineSlot: (Int, Float) -> Unit,
+    onEditSlot: (Int) -> Unit,
 ) {
-    var editing by remember { mutableStateOf(-1) }
     val maxPt = (widthSlots + width).maxOrNull() ?: width
-    ToolbarPopupButton(
-        face = { open ->
-            IconButton(onClick = open) {
-                WidthDot(width, maxPt, MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-    ) { dismiss ->
-        Text(
-            "Tap to pick · long-press to resize",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        widthSlots.forEachIndexed { i, pt ->
-            Row(
-                modifier = Modifier
-                    .combinedClickable(
-                        onClick = { onWidth(pt); dismiss() },
-                        onLongClick = { editing = i; dismiss() },
-                    )
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WidthDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
-                Spacer(Modifier.width(12.dp))
-                Text("${ptLabel(pt)} pt")
-                if (pt == width) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(Icons.Filled.Check, contentDescription = "selected")
-                }
+    Text(
+        "Tap to pick · long-press to resize",
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    widthSlots.forEachIndexed { i, pt ->
+        Row(
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = { onWidth(pt) },
+                    onLongClick = { onEditSlot(i) },
+                )
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            WidthDot(pt, maxPt, MaterialTheme.colorScheme.onSurface)
+            Spacer(Modifier.width(12.dp))
+            Text("${ptLabel(pt)} pt")
+            if (pt == width) {
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Filled.Check, contentDescription = "selected")
             }
         }
-    }
-    if (editing in widthSlots.indices) {
-        WidthSlotSliderDialog(
-            label = PEN_WIDTH_LABELS[editing],
-            initial = widthSlots[editing],
-            onConfirm = { newPt -> onRedefineSlot(editing, newPt); editing = -1 },
-            onDismiss = { editing = -1 },
-        )
     }
 }
 

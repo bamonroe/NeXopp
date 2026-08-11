@@ -233,17 +233,18 @@ authoritative flow; don't invent another one.
   image), and **Vertical space**. **Tap** a slot to switch to the tool it shows — the active slot is highlighted — or
   **long-press** it to pick a different member, which both switches to that tool and re-faces the
   slot. Those per-slot choices are **remembered across app restarts**, so the rail comes back the
-  way you left it. The remaining buttons — **Colour**, **Size**, **Style**, **Presets**, **Guides**, **Layers**, **Zoom**,
+  way you left it. The remaining buttons — **Colour & size**, **Style**, **Presets**, **Guides**, **Layers**, **Zoom**,
   **Background**, **Pages** — each open a small pop-up anchored
   to their own button (opening to the right of the rail). Pick **Pen** or **Highlighter** and draw with
   **one finger or the stylus**; pen pressure sets stroke width. The **Highlighter** instead lays down a **broad,
   constant-width translucent band** (pressure-independent, ~6× the pen width) that shows the page
   through it — it saves as a `highlighter` stroke and reopens the same way in desktop Xournal++.
   Choose a **colour** (swatches) and a base **width**
-  from the Colour pop-up or the Line tool menu. The Colour pop-up ends with an editable **custom
-  slot** (marked with a pencil): **tap** it to draw with its current colour, or **long-press** it to
+  from the **Colour & size** pop-up, which holds both settings in one menu — its button face is a
+  **dot sized to the current width and filled with the current colour**. Its colour half ends with an
+  editable **custom slot** (marked with a pencil): **tap** it to draw with its current colour, or **long-press** it to
   open a picker — a saturation/value square over a hue slider plus a `#RRGGBB` hex field — to set any
-  colour. The Line tool menu offers three width **slots**, each drawn as a **filled dot sized to that
+  colour. Its size half offers three width **slots**, each drawn as a **filled dot sized to that
   slot's width** (the widest slot fills the row, the rest scale down in proportion) next to its exact
   point size, so the three read as a tip-size ladder rather than three arbitrary letters: **tap** a
   slot to draw with it, or **long-press** a slot to open a resize dialog (0.5 → 15 pt) that redefines
@@ -273,9 +274,8 @@ authoritative flow; don't invent another one.
   finishes it, **Backspace** drops the last point, and **Escape** or **Back** throws it away;
   switching to another tool commits whatever you have so far. The result is one ordinary constant-width stroke in
   the current pen colour and width, so it round-trips to desktop Xournal++ like any other stroke.
-  **Long-press** the Line tool slot to open its menu, which also sets **Line style** (Solid, Dashed,
-  Dash-dot, Dotted), **Fill** (on/off with an opacity slider), and **Tip size** (the same three
-  configurable width slots as the Size pop-up — tap to pick, long-press to redefine). These settings
+  The rail's **Style** pop-up sets **Line style** (Solid, Dashed,
+  Dash-dot, Dotted) and **Fill** (on/off with an opacity slider). These settings
   apply to all shapes and strokes drawn with the line/shape tools and save on the `<stroke>` element
   (`style` / `fill`), reopening the same way in desktop Xournal++.
 - **Shape recognition** — turn it on from the rail's **Shape recognition** button (the triangle; it
@@ -333,8 +333,8 @@ authoritative flow; don't invent another one.
   which eraser it stands for: **Eraser (partial)** rubs out just the part of a stroke the eraser
   passes over, splitting it into the surviving pieces; **Eraser (whole stroke)** removes any stroke
   the eraser touches entirely. Like every tool slot, the choice is remembered across restarts. The
-  eraser has no size of its own — its tip follows the **Tip size** slots in the Line tool menu (or
-  the legacy Size pop-up if you still have it on the rail): the tip's *radius* is the selected pen's
+  eraser has no size of its own — its tip follows the width slots in the **Colour & size** pop-up:
+  the tip's *radius* is the selected pen's
   full width, so the rubber is twice as wide as the ink it removes — wide enough to bite, narrow
   enough to erase precisely — and the three slots still give three clearly different tips. It is
   measured in document points, so it rubs out the same amount of ink whatever the zoom. A thin black
@@ -614,9 +614,9 @@ authoritative flow; don't invent another one.
 
   Under **Toolbar**:
   - **Toolbar position** — which edge the tool rail is docked to: **Left** (default), **Right**,
-    **Top**, or **Bottom**. Top/bottom lay the tool, colour, size, zoom, and page buttons out in a
+    **Top**, or **Bottom**. Top/bottom lay the tool, colour & size, zoom, and page buttons out in a
     horizontal row along that edge; left/right keep the familiar vertical rail.
-  - **Rail buttons** — the full list of rail positions (the seven tool slots plus Colour, Size,
+  - **Rail buttons** — the full list of rail positions (the seven tool slots plus Colour & size,
     Style, Presets, Layers, Zoom, Background and Pages), each with a **switch** to hide it. To move one,
     **press and hold** its row and **drag** it up or down — the row lifts and the rest of the list
     shuffles under it as you go, so you can carry a button several places in one gesture. The rail
