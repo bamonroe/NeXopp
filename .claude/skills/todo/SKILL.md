@@ -65,6 +65,14 @@ three-tiered, smallest first:
   work is already clear. An epic usually stays active across several rounds of
   this, shrinking as its children ship.
 
+**Write `task`-level items for a small model.** A `task` description must be
+detailed enough that a low-end local model (think `qwen3.5:9b`) can carry it out
+without further investigation: name the files and functions to touch, state the
+exact behaviour wanted, and spell out how to verify it. No "figure out where this
+lives" — that's what `scope` is for. **Many small, fully-specified tasks beat a few
+broad ones**, so split freely; a task that would need judgement calls or code
+exploration is really a `scope`.
+
 The rule of thumb: **an epic spawns scopes, a scope spawns tasks, a task spawns
 code.** When the user says "add this epic," they are asking for the big
 definition to be recorded — the breakdown happens later, when it's picked up.
