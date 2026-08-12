@@ -527,6 +527,8 @@ app/
       FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / IMAGE / UNKNOWN
       PageRange.kt           # user-typed 1-based page spec ("1-3,5,8-") -> sorted 0-based indices
                              #   forgiving by design: parses on every keystroke, never throws
+      ExportFormat.kt        # PDF/SVG/PNG/JPEG/WebP export targets: mime, extension, label, file naming
+                             #   isMultiFile picks the SAF picker — CreateDocument (PDF) vs OpenDocumentTree
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
       ScratchDir.kt          # unique-per-call file names (staging and both stores), so overlapping writes can't collide
