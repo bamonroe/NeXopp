@@ -579,6 +579,7 @@ app/
       DrawingGuide.kt        # setsquare/compass overlay geometry: project a drawn point onto an edge (pure)
       BackgroundRenderer.kt  # paints a page background (plain/lined/ruled/graph/dotted, or a PDF page image)
       PageRegionRenderer.kt  # synchronous flattened rectangular page-region copies
+      PageRasterizer.kt      # flattens a whole page to a bitmap at a given DPI (raster export)
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
       ElementRenderer.kt     # draws text boxes, images, and LaTeX images (real math)

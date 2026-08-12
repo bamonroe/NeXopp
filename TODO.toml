@@ -36,20 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "add-a-full-page-rasteriser-for-raster-export"
-title = "Add a full-page rasteriser for raster export"
-description = "Create app/src/main/java/com/nexopp/render/PageRasterizer.kt, an object modelled directly on app/src/main/java/com/nexopp/render/PageRegionRenderer.kt (read it first — the same BackgroundRenderer + PageRenderer pair, but the WHOLE page instead of a region). Signature: fun render(page: Page, dpi: Int, pageImage: android.graphics.Bitmap? = null, hiddenLayers: Set<Int> = emptySet()): Bitmap?. The .xopp model is in POINTS (72 pt = 1 inch), so scale = dpi / 72f. Build the bitmap at (page.width * scale) x (page.height * scale), each coerced to at least 1 px. Cap the longest side at a new const MAX_SIDE_PX = 8192 by shrinking scale, so a 600-dpi A0 page cannot blow the bitmap budget. Return null for a degenerate page (width or height <= 0, or scale <= 0) rather than throwing. Build the PageBox with topPx = 0f, leftPx = 0f, heightPx = page.height * scale, then call BackgroundRenderer.draw(canvas, box, scrollX = 0f, scrollY = 0f, pageImage = pageImage), then PageRenderer.drawElements(canvas, page, scale, 0f, 0f, StrokePainter(), elements, hiddenLayers) inside a try/finally that calls elements.close() — exactly as PageRegionRenderer does, and for the same reason (a one-shot ElementRenderer must not hold decoded images in the shared bitmap budget). Add KDoc in the house style. Add app/src/test/java/com/nexopp/render/PageRasterizerTest.kt for the pure arithmetic only — extract the scale/size maths into an internal fun sizeFor(widthPt: Double, heightPt: Double, dpi: Int): Pair<Int, Int>? so it is testable on the JVM without Android graphics, and test 72 dpi (1:1), 300 dpi, the MAX_SIDE_PX cap, and a degenerate page returning null. Verify with scripts/build.sh testDebugUnitTest."
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 50
-created = 2026-08-11
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "export-selected-pages-as-png-jpeg-webp-into-a-picked-folder"
 title = "Export selected pages as PNG/JPEG/WebP into a picked folder"
 description = """
