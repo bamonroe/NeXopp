@@ -17,6 +17,30 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-an-svg-exporter-for-page-backgrounds-and-strokes"
+title = "Add an SVG exporter for page backgrounds and strokes"
+description = """
+Create app/src/main/java/com/nexopp/render/SvgExporter.kt: a dependency-free class that writes ONE page of a Document as an SVG 1.1 document to a java.io.Writer. Signature: class SvgExporter { fun export(page: Page, out: Writer) }. Read app/src/main/java/com/nexopp/render/PdfVectorPainter.kt and PdfBackgroundPainter.kt first — this is the same flattening job against a different output syntax, and the geometry decisions there are the ones to mirror.
+
+Coordinates: SVG y grows DOWN, exactly like the .xopp model, so unlike the PDF path NO y-flip is needed — do not reuse PdfPageTransform. Emit the root as <svg xmlns="http://www.w3.org/2000/svg" width="{page.width}pt" height="{page.height}pt" viewBox="0 0 {page.width} {page.height}">.
+
+This task covers only the background and strokes; text/images/LaTeX are a separate task and must be skipped silently here (leave a TODO comment naming the follow-up).
+
+Background: for Background.Solid emit a full-page <rect> filled with the sheet colour, then the ruling as <line> elements matching what app/src/main/java/com/nexopp/render/BackgroundGrid.kt computes (call into BackgroundGrid rather than re-deriving the spacing). For Background.Pdf and Background.Pixmap emit only the plain sheet rect in this task.
+
+Strokes: one <path> per Stroke. For a uniform-width stroke emit a single polyline path with stroke-width = the stroke width, fill="none", stroke-linecap="round", stroke-linejoin="round". For a pressure stroke (per-point widths) emit one <path> segment per point pair, each with its own stroke-width, matching how StrokePainter draws the pressure polyline on screen. Colour comes from com.nexopp.format.XoppColor — emit "#rrggbb" plus a separate stroke-opacity attribute when alpha < 255 (highlighter). Honour LineStyle by emitting stroke-dasharray from StrokePainter.dashIntervalsPt (it is already pure and shared — reuse it, do not re-derive the dash pattern). A filled stroke (element.fill) additionally gets fill="#rrggbb" with fill-opacity.
+
+Escape all attribute text through the existing app/src/main/java/com/nexopp/format/xml/XmlWriter.kt escaping helper rather than string-concatenating raw values. Format all numbers with java.util.Locale.ROOT so a comma decimal separator cannot corrupt the output.
+
+Add app/src/test/java/com/nexopp/render/SvgExporterTest.kt (pure JVM, no Android graphics): build a small Document in code, export one page to a StringWriter, and assert the root element attributes, that a plain stroke produces one <path> with the expected d and stroke, that a highlighter stroke carries stroke-opacity, that a dashed stroke carries stroke-dasharray, and that the output parses as well-formed XML via the existing XmlPullReader. Verify with scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "export-selected-pages-as-png-jpeg-webp-into-a-picked-folder"
 title = "Export selected pages as PNG/JPEG/WebP into a picked folder"
 description = """

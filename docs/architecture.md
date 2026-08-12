@@ -607,6 +607,9 @@ app/
       PdfVectorPainter.kt    # draws a page's strokes/text/images as vector overlay onto a PDFBox stream
       PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
       PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
+      SvgExporter.kt         # flattens one page to a standalone SVG 1.1 document (background + strokes)
+      SvgBackgroundPainter.kt # draws a page's sheet fill and ruling as SVG rect/line/circle primitives
+      SvgFormat.kt           # locale-independent number + #rrggbb/opacity formatting for SVG output
       PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
       TextBlock.kt           # text line-split + baseline geometry (pure)
       TextPaginator.kt       # text-import word-wrap + A4 pagination, injected measurement (pure)
@@ -1246,6 +1249,21 @@ a `PdfOverlayMatrix` (a pure, unit-tested `cm` matrix — the inverse of the dis
 crop-box origin folded in) that maps visual coordinates into the page's unrotated content space; the
 viewer's `/Rotate` then cancels back to the drawn position, so strokes, text, and images all land
 correctly. For `/Rotate 0` the matrix is just the crop-origin shift.
+
+**Export SVG** (`SvgExporter`) is the same flatten against a different output syntax: one **page**
+per SVG 1.1 document, written through the dependency-free `XmlWriter` (so every value is escaped)
+rather than a graphics library. SVG's y axis grows **down** exactly like the `.xopp` model, so unlike
+the PDF path there is **no flip** — page points are written verbatim in pt and `PdfPageTransform` is
+deliberately unused. The geometry decisions are the shared ones: `SvgBackgroundPainter` takes its
+spacings and colours from `BackgroundGrid` (dots become real `<circle>`s here, where the PDF path
+approximates them with tiny squares), and strokes reuse `StrokePainter.renderColor`, `bandWidth`,
+`RenderMode` and `dashIntervalsPt` — a pen stroke is one `<path>` per point pair so width can taper,
+a highlighter or dashed stroke is a single constant-width `<path>`, and a `fill` stroke gets a closed
+fill path under its outline. Alpha travels as a separate `stroke-opacity`/`fill-opacity` attribute
+beside a `#rrggbb` colour. Every number goes through `SvgFormat` with `Locale.ROOT`, since a
+comma-decimal locale would otherwise corrupt a `d` attribute. Currently **background and strokes
+only** — text, images and LaTeX elements are skipped silently (their own `TODO.toml` task), and a
+`pdf`/`pixmap` background contributes just the plain sheet.
 
 **Fonts in generated PDFs.** The PDF **base-14** fonts (`PDType1Font.HELVETICA` and friends) only
 encode WinAnsi, so `PdfVectorPainter` drops any codepoint outside `0x20..0xFF`. That is acceptable
