@@ -36,31 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "export-selected-pages-as-png-jpeg-webp-into-a-picked-folder"
-title = "Export selected pages as PNG/JPEG/WebP into a picked folder"
-description = """
-Wire raster export end to end, reusing PageRasterizer (see the "Add a full-page rasteriser" task — do that one first).
-
-1. In app/src/main/java/com/nexopp/render/DrawingSurfaceView.kt, next to the existing `fun exportPdf(out: OutputStream)` (search for "exportPdf"), add `fun rasterizePage(index: Int, dpi: Int): android.graphics.Bitmap?`. It reads doc.pages.getOrNull(index) ?: return null, obtains the background picture the same way the surface already does for a pdf/pixmap background (pdfSource?.render(...) / imageSource?.render(...) — copy the synchronous calls PageRegionRenderer callers use), and returns PageRasterizer.render(page, dpi, pageImage, hiddenLayers).
-
-2. In app/src/main/java/com/nexopp/MainActivityDocuments.kt, next to `internal fun MainActivity.exportPdf(uri: Uri)` (around line 240), add `internal fun MainActivity.exportRaster(treeUri: Uri, format: ExportFormat, pages: List<Int>, dpi: Int, baseName: String)`. For each page index it calls surface?.rasterizePage(index, dpi), creates a child document in the picked tree with android.provider.DocumentsContract.createDocument(contentResolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri)), format.mime, format.fileName(baseName, index)) — follow the pattern already in app/src/main/java/com/nexopp/audio/AudioStore.kt (see its createDocument call) — then writes the bitmap through staging.writeTo(childUri) { out -> bitmap.compress(fmt, quality, out) }. Map the format: PNG -> Bitmap.CompressFormat.PNG (quality 100), JPEG -> JPEG (quality 92), WEBP -> WEBP_LOSSY (quality 92). Recycle each bitmap after writing. Wrap the whole thing in runCatching { }.onFailure { toast("Export failed: ${it.message}") } exactly as exportPdf does, and toast the number of pages written on success.
-
-3. In app/src/main/java/com/nexopp/MainActivity.kt, register a new launcher next to exportPdfLauncher (around line 181): `private val exportFolderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let { exportRaster(it, pendingExportFormat, pendingExportPages, pendingExportDpi, pendingExportBaseName) } }`, with those four `pending…` fields declared alongside the existing `pendingImportMode` field.
-
-4. Document it: add a bullet to the Export section of README.md (near line 674, where "Export PDF" is described) covering the raster formats, the DPI, and the "pick a folder, one file per page" behaviour; and add PageRasterizer.kt to the render/ file listing in docs/architecture.md (near line 601, where PdfExporter.kt is listed).
-
-Verify: scripts/build.sh, then install on the /data/android emulator, export a two-page document as PNG at 300 dpi, and screenshot the resulting files to confirm two images landed in the folder."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 60
-created = 2026-08-11
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "add-an-svg-exporter-for-page-backgrounds-and-strokes"
 title = "Add an SVG exporter for page backgrounds and strokes"
 description = """

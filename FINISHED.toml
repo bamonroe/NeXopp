@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "export-selected-pages-as-png-jpeg-webp-into-a-picked-folder"
+title = "Export selected pages as PNG/JPEG/WebP into a picked folder"
+description = """
+Wire raster export end to end, reusing PageRasterizer (see the "Add a full-page rasteriser" task — do that one first).
+
+1. In app/src/main/java/com/nexopp/render/DrawingSurfaceView.kt, next to the existing `fun exportPdf(out: OutputStream)` (search for "exportPdf"), add `fun rasterizePage(index: Int, dpi: Int): android.graphics.Bitmap?`. It reads doc.pages.getOrNull(index) ?: return null, obtains the background picture the same way the surface already does for a pdf/pixmap background (pdfSource?.render(...) / imageSource?.render(...) — copy the synchronous calls PageRegionRenderer callers use), and returns PageRasterizer.render(page, dpi, pageImage, hiddenLayers).
+
+2. In app/src/main/java/com/nexopp/MainActivityDocuments.kt, next to `internal fun MainActivity.exportPdf(uri: Uri)` (around line 240), add `internal fun MainActivity.exportRaster(treeUri: Uri, format: ExportFormat, pages: List<Int>, dpi: Int, baseName: String)`. For each page index it calls surface?.rasterizePage(index, dpi), creates a child document in the picked tree with android.provider.DocumentsContract.createDocument(contentResolver, DocumentsContract.buildDocumentUriUsingTree(treeUri, DocumentsContract.getTreeDocumentId(treeUri)), format.mime, format.fileName(baseName, index)) — follow the pattern already in app/src/main/java/com/nexopp/audio/AudioStore.kt (see its createDocument call) — then writes the bitmap through staging.writeTo(childUri) { out -> bitmap.compress(fmt, quality, out) }. Map the format: PNG -> Bitmap.CompressFormat.PNG (quality 100), JPEG -> JPEG (quality 92), WEBP -> WEBP_LOSSY (quality 92). Recycle each bitmap after writing. Wrap the whole thing in runCatching { }.onFailure { toast("Export failed: ${it.message}") } exactly as exportPdf does, and toast the number of pages written on success.
+
+3. In app/src/main/java/com/nexopp/MainActivity.kt, register a new launcher next to exportPdfLauncher (around line 181): `private val exportFolderLauncher = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri -> uri?.let { exportRaster(it, pendingExportFormat, pendingExportPages, pendingExportDpi, pendingExportBaseName) } }`, with those four `pending…` fields declared alongside the existing `pendingImportMode` field.
+
+4. Document it: add a bullet to the Export section of README.md (near line 674, where "Export PDF" is described) covering the raster formats, the DPI, and the "pick a folder, one file per page" behaviour; and add PageRasterizer.kt to the render/ file listing in docs/architecture.md (near line 601, where PdfExporter.kt is listed).
+
+Verify: scripts/build.sh, then install on the /data/android emulator, export a two-page document as PNG at 300 dpi, and screenshot the resulting files to confirm two images landed in the folder."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "add-a-full-page-rasteriser-for-raster-export"
 title = "Add a full-page rasteriser for raster export"
 description = "Create app/src/main/java/com/nexopp/render/PageRasterizer.kt, an object modelled directly on app/src/main/java/com/nexopp/render/PageRegionRenderer.kt (read it first — the same BackgroundRenderer + PageRenderer pair, but the WHOLE page instead of a region). Signature: fun render(page: Page, dpi: Int, pageImage: android.graphics.Bitmap? = null, hiddenLayers: Set<Int> = emptySet()): Bitmap?. The .xopp model is in POINTS (72 pt = 1 inch), so scale = dpi / 72f. Build the bitmap at (page.width * scale) x (page.height * scale), each coerced to at least 1 px. Cap the longest side at a new const MAX_SIDE_PX = 8192 by shrinking scale, so a 600-dpi A0 page cannot blow the bitmap budget. Return null for a degenerate page (width or height <= 0, or scale <= 0) rather than throwing. Build the PageBox with topPx = 0f, leftPx = 0f, heightPx = page.height * scale, then call BackgroundRenderer.draw(canvas, box, scrollX = 0f, scrollY = 0f, pageImage = pageImage), then PageRenderer.drawElements(canvas, page, scale, 0f, 0f, StrokePainter(), elements, hiddenLayers) inside a try/finally that calls elements.close() — exactly as PageRegionRenderer does, and for the same reason (a one-shot ElementRenderer must not hold decoded images in the shared bitmap budget). Add KDoc in the house style. Add app/src/test/java/com/nexopp/render/PageRasterizerTest.kt for the pure arithmetic only — extract the scale/size maths into an internal fun sizeFor(widthPt: Double, heightPt: Double, dpi: Int): Pair<Int, Int>? so it is testable on the JVM without Android graphics, and test 72 dpi (1:1), 300 dpi, the MAX_SIDE_PX cap, and a degenerate page returning null. Verify with scripts/build.sh testDebugUnitTest."
