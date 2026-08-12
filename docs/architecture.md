@@ -479,13 +479,10 @@ stroke colour and alpha, fill, highlighter-ness, painters order, text content wi
 colour/position, bitmap image pixels and placement, and the canvas format and background.
 
 **Dropped silently on import (Rnote → NeXopp):** the smooth style's `pressure_curve` and `line_cap`,
-a `textstroke`'s `font_weight`, `font_style`, `alignment`, `max_width` and `ranged_text_attributes`
-(that last one is per-character-range styling, confirmed in upstream `textstroke.rs` as
-`{range: [byteStart, byteEnd], attribute: <one of font_family|font_size|font_weight|text_color|
-font_style|underline|strikethrough>}`; `.xopp` `<text>` holds one style for the whole box and, unlike
-`<image>`, carries **no width/height** — only an x,y anchor — so splitting a box into one
-`TextElement` per run would need real text shaping to place them. Whether to do it anyway is its own
-open scope item),
+a `textstroke`'s `alignment` and `max_width`, the parts of `ranged_text_attributes` that do not span
+the whole string, and any `underline`/`strikethrough` (per-character-range styling, confirmed in
+upstream `textstroke.rs` as `{range: [byteStart, byteEnd], attribute: <one of font_family|font_size|
+font_weight|text_color|font_style|underline|strikethrough>}` — see the one-box decision below),
 a `bitmapimage`'s non-affine transform components (shear/rotation beyond what a `.xopp` bounding box
 can express), and the background's `pattern_size`/`pattern_color`. Also dropped: `camera`,
 `snap_positions`, `layout`, `document.x/y/width/height`, and the `format` block's cosmetic
@@ -509,6 +506,37 @@ unmodelled Rnote payload. `RawElement` is XML-shaped (`name`/`attrs`/`body`) and
 subtree, and a `.rnote` → `.xopp` conversion has nowhere to put it either. Unknown stroke tags are
 therefore counted and reported, not round-tripped — this is the one place we knowingly accept loss,
 because the alternative is a second raw-payload model on the `.xopp` side that nothing would read.
+
+### Decision (2026-08-12): one `textstroke` stays one `<text>` — no run splitting
+
+**A Rnote text box imports as exactly one `TextElement`, always.** We do not split a box into one
+box per styled run, not even at hard newlines. The reasons, in order:
+
+- **`<text>` has no extent.** Unlike `<image>`/`<teximage>`, which carry `left/top/right/bottom`,
+  a `<text>` stores only an `x,y` anchor — its width is whatever the renderer's shaping produces.
+  Placing run *n+1* therefore needs the advance width of run *n*. Desktop Xournal++ shapes with
+  Pango and we would measure with Android `Paint`; the metrics will not agree, so split runs drift
+  apart or overlap on the desktop. Splitting only at newlines dodges the horizontal problem but not
+  the vertical one — the line step depends on the font's ascent/descent, which is the same
+  metrics mismatch in the other axis, and mixed sizes across lines make it worse.
+- **It is one-way.** *N* boxes out never recombine into one box coming back, so the very next save
+  produces a document that no longer matches the source, and editing one box reflows text its
+  neighbours were positioned against.
+- **It does not rescue the lossy cases anyway.** `underline` and `strikethrough` have no Pango
+  description token at all (see `format/FontDescription.kt`), so they are lost whether we split or
+  not.
+
+**What we do instead — promote whole-string attributes to the box.** Rnote records "select all,
+make it bold" as a `ranged_text_attribute` spanning the entire string, not as a change to the base
+`text_style`, so the common case of a uniformly styled box currently imports *unstyled*. The import
+flattens the (possibly overlapping) ranges into disjoint runs and, for each attribute kind, applies
+the value to the whole `TextElement` **only when one value covers the entire string**; a kind with
+more than one value across the text keeps the base `text_style` value and the rest is dropped.
+Combined with mapping the box-level `font_weight`/`font_style` through `FontDescription.compose()`,
+that captures everything `.xopp` can actually hold, with no shaping and no round-trip hazard.
+
+Boxes that lost non-uniform styling are **counted, not silent** — they go into the conversion report
+alongside `RnoteConversion.skipped`, per the "must surface that map" rule above.
 
 ### Decision (2026-08-12): a hand-rolled JSON layer, no new dependency
 

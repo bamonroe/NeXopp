@@ -17,6 +17,32 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "decide-whether-rnote-ranged-text-attributes-split-into-multiple-xopp-text-boxes"
+title = "Decide whether rnote ranged text attributes split into multiple xopp text boxes"
+description = """
+Rnote's textstroke carries text_style.ranged_text_attributes: a list of {range, attribute} where range is a pair of BYTE offsets into the UTF-8 string and attribute is one of seven kinds — font_family(String), font_size(f64), font_weight(u16), text_color(Color), font_style(regular|italic), underline(bool), strikethrough(bool). Confirmed against upstream v0.14.2, crates/rnote-engine/src/strokes/textstroke.rs (enum TextAttribute, struct RangedTextAttribute). Ranges may overlap, so any consumer must first flatten them into a partition of disjoint runs.
+
+A .xopp <text> holds ONE style for the whole box (see docs/architecture.md, Element tree): font (a Pango description, so family + Bold/Italic ARE per-box representable), size, x, y, color. The current import maps a Rnote text box to a single uniformly-styled TextElement, dropping the ranged attributes — the lossy-mapping policy in the same doc records that.
+
+The idea to evaluate: emit ONE TextElement per styled run instead, so mixed styling survives.
+
+What makes it hard, and what this scope must settle:
+- <text> has NO width/height attribute — only an x,y top-left anchor. Unlike <image>/<teximage>, which carry left/top/right/bottom, the format stores no extent at all, so the width of a run is implied by rendering it. Placing run two therefore needs the advance width of run one, i.e. real text shaping. Desktop Xournal++ shapes with Pango; we would measure with Android's Paint. Mismatched metrics mean runs that drift apart or overlap.
+- underline and strikethrough have no .xopp home at all (the Pango description has no underline token), so splitting does not rescue those two either way.
+- text_style.max_width and alignment mean a Rnote box can wrap across visual lines; reproducing those break points is the same shaping problem again.
+- The conversion is one-way: N boxes out never recombine into one box coming back, and editing one box reflows text its neighbours were positioned against.
+
+Suggested direction to confirm or reject: keep the uniform mapping as the default, and split only where run boundaries coincide with hard newlines in the content — a line break is a known vertical step (one line height) rather than a horizontal shaping problem, so it is safe without metrics.
+
+Output is TODO items plus a decision recorded in docs/architecture.md next to the existing lossy-mapping policy. First step is a Rnote-authored fixture with mixed styling in one text box (rnote-cli import from .xopp can never produce one), so add that as its own task if the answer is anything other than 'keep uniform'."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-skip-and-report-unconvertible-strokes"
 title = "rnote: skip-and-report unconvertible strokes"
 description = """

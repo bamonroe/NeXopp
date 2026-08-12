@@ -36,35 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "decide-whether-rnote-ranged-text-attributes-split-into-multiple-xopp-text-boxes"
-title = "Decide whether rnote ranged text attributes split into multiple xopp text boxes"
-description = """
-Rnote's textstroke carries text_style.ranged_text_attributes: a list of {range, attribute} where range is a pair of BYTE offsets into the UTF-8 string and attribute is one of seven kinds — font_family(String), font_size(f64), font_weight(u16), text_color(Color), font_style(regular|italic), underline(bool), strikethrough(bool). Confirmed against upstream v0.14.2, crates/rnote-engine/src/strokes/textstroke.rs (enum TextAttribute, struct RangedTextAttribute). Ranges may overlap, so any consumer must first flatten them into a partition of disjoint runs.
-
-A .xopp <text> holds ONE style for the whole box (see docs/architecture.md, Element tree): font (a Pango description, so family + Bold/Italic ARE per-box representable), size, x, y, color. The current import maps a Rnote text box to a single uniformly-styled TextElement, dropping the ranged attributes — the lossy-mapping policy in the same doc records that.
-
-The idea to evaluate: emit ONE TextElement per styled run instead, so mixed styling survives.
-
-What makes it hard, and what this scope must settle:
-- <text> has NO width/height attribute — only an x,y top-left anchor. Unlike <image>/<teximage>, which carry left/top/right/bottom, the format stores no extent at all, so the width of a run is implied by rendering it. Placing run two therefore needs the advance width of run one, i.e. real text shaping. Desktop Xournal++ shapes with Pango; we would measure with Android's Paint. Mismatched metrics mean runs that drift apart or overlap.
-- underline and strikethrough have no .xopp home at all (the Pango description has no underline token), so splitting does not rescue those two either way.
-- text_style.max_width and alignment mean a Rnote box can wrap across visual lines; reproducing those break points is the same shaping problem again.
-- The conversion is one-way: N boxes out never recombine into one box coming back, and editing one box reflows text its neighbours were positioned against.
-
-Suggested direction to confirm or reject: keep the uniform mapping as the default, and split only where run boundaries coincide with hard newlines in the content — a line break is a known vertical step (one line height) rather than a horizontal shaping problem, so it is safe without metrics.
-
-Output is TODO items plus a decision recorded in docs/architecture.md next to the existing lossy-mapping policy. First step is a Rnote-authored fixture with mixed styling in one text box (rnote-cli import from .xopp can never produce one), so add that as its own task if the answer is anything other than 'keep uniform'."""
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 220
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "trace-the-full-xopp-rnote-feature-gap-matrix-and-decide-the-per-tab-document-mode"
 title = "Trace the full xopp/rnote feature-gap matrix and decide the per-tab document mode"
 description = """
@@ -401,6 +372,92 @@ level = "task"
 category = "feature"
 urgency = "normal"
 order = 350
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-map-textstroke-font-weight-and-font-style-into-the-pango-font-description"
+title = "rnote: map textstroke font_weight and font_style into the Pango font description"
+description = """
+In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt, textStrokeToText() currently sets TextElement.font to text_style.font_family verbatim (line ~190) and drops font_weight and font_style. Use the existing helper app/src/main/java/com/nexopp/format/FontDescription.kt instead: build FontDescription(family = text_style.font_family ?: DEFAULT_FONT, bold = ..., italic = ...) and pass .compose() as TextElement.font.
+
+Rules: bold when text_style.font_weight is a number >= 600 (Rnote stores a u16 CSS-style weight; 400 is regular, 700 bold); italic when text_style.font_style is the string "italic" (the other value is "regular"). Absent or unrecognised values mean not bold / not italic.
+
+Update the KDoc on textStrokeToText() (it currently says font_weight and font_style are dropped) and the Rnote-to-xopp mapping table row for textstroke in docs/architecture.md (~line 348) to say weight and style now cross over through the Pango description.
+
+Verify with new unit tests beside the existing textstroke tests in app/src/test: a textstroke with font_weight 700 and font_style "italic" gives font == "Sans Bold Italic"; weight 400 with style "regular" gives "Sans"; missing text_style still gives the DEFAULT_FONT. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 360
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-flatten-ranged-text-attributes-into-disjoint-runs"
+title = "rnote: flatten ranged_text_attributes into disjoint runs"
+description = """
+Add a pure helper file app/src/main/java/com/nexopp/format/rnote/RnoteTextRuns.kt that flattens a textstrokes text_style.ranged_text_attributes into a partition of disjoint runs over the string.
+
+Input shape (confirmed against rnote v0.14.2 crates/rnote-engine/src/strokes/textstroke.rs): a JSON array of {range: [byteStart, byteEnd], attribute: {<kind>: <value>}} where kind is one of font_family (String), font_size (f64), font_weight (u16), text_color (Color), font_style ("regular"|"italic"), underline (bool), strikethrough (bool). Ranges are BYTE offsets into the UTF-8 encoding of text and MAY OVERLAP; a later entry in the array wins over an earlier one on the bytes they share.
+
+Expose: data class TextRun(val startByte: Int, val endByte: Int, val attrs: Map<String, String>) and fun flattenRuns(rangedAttrs: JsonValue?, textByteLength: Int): List<TextRun> returning runs that are non-overlapping, ascending, and together cover 0 until textByteLength (gaps between attributed ranges become runs with an empty attrs map). Attribute values are kept as their raw JSON rendered to a string so runs compare by equality; ignore entries whose range is malformed, reversed, or out of bounds rather than throwing.
+
+Also expose fun uniformAttribute(runs: List<TextRun>, kind: String): String? returning the single value of that attribute kind when every run carries the same value for it, and null when the runs disagree or any run lacks it.
+
+This task adds no call sites - it is consumed by the follow-up task that promotes whole-string attributes. Verify with unit tests in app/src/test covering: no attributes gives one run spanning the whole text; two non-overlapping ranges give three runs (before, a, b) when they do not touch; overlapping ranges give the later entrys value on the shared bytes; uniformAttribute returns the value for a range covering the whole string and null for a partial one. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 370
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-promote-whole-string-ranged-text-attributes-onto-the-text-box"
+title = "rnote: promote whole-string ranged text attributes onto the text box"
+description = """
+Depends on rnote-flatten-ranged-text-attributes-into-disjoint-runs and rnote-map-textstroke-font-weight-and-font-style-into-the-pango-font-description.
+
+In textStrokeToText() in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt, run flattenRuns() over text_style.ranged_text_attributes with the UTF-8 byte length of the text, then for each of font_family, font_size, font_weight, font_style and text_color call uniformAttribute(); when it returns a value, that value OVERRIDES the base text_style value used to build the TextElement. When it returns null, keep the base text_style value and drop the rest. underline and strikethrough are always dropped - the Pango description has no token for them.
+
+This is the "select all, make it bold" case: Rnote records it as a range spanning the whole string rather than a change to the base text_style, so without this the box imports unstyled. The decision that forbids splitting a box into per-run boxes is recorded in docs/architecture.md under "one textstroke stays one <text>" - do not split.
+
+Update the KDoc on textStrokeToText() and the textstroke row of the Rnote mapping table in docs/architecture.md to describe the promotion. Verify with unit tests in app/src/test: a textstroke whose ranged_text_attributes bolds the entire string imports with font "Sans Bold"; one that bolds only the first half imports with the base weight; a whole-string text_color overrides the base colour; a whole-string font_size overrides the base size (still converted px to pt). Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 380
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-report-text-boxes-that-lost-non-uniform-styling"
+title = "rnote: report text boxes that lost non-uniform styling"
+description = """
+Depends on rnote-promote-whole-string-ranged-text-attributes-onto-the-text-box.
+
+The lossy-mapping policy in docs/architecture.md forbids dropping content silently. Extend the conversion report so a text box whose ranged_text_attributes could not be promoted (the runs disagreed, or the box carried underline/strikethrough) is counted rather than lost.
+
+In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt, add a field to data class RnoteConversion (line ~54) - val lossyText: Int, the number of textstrokes whose styling was flattened away - and fill it in convertStrokes() (line ~66) from a signal returned by textStrokeToText(). Keep textStrokeToText()s public return a TextElement? by adding a separate internal helper that returns the element plus the flag, so existing call sites and tests keep working. Default the new field to 0 so it stays a source-compatible addition.
+
+Update the KDoc on RnoteConversion and the same "must surface that map" paragraph in docs/architecture.md to name the new field. Verify with unit tests in app/src/test: converting a stroke list with one partially-bolded textstroke gives lossyText == 1 and skipped empty; a uniformly styled one gives lossyText == 0. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 390
 created = 2026-08-12
 tags = []
 rebuild = false
