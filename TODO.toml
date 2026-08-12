@@ -36,30 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "generate-rnote-test-fixtures-with-rnote-cli"
-title = "Generate .rnote test fixtures with rnote-cli"
-description = """
-This box has Rnote installed: /usr/bin/rnote and /usr/bin/rnote-cli. `rnote-cli import` converts a `.xopp` file into a `.rnote` save file, `rnote-cli create` makes an empty one, and `rnote-cli test` validates that a file opens as a valid rnote file. That gives us ground-truth fixtures without hand-authoring anything.
-
-Steps:
-1. Run `rnote-cli help import` and `rnote-cli help export` and record the exact flag syntax in the commit message.
-2. For each existing .xopp fixture in app/src/test/resources/fixtures/ (plain, backgrounds, layers, text-image — see app/src/test/java/com/nexopp/format/FormatDriftTest.kt), run `rnote-cli import` to produce the matching `.rnote` file, and validate each result with `rnote-cli test`.
-3. Also run `rnote-cli create` once to capture a minimal empty document.
-4. Commit the results to a NEW directory app/src/test/resources/fixtures/rnote/ named to match their .xopp sources (plain.rnote, backgrounds.rnote, layers.rnote, text-image.rnote, empty.rnote). Check their total size first — if the set exceeds a couple of MB, keep only plain, layers and empty and say so in the commit message.
-5. Add a short README section: document in docs/tools.md (the external-tools spoke) that rnote/rnote-cli is available on the build box, the exact commands used to regenerate these fixtures, and that `rnote-cli test` is the validity check. This is a load-bearing command that must not live only in shell history.
-
-No app code changes and no APK build are needed — this task only adds test resources and a tools-doc entry. Verify with `scripts/todo.sh validate` and by re-running `rnote-cli test` over every committed fixture."""
-status = "active"
-level = "task"
-category = "test"
-urgency = "normal"
-order = 110
-created = 2026-08-11
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "investigate-the-rnote-container-and-serialisation-format"
 title = "Investigate the .rnote container and serialisation format"
 description = """

@@ -14,6 +14,7 @@ lives, how to invoke it, and the non-obvious gotchas.
 |-----------------|---------------|--------|
 | Android build | Compile & package the app (APK/AAB) | [below](#android-build) |
 | Android emulator | Run & test the app on a virtual device | [below](#android-emulator) |
+| `rnote-cli` | Generate & validate `.rnote` test fixtures | [below](#rnote-cli) |
 
 ---
 
@@ -98,3 +99,35 @@ change with a runtime surface must be installed and exercised on the emulator, n
   - `scripts/connected-test.sh -e class com.nexopp.SmokeTest` — extra args pass through to
     `am instrument` (class/method/size filters, etc.).
 - **Gotchas:** the emulator needs host KVM (`/dev/kvm`, VT-x enabled in BIOS).
+
+---
+
+## `rnote-cli`
+
+[Rnote](https://github.com/flxzt/rnote) is installed on this box (`/usr/bin/rnote`,
+`/usr/bin/rnote-cli`, version 0.14.2) and is the **ground truth for the `.rnote` save
+format** — it produces and validates the fixtures under
+`app/src/test/resources/fixtures/rnote/`, so no `.rnote` file is ever hand-authored.
+
+- **Import a `.xopp` into a `.rnote`:** `rnote-cli import -i <in.xopp> <out.rnote>`
+  (`--xopp-dpi` defaults to 96). Import is currently `.xopp`-only.
+- **Create an empty document:** `rnote-cli create <file.rnote>`.
+- **Validate:** `rnote-cli test <files…>` — opens each file and parses it; non-zero exit
+  if any file is not a valid rnote save. This is the check every committed fixture must pass.
+- **Export back out:** `rnote-cli export <files…> doc|doc-pages|selection …` (PDF/SVG/PNG),
+  useful for eyeballing what a fixture actually contains.
+- **Gotcha:** `import` fails with `Error: Expected file, found directory "<path>"` when the
+  **output path does not exist yet** — `touch` the target first.
+
+**Regenerating the fixtures** (from `app/src/test/resources/fixtures/`):
+
+```sh
+for f in plain backgrounds layers text-image; do
+  touch rnote/$f.rnote && rnote-cli import -i $f.xopp rnote/$f.rnote
+done
+rnote-cli create rnote/empty.rnote      # only if empty.rnote is missing; create won't overwrite
+rnote-cli test rnote/*.rnote            # must exit 0
+```
+
+Each `.rnote` mirrors the `.xopp` fixture of the same name (see that directory's `README.md`
+for what each one covers); `empty.rnote` is a minimal empty document. The whole set is ~3 KB.
