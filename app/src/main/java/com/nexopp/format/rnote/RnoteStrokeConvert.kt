@@ -2,6 +2,7 @@ package com.nexopp.format.rnote
 
 import com.nexopp.format.json.JsonObject
 import com.nexopp.format.json.JsonValue
+import com.nexopp.format.model.Element
 import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.LineStyle
 import com.nexopp.format.model.Stroke
@@ -41,6 +42,54 @@ private const val DEFAULT_FONT = "Sans"
 
 /** The font size Rnote writes by default, in px — 12 pt once converted. */
 private const val DEFAULT_FONT_SIZE_PX = 16.0
+
+/**
+ * The result of walking a whole `.rnote` stroke list: what converted, and what did not.
+ *
+ * @property elements The converted elements, in the painters order they were handed to us.
+ * @property skipped How many strokes each unconvertible kind cost, keyed by [RnoteStroke.kind].
+ *   The reader hands this to the UI so the user is told what the file lost — never drop it
+ *   silently (see `docs/architecture.md`, "the `.rnote` lossy-mapping policy").
+ */
+data class RnoteConversion(val elements: List<Element>, val skipped: Map<String, Int>)
+
+/**
+ * Convert every stroke of a snapshot, skipping and counting the ones nothing here can express.
+ *
+ * A `vectorimage` (an SVG has no `.xopp` home), an unknown tag from a newer Rnote, a shape we
+ * cannot flatten, and a stroke whose JSON is malformed all land in [RnoteConversion.skipped]
+ * under their own kind rather than throwing or arriving as a fabricated element — one corrupt
+ * stroke must not sink the rest of the file.
+ *
+ * @param strokes [RnoteSnapshot.strokes], already in ascending z order.
+ * @return The elements in that same order, plus the per-kind tally of what was skipped.
+ */
+fun convertStrokes(strokes: List<RnoteStroke>): RnoteConversion {
+    val elements = ArrayList<Element>(strokes.size)
+    val skipped = LinkedHashMap<String, Int>()
+    for (stroke in strokes) {
+        val element = try {
+            convertStroke(stroke)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        if (element == null) {
+            skipped[stroke.kind] = (skipped[stroke.kind] ?: 0) + 1
+        } else {
+            elements += element
+        }
+    }
+    return RnoteConversion(elements, skipped)
+}
+
+/** Dispatch one stroke to the converter for its kind, or null when no converter claims it. */
+private fun convertStroke(stroke: RnoteStroke): Element? = when (stroke.kind) {
+    "brushstroke" -> brushStrokeToStroke(stroke)
+    "shapestroke" -> shapeStrokeToStroke(stroke)
+    "textstroke" -> textStrokeToText(stroke)
+    "bitmapimage" -> bitmapImageToImage(stroke)
+    else -> null
+}
 
 /**
  * Convert one `brushstroke` into a [Stroke].

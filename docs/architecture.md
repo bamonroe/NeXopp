@@ -499,7 +499,10 @@ keeps no eraser stroke), and `RawElement`s (an XML fragment has no JSON home).
 
 **Refused, not silently mangled:** `vectorimage` — an SVG stroke has no `.xopp` representation at
 all, so importing one would lose it on the next save. A file containing one loads with the rest of
-its content and reports the skipped strokes rather than pretending they were read.
+its content and reports the skipped strokes rather than pretending they were read. The count lives
+in `RnoteConversion.skipped` (kind → how many), filled by `convertStrokes()`; a malformed stroke
+body is counted the same way rather than failing the whole import. Whoever wires the reader to the
+UI **must surface that map** — dropping it silently is the one thing this policy forbids.
 
 **Not preserved verbatim:** unlike the `.xopp` side, there is **no `RawElement` equivalent** for
 unmodelled Rnote payload. `RawElement` is XML-shaped (`name`/`attrs`/`body`) and cannot hold a JSON
@@ -844,7 +847,10 @@ app/
                              #   stroke_width x pressure to per-vertex width, layer to Tool,
                              #   line_style/fill_color across; textstroke -> model.TextElement;
                              #   bitmapimage -> model.ImageElement (rectangle -> pt box, pixels
-                             #   re-encoded); null for any other stroke kind
+                             #   re-encoded); null for any other stroke kind. convertStrokes()
+                             #   walks a whole z-sorted list into an RnoteConversion(elements,
+                             #   skipped): a vectorimage, an unknown tag or a malformed body is
+                             #   counted per kind in `skipped`, never thrown and never faked
         RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->

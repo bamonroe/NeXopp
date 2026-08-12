@@ -36,35 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "rnote-skip-and-report-unconvertible-strokes"
-title = "rnote: skip-and-report unconvertible strokes"
-description = """
-Give the .rnote import path one place that records what it could not convert, per the lossy-mapping policy in docs/architecture.md ('Decision (2026-08-12): the .rnote lossy-mapping policy').
-
-In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt add:
-
-data class RnoteConversion(val elements: List<Element>, val skipped: Map<String, Int>)
-
-fun convertStrokes(strokes: List<RnoteStroke>): RnoteConversion
-
-which walks the (already z-sorted) list, dispatching on kind to brushStrokeToStroke / shapeStrokeToStroke / textStrokeToText / bitmapImageToImage, and appending each non-null result to elements in order. For a kind nothing handles — 'vectorimage' (an SVG has no .xopp home) or an unknown tag from a newer Rnote — do not throw and do not fabricate an element: increment skipped[kind]. Also skip (and count under its kind) any stroke whose chrono layer is "document". A converter that throws IllegalArgumentException on malformed JSON must not sink the whole file: catch it, count the stroke under its kind, and carry on.
-
-Test in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: convertStrokes on the parsed plain.rnote snapshot gives 3 Stroke elements and an empty skipped map; on text-image.rnote gives a TextElement and an ImageElement; a hand-built RnoteStroke with kind 'vectorimage' yields no elements and skipped == mapOf("vectorimage" to 1).
-
-Note for whoever wires the reader up later: the skipped map is what the UI reports to the user — do not silently drop it.
-
-Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 210
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "decide-whether-rnote-ranged-text-attributes-split-into-multiple-xopp-text-boxes"
 title = "Decide whether rnote ranged text attributes split into multiple xopp text boxes"
 description = """

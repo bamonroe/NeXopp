@@ -1,7 +1,10 @@
 package com.nexopp.format.rnote
 
 import com.nexopp.format.json.JsonReader
+import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.LineStyle
+import com.nexopp.format.model.Stroke
+import com.nexopp.format.model.TextElement
 import com.nexopp.format.model.Tool
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -293,6 +296,38 @@ class RnoteStrokeConvertTest {
     @Test
     fun `a brushstroke is not a shapestroke`() {
         assertNull(shapeStrokeToStroke(strokes("plain")[0]))
+    }
+
+    @Test
+    fun `converting the plain fixture gives three strokes and skips nothing`() {
+        val converted = convertStrokes(strokes("plain"))
+        assertEquals(3, converted.elements.size)
+        assertTrue(converted.elements.all { it is Stroke })
+        assertTrue(converted.skipped.isEmpty())
+    }
+
+    @Test
+    fun `converting the text-image fixture gives a text element and an image`() {
+        val converted = convertStrokes(strokes("text-image"))
+        assertTrue(converted.skipped.isEmpty())
+        assertEquals(1, converted.elements.filterIsInstance<TextElement>().size)
+        assertEquals(1, converted.elements.filterIsInstance<ImageElement>().size)
+    }
+
+    @Test
+    fun `a vectorimage is counted as skipped rather than converted`() {
+        val vector = RnoteStroke(1, "vectorimage", JsonReader("""{"svg_data":"<svg/>"}""").parse(), 1L, "user_layer", 0)
+        val converted = convertStrokes(listOf(vector))
+        assertTrue(converted.elements.isEmpty())
+        assertEquals(mapOf("vectorimage" to 1), converted.skipped)
+    }
+
+    @Test
+    fun `a malformed stroke is counted rather than sinking the rest of the file`() {
+        val broken = RnoteStroke(1, "textstroke", JsonReader("""{"text_style":{}}""").parse(), 1L, "user_layer", 0)
+        val converted = convertStrokes(strokes("plain") + broken)
+        assertEquals(3, converted.elements.size)
+        assertEquals(mapOf("textstroke" to 1), converted.skipped)
     }
 
     @Test
