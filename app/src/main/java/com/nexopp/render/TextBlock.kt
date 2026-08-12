@@ -6,6 +6,16 @@ package com.nexopp.render
  */
 object TextBlock {
 
+    /**
+     * First-baseline drop below the box top, as a fraction of the font size. Used by the export
+     * paths ([PdfVectorPainter], [SvgElementPainter]), which have no `Paint` to ask for real font
+     * metrics; [ElementRenderer] uses the actual ascent on screen.
+     */
+    const val ASCENT_RATIO = 0.75
+
+    /** Baseline-to-baseline advance, as a fraction of the font size. Companion to [ASCENT_RATIO]. */
+    const val LINE_HEIGHT_RATIO = 1.2
+
     /** Split content into the lines that are drawn — newline-delimited, preserving empty lines. */
     fun lines(content: String): List<String> = content.split("\n")
 

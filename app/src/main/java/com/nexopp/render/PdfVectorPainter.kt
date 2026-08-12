@@ -120,8 +120,8 @@ class PdfVectorPainter {
     private fun text(cs: PDPageContentStream, tx: TextElement, t: PdfPageTransform) {
         val font = fontFor(tx.font)
         val size = tx.size.toFloat()
-        val ascent = tx.size * ASCENT_RATIO
-        val lineHeight = tx.size * LINE_HEIGHT_RATIO
+        val ascent = tx.size * TextBlock.ASCENT_RATIO
+        val lineHeight = tx.size * TextBlock.LINE_HEIGHT_RATIO
         cs.beginText()
         cs.setNonStrokingArgb(tx.color)
         cs.setFont(font, size)
@@ -189,9 +189,6 @@ class PdfVectorPainter {
     }
 
     private companion object {
-        const val ASCENT_RATIO = 0.75
-        const val LINE_HEIGHT_RATIO = 1.2
-
         fun alphaState(a: Float) = PDExtendedGraphicsState().apply {
             strokingAlphaConstant = a
             nonStrokingAlphaConstant = a

@@ -608,6 +608,7 @@ app/
       PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
       PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
       SvgExporter.kt         # flattens one page to a standalone SVG 1.1 document (background + strokes)
+      SvgElementPainter.kt   # the SVG markup for text boxes, images and LaTeX images (data: URIs)
       SvgBackgroundPainter.kt # draws a page's sheet fill and ruling as SVG rect/line/circle primitives
       SvgFormat.kt           # locale-independent number + #rrggbb/opacity formatting for SVG output
       PdfOverlayMatrix.kt    # overlay cm-matrix that aligns annotations on /Rotate 90/180/270 pages (pure)
@@ -1261,9 +1262,20 @@ approximates them with tiny squares), and strokes reuse `StrokePainter.renderCol
 a highlighter or dashed stroke is a single constant-width `<path>`, and a `fill` stroke gets a closed
 fill path under its outline. Alpha travels as a separate `stroke-opacity`/`fill-opacity` attribute
 beside a `#rrggbb` colour. Every number goes through `SvgFormat` with `Locale.ROOT`, since a
-comma-decimal locale would otherwise corrupt a `d` attribute. Currently **background and strokes
-only** — text, images and LaTeX elements are skipped silently (their own `TODO.toml` task), and a
-`pdf`/`pixmap` background contributes just the plain sheet.
+comma-decimal locale would otherwise corrupt a `d` attribute. A `pdf`/`pixmap` background
+contributes just the plain sheet.
+
+The non-stroke elements live in `SvgElementPainter`, mirroring what `PdfVectorPainter` does for
+PDF. A `<text>` box becomes one `<text>` element carrying the family/size/colour with one `<tspan>`
+per line, so multi-line boxes keep their breaks; there is no `Paint` on an export thread, so the
+first baseline drops by `TextBlock.ASCENT_RATIO` and later lines advance by
+`TextBlock.LINE_HEIGHT_RATIO` (the same constants the PDF painter uses — `ElementRenderer` uses real
+font metrics on screen), and the Pango family maps onto a generic CSS family. An `<image>`, and a
+`<teximage>` that carries a desktop-rendered PNG, become an SVG `<image>` whose bytes are embedded
+inline as a base64 `data:` URI, so an exported SVG is self-contained; the media type is sniffed from
+the file signature because the model stores encoded bytes without recording their type. The root
+`<svg>` declares `xmlns:xlink` only when at least one `<image>` is emitted. A `<teximage>` with no
+rendered PNG, and any `RawElement` (preserved-but-unmodelled markup), are skipped silently.
 
 **Fonts in generated PDFs.** The PDF **base-14** fonts (`PDType1Font.HELVETICA` and friends) only
 encode WinAnsi, so `PdfVectorPainter` drops any codepoint outside `0x20..0xFF`. That is acceptable

@@ -2,11 +2,14 @@ package com.nexopp.render
 
 import com.nexopp.format.model.Background
 import com.nexopp.format.model.Element
+import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.Layer
 import com.nexopp.format.model.LineStyle
 import com.nexopp.format.model.Page
+import com.nexopp.format.model.RawElement
 import com.nexopp.format.model.Stroke
 import com.nexopp.format.model.StrokePoint
+import com.nexopp.format.model.TexImageElement
 import com.nexopp.format.model.TextElement
 import com.nexopp.format.model.Tool
 import com.nexopp.format.xml.XmlPullReader
@@ -14,6 +17,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import java.io.StringWriter
+import java.util.Base64
 import org.junit.Test
 
 /**
@@ -170,13 +174,76 @@ class SvgExporterTest {
         assertTrue(els.none { it.first == "line" })
     }
 
-    @Test fun unsupportedElementsAreSkippedSilently() {
-        val text = TextElement("Sans", 12.0, 5.0, 5.0, 0xFF000000.toInt(), "hi")
-        val els = elements(export(page(text)))
-        assertTrue(els.none { it.first == "path" || it.first == "text" })
+    @Test fun textBoxIsOneTspanPerLineUnderATextElement() {
+        val text = TextElement("Serif Bold", 12.0, 5.0, 7.0, 0xFF204060.toInt(), "first\nsecond")
+        val svg = export(page(text))
+        val els = elements(svg)
+        val t = els.single { it.first == "text" }.second
+        assertEquals("5", t["x"])
+        assertEquals("7", t["y"])
+        assertEquals("serif", t["font-family"])
+        assertEquals("12", t["font-size"])
+        assertEquals("bold", t["font-weight"])
+        assertNull(t["font-style"])
+        assertEquals("#204060", t["fill"])
+        val spans = els.filter { it.first == "tspan" }.map { it.second }
+        assertEquals(2, spans.size)
+        // First line drops one ascent below the box top; the next advances by a line height.
+        assertEquals(listOf("5", "5"), spans.map { it["x"] })
+        assertEquals("9", spans[0]["dy"])
+        assertEquals("14.4", spans[1]["dy"])
+        assertTrue(svg.contains(">first<"))
+        assertTrue(svg.contains(">second<"))
+    }
+
+    @Test fun imageEmbedsItsBytesAsADataUriAndDeclaresXlink() {
+        val img = ImageElement(10.0, 20.0, 40.0, 60.0, PNG)
+        val svg = export(page(img))
+        val els = elements(svg)
+        assertEquals(
+            "http://www.w3.org/1999/xlink",
+            els.first().second["xmlns:xlink"],
+        )
+        val image = els.single { it.first == "image" }.second
+        assertEquals("10", image["x"])
+        assertEquals("20", image["y"])
+        assertEquals("30", image["width"])
+        assertEquals("40", image["height"])
+        assertEquals(
+            "data:image/png;base64," + Base64.getEncoder().encodeToString(PNG),
+            image["xlink:href"],
+        )
+    }
+
+    @Test fun aPageWithoutImagesDoesNotDeclareXlink() {
+        val svg = export(page(pen(StrokePoint(0.0, 0.0, 1.0), StrokePoint(5.0, 5.0, 1.0))))
+        assertNull(elements(svg).first().second["xmlns:xlink"])
+    }
+
+    @Test fun texImageExportsItsRenderedPngAsAnImage() {
+        val tex = TexImageElement(1.0, 2.0, 11.0, 12.0, "x^2", 0xFF000000.toInt(), data = PNG)
+        val image = elements(export(page(tex))).single { it.first == "image" }.second
+        assertEquals("10", image["width"])
+        assertTrue(image["xlink:href"]!!.startsWith("data:image/png;base64,"))
+    }
+
+    @Test fun texImageWithoutARenderedPngIsSkipped() {
+        val tex = TexImageElement(1.0, 2.0, 11.0, 12.0, "x^2", 0xFF000000.toInt(), data = null)
+        assertTrue(elements(export(page(tex))).none { it.first == "image" })
+    }
+
+    @Test fun rawElementProducesNoOutput() {
+        val raw = RawElement("vendorthing", mapOf("a" to "1"), "body")
+        val els = elements(export(page(raw)))
+        assertTrue(els.none { it.first == "vendorthing" || it.first == "image" || it.first == "text" })
     }
 
     @Test fun degenerateStrokeIsDropped() {
         assertTrue(paths(export(page(pen(StrokePoint(1.0, 1.0, 1.0))))).isEmpty())
+    }
+
+    private companion object {
+        /** A PNG signature plus a byte of payload — enough for the media-type sniff and base64. */
+        val PNG = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x01)
     }
 }

@@ -1,9 +1,13 @@
 package com.nexopp.render
 
 import com.nexopp.format.XoppColor.alpha
+import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.Page
+import com.nexopp.format.model.RawElement
 import com.nexopp.format.model.Stroke
 import com.nexopp.format.model.StrokePoint
+import com.nexopp.format.model.TexImageElement
+import com.nexopp.format.model.TextElement
 import com.nexopp.format.xml.XmlWriter
 import com.nexopp.render.SvgFormat.num
 import com.nexopp.render.SvgFormat.opacity
@@ -22,8 +26,8 @@ import java.io.Writer
  * Markup goes through [XmlWriter] so every value is escaped, and every number through [SvgFormat]
  * so a comma-decimal locale can't corrupt the output.
  *
- * Scope: background and strokes only. Text, images and LaTeX elements are skipped silently — they
- * are the follow-up task "Extend the SVG exporter to text, images and LaTeX elements".
+ * Strokes and the background are drawn here; text, images and LaTeX images go through
+ * [SvgElementPainter]. A [RawElement] has no visual form we can render, so it is skipped silently.
  */
 class SvgExporter {
 
@@ -31,9 +35,10 @@ class SvgExporter {
     fun export(page: Page, out: Writer) {
         val w = XmlWriter(out)
         w.prolog()
-        w.start("svg")
-            .attr("xmlns", SVG_NS)
-            .attr("version", "1.1")
+        w.start("svg").attr("xmlns", SVG_NS)
+        // Only declared when an <image> will actually reference it (SVG 1.1 hrefs are xlink's).
+        if (SvgElementPainter.hasImages(page)) w.attr("xmlns:xlink", XLINK_NS)
+        w.attr("version", "1.1")
             .attr("width", num(page.width) + "pt")
             .attr("height", num(page.height) + "pt")
             .attr("viewBox", "0 0 ${num(page.width)} ${num(page.height)}")
@@ -41,8 +46,19 @@ class SvgExporter {
         SvgBackgroundPainter.draw(w, page)
         for (layer in page.layers) {
             for (element in layer.elements) {
-                // TODO: text/image/teximage — "Extend the SVG exporter to text, images and LaTeX".
-                if (element is Stroke) stroke(w, element)
+                when (element) {
+                    is Stroke -> stroke(w, element)
+                    is TextElement -> SvgElementPainter.text(w, element)
+                    is ImageElement ->
+                        SvgElementPainter.image(w, element.left, element.top, element.right, element.bottom, element.data)
+                    // A <teximage> exports as the PNG the desktop rendered; a file authored
+                    // without one carries no glyphs we could draw, so it is skipped.
+                    is TexImageElement -> element.data?.let {
+                        SvgElementPainter.image(w, element.left, element.top, element.right, element.bottom, it)
+                    }
+                    // Preserved-but-unmodelled markup: it exists only to survive the round trip.
+                    is RawElement -> Unit
+                }
             }
         }
         w.end().newline()
@@ -110,5 +126,6 @@ class SvgExporter {
 
     private companion object {
         const val SVG_NS = "http://www.w3.org/2000/svg"
+        const val XLINK_NS = "http://www.w3.org/1999/xlink"
     }
 }
