@@ -282,3 +282,40 @@ created = 2026-08-12
 tags = []
 rebuild = false
 emulator_debug = false
+
+[[task]]
+id = "trace-the-full-xopp-rnote-feature-gap-matrix-and-decide-the-per-tab-document-mode"
+title = "Trace the full xopp/rnote feature-gap matrix and decide the per-tab document mode"
+description = """
+Two connected deliverables: an exhaustive, authoritative gap matrix between .xopp and .rnote, and a decision on whether a tab carries a document-type 'mode' that shapes what the editor lets you do.
+
+PART 1 — the gap matrix.
+docs/architecture.md already holds a measured stroke/pen mapping and a dated lossy-mapping policy (sections 'The stroke & pen mapping (measured against the fixture twins)' and 'Decision (2026-08-12): the .rnote lossy-mapping policy'), but those cover only what the four fixture twins happened to exercise. Extend that into a complete, per-feature table covering BOTH directions, and for each gap record the chosen translation: map faithfully, map approximately (say how), drop silently, or refuse.
+
+Known feature axes to cover, at minimum:
+- Document structure: xopp pages + stacked layers + per-page backgrounds (plain/ruled/graph/dotted/lined, solid colours, pdf/pixmap) versus Rnote's single infinite canvas, fixed named layers (user_layer n, highlighter, image, document) and one canvas background with a repeating pattern. Measured: rnote-cli stacked 5 pages at i x format.height with no gap and collapsed all 5 backgrounds to pattern 'none'; 3 xopp layers collapsed onto user_layer 0. NOTE: the sibling scope 'decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers' owns the actual page/layer algorithm — this matrix records the gap and defers the mechanism to it, no duplication.
+- Strokes: pressure encoding, nominal pen width (xopp-only), line styles, fill, cap style, Tool.ERASER (xopp-only), pressure_curve and line_cap and textured brush styles (rnote-only), parametric shapestroke versus flattened polyline.
+- Text: covered by the sibling scope 'decide-whether-rnote-ranged-text-attributes-split-into-multiple-xopp-text-boxes'. Reference it; do not re-decide it here.
+- Images: xopp PNG/JPEG in a pt bounding box versus Rnote's raw premultiplied RGBA buffer with a full affine transform (rotation/shear is rnote-only); vectorimage/SVG (rnote-only); teximage/LaTeX (xopp-only, and rnote-cli drops it).
+- Whole-document extras: xopp <title>, <preview> thumbnail, audio ts/fn attributes on strokes and text, RawElement passthrough; Rnote camera, snap_positions, chrono_counter, format border_color/show_borders/show_origin_indicator.
+- Anything else found by reading upstream rather than the fixtures: the definitive source is the serde structs under crates/rnote-engine/src/strokes/ and crates/rnote-compose/src/ at tag v0.14.2 (fetchable per-file over raw.githubusercontent.com; there is no local clone — reference/ holds only xournalpp_mobile). Every rename attribute IS the JSON key, so the structs are the schema.
+
+PART 2 — the per-tab document mode.
+Check first: the infrastructure mostly exists. OpenTab (app/src/main/java/com/nexopp/tabs/OpenTab.kt) already carries a per-tab 'format: SaveFormat' field documented as 'the sticky save format for this document — per-tab, not per-app', and FileKind (app/src/main/java/com/nexopp/format/FileKind.kt) already sniffs RNOTE apart from a gzip .xopp. So the question is not whether to invent a per-tab mode but whether adding SaveFormat.RNOTE alongside ORIGINAL/ZIP is sufficient, or whether the tab needs a separate notion of 'which format's feature set is in force'.
+
+Settle specifically:
+- Does a .rnote tab hide or disable tools whose result cannot be saved (the LaTeX/teximage tool, the eraser as a stored stroke), so the user cannot author content the tab's own format will silently drop on save?
+- Or does the editor stay uniform and warn at save time, listing what will be lost?
+- What happens on save-as across formats: does the tab's mode switch to the new format, and does the user get told what the conversion drops?
+- What the tab strip shows, if anything, so the format of a tab is visible without opening a menu.
+
+Output is TODO items plus the matrix and a dated decision in docs/architecture.md. Add atomic task items for the mode plumbing once the shape is settled; close this scope when they exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 230
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
