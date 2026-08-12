@@ -17,6 +17,37 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-snapshot-model"
+title = "Parse the Rnote engine snapshot into an intermediate model"
+description = """
+Turn the engine_snapshot JSON (from the rnote-container-layer task) into a plain Kotlin intermediate model, tolerant of Rnote 0.6–0.14 shape differences. This task stops at the intermediate model — converting it to a com.nexopp.format.model.Document belongs to the separate "Map Rnote's stroke and pen model onto the NeXopp document model" scope. Payload vocabulary: docs/architecture.md, section "The .rnote format — container & serialisation".
+
+New file app/src/main/java/com/nexopp/format/rnote/RnoteSnapshot.kt with data classes and a parser:
+- data class RnoteSnapshot(val format: RnoteFormat, val background: RnoteBackground, val layout: String, val docX: Double, val docY: Double, val docWidth: Double, val docHeight: Double, val strokes: List<RnoteStroke>)
+- data class RnoteFormat(val width: Double, val height: Double, val dpi: Double, val orientation: String)
+- data class RnoteBackground(val color: RnoteColor, val pattern: String, val patternWidth: Double, val patternHeight: Double, val patternColor: RnoteColor)
+- data class RnoteColor(val r: Double, val g: Double, val b: Double, val a: Double) — Rnote stores each channel as a 0.0–1.0 double.
+- data class RnoteStroke(val index: Int, val kind: String, val body: JsonValue, val z: Long, val layer: String, val userLayer: Int?) — kind is the single tag key of the stroke object, one of brushstroke, shapestroke, textstroke, vectorimage, bitmapimage; body is that tag's value, left as raw JSON for the mapping scope to interpret.
+- fun parse(snapshot: JsonValue): RnoteSnapshot.
+
+Rules the parser must follow:
+- Shape tolerance: look for format/background/layout under document.config first (Rnote ≥ 0.13) and fall back to document directly (0.6–0.12). Ignore camera and snap_positions.
+- stroke_components is an array of {"value": <stroke|null>, "version": n} slots; skip null slots (slot 0 is always null, and holes stay null). The array position is the index and pairs with chrono_components at the same index.
+- chrono_components entries are {"value":{"t":<long>,"layer":<layer>}}; layer is either the object {"user_layer": n} (then layer = "user_layer" and userLayer = n) or one of the strings "highlighter", "image", "document". Default to layer "user_layer" with userLayer 0 when the chrono entry is missing or null.
+- Order the returned strokes by z (the chrono "t") ascending, ties broken by index, so painters-order is already correct for the caller.
+- Missing required keys throw IllegalArgumentException naming the key; unknown stroke tags are kept with their tag as kind rather than throwing, so a newer Rnote file still loads what it can.
+
+Tests: new app/src/test/java/com/nexopp/format/rnote/RnoteSnapshotTest.kt: parse all five fixtures in app/src/test/resources/fixtures/rnote/; assert plain.rnote yields three brushstroke entries in z order with format 793.701 x 1122.52 at 96 dpi; assert text-image.rnote yields one bitmapimage on layer "image" and one textstroke on user_layer 0; assert empty.rnote yields zero strokes and pattern "dots"; assert backgrounds.rnote yields six strokes; and assert the flat 0.9-style shape parses by feeding a hand-built JSON string with format/background/layout directly on document.
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. Keep the architecture doc's .rnote section accurate in the same commit if the parser learns anything new about the payload."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = ["rnote", "format"]
+
+[[task]]
 id = "rnote-container-layer"
 title = "Read the .rnote gzip+JSON container and its version wrapper"
 description = """

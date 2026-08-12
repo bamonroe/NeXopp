@@ -253,7 +253,8 @@ one it was authored in rather than converting it.
 
 ## The `.rnote` format — container & serialisation (code-derived — this is its authoritative home)
 
-**Status: investigated, not yet implemented.** Derived from upstream Rnote **0.14.2**
+**Status: container and snapshot parsing implemented (`format/rnote/`); no document mapping and no
+writer yet, so the open path still refuses `.rnote`.** Derived from upstream Rnote **0.14.2**
 (`crates/rnote-engine/src/fileformats/rnoteformat/`, tag `v0.14.2`) cross-checked against the five
 ground-truth fixtures in `app/src/test/resources/fixtures/rnote/` (see that directory's README and
 `docs/tools.md` for how they are regenerated). The stroke/pen → `Element` mapping and the
@@ -300,13 +301,26 @@ costs one fallback (`document.config.format` else `document.format`) because we 
 for files the owner is unlikely to have (Rnote 0.5 is from 2022). An unsupported version fails with
 the version string in the message rather than a parse error.
 
-The payload's own vocabulary, for orientation only:
+The payload's own vocabulary, as read by `RnoteSnapshot.parse`:
 `engine_snapshot.stroke_components` is an array of `{"value":<stroke|null>,"version":n}` slots — the
 first slot is always `null` (slotmap index 0) and holes stay `null`. A stroke is a
 single-key-tagged object; the five tags are `brushstroke`, `shapestroke`, `textstroke`,
 `vectorimage`, `bitmapimage`. `chrono_components` is a parallel array of
 `{"value":{"t":n,"layer":…}}` giving z-order and layer, where `layer` is `{"user_layer":n}` or one
-of the strings `highlighter`, `image`, `document`.
+of the strings `highlighter`, `image`, `document`. `document.config.background.pattern_size` is a
+two-element `[width, height]` array, and every colour is four `0.0`–`1.0` channels (`r`,`g`,`b`,`a`),
+not 8-bit components.
+
+**The intermediate model (`RnoteSnapshot.kt`).** The snapshot is read into plain Kotlin data
+classes — `RnoteFormat`, `RnoteBackground`, `RnoteColor`, and a flat `RnoteStroke` list — keeping
+Rnote's own vocabulary (one infinite canvas, chrono-ordered strokes, named layers) rather than
+pages and layers, so the lossy mapping onto `format.model.Document` stays in one place above it.
+Each `RnoteStroke` carries its slot `index`, its tag as `kind`, the tag's value as **raw JSON**
+(`body`), and the chrono `t`/`layer`; the list is sorted by `t` then index, so painters order is
+already correct for the caller. Version tolerance is one fallback (`document.config.X` else
+`document.X`), `camera`/`snap_positions` are ignored, and an **unknown tag is kept** with its tag as
+the kind so a newer Rnote file still loads what it can. A missing required key throws
+`IllegalArgumentException` naming its dotted path.
 
 ### Decision (2026-08-12): a hand-rolled JSON layer, no new dependency
 
@@ -599,6 +613,9 @@ app/
       rnote/                 # the .rnote side of the format layer
         RnoteContainer.kt    #   gunzip + parse the {"version","data":{"engine_snapshot"}} wrapper;
                              #   rejects pre-0.6 versions and names any missing key
+        RnoteSnapshot.kt     #   engine_snapshot -> intermediate model (format, background, layout,
+                             #   canvas extent, chrono-ordered strokes with their bodies raw);
+                             #   tolerates the 0.6-0.12 flat document shape, not yet a Document
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
