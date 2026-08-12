@@ -671,8 +671,8 @@ authoritative flow; don't invent another one.
   - **Source** — a link to [github.com/bamonroe/NeXopp](https://github.com/bamonroe/NeXopp).
   - **Buy me a coffee** — a link to [patreon.com/bamonroe](https://www.patreon.com/bamonroe) if you'd
     like to support the work. Every link opens in your browser.
-- **Export PDF** — the menu's **Export PDF** flattens the whole document to a PDF: each page is
-  drawn at its true size with its background (a PDF page, an image, or a ruled sheet) and every
+- **Export PDF** — the menu's **Export PDF** flattens the document to a PDF — the whole thing by
+  default, or a chosen **page range**: each exported page is drawn at its true size with its background (a PDF page, an image, or a ruled sheet) and every
   stroke and element merged on top, then written to the location you pick. Pages backed by an
   **image** keep that picture in the export, at print-usable resolution. When a page came from an **imported
   PDF**, its original page is **kept as vector content** and your annotations are laid over it as

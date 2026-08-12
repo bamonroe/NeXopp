@@ -31,17 +31,30 @@ class PdfExporter(
 
     private val painter = PdfVectorPainter()
 
-    fun export(doc: Document, out: OutputStream) {
+    /**
+     * Flatten [doc] to [out]. [pages] is a list of **zero-based** page indices (as produced by
+     * [com.nexopp.format.PageRange]) selecting what lands in the file; `null` — the default — means
+     * the whole document, so every existing caller keeps its old behaviour.
+     */
+    fun export(doc: Document, out: OutputStream, pages: List<Int>? = null) {
         val source = pdfSource?.source?.let { runCatching { PDDocument.load(it) }.getOrNull() }
         val outDoc = PDDocument()
         try {
-            doc.pages.forEach { page -> writePage(outDoc, source, page) }
+            selectedPages(doc, pages).forEach { page -> writePage(outDoc, source, page) }
             outDoc.save(out)
         } finally {
             outDoc.close()
             source?.close()
         }
     }
+
+    /**
+     * Resolve a page selection to the [Page]s to write, in the order given. Out-of-range indices are
+     * dropped rather than throwing — a selection is user input (a typed page range), so one stray
+     * number shouldn't take the whole export down. `null` means the whole document.
+     */
+    internal fun selectedPages(doc: Document, pages: List<Int>?): List<Page> =
+        pages?.mapNotNull { doc.pages.getOrNull(it) } ?: doc.pages
 
     private fun writePage(outDoc: PDDocument, source: PDDocument?, page: Page) {
         val bg = page.background

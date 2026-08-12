@@ -239,9 +239,13 @@ internal fun MainActivity.extractPdfTextInBackground(file: File, into: DrawingSu
     }.start()
 }
 
-/** Flatten the current document to a PDF at the chosen location (backgrounds + annotations). */
-internal fun MainActivity.exportPdf(uri: Uri) = runCatching {
-    staging.writeTo(uri) { output: java.io.OutputStream -> surface?.exportPdf(output) }
+/**
+ * Flatten the current document to a PDF at the chosen location (backgrounds + annotations).
+ *
+ * [pages] is a zero-based page selection; `null` means the whole document.
+ */
+internal fun MainActivity.exportPdf(uri: Uri, pages: List<Int>? = null) = runCatching {
+    staging.writeTo(uri) { output: java.io.OutputStream -> surface?.exportPdf(output, pages) }
 }.onFailure { toast("PDF export failed: ${it.message}") }
 
 /**

@@ -705,7 +705,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     fun pdfSourcePageCount(): Int = pdfSource?.pageCount ?: 0
 
     /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
-    fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource, imageSource).export(doc, out)
+    fun exportPdf(out: java.io.OutputStream, pages: List<Int>? = null) =
+        PdfExporter(pdfSource, imageSource).export(doc, out, pages)
 
     /**
      * Flatten page [index] to a bitmap at [dpi] — background picture and all visible layers — for
