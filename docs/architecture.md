@@ -343,7 +343,7 @@ through it. Colour is four `0.0`–`1.0` channels versus `XoppColor`'s 8-bit `#r
 | `style.smooth.stroke_color` | `Stroke.color` | RGBA both ways |
 | `chrono.layer == "highlighter"` | `Tool.HIGHLIGHTER` | Rnote has no eraser stroke — `Tool.ERASER` has no home |
 | `chrono.t` | element order in a `Layer` | already sorted ascending by `RnoteSnapshot` |
-| `style.smooth.line_style` (`solid`…) | `LineStyle` | `solid ↔ PLAIN`; the dashed family still needs a name-by-name check |
+| `style.smooth.line_style` (`solid`…) | `LineStyle` | `solid ↔ PLAIN`; the rest of the family is named in the gap matrix below |
 | `style.smooth.fill_color` | `Stroke.fill` | `null` ↔ no fill; Rnote fill is full RGBA, ours an alpha |
 | `textstroke` `{text,transform,text_style}` | `TextElement` | `font_family`/`font_size`/`color` map; the affine's translation is (x, y). Defaults: `Sans`, 16 px = 12 pt, opaque black, origin |
 | `bitmapimage` `{image:{data,pixel_width,pixel_height,memory_format},rectangle}` | `ImageElement` | **not** PNG — `data` is a base64 raw pixel buffer (`R8g8b8a8Premultiplied`), re-encoded by `RawImageCodec`; the `rectangle` is the box (see below) |
@@ -478,21 +478,23 @@ The project's guiding principle is round-trip safety, so state plainly what surv
 stroke colour and alpha, fill, highlighter-ness, painters order, text content with its family/size/
 colour/position, bitmap image pixels and placement, and the canvas format and background.
 
-**Dropped silently on import (Rnote → NeXopp):** the smooth style's `pressure_curve` and `line_cap`,
-a `textstroke`'s `alignment` and `max_width`, the parts of `ranged_text_attributes` that do not span
-the whole string, and any `underline`/`strikethrough` (per-character-range styling, confirmed in
-upstream `textstroke.rs` as `{range: [byteStart, byteEnd], attribute: <one of font_family|font_size|
-font_weight|text_color|font_style|underline|strikethrough>}` — see the one-box decision below),
-a `bitmapimage`'s non-affine transform components (shear/rotation beyond what a `.xopp` bounding box
-can express), and the background's `pattern_size`/`pattern_color`. Also dropped: `camera`,
-`snap_positions`, `layout`, `document.x/y/width/height`, and the `format` block's cosmetic
-`border_color`/`show_borders`/`show_origin_indicator`. **Superseded (2026-08-12):** an earlier
-version of this list dropped `chrono.layer == "document"` strokes — the canvas ↔ pages decision
-above now keeps them as a named `document` layer instead, since preserving them costs nothing and
-losing content contradicts the round-trip principle.
+**The per-feature verdicts live in one place: the gap matrix below.** This section owns the
+*rules*; the matrix owns the *facts*, so neither list is maintained twice. The rules are four verbs,
+and every row of the matrix is labelled with exactly one of them:
 
-**Dropped on export (NeXopp → Rnote):** the `.xopp` nominal pen width, `Tool.ERASER` strokes (Rnote
-keeps no eraser stroke), and `RawElement`s (an XML fragment has no JSON home).
+- **keep** — survives, exact within the unit and 8-bit/float rounding conversions.
+- **approx** — survives changed, by a rule the matrix states.
+- **drop** — not carried and *not* reported: derived, cosmetic or renderer-only state that holds no
+  authored content (a viewport rectangle, a hachure seed, a regenerated thumbnail).
+- **report** — authored content that cannot cross. It is **never silent**: an import counts it into
+  the conversion report, an export into the save warning.
+
+The line between **drop** and **report** is the whole policy. If a user could point at it on screen
+and say "I made that", it is **report**; if it is state the renderer would have recomputed anyway, it
+is **drop**. **Superseded (2026-08-12):** an earlier version of this policy dropped
+`chrono.layer == "document"` strokes — the canvas ↔ pages decision above now keeps them as a named
+`document` layer instead, since preserving them costs nothing and losing content contradicts the
+round-trip principle.
 
 **Refused, not silently mangled:** `vectorimage` — an SVG stroke has no `.xopp` representation at
 all, so importing one would lose it on the next save. A file containing one loads with the rest of
@@ -506,6 +508,138 @@ unmodelled Rnote payload. `RawElement` is XML-shaped (`name`/`attrs`/`body`) and
 subtree, and a `.rnote` → `.xopp` conversion has nowhere to put it either. Unknown stroke tags are
 therefore counted and reported, not round-tripped — this is the one place we knowingly accept loss,
 because the alternative is a second raw-payload model on the `.xopp` side that nothing would read.
+
+### The complete `.xopp` ↔ `.rnote` feature-gap matrix
+
+The stroke-and-pen mapping above is *measured* — it records only what the four fixture twins
+happened to exercise. **This is the exhaustive table**, read out of upstream Rnote **v0.14.2**'s
+serde structs (every `#[serde(rename = …)]` **is** the JSON key, so the structs are the schema)
+against the `.xopp` element tree documented at the top of this file. Each row carries one of the
+four verbs defined in the policy above: **keep**, **approx**, **drop**, **report**.
+
+Rows marked *(task)* are known gaps in the current code with an open item in `TODO.toml`; the verb
+is what the mapping is *decided* to be, not necessarily what ships today.
+
+**Document structure.** The mechanism is owned by the canvas ↔ pages decision above; this records
+only the verdicts.
+
+| Feature | `.xopp` | `.rnote` | Import (Rnote → us) | Export (us → Rnote) |
+|---|---|---|---|---|
+| page stack | list of fixed-size `<page>` | one canvas + one `format` | **approx** — cut by `format.height`, never splitting a stroke | **approx** — pages stacked at cumulative offsets, `layout: fixed_size` |
+| mixed page sizes | per page | one `format` | n/a | **report** — page 1's size wins, so a re-import re-pages the document |
+| per-page background | one per page | one per canvas | **approx** — the canvas background is copied onto every page | **report** — page 1's wins |
+| layers | any number, ordered, optional `name` | four ordered slots: `document` < `image` < `highlighter` < `user_layer n` | **keep** — one `Layer` per occupied slot | **keep** — slot-named layer → its slot, else `user_layer <stack index>` |
+| layer name | `<layer name="…">` | the slot name only | **keep** — the slot name becomes `Layer.name` | **drop** — a custom name becomes `user_layer n` |
+| highlighter z-order | wherever its layer sits in the stack | fixed *below* every `user_layer` | **keep** — imports as its own layer in that position | **approx** — a highlighter above ink sinks below it |
+| layer visibility | not in the format (view state) | not in the format | — | — |
+| `document.x/y/width/height` | — | viewport bounds in the infinite layouts | **drop** — page count comes from the strokes' bounding box | content extent |
+| `layout` | — | `fixed_size` \| `continuous_vertical` \| `semi_infinite` \| `infinite` | **drop** — it only steers how Rnote grows the canvas while editing | always `fixed_size` |
+| `format.dpi` | — | a **measurement-unit setting** (mm/cm ↔ px in Rnote's format dialog), *not* a geometry scale — coordinates are always px at a nominal 96 | **drop** — the `4/3` factor is unconditional | write `96` |
+| `format` cosmetics | — | `border_color`, `show_borders`, `show_origin_indicator`, `orientation`, `predefined_format` | **drop** — chrome | defaults, `orientation` from page 1 |
+| horizontal overflow | no page grid exists | canvas is infinite sideways | kept as a right-edge overhang | kept |
+
+**Backgrounds.** The `pattern` ↔ `style` table is in the canvas ↔ pages decision above.
+
+| Feature | Import | Export |
+|---|---|---|
+| `Background.Solid` colour + ruling | **keep** / **approx** per the pattern table | **keep** / **approx** |
+| `lined` (ruled + margin line), `staves` | n/a — Rnote has no such pattern | **approx** — `lines` and `none`; the margin line and staves are lost |
+| `pattern_size`, `pattern_color` | **drop** — `.xopp` stores no ruling geometry or line colour | Xournal++'s own rendering constants (see the table above) |
+| `Background.Pdf` | n/a | **report** — page colour with `pattern: "none"`; the PDF reference and `pageno` are lost |
+| `Background.Pixmap` | n/a | **report** — same |
+
+**Strokes.**
+
+| Feature | `.xopp` | `.rnote` | Import | Export |
+|---|---|---|---|---|
+| point geometry | pt polyline in the element body | `path.start` + segment `end`s, px | **keep** (÷ `4/3`) | **keep** |
+| curved path segments | — | `lineto` \| `quadbezto` \| `cubbezto` | **approx** — flatten the curve *(task)*; today only the segment `end` is taken, which corner-cuts it | always `lineto` |
+| per-point pressure | the `width` list's tail | `stroke_width` × per-point `pressure` | **keep** | **keep** |
+| nominal pen width | the `width` list's head | — | n/a | **drop** — a pen setting, not rendered |
+| `pressure_curve` | — | `const`\|`linear`\|`sqrt`\|`cbrt`\|`pow2`\|`pow3` | **drop** — already baked into the widths we read | write `linear`: it is upstream's default *and* the identity, so our widths are not re-curved |
+| colour + alpha | `#rrggbbaa` | four `0.0`–`1.0` channels | **keep** (one rounding step) | **keep** |
+| fill | `fill` = an alpha over the stroke colour | `fill_color`, a full RGBA | **approx** — alpha only, the fill's own hue is lost | **approx** — the stroke colour at that alpha |
+| pen vs. highlighter | `tool` | the layer slot | **keep** | **keep** |
+| `tool="eraser"` | in the format | no eraser stroke exists | n/a | **report** — note NeXopp never *authors* one (its eraser removes strokes); they only ever arrive from a file |
+| line pattern | `plain`\|`dash`\|`dashdot`\|`dot` | `solid`\|`dotted`\|`dashed_narrow`\|`dashed_equidistant`\|`dashed_wide` | **approx** *(task)* — `solid→plain`, `dotted→dot`, all three `dashed_*→dash` | **approx** — `plain→solid`, `dot→dotted`, `dash`/`dashdot`→`dashed_equidistant` |
+| cap style | `capStyle`: `round`\|`butt`\|`square` | `line_cap`: `rounded`\|`straight` | **approx** *(task)* — `rounded→round`, `straight→butt` | **approx** — `round→rounded`, `butt`/`square`→`straight` |
+| brush style variant | — | `smooth` \| `rough` \| `textured` | **approx** — width/colour/fill are read from whichever tag is present; the sketchy and grainy renderings are lost | always `smooth` |
+| rough/textured options | — | `seed`, `density`, `distribution`, `fill_style`, `hachure_angle`, … | **drop** — renderer-only | — |
+| parametric shapes | polyline only | `line`, `rect`, `ellipse`, `quadbez`, `cubbez`, `polyline`, `polygon`, `arrow` | **approx** — flattened to a polyline; `arrow` is not handled yet and is **report**ed *(task)* | always a polyline brushstroke |
+| audio `ts`/`fn` | on strokes *and* text | — | n/a | **report** — the pen-replay anchor is lost (the `.wav` sidecar was never in the file) |
+
+**Text.** Which of these are representable at all is settled by the one-box decision below; this
+records the verdicts only.
+
+| Feature | Import | Export |
+|---|---|---|
+| content, `font_family`, `font_size`, `color`, position | **keep** | **keep** |
+| `font_weight`, `font_style` | **keep** — through `FontDescription` into the Pango `font` string | **keep** |
+| `ranged_text_attributes` | **approx** — a value covering the whole string is promoted onto the box; a box left with non-uniform styling is **report**ed | — |
+| `underline`, `strikethrough` | **report** — the Pango description has no token for either | — |
+| `alignment`, `max_width` | **drop** — `<text>` has no extent, so neither has a meaning | omit; Rnote's defaults |
+
+**Images.**
+
+| Feature | `.xopp` | `.rnote` | Import | Export |
+|---|---|---|---|---|
+| bitmap pixels | base64 PNG/JPEG | base64 raw premultiplied RGBA + `memory_format` | **keep** via `RawImageCodec` | **keep** — needs the inverse (encoded → raw RGBA); owned by the writer |
+| placement | pt bounding box | affine + `cuboid.half_extents` | **approx** — the upright bounding box; rotation/shear are **report**ed | **keep** — an identity affine about the box centre |
+| `vectorimage` (SVG) | nothing can hold it | yes | **refuse** + **report** (see the policy above) | — |
+| `<teximage>` (LaTeX) | source + the rendered PNG | none | n/a | **approx** — export the rendered PNG as a `bitmapimage` so the visual survives, and **report** the lost LaTeX source. Dropping it outright (what `rnote-cli` does) loses more than converting it |
+
+**Whole-document.**
+
+| Feature | `.xopp` | `.rnote` | Import | Export |
+|---|---|---|---|---|
+| `<title>` | a decorative banner | — | n/a | **drop** |
+| `<preview>` | base64 thumbnail | — | n/a | **drop** — regenerated on write |
+| `RawElement` | verbatim XML passthrough | no JSON home (see the policy above) | n/a | **report** |
+| `camera`, `snap_positions` | — | viewport and snapping state | **drop** | omit |
+| `chrono_counter` | — | the next `t` to hand out | **drop** | write `max(t) + 1` |
+
+### Decision (2026-08-12): no per-tab document mode — the editor stays uniform, the save path warns
+
+A tab already carries its format (`OpenTab.format`, sticky per the `SaveFormat` decision below). The
+open question was whether it should also carry a *mode* that narrows what the editor lets you author,
+so a `.rnote` tab cannot produce content its own format will drop. **It should not.** The editor
+behaves identically whatever a tab's format is, and every loss is surfaced at save time.
+
+**The gap is one tool wide, and that tool is convertible.** Of everything NeXopp can author, exactly
+one thing has no `.rnote` home: the LaTeX box (`insertTex` in `render/TextEditController.kt`). The
+eraser is *not* a counter-example — `EditorTool.ERASER` deletes strokes, it never writes a
+`Tool.ERASER` element, so those only ever arrive from a file the user opened. Disabling one button
+would be the entire benefit, and per the matrix above a `<teximage>` exports as a `bitmapimage` of
+its rendered PNG anyway, so hiding the tool would lose *more* than converting it does.
+
+**A mode would give false confidence.** The losses that actually matter are structural — mixed page
+sizes, per-page backgrounds, PDF and pixmap backgrounds, layer names, highlighter z-order — and they
+come from the file that was opened, not from anything the user is about to draw. No amount of
+tool-hiding prevents them, so a "safe mode" would advertise a guarantee it cannot make.
+
+**Modes are viral.** Every tool, menu, gesture and dialog would have to ask which mode it is in, and
+so would every feature added afterwards. `SaveFormat` already carries the one fact the save path
+needs; a second axis buys nothing the warning does not.
+
+**Authoring past the format is a legitimate workflow.** A `.rnote` tab is always one Save As away
+from a `.xopp` that keeps everything. Blocking the authoring blocks the escape hatch.
+
+**What we do instead.**
+
+- **Save As is modal.** Choosing `.rnote` for a document that would lose something shows the
+  `exportWarnings(document)` lines with Cancel and Save As before anything is written — it is a
+  deliberate format choice, so it deserves a deliberate confirmation. Save As also switches the
+  tab's sticky format to the chosen one, unchanged from the stickiness rule below.
+- **A plain Save is not.** Re-saving an already-`.rnote` tab writes immediately and reports the same
+  lines in a snackbar with a *Details* action. The user chose this format once; a modal on every
+  save would train them to dismiss it.
+- **The tab strip gets no format badge.** A saved tab's title *is* its file name and already ends in
+  `.xopp` or `.rnote`, so the format is visible without a menu; an unsaved tab has no format yet and
+  the Save As dialog's format row is the authority. A badge would restate the extension.
+
+Two rules follow for whoever implements this: the warning list is computed by the pure
+`exportWarnings` function (its own task) and never by the UI, and an empty list must show nothing at
+all — a "nothing will be lost" dialog is the same training-to-dismiss problem.
 
 ### Decision (2026-08-12): one `textstroke` stays one `<text>` — no run splitting
 

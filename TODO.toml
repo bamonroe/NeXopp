@@ -36,43 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "trace-the-full-xopp-rnote-feature-gap-matrix-and-decide-the-per-tab-document-mode"
-title = "Trace the full xopp/rnote feature-gap matrix and decide the per-tab document mode"
-description = """
-Two connected deliverables: an exhaustive, authoritative gap matrix between .xopp and .rnote, and a decision on whether a tab carries a document-type 'mode' that shapes what the editor lets you do.
-
-PART 1 — the gap matrix.
-docs/architecture.md already holds a measured stroke/pen mapping and a dated lossy-mapping policy (sections 'The stroke & pen mapping (measured against the fixture twins)' and 'Decision (2026-08-12): the .rnote lossy-mapping policy'), but those cover only what the four fixture twins happened to exercise. Extend that into a complete, per-feature table covering BOTH directions, and for each gap record the chosen translation: map faithfully, map approximately (say how), drop silently, or refuse.
-
-Known feature axes to cover, at minimum:
-- Document structure: xopp pages + stacked layers + per-page backgrounds (plain/ruled/graph/dotted/lined, solid colours, pdf/pixmap) versus Rnote's single infinite canvas, fixed named layers (user_layer n, highlighter, image, document) and one canvas background with a repeating pattern. Measured: rnote-cli stacked 5 pages at i x format.height with no gap and collapsed all 5 backgrounds to pattern 'none'; 3 xopp layers collapsed onto user_layer 0. NOTE: the sibling scope 'decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers' owns the actual page/layer algorithm — this matrix records the gap and defers the mechanism to it, no duplication.
-- Strokes: pressure encoding, nominal pen width (xopp-only), line styles, fill, cap style, Tool.ERASER (xopp-only), pressure_curve and line_cap and textured brush styles (rnote-only), parametric shapestroke versus flattened polyline.
-- Text: covered by the sibling scope 'decide-whether-rnote-ranged-text-attributes-split-into-multiple-xopp-text-boxes'. Reference it; do not re-decide it here.
-- Images: xopp PNG/JPEG in a pt bounding box versus Rnote's raw premultiplied RGBA buffer with a full affine transform (rotation/shear is rnote-only); vectorimage/SVG (rnote-only); teximage/LaTeX (xopp-only, and rnote-cli drops it).
-- Whole-document extras: xopp <title>, <preview> thumbnail, audio ts/fn attributes on strokes and text, RawElement passthrough; Rnote camera, snap_positions, chrono_counter, format border_color/show_borders/show_origin_indicator.
-- Anything else found by reading upstream rather than the fixtures: the definitive source is the serde structs under crates/rnote-engine/src/strokes/ and crates/rnote-compose/src/ at tag v0.14.2 (fetchable per-file over raw.githubusercontent.com; there is no local clone — reference/ holds only xournalpp_mobile). Every rename attribute IS the JSON key, so the structs are the schema.
-
-PART 2 — the per-tab document mode.
-Check first: the infrastructure mostly exists. OpenTab (app/src/main/java/com/nexopp/tabs/OpenTab.kt) already carries a per-tab 'format: SaveFormat' field documented as 'the sticky save format for this document — per-tab, not per-app', and FileKind (app/src/main/java/com/nexopp/format/FileKind.kt) already sniffs RNOTE apart from a gzip .xopp. So the question is not whether to invent a per-tab mode but whether adding SaveFormat.RNOTE alongside ORIGINAL/ZIP is sufficient, or whether the tab needs a separate notion of 'which format's feature set is in force'.
-
-Settle specifically:
-- Does a .rnote tab hide or disable tools whose result cannot be saved (the LaTeX/teximage tool, the eraser as a stored stroke), so the user cannot author content the tab's own format will silently drop on save?
-- Or does the editor stay uniform and warn at save time, listing what will be lost?
-- What happens on save-as across formats: does the tab's mode switch to the new format, and does the user get told what the conversion drops?
-- What the tab strip shows, if anything, so the format of a tab is visible without opening a menu.
-
-Output is TODO items plus the matrix and a dated decision in docs/architecture.md. Add atomic task items for the mode plumbing once the shape is settled; close this scope when they exist."""
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 230
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-canvas-background-to-per-page-background-solid"
 title = "rnote: canvas background to per-page Background.Solid"
 description = """
@@ -202,19 +165,23 @@ emulator_debug = false
 id = "rnote-warn-on-save-when-a-document-s-pages-or-backgrounds-cannot-survive-rnote"
 title = "rnote: warn on save when a document's pages or backgrounds cannot survive .rnote"
 description = """
-Saving as .rnote collapses structure that .xopp holds. Per docs/architecture.md 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds', report it instead of silently dropping it.
+Saving as .rnote collapses structure that .xopp holds. Per docs/architecture.md 'The complete .xopp <-> .rnote feature-gap matrix', every row marked **report** must be surfaced, never silent.
 
 Add `app/src/main/java/com/nexopp/format/rnote/RnoteExportWarnings.kt` with `fun exportWarnings(document: Document): List<String>`, returning one human-readable line per condition found:
 - hasMixedPageSizes(document) (from the export-geometry task) -> "Pages have different sizes; Rnote uses one page size, so reopening may split pages differently."
-- more than one distinct Background across pages -> "Pages have different backgrounds; Rnote keeps only one, so page N's background will be used for all." (name page 1)
+- more than one distinct Background across pages -> "Pages have different backgrounds; Rnote keeps only one, so page 1's background will be used for all."
 - any Background.Pdf -> "PDF page backgrounds are not saved in .rnote; the annotations are kept but the PDF is not."
 - any Background.Pixmap -> "Image page backgrounds are not saved in .rnote."
 - any Stroke with Tool.ERASER -> "Eraser strokes are not saved in .rnote."
 - any RawElement -> "N unrecognised elements from the original file are not saved in .rnote."
+- any TexImageElement -> "N LaTeX boxes are saved as plain images; the LaTeX source is lost." (the matrix decides they export as a bitmapimage of the rendered PNG, so the visual survives and only the source is lost)
+- any Stroke or TextElement carrying a non-empty audio fn -> "Audio recording links are not saved in .rnote."
+- any Layer with a name that is not one of Rnote's own slot names -> "Layer names are not saved in .rnote."
+- any Tool.HIGHLIGHTER stroke on a layer above a layer holding non-highlighter elements -> "Rnote always draws highlighter below ink, so highlighting that currently covers ink will move behind it."
 
-Return an empty list when nothing applies. This function is pure and must not touch the UI; wiring it into the save-as flow belongs to the save/save-as scope item.
+Return an empty list when nothing applies. This function is pure and must not touch the UI; wiring it in is the separate task 'Show the .rnote lossy-save warnings in the save flow'.
 
-Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteExportWarningsTest.kt`: `fixtures/backgrounds.xopp` (five different backgrounds, uniform page size) produces exactly the different-backgrounds warning; `fixtures/plain.xopp` produces an empty list; a hand-built Document with a Background.Pdf page produces the PDF warning. Run scripts/build.sh testDebugUnitTest."""
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteExportWarningsTest.kt`: `fixtures/backgrounds.xopp` (five different backgrounds, uniform page size) produces exactly the different-backgrounds warning; `fixtures/plain.xopp` produces an empty list; a hand-built Document with a Background.Pdf page produces the PDF warning; a hand-built two-layer Document with a highlighter stroke on the upper layer produces the z-order warning. Run scripts/build.sh testDebugUnitTest."""
 status = "active"
 level = "task"
 category = "feature"
@@ -458,6 +425,154 @@ level = "task"
 category = "feature"
 urgency = "normal"
 order = 390
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-line-style-names-do-not-match-upstream-so-no-dashed-stroke-imports"
+title = "rnote: line_style names do not match upstream, so no dashed stroke imports"
+description = """
+lineStyleOf() at the bottom of app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt matches the names "dashed", "dotted" and "dashed_dotted"/"dashdot". Upstream Rnote v0.14.2 (crates/rnote-compose/src/style/smooth/smoothoptions.rs, enum LineStyle) writes exactly five names: solid, dotted, dashed_narrow, dashed_equidistant, dashed_wide. There is no "dashed" and no "dashed_dotted", so today every dashed .rnote stroke silently imports as LineStyle.PLAIN.
+
+Fix lineStyleOf to the mapping recorded in docs/architecture.md, section 'The complete .xopp <-> .rnote feature-gap matrix', row 'line pattern':
+- "dotted" -> LineStyle.DOTTED
+- "dashed_narrow", "dashed_equidistant", "dashed_wide" -> LineStyle.DASHED
+- "solid", null, anything else -> LineStyle.PLAIN
+
+Keep the KDoc accurate: it must name the five upstream values rather than say 'anything unrecognised draws solid' alone. Do NOT keep the old "dashed"/"dashed_dotted" aliases — they were never written by Rnote and pretending otherwise hides the next rename.
+
+Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: build a brushstroke body by hand (as the shapestroke tests already do) with style.smooth.line_style set to each of the five names in turn and assert the resulting Stroke.lineStyle is PLAIN, DOTTED, DASHED, DASHED, DASHED respectively. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 400
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-flatten-quadbezto-and-cubbezto-brushstroke-segments"
+title = "rnote: flatten quadbezto and cubbezto brushstroke segments"
+description = """
+pathVertices() in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt takes each path segment's "end" whatever the segment's tag is. Upstream Rnote v0.14.2 (crates/rnote-compose/src/penpath/segment.rs, enum Segment) writes three kinds: lineto {end}, quadbezto {cp, end}, cubbezto {cp1, cp2, end}. Taking only "end" on a curved segment corner-cuts the curve — the stroke arrives visibly straightened. See docs/architecture.md, gap matrix row 'curved path segments'.
+
+Change pathVertices to flatten curves instead. The shape flattener in the same file already samples beziers for shapestroke — reuse those helpers rather than writing a second sampler:
+- "lineto" -> the end vertex alone (unchanged).
+- "quadbezto" -> sample the quadratic from the PREVIOUS vertex through cp to end, excluding the start point (it is already in the list) and including end.
+- "cubbezto" -> the same for the cubic through cp1 and cp2.
+- any other tag -> fall back to "end" if present, else skip the segment.
+
+Note the segments carry pressure: in Rnote an Element is {pos, pressure} and only the segment END is a full Element — cp/cp1/cp2 are bare [x, y] arrays with no pressure. Give every interpolated point the END segment's pressure so widths stay monotonic along the segment; do not invent a curve.
+
+Sample counts: reuse the existing BEZIER_SAMPLES constant the shapestroke path uses (24) so there is one number, not two.
+
+Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: hand-build a brushstroke whose path is start [0,0] plus one cubbezto with cp1 [0,100], cp2 [100,100], end [100,0], and assert the resulting Stroke has more than 2 points, starts at (0,0) pt and ends at (100,0) pt (converted by pxToPt), and that some middle point has y well away from 0 — i.e. the curve is no longer a straight line. Also assert a pure-lineto path is unchanged in point count against fixtures/rnote/plain.rnote. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 410
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-flatten-an-arrow-shapestroke-into-a-stroke"
+title = "rnote: flatten an arrow shapestroke into a Stroke"
+description = """
+shapeStrokeToStroke() in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt handles line, rect, ellipse, quadbez, cubbez, polyline and polygon. Upstream Rnote v0.14.2 (crates/rnote-compose/src/shapes/shape.rs, enum Shape) has one more tag: "arrow". Today an arrow is skipped and counted into RnoteConversion.skipped, so a file full of arrows imports empty. See docs/architecture.md, gap matrix row 'parametric shapes'.
+
+Fetch the struct first to get the field names right — https://raw.githubusercontent.com/flxzt/rnote/v0.14.2/crates/rnote-compose/src/shapes/arrow.rs — it is a start/tip pair plus the tip geometry.
+
+Add an "arrow" branch that emits the shaft plus both barbs as ONE open polyline, in this order: start -> tip -> left barb end -> tip -> right barb end. Retracing the tip keeps it a single .xopp stroke (which has no move-to) while drawing a recognisable arrowhead. Compute the barbs from the shaft direction: each barb is the tip rotated by +/- 150 degrees about the tip, at a length of min(shaft length / 4, 5 * style stroke_width in px), matching how upstream sizes the head. Do not close the polyline — an arrow has no fill.
+
+Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt (hand-built body, as the other shape tests do): an arrow from [0,0] to [100,0] gives a Stroke with 5 points whose first is (0,0) pt and whose second and fourth are both the tip (100,0) pt, and RnoteConversion.skipped no longer counts it. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 420
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-map-line-cap-onto-the-xopp-capstyle"
+title = "rnote: map line_cap onto the xopp capStyle"
+description = """
+The .rnote import drops the smooth style's line_cap, but .xopp has a capStyle attribute (round | butt | square, see docs/architecture.md '<stroke>') and the two are partly mappable. Upstream Rnote v0.14.2 (crates/rnote-compose/src/style/smooth/smoothoptions.rs, enum LineCap) has exactly two values: "rounded" and "straight". See docs/architecture.md, gap matrix row 'cap style'.
+
+Stroke.capStyle in app/src/main/java/com/nexopp/format/model/Element.kt (line 54) is a String? holding the on-disk word.
+
+In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt add a private capStyleOf(name: String?): String? alongside the existing lineStyleOf: "rounded" -> "round", "straight" -> "butt", null or anything else -> "round" (Rnote's own default is rounded). Read it in strokeStyle() as style?.obj("line_cap")?.str(), carry it as a new field on the StrokeStyle holder, and set it in toStroke() so brushStrokeToStroke and shapeStrokeToStroke both get it — exactly how widthPx, color, lineStyle and fill are already shared.
+
+Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: hand-built brushstroke bodies with style.smooth.line_cap set to "rounded", to "straight", and absent give Stroke.capStyle == "round", "butt" and "round" respectively. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 430
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "show-the-rnote-lossy-save-warnings-in-the-save-flow"
+title = "Show the .rnote lossy-save warnings in the save flow"
+description = """
+The plumbing half of docs/architecture.md 'Decision (2026-08-12): no per-tab document mode — the editor stays uniform, the save path warns'. The editor gains NO mode and NO per-tab state beyond OpenTab.format; this task is only the reporting. Blocked until exportWarnings() exists (task 'rnote: warn on save when a document's pages or backgrounds cannot survive .rnote').
+
+Two behaviours, both driven by RnoteExportWarnings.exportWarnings(document):
+
+1. Save As, in app/src/main/java/com/nexopp/ui/EditorDialogs.kt / the save-as flow in MainActivityDocuments.kt: when the chosen SaveFormat is RNOTE and exportWarnings is non-empty, show a modal AlertDialog BEFORE writing — title 'Some content will not be saved', the warning lines as body text, buttons 'Cancel' and 'Save as Rnote'. Cancel writes nothing and leaves the tab's format untouched. Confirm proceeds with the existing write and the existing format-stickiness switch.
+2. A plain Save of a tab whose format is already RNOTE: write immediately, then show a snackbar 'Some content was not saved' with a 'Details' action that opens the same list in a read-only dialog. No modal — the user already chose this format.
+
+An EMPTY warning list must show nothing in either path: no dialog, no snackbar. Do not add a 'nothing will be lost' confirmation.
+
+Do not compute warning text in the UI — every string comes from exportWarnings, which stays pure.
+
+Also per that decision: the tab strip gets NO format badge. Do not add one; the tab title is the file name and already carries the extension.
+
+Verify: scripts/build.sh, then the emulator pass — open fixtures/backgrounds.xopp, Save As with Rnote selected, screenshot the warning dialog, cancel and confirm the file was not written; then confirm and screenshot; then plain-Save the now-.rnote tab and screenshot the snackbar. Check adb logcat for exceptions."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 440
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = true
+
+[[task]]
+id = "break-down-the-rnote-writer-json-emission-and-element-encoders"
+title = "Break down the .rnote writer: JSON emission and element encoders"
+description = """
+Gap found while building the feature-gap matrix: there is NO task anywhere for actually serialising a Document to .rnote. The existing items cover the geometry ('rnote: lay fixed pages back onto the canvas on export', which explicitly says 'the JSON serialisation itself is a later task'), the warnings, and the routing ('Route saving to the rnote writer when SaveFormat is RNOTE', which is blocked on a writer that does not exist). The writer itself is missing.
+
+Investigate and add the atomic tasks for:
+- A JSON WRITER beside the existing reader in app/src/main/java/com/nexopp/format/json/ — the reader parses to JsonValue; check whether a JsonValue -> compact-string emitter exists yet and add a task if not. Rnote writes with serde_json and no whitespace.
+- The CONTAINER writer mirroring RnoteContainer.kt: gzip the UTF-8 JSON, wrap it as {"version":"0.14.2","data":{"engine_snapshot":{...}}}.
+- The SNAPSHOT assembler: document.config.format/background/layout, document x/y/width/height from canvasExtent, stroke_components as {"value":<stroke>,"version":n} slots with a leading null at index 0, the parallel chrono_components, and chrono_counter = max(t) + 1.
+- One ELEMENT ENCODER per kind, each its own task: Stroke -> brushstroke (smooth style, pressure_curve "linear", the line_style and line_cap mappings), TextElement -> textstroke, ImageElement -> bitmapimage, and TexImageElement -> a bitmapimage of its rendered PNG.
+
+Every per-feature verdict the encoders must honour is already decided and written down — read docs/architecture.md, 'The complete .xopp <-> .rnote feature-gap matrix', and do not re-decide any of it here. Two rows are load-bearing and easy to miss:
+- pressure_curve must be written as "linear": it is upstream's default AND the identity, so widths are not re-curved on reopen.
+- bitmapimage needs the INVERSE of RawImageCodec — encoded PNG/JPEG bytes back to a raw premultiplied RGBA buffer. RawImageCodec deliberately avoids android.graphics.Bitmap because it is a throwing stub under JVM unit tests, so the decoder has the same constraint. Scope how a JPEG is handled; this may be the hardest single item.
+
+Output is TODO items, not code. Close this scope once they exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 450
 created = 2026-08-12
 tags = []
 rebuild = false
