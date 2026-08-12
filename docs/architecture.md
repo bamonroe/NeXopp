@@ -72,6 +72,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 |---|---|---|---|
 | `PK` | `ZIP` | ZIP-package `.xopp` (`XoppZip.open`) — the PDF travels inside | `ZIPPED` |
 | `1f 8b` | `GZIP` | gzip `.xopp` (`NeXopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
+| `1f 8b`, and the decompressed prefix is JSON naming `engine_snapshot` | `RNOTE` | not yet — rejected with "Rnote files are not supported yet" | — |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
 | `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`NeXopp.parseXml`); saved back compressed | `ORIGINAL` |
 | `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, one page the size of the image with it as the page's pixmap background (`render/ImageImport.kt`) | `ORIGINAL` |
@@ -602,7 +603,7 @@ app/
       NeXopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
-      FileKind.kt            # content sniffing for open: ZIP / GZIP / PDF / XML / TEXT / IMAGE / UNKNOWN
+      FileKind.kt            # content sniffing for open: ZIP / GZIP / RNOTE / PDF / XML / TEXT / IMAGE / UNKNOWN
       PageRange.kt           # user-typed 1-based page spec ("1-3,5,8-") -> sorted 0-based indices
                              #   forgiving by design: parses on every keystroke, never throws
       ExportFormat.kt        # PDF/SVG/PNG/JPEG/WebP export targets: mime, extension, label, file naming

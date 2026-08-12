@@ -17,6 +17,29 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-filekind-verdict"
+title = "Give FileKind an RNOTE verdict by peeking inside the gzip"
+description = """
+A .rnote file is gzip-compressed like a classic .xopp, so the leading bytes (1f 8b) cannot tell them apart — FileKind must gunzip the sample and look at the first decompressed bytes. See docs/architecture.md, section "The .rnote format — container & serialisation".
+
+In app/src/main/java/com/nexopp/format/FileKind.kt:
+- Add an enum constant RNOTE with a doc comment: a gzip-compressed JSON Rnote document (`{"version":…,"data":{"engine_snapshot":…}}`).
+- Add private fun gzipPayload(magic: ByteArray): ByteArray? — wraps magic in a java.util.zip.GZIPInputStream over a ByteArrayInputStream and reads up to MAGIC_BYTES decompressed bytes, returning what it got. The sample is a truncated gzip member, so catch java.io.EOFException and java.util.zip.ZipException and return whatever was read so far (null if nothing).
+- In of(), replace the plain `at(0) == 0x1f && at(1) == 0x8b -> GZIP` branch with one that decompresses the sample first: if the decompressed prefix, trimmed of leading whitespace, starts with `{` AND contains the substring "engine_snapshot" (or `"data"`), return RNOTE; otherwise return GZIP as today. A failed/empty decompression stays GZIP so today’s behaviour is unchanged for anything unexpected.
+
+In app/src/main/java/com/nexopp/io/DocumentIo.kt, the `when (kind)` in read() currently falls to `else -> error("unrecognised file type")`. Add an explicit `FileKind.RNOTE -> error("Rnote files are not supported yet")` branch so the failure is legible until the reader lands.
+
+Tests: extend app/src/test/java/com/nexopp/format/FileKindTest.kt with a case asserting FileKind.RNOTE for each of the five fixtures in app/src/test/resources/fixtures/rnote/ (read them off the test classpath the way the existing fixture tests do), and a case asserting a gzip .xopp still sniffs as GZIP.
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. Add the RNOTE row to the FileKind table in docs/architecture.md in the same commit."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = ["rnote", "format"]
+
+[[task]]
 id = "rnote-json-parser"
 title = "Add a dependency-free JSON reader in format/json/"
 description = """

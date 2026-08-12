@@ -1,7 +1,12 @@
 package com.nexopp.format
 
 import java.io.BufferedInputStream
+import java.io.ByteArrayInputStream
+import java.io.EOFException
+import java.io.IOException
 import java.io.InputStream
+import java.util.zip.GZIPInputStream
+import java.util.zip.ZipException
 
 /**
  * What a file we've been asked to open actually is, decided by its leading bytes rather than by
@@ -14,6 +19,12 @@ enum class FileKind {
 
     /** A gzip-compressed `.xopp` file (`\x1f\x8b` signature) — the classic desktop Xournal++ format. */
     GZIP,
+
+    /**
+     * A gzip-compressed JSON Rnote document (`{"version":…,"data":{"engine_snapshot":…}}`). Shares
+     * the gzip signature with a classic `.xopp`, so it is only distinguishable once decompressed.
+     */
+    RNOTE,
 
     /** A raw PDF file (`%PDF-` signature) — opened as a fresh annotatable document with one page per PDF page. */
     PDF,
@@ -59,13 +70,56 @@ enum class FileKind {
             fun startsWith(s: String): Boolean = s.indices.all { at(it) == s[it].code }
             return when {
                 XoppZip.isZip(at(0), at(1)) -> ZIP
-                at(0) == 0x1f && at(1) == 0x8b -> GZIP
+                at(0) == 0x1f && at(1) == 0x8b -> if (isRnotePayload(gzipPayload(magic))) RNOTE else GZIP
                 startsWith("%PDF-") -> PDF
                 startsWith("<?xml") || startsWith("<xournal") -> XML
                 isImage(::at) -> IMAGE
                 isPrintableUtf8(magic) -> TEXT
                 else -> UNKNOWN
             }
+        }
+
+        /**
+         * Decompress as much of [magic] as the sample allows. The sample is a *prefix* of the file,
+         * so it is a truncated gzip member: the stream is expected to run out mid-member, and both
+         * the EOF and the "corrupt trailer" that truncation looks like are normal outcomes — what
+         * was decompressed before the break is still a faithful prefix of the payload.
+         *
+         * @param magic The leading bytes of a gzip file.
+         * @return The decompressed prefix, or null if nothing at all could be read.
+         */
+        private fun gzipPayload(magic: ByteArray): ByteArray? {
+            val out = ByteArray(MAGIC_BYTES)
+            var n = 0
+            try {
+                GZIPInputStream(ByteArrayInputStream(magic)).use { gz ->
+                    while (n < out.size) {
+                        val r = gz.read(out, n, out.size - n)
+                        if (r < 0) break
+                        n += r
+                    }
+                }
+            } catch (_: EOFException) {
+                // The member is cut short by the sample limit; keep the prefix decoded so far.
+            } catch (_: ZipException) {
+                // Truncation can also surface as a bad trailer — same story, same handling.
+            } catch (_: IOException) {
+                // Anything else malformed simply isn't classifiable; fall back to the prefix.
+            }
+            return if (n == 0) null else out.copyOf(n)
+        }
+
+        /**
+         * Whether a decompressed gzip prefix is an Rnote document rather than Xournal++ XML: a JSON
+         * object whose top level carries the engine snapshot Rnote wraps every document in.
+         *
+         * @param payload The decompressed prefix, or null if decompression yielded nothing.
+         * @return True if the payload opens as JSON naming Rnote's snapshot.
+         */
+        private fun isRnotePayload(payload: ByteArray?): Boolean {
+            val text = (payload ?: return false).toString(Charsets.UTF_8).trimStart()
+            return text.startsWith("{") &&
+                (text.contains("engine_snapshot") || text.contains("\"data\""))
         }
 
         /**

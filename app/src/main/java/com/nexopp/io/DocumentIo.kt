@@ -190,6 +190,8 @@ class DocumentIo(
                 FileKind.GZIP -> linked(Xopp.open(input), name, source)
                 // Desktop Xournal++ can write plain XML; accept it and save it back compressed.
                 FileKind.XML -> linked(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()), name, source)
+                // Sniffed apart from a gzip `.xopp` already, but the reader hasn't landed yet.
+                FileKind.RNOTE -> error("Rnote files are not supported yet")
                 else -> error("unrecognised file type")
             }
         }

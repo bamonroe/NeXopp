@@ -21,6 +21,17 @@ class FileKindTest {
     }
 
     @Test
+    fun `rnote fixtures are told apart from a gzip xopp`() {
+        // Both are gzip, so the verdict can only come from the decompressed payload.
+        for (name in listOf("empty", "plain", "backgrounds", "layers", "text-image")) {
+            val bytes = javaClass.classLoader!!.getResourceAsStream("fixtures/rnote/$name.rnote")
+                ?.use { it.readBytes() }
+                ?: error("missing fixture fixtures/rnote/$name.rnote")
+            assertEquals("fixtures/rnote/$name.rnote", FileKind.RNOTE, sniff(bytes))
+        }
+    }
+
+    @Test
     fun `real zip package bytes are zip`() {
         val out = ByteArrayOutputStream()
         XoppZip.save(Document(), null, out)
