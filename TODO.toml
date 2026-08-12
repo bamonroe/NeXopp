@@ -36,31 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "add-an-export-dialog-with-format-page-range-and-dpi"
-title = "Add an Export dialog with format, page range and DPI"
-description = """
-Replace the single "Export PDF" overflow item with an "Export…" dialog that drives every export path. Do the PageRange, ExportFormat, raster-export, SVG and PDF-page-range tasks first; this one wires them to the UI.
-
-1. In app/src/main/java/com/nexopp/ui/EditorDialogs.kt add a @Composable ExportDialog(pageCount: Int, currentPage: Int, onDismiss: () -> Unit, onExport: (ExportFormat, String /*range spec*/, Int /*dpi*/, String /*base name*/) -> Unit). Follow the layout and styling of the existing dialogs in that file (AlertDialog with a confirm/dismiss button pair). Contents: a format row of Material 3 FilterChips, one per ExportFormat.entries, using format.label; an OutlinedTextField for the base file name (default "document"); an OutlinedTextField for the page range, with placeholder "all pages" and supporting text showing how many pages the current spec resolves to via PageRange.parse(spec, pageCount).size; and a DPI row of FilterChips (150, 300, 600, default 300) that is only shown when the selected format.isRaster. Disable the confirm button when PageRange.parse resolves to zero pages.
-
-2. In app/src/main/java/com/nexopp/ui/EditorRegions.kt rename the OverflowMenu parameter `onExportPdf: () -> Unit` to `onExport: () -> Unit` and change the "Export PDF" DropdownMenuItem (around line 518) to read "Export…" with the Icons.Filled.FileDownload icon. Thread the rename through app/src/main/java/com/nexopp/ui/EditorScreen.kt (parameters at lines ~125 and ~153) and the EditorRegions call site (~line 79 and ~101).
-
-3. In app/src/main/java/com/nexopp/MainActivity.kt replace `onExportPdf = { exportPdfLauncher.launch("document.pdf") }` (around line 232) with `onExport = { showExportDialog = true }`, hold showExportDialog as remembered state next to the other editor dialog state, and render ExportDialog. Its onExport callback stores the choice into the pendingExport… fields and launches the right picker: for a single-file format (PDF — format.isMultiFile == false) launch a CreateDocument(format.mime) with format.fileName(baseName, null); for a multi-file format (SVG and every raster format) launch exportFolderLauncher (the OpenDocumentTree picker). Extend the folder-export handler so it writes SVG through SvgExporter as well as raster through PageRasterizer, picking on format.isRaster.
-
-4. Document it: rewrite the Export section of README.md (near line 674) to describe the new dialog — the format list, the page-range syntax ("1-3,5", blank means all), the DPI choice for raster, and the single-file vs pick-a-folder distinction. Update the overflow-menu item list in docs/architecture.md (near line 1533, which currently reads "Open, Import PDF, Export PDF, Save…") to say "Export…".
-
-Verify: scripts/build.sh, then install on the /data/android emulator and drive it — open the dialog, screenshot it, export a three-page document as PNG with the range "1,3", and confirm exactly two files land in the picked folder. Check adb logcat for errors."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 100
-created = 2026-08-11
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "generate-rnote-test-fixtures-with-rnote-cli"
 title = "Generate .rnote test fixtures with rnote-cli"
 description = """
