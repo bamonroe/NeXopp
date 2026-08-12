@@ -17,6 +17,38 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-convert-a-brushstroke-into-a-stroke"
+title = "rnote: convert a brushstroke into a Stroke"
+description = """
+Add app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt with
+
+fun brushStrokeToStroke(stroke: RnoteStroke): Stroke?
+
+converting a kind=='brushstroke' RnoteStroke (body is raw JsonValue) into format.model.Stroke. Return null for any other kind. Uses the helpers from RnoteUnits.kt. The exact JSON shape is documented in docs/architecture.md, section 'The stroke & pen mapping (measured against the fixture twins)'.
+
+Rules:
+- Points: body.path.start is {pos:[x,y],pressure:p}; body.path.segments is an array of single-key-tagged objects whose value has .end = {pos,pressure} (the tag is 'lineto' in every fixture; accept any tag and read .end, skipping a segment with no .end). Point list = start followed by each segment end.
+- Coordinates: StrokePoint.x/y = pxToPt(pos[0]/pos[1]).
+- Width: let sw = body.style.smooth.stroke_width (default 2.0 if absent). StrokePoint.width = pxToPt(sw * pressure), pressure defaulting to 1.0.
+- uniformWidth = true when every pressure is 1.0 (within 1e-6), else false.
+- color = body.style.smooth.stroke_color.toXopp(); default opaque black when absent.
+- tool = Tool.HIGHLIGHTER when stroke.layer == "highlighter", else Tool.PEN.
+- lineStyle: map body.style.smooth.line_style 'solid'->LineStyle.PLAIN, 'dashed'->DASHED, 'dotted'->DOTTED, 'dashed_dotted'/'dashdot'->DASH_DOT, anything else -> PLAIN.
+- fill = body.style.smooth.fill_color's alpha as 0..255 when the object is present and non-null, else null.
+- capStyle = null, extraAttrs = emptyMap().
+- Tolerate the 'textured' style tag the same way as 'smooth' (read stroke_width/stroke_color out of whichever single style tag is present) so a textured-brush file still converts.
+
+Test in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt against the committed fixture app/src/test/resources/fixtures/rnote/plain.rnote (open it the way RnoteSnapshotTest.kt already does): it has three brushstrokes. Assert stroke 1 is Tool.PEN, uniformWidth=false, 3 points, first point (100.0, 100.0) in pt within 1e-2 and widths (1.2, 0.98, 0.76) within 1e-2; stroke 2 has uniformWidth=true and width 1.5; stroke 3 is Tool.HIGHLIGHTER with width 8.5 and a half-alpha yellow colour.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-unit-and-colour-conversion-primitives"
 title = "rnote: unit and colour conversion primitives"
 description = """

@@ -816,6 +816,9 @@ app/
         RnoteSnapshot.kt     #   engine_snapshot -> intermediate model (format, background, layout,
                              #   canvas extent, chrono-ordered strokes with their bodies raw);
                              #   tolerates the 0.6-0.12 flat document shape, not yet a Document
+        RnoteStrokeConvert.kt #  brushstroke -> model.Stroke: pressure polyline to StrokePoints,
+                             #   stroke_width x pressure to per-vertex width, layer to Tool,
+                             #   line_style/fill_color across; null for any other stroke kind
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
                              #   ARGB int, translation out of a 9-element transform.affine
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)
