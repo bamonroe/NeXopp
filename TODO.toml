@@ -36,27 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "investigate-the-rnote-container-and-serialisation-format"
-title = "Investigate the .rnote container and serialisation format"
-description = """
-Work out exactly what a `.rnote` file IS on disk, so a dependency-free Kotlin reader can be specified. Depends on the "Generate .rnote test fixtures with rnote-cli" task for real sample files.
-
-Investigate and write down: the magic bytes / file signature (needed to extend app/src/main/java/com/nexopp/format/FileKind.kt, which classifies by content and not by extension); the compression wrapper, if any (gzip? zstd? none?); the serialisation inside it (JSON? MessagePack? a versioned header plus a payload?); and how the format has changed across Rnote versions — a reader must tolerate the versions the owner actually has files from. Cross-check findings against the Rnote source (github.com/flatpak/../flatpak-builder aside, the upstream repo is github.com/flxzt/rnote) rather than guessing from bytes alone.
-
-Then decide, and record in docs/architecture.md as a dated design decision alongside the existing format decisions: whether the payload can be parsed with the repo`s dependency-free approach (the project already hand-rolls its XML layer — see app/src/main/java/com/nexopp/format/xml/) or genuinely needs a new dependency, and if so which one and why.
-
-Output of this scope is TODO items, not code: add atomic `task` items for the reader — e.g. "extend FileKind with an RNOTE verdict", "add the container decompression layer", "parse the payload into an intermediate model", each fully specified with file paths and verification steps. Close this scope with `scripts/todo.sh done` once those children exist."""
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 120
-created = 2026-08-11
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "map-rnote-s-stroke-and-pen-model-onto-the-nexopp-document-model"
 title = "Map Rnote's stroke and pen model onto the NeXopp document model"
 description = """
@@ -120,5 +99,117 @@ urgency = "normal"
 order = 150
 created = 2026-08-11
 tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-json-parser"
+title = "Add a dependency-free JSON reader in format/json/"
+description = """
+Add a minimal, dependency-free JSON parser so the .rnote payload can be read on-device and in JVM unit tests alike. Design decision and rationale: docs/architecture.md, section "The .rnote format — container & serialisation".
+
+Create two new files, modelled closely on the existing hand-rolled XML layer in app/src/main/java/com/nexopp/format/xml/XmlPullReader.kt (same doc-comment style, same "TruncatedXmlException"-style error type):
+
+1. app/src/main/java/com/nexopp/format/json/JsonValue.kt — a sealed class tree:
+   sealed class JsonValue with subclasses JsonObject(val members: Map<String, JsonValue>) (LinkedHashMap, insertion order preserved), JsonArray(val items: List<JsonValue>), JsonString(val value: String), JsonNumber(val value: Double), JsonBool(val value: Boolean), and object JsonNull.
+   Add convenience accessors on JsonValue: obj(key: String): JsonValue? (null unless this is a JsonObject with that key), arr(): List<JsonValue>? , str(): String?, num(): Double?, bool(): Boolean?, and isNull(): Boolean. Also a path helper: fun path(vararg keys: String): JsonValue? walking obj() for each key.
+
+2. app/src/main/java/com/nexopp/format/json/JsonReader.kt — class JsonReader(private val s: String) with fun parse(): JsonValue that parses one whole document and throws on trailing non-whitespace. Full RFC 8259 grammar: objects, arrays, strings with the \\" \\\\ \\/ \\b \\f \\n \\r \\t and \\uXXXX escapes (including surrogate pairs), numbers (leading minus, exponent, fraction) parsed with toDouble(), true/false/null literals, and whitespace skipping. Throw a nested class MalformedJsonException(message: String) : IllegalArgumentException with the character offset in the message; throw a TruncatedJsonException subclass of it when the input ends mid-value. Guard nesting depth at 256 and throw rather than blowing the stack.
+
+Tests: new app/src/test/java/com/nexopp/format/json/JsonReaderTest.kt covering: a nested object/array round-trip of a small literal; every escape sequence including a surrogate pair (e.g. "😀" == an emoji); numbers with exponents and negatives; empty object and empty array; duplicate keys (last wins); rejection of a trailing comma, an unquoted key, a stray comma, and truncated input (assert the exception type); and depth-limit rejection of 300 nested arrays.
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. Document the new format/json/ package in the repository-layout section of docs/architecture.md in the same commit."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 122
+created = 2026-08-12
+tags = ["rnote", "format"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-filekind-verdict"
+title = "Give FileKind an RNOTE verdict by peeking inside the gzip"
+description = """
+A .rnote file is gzip-compressed like a classic .xopp, so the leading bytes (1f 8b) cannot tell them apart — FileKind must gunzip the sample and look at the first decompressed bytes. See docs/architecture.md, section "The .rnote format — container & serialisation".
+
+In app/src/main/java/com/nexopp/format/FileKind.kt:
+- Add an enum constant RNOTE with a doc comment: a gzip-compressed JSON Rnote document (`{"version":…,"data":{"engine_snapshot":…}}`).
+- Add private fun gzipPayload(magic: ByteArray): ByteArray? — wraps magic in a java.util.zip.GZIPInputStream over a ByteArrayInputStream and reads up to MAGIC_BYTES decompressed bytes, returning what it got. The sample is a truncated gzip member, so catch java.io.EOFException and java.util.zip.ZipException and return whatever was read so far (null if nothing).
+- In of(), replace the plain `at(0) == 0x1f && at(1) == 0x8b -> GZIP` branch with one that decompresses the sample first: if the decompressed prefix, trimmed of leading whitespace, starts with `{` AND contains the substring "engine_snapshot" (or `"data"`), return RNOTE; otherwise return GZIP as today. A failed/empty decompression stays GZIP so today’s behaviour is unchanged for anything unexpected.
+
+In app/src/main/java/com/nexopp/io/DocumentIo.kt, the `when (kind)` in read() currently falls to `else -> error("unrecognised file type")`. Add an explicit `FileKind.RNOTE -> error("Rnote files are not supported yet")` branch so the failure is legible until the reader lands.
+
+Tests: extend app/src/test/java/com/nexopp/format/FileKindTest.kt with a case asserting FileKind.RNOTE for each of the five fixtures in app/src/test/resources/fixtures/rnote/ (read them off the test classpath the way the existing fixture tests do), and a case asserting a gzip .xopp still sniffs as GZIP.
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. Add the RNOTE row to the FileKind table in docs/architecture.md in the same commit."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 124
+created = 2026-08-12
+tags = ["rnote", "format"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-container-layer"
+title = "Read the .rnote gzip+JSON container and its version wrapper"
+description = """
+Add the container layer that turns .rnote bytes into a parsed JSON payload, mirroring how format/Xopp.kt wraps gzip around the XML reader. Format details: docs/architecture.md, section "The .rnote format — container & serialisation".
+
+New file app/src/main/java/com/nexopp/format/rnote/RnoteContainer.kt, object RnoteContainer:
+- fun open(input: java.io.InputStream): RnoteWrapper — wrap the stream in java.util.zip.GZIPInputStream, read it fully as UTF-8, and parse it with com.nexopp.format.json.JsonReader (from the rnote-json-parser task).
+- fun parseJson(text: String): RnoteWrapper — the same from an already-decompressed string, so tests can work without gzip.
+- data class RnoteWrapper(val version: String, val major: Int, val minor: Int, val patch: Int, val snapshot: JsonValue), where snapshot is data.engine_snapshot.
+- Version handling: read the top-level "version" string and parse it as semver (split on ".", strip any "-suffix" from the patch part). Reject anything below 0.6 with IllegalArgumentException("unsupported .rnote version: <version>"). Reject a missing/blank version, a missing "data" object, or a missing "data.engine_snapshot" with a clear message naming the missing key. Versions 0.6 and up are accepted; the flat-vs-nested document shape difference is handled by the next task, not here.
+
+Tests: new app/src/test/java/com/nexopp/format/rnote/RnoteContainerTest.kt: open() each of the five fixtures in app/src/test/resources/fixtures/rnote/ and assert version == "0.14.2" and that snapshot has a "document" member; assert parseJson rejects {"version":"0.5.2","data":{"engine_snapshot":{}}} with the unsupported-version message; assert it rejects a wrapper with no "data"; assert open() on a gzip .xopp fixture throws (the JSON parser will reject "<xournal").
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. List the new format/rnote/ package in the repository-layout section of docs/architecture.md in the same commit."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 126
+created = 2026-08-12
+tags = ["rnote", "format"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-snapshot-model"
+title = "Parse the Rnote engine snapshot into an intermediate model"
+description = """
+Turn the engine_snapshot JSON (from the rnote-container-layer task) into a plain Kotlin intermediate model, tolerant of Rnote 0.6–0.14 shape differences. This task stops at the intermediate model — converting it to a com.nexopp.format.model.Document belongs to the separate "Map Rnote's stroke and pen model onto the NeXopp document model" scope. Payload vocabulary: docs/architecture.md, section "The .rnote format — container & serialisation".
+
+New file app/src/main/java/com/nexopp/format/rnote/RnoteSnapshot.kt with data classes and a parser:
+- data class RnoteSnapshot(val format: RnoteFormat, val background: RnoteBackground, val layout: String, val docX: Double, val docY: Double, val docWidth: Double, val docHeight: Double, val strokes: List<RnoteStroke>)
+- data class RnoteFormat(val width: Double, val height: Double, val dpi: Double, val orientation: String)
+- data class RnoteBackground(val color: RnoteColor, val pattern: String, val patternWidth: Double, val patternHeight: Double, val patternColor: RnoteColor)
+- data class RnoteColor(val r: Double, val g: Double, val b: Double, val a: Double) — Rnote stores each channel as a 0.0–1.0 double.
+- data class RnoteStroke(val index: Int, val kind: String, val body: JsonValue, val z: Long, val layer: String, val userLayer: Int?) — kind is the single tag key of the stroke object, one of brushstroke, shapestroke, textstroke, vectorimage, bitmapimage; body is that tag's value, left as raw JSON for the mapping scope to interpret.
+- fun parse(snapshot: JsonValue): RnoteSnapshot.
+
+Rules the parser must follow:
+- Shape tolerance: look for format/background/layout under document.config first (Rnote ≥ 0.13) and fall back to document directly (0.6–0.12). Ignore camera and snap_positions.
+- stroke_components is an array of {"value": <stroke|null>, "version": n} slots; skip null slots (slot 0 is always null, and holes stay null). The array position is the index and pairs with chrono_components at the same index.
+- chrono_components entries are {"value":{"t":<long>,"layer":<layer>}}; layer is either the object {"user_layer": n} (then layer = "user_layer" and userLayer = n) or one of the strings "highlighter", "image", "document". Default to layer "user_layer" with userLayer 0 when the chrono entry is missing or null.
+- Order the returned strokes by z (the chrono "t") ascending, ties broken by index, so painters-order is already correct for the caller.
+- Missing required keys throw IllegalArgumentException naming the key; unknown stroke tags are kept with their tag as kind rather than throwing, so a newer Rnote file still loads what it can.
+
+Tests: new app/src/test/java/com/nexopp/format/rnote/RnoteSnapshotTest.kt: parse all five fixtures in app/src/test/resources/fixtures/rnote/; assert plain.rnote yields three brushstroke entries in z order with format 793.701 x 1122.52 at 96 dpi; assert text-image.rnote yields one bitmapimage on layer "image" and one textstroke on user_layer 0; assert empty.rnote yields zero strokes and pattern "dots"; assert backgrounds.rnote yields six strokes; and assert the flat 0.9-style shape parses by feeding a hand-built JSON string with format/background/layout directly on document.
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. Keep the architecture doc's .rnote section accurate in the same commit if the parser learns anything new about the payload."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 128
+created = 2026-08-12
+tags = ["rnote", "format"]
 rebuild = false
 emulator_debug = false

@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "investigate-the-rnote-container-and-serialisation-format"
+title = "Investigate the .rnote container and serialisation format"
+description = """
+Work out exactly what a `.rnote` file IS on disk, so a dependency-free Kotlin reader can be specified. Depends on the "Generate .rnote test fixtures with rnote-cli" task for real sample files.
+
+Investigate and write down: the magic bytes / file signature (needed to extend app/src/main/java/com/nexopp/format/FileKind.kt, which classifies by content and not by extension); the compression wrapper, if any (gzip? zstd? none?); the serialisation inside it (JSON? MessagePack? a versioned header plus a payload?); and how the format has changed across Rnote versions — a reader must tolerate the versions the owner actually has files from. Cross-check findings against the Rnote source (github.com/flatpak/../flatpak-builder aside, the upstream repo is github.com/flxzt/rnote) rather than guessing from bytes alone.
+
+Then decide, and record in docs/architecture.md as a dated design decision alongside the existing format decisions: whether the payload can be parsed with the repo`s dependency-free approach (the project already hand-rolls its XML layer — see app/src/main/java/com/nexopp/format/xml/) or genuinely needs a new dependency, and if so which one and why.
+
+Output of this scope is TODO items, not code: add atomic `task` items for the reader — e.g. "extend FileKind with an RNOTE verdict", "add the container decompression layer", "parse the payload into an intermediate model", each fully specified with file paths and verification steps. Close this scope with `scripts/todo.sh done` once those children exist."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "generate-rnote-test-fixtures-with-rnote-cli"
 title = "Generate .rnote test fixtures with rnote-cli"
 description = """

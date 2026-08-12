@@ -250,6 +250,81 @@ one it was authored in rather than converting it.
       The model-equality tests above can't see a difference that both the reader and writer agree
       on; this one can, and it is what caught the dropped `<teximage>` PNG body.
 
+## The `.rnote` format — container & serialisation (code-derived — this is its authoritative home)
+
+**Status: investigated, not yet implemented.** Derived from upstream Rnote **0.14.2**
+(`crates/rnote-engine/src/fileformats/rnoteformat/`, tag `v0.14.2`) cross-checked against the five
+ground-truth fixtures in `app/src/test/resources/fixtures/rnote/` (see that directory's README and
+`docs/tools.md` for how they are regenerated). The stroke/pen → `Element` mapping and the
+canvas → pages/layers mapping are *not* here; they belong to their own scope items in `TODO.toml`.
+
+### The container: gzip, then one JSON object
+
+A `.rnote` file is a **gzip-compressed, UTF-8 JSON document** — the same wrapper as a classic
+`.xopp`, with JSON inside instead of XML. There is **no magic signature of its own**: the file
+starts with gzip's `1f 8b`, exactly like a gzip `.xopp`. Upstream writes it with `flate2` at
+compression level 5 and reads it with `MultiGzDecoder`, so multi-member gzip streams must be
+tolerated (JDK `GZIPInputStream` already does).
+
+Uncompressed, the whole file is **one JSON object** with two keys, written by `serde_json` with no
+whitespace:
+
+```json
+{"version":"0.14.2","data":{"engine_snapshot":{ … }}}
+```
+
+- `version` — a **semver** string, the Rnote crate version that wrote the file. It is the only
+  thing upstream matches on; there is no separate format-version number.
+- `data` — the payload, whose shape is chosen by `version` (below).
+
+Consequence for the open path: **gzip alone no longer identifies a `.xopp`.** `FileKind.sniff()`
+must gunzip the sample and look at the first decompressed bytes — `{` (with `"engine_snapshot"` in
+the sample) means `.rnote`, `<` means Xournal++ XML.
+
+### Payload shape by version (what a reader must tolerate)
+
+Upstream keeps every historical struct and chains `TryFrom` conversions forward. The differences
+that matter to a reader are small:
+
+| Written by | `data` shape | Difference from newest |
+|---|---|---|
+| ≥ 0.13 | `{"engine_snapshot":{"document":{"config":{"format","background","layout"},x,y,width,height},"camera",…}}` | current |
+| 0.9 – 0.12 | same, but `format`/`background`/`layout` sit **directly on `document`** (plus a `snap_positions` we ignore) | 0.13 nested those three under `document.config` |
+| 0.6 – 0.8 | as 0.9, minus `camera` | 0.9 inserted a default `camera` (we ignore camera anyway) |
+| 0.5.0 – 0.5.10 | `store_snapshot` instead of `engine_snapshot`, and older stroke structs | pre-0.6 reshuffle |
+
+**Decision (2026-08-12): read ≥ 0.6, reject older with a clear message.** Accepting 0.6 – 0.12
+costs one fallback (`document.config.format` else `document.format`) because we ignore `camera` and
+`snap_positions` regardless; the pre-0.6 `store_snapshot` layouts would need real conversion code
+for files the owner is unlikely to have (Rnote 0.5 is from 2022). An unsupported version fails with
+the version string in the message rather than a parse error.
+
+The payload's own vocabulary, for orientation only:
+`engine_snapshot.stroke_components` is an array of `{"value":<stroke|null>,"version":n}` slots — the
+first slot is always `null` (slotmap index 0) and holes stay `null`. A stroke is a
+single-key-tagged object; the five tags are `brushstroke`, `shapestroke`, `textstroke`,
+`vectorimage`, `bitmapimage`. `chrono_components` is a parallel array of
+`{"value":{"t":n,"layer":…}}` giving z-order and layer, where `layer` is `{"user_layer":n}` or one
+of the strings `highlighter`, `image`, `document`.
+
+### Decision (2026-08-12): a hand-rolled JSON layer, no new dependency
+
+The payload is parsed with a **dependency-free JSON reader of our own**, in
+`app/src/main/java/com/nexopp/format/json/`, mirroring the existing hand-rolled
+`format/xml/` layer. Reasons, in order:
+
+- **Unit tests run on the JVM with plain JUnit** (no Robolectric). Android's bundled `org.json` is
+  a *stub* in `android.jar` and throws "not mocked" off-device, so the platform parser would leave
+  the `.rnote` reader untestable in the loop we actually run (`scripts/build.sh testDebugUnitTest`).
+- **Gson/Moshi/kotlinx.serialization all add a dependency** (and kotlinx also a compiler plugin) for
+  a job this small — the whole grammar is objects, arrays, strings, numbers, booleans and null.
+- It matches the precedent already set by `format/xml/XmlPullReader.kt`: the same code runs
+  on-device and in tests, and we keep control of error messages for truncated files.
+
+The reader stays a **generic JSON tree** (parse → `JsonValue`) rather than a typed schema, because
+tolerating several Rnote versions means probing for keys, exactly what upstream does with
+`ijson::IValue`.
+
 ## Stack — pinned 2026-07-30
 
 Native Android, no cross-platform framework (the abandoned reference was Flutter; we go
