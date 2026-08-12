@@ -36,27 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers"
-title = "Decide how Rnote's canvas layout maps to fixed pages and layers"
-description = """
-Rnote is built around a continuous/infinite canvas with configurable layouts, while the NeXopp model (app/src/main/java/com/nexopp/format/model/Document.kt) is a list of fixed-size Pages each holding ordered Layers. Work out the correspondence before any reader is written, because it decides the shape of the whole importer.
-
-Investigate against the real fixtures from the "Generate .rnote test fixtures with rnote-cli" task: what layout modes Rnote supports and how each is stored; whether a .rnote file records page boundaries at all or only a document extent plus a page size hint; how Rnote represents backgrounds (its pattern types and colours) versus our Background sealed interface in app/src/main/java/com/nexopp/format/model/Background.kt (Solid ruling styles, Pdf, Pixmap); whether Rnote has layers in our sense, and if not, what a multi-layer .xopp collapses to when `rnote-cli import` converts it (test this directly with the layers fixture); and how an embedded/annotated PDF is carried, versus our Background.Pdf plus the app/src/main/java/com/nexopp/io/PdfStore.kt reference machinery.
-
-Then record the decision in docs/architecture.md: how an infinite-canvas document is cut into pages on import, and how our fixed pages are laid out on export. State the rule concretely enough that it can be implemented and tested.
-
-Output is TODO items, not code: add atomic `task` items for the pagination and background conversion. Close this scope once they exist."""
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 140
-created = 2026-08-11
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "scope-save-save-as-and-file-picker-handling-for-a-second-document-format"
 title = "Scope save/save-as and file-picker handling for a second document format"
 description = """
@@ -315,6 +294,159 @@ level = "scope"
 category = "feature"
 urgency = "normal"
 order = 230
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-canvas-background-to-per-page-background-solid"
+title = "rnote: canvas background to per-page Background.Solid"
+description = """
+Add `app/src/main/java/com/nexopp/format/rnote/RnoteBackgroundMapper.kt` with two functions converting between `RnoteBackground` (format/rnote/RnoteSnapshot.kt) and `Background.Solid` (format/model/Background.kt), per the table in docs/architecture.md section 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds'.
+
+`fun toXoppBackground(bg: RnoteBackground): Background.Solid` — colour: each of bg.color.r/g/b/a is 0.0-1.0, convert with `(c * 255).roundToInt().coerceIn(0, 255)` and pack ARGB as `(a shl 24) or (r shl 16) or (g shl 8) or b`. Style: pattern 'none'->"plain", 'lines'->"ruled", 'grid'->"graph", 'dots'->"dotted", 'isometric_grid'->"isograph", 'isometric_dots'->"isodotted"; any unknown pattern string -> "plain". patternWidth/patternHeight/patternColor are dropped.
+
+`fun toRnoteBackground(bg: Background): RnoteBackground` — for Background.Solid invert the table, plus "lined"->'lines' and "staves"->'none' and any unknown style->'none'. For Background.Pdf and Background.Pixmap return white with pattern 'none' (the reference is lost; the save-path warning is a separate task). patternWidth/patternHeight: 32.0 for 'lines', 18.893 for 'grid'/'dots'/'isometric_grid'/'isometric_dots', else 32.0. patternColor: Rnote's default (r=0.8, g=0.9, b=1.0, a=1.0).
+
+Verify with a new `app/src/test/java/com/nexopp/format/rnote/RnoteBackgroundMapperTest.kt`: parse `fixtures/rnote/empty.rnote` (pattern 'dots', white) and assert it maps to Background.Solid(0xFFFFFFFF.toInt(), "dotted"); parse `fixtures/rnote/plain.rnote` (pattern 'none') and assert style "plain"; assert every style name round-trips style -> pattern -> style for plain/ruled/graph/dotted/isograph/isodotted. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 240
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-pagination-primitives-for-cutting-the-canvas-into-pages"
+title = "rnote: pagination primitives for cutting the canvas into pages"
+description = """
+Add `app/src/main/java/com/nexopp/format/rnote/RnotePagination.kt` implementing the import-side geometry from docs/architecture.md section 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds'. It works on axis-aligned bounding boxes only, so it can be written and tested before the stroke converters land.
+
+Define `data class RnoteBounds(val minX: Double, val minY: Double, val maxX: Double, val maxY: Double)` and `data class RnotePageLayout(val pageWidth: Double, val pageHeight: Double, val pageCount: Int, val shiftX: Double, val shiftY: Double)` (page sizes in pt).
+
+`fun pageLayout(format: RnoteFormat, contentBounds: RnoteBounds?): RnotePageLayout` — pageWidth = format.width / (4.0/3.0), pageHeight = format.height / (4.0/3.0). shiftX = -minOf(0.0, contentBounds.minX) in px, shiftY likewise; both 0.0 when contentBounds is null. pageCount = max(1, ceil((contentBounds.maxY + shiftY) / format.height)) using the px-space height, or 1 when contentBounds is null. Deliberately ignore snapshot.docX/docY/docWidth/docHeight and snapshot.layout — the doc explains why.
+
+`fun pageIndexFor(bounds: RnoteBounds, layout: RnotePageLayout, format: RnoteFormat): Int` — floor((bounds.minY + layout.shiftY) / format.height), coerced into 0 until layout.pageCount. Never splits a stroke.
+
+`fun pageOriginPx(pageIndex: Int, layout: RnotePageLayout, format: RnoteFormat): Pair<Double, Double>` returning the px translation to subtract from a stroke's coordinates: (layout.shiftX, layout.shiftY - pageIndex * format.height). Callers add the shift then subtract the page origin, then scale px -> pt by dividing by 4.0/3.0.
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnotePaginationTest.kt`: using the A4 format from `fixtures/rnote/backgrounds.rnote` (793.701 x 1122.52 px) assert pageWidth ~= 595.28 and pageHeight ~= 841.89 within 0.01; with contentBounds maxY = 4570.1 (that fixture's last stroke) assert pageCount == 5; assert pageIndexFor returns 0,1,2,3,4 for minY 40.0, 1162.5, 2285.0, 3407.6, 4530.1; assert a negative minY of -100.0 produces shiftY 100.0 and page index 0. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 250
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-build-the-per-page-layer-stack-from-chrono-layers"
+title = "rnote: build the per-page layer stack from chrono layers"
+description = """
+Add `app/src/main/java/com/nexopp/format/rnote/RnoteLayerStack.kt` implementing the layer half of docs/architecture.md section 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds'.
+
+Each `RnoteStroke` (format/rnote/RnoteSnapshot.kt) carries `layer: String` (one of "user_layer", "highlighter", "image", "document") and `userLayer: Int?`.
+
+`fun layerSlotName(stroke: RnoteStroke): String` — "user_layer " + (stroke.userLayer ?: 0) when layer == "user_layer", else stroke.layer verbatim. Unknown layer strings fall through as themselves.
+
+`fun layerOrder(slotName: String): Int` — the fixed upstream z-order, bottom to top: "document" = 0, "image" = 1, "highlighter" = 2, "user_layer n" = 3 + n. Unknown names sort last. Note the highlighter deliberately sits BELOW the user layers.
+
+`fun layerSlots(strokes: List<RnoteStroke>): List<String>` — the distinct slot names present in strokes, sorted by layerOrder, bottom-first. This is the layer stack every page gets.
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteLayerStackTest.kt` against the real fixtures: `fixtures/rnote/plain.rnote` and `fixtures/rnote/layers.rnote` both yield ["highlighter", "user_layer 0"] (highlighter first, because it is the bottom layer); `fixtures/rnote/text-image.rnote` yields ["image", "user_layer 0"]; `fixtures/rnote/backgrounds.rnote` yields ["user_layer 0"]. Also unit-test layerOrder directly for document < image < highlighter < user_layer 0 < user_layer 1. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 260
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-assemble-a-document-from-the-snapshot"
+title = "rnote: assemble a Document from the snapshot"
+description = """
+The assembler that ties the .rnote import together. Depends on the pagination, layer-stack and background tasks plus the per-stroke converters (brushstroke/textstroke/bitmapimage/shapestroke). Add `app/src/main/java/com/nexopp/format/rnote/RnoteDocumentReader.kt`.
+
+`fun readDocument(snapshot: RnoteSnapshot): RnoteImport` where `data class RnoteImport(val document: Document, val skipped: List<String>)` — skipped is the skip-and-report list from the sibling task.
+
+Algorithm, per docs/architecture.md 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds':
+1. Convert each RnoteStroke to an Element with the per-kind converters, keeping its px bounding box; unconvertible kinds go to skipped.
+2. Union the bounding boxes into an RnoteBounds; call pageLayout(snapshot.format, bounds).
+3. Call layerSlots(snapshot.strokes) for the stack; every page gets the same stack, in the same order, empty layers included, with Layer.name set to the slot name.
+4. For each element: pageIndex = pageIndexFor(its bounds, layout, format); translate by pageOriginPx then scale px -> pt (divide by 4.0/3.0); append to that page's layer for its slot. Strokes are already sorted by chrono t then slot index by RnoteSnapshot.parse, so appending preserves painters order.
+5. Build Page(width = layout.pageWidth, height = layout.pageHeight, background = toXoppBackground(snapshot.background), layers = the stack) for each of layout.pageCount pages, and Document(creator = "NeXopp", pages = those).
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteDocumentReaderTest.kt` against the fixtures and their .xopp twins in app/src/test/resources/fixtures/: backgrounds.rnote gives 5 pages of 595.28 x 841.89 pt with one stroke each, each stroke's first point near (30, 30) pt; layers.rnote gives 1 page with layers ["highlighter", "user_layer 0"] holding 1 and 2 elements; text-image.rnote gives 1 page whose "image" layer holds the ImageElement and whose "user_layer 0" holds the TextElement; empty.rnote gives exactly 1 page with a dotted background and no elements. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 270
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-lay-fixed-pages-back-onto-the-canvas-on-export"
+title = "rnote: lay fixed pages back onto the canvas on export"
+description = """
+The export-side geometry, mirroring the import assembler. Add `app/src/main/java/com/nexopp/format/rnote/RnoteDocumentWriterGeometry.kt` (the JSON serialisation itself is a later task; this one is pure geometry and slot assignment, unit-testable on its own).
+
+Per docs/architecture.md 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds':
+
+`fun canvasFormat(document: Document): RnoteFormat` — from page 1: width = page.width * (4.0/3.0), height = page.height * (4.0/3.0), dpi = 96.0, orientation = if (page.width <= page.height) "portrait" else "landscape". Empty document: A4, 793.701 x 1122.52.
+
+`fun pageOriginsPx(document: Document): List<Double>` — cumulative y offsets in px: page 0 at 0.0, page i at the sum of preceding page heights * (4.0/3.0). For uniform pages this equals i * format.height.
+
+`fun canvasExtent(document: Document): RnoteBounds` — x = 0.0, y = 0.0, maxX = widest page * (4.0/3.0), maxY = sum of page heights * (4.0/3.0). The writer emits layout "fixed_size" (NOT "infinite"), so Rnote draws page boundaries where we do.
+
+`fun slotFor(element: Element, layer: Layer, layerIndex: Int): Pair<String, Int?>` returning (layer name, userLayer index) — in order: a Stroke with Tool.HIGHLIGHTER -> ("highlighter", null); an ImageElement -> ("image", null); a Layer.name that is exactly "document", "image", "highlighter" or "user_layer <n>" -> that slot; otherwise ("user_layer", layerIndex).
+
+`fun hasMixedPageSizes(document: Document): Boolean` — true when any page differs from page 1 in width or height. The save path uses this to warn that re-import will re-page the document wrongly.
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteDocumentWriterGeometryTest.kt`: load `fixtures/backgrounds.xopp` through the existing .xopp reader and assert canvasFormat is 793.701 x 1122.52 within 0.01 and pageOriginsPx is [0, 1122.52, 2245.04, 3367.56, 4490.08] within 0.01 — the same stacking rnote-cli produced; assert hasMixedPageSizes is false for it; assert slotFor puts a highlighter stroke on "highlighter" and an image on "image" regardless of its layer. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 280
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-warn-on-save-when-a-document-s-pages-or-backgrounds-cannot-survive-rnote"
+title = "rnote: warn on save when a document's pages or backgrounds cannot survive .rnote"
+description = """
+Saving as .rnote collapses structure that .xopp holds. Per docs/architecture.md 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds', report it instead of silently dropping it.
+
+Add `app/src/main/java/com/nexopp/format/rnote/RnoteExportWarnings.kt` with `fun exportWarnings(document: Document): List<String>`, returning one human-readable line per condition found:
+- hasMixedPageSizes(document) (from the export-geometry task) -> "Pages have different sizes; Rnote uses one page size, so reopening may split pages differently."
+- more than one distinct Background across pages -> "Pages have different backgrounds; Rnote keeps only one, so page N's background will be used for all." (name page 1)
+- any Background.Pdf -> "PDF page backgrounds are not saved in .rnote; the annotations are kept but the PDF is not."
+- any Background.Pixmap -> "Image page backgrounds are not saved in .rnote."
+- any Stroke with Tool.ERASER -> "Eraser strokes are not saved in .rnote."
+- any RawElement -> "N unrecognised elements from the original file are not saved in .rnote."
+
+Return an empty list when nothing applies. This function is pure and must not touch the UI; wiring it into the save-as flow belongs to the save/save-as scope item.
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteExportWarningsTest.kt`: `fixtures/backgrounds.xopp` (five different backgrounds, uniform page size) produces exactly the different-backgrounds warning; `fixtures/plain.xopp` produces an empty list; a hand-built Document with a Background.Pdf page produces the PDF warning. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 290
 created = 2026-08-12
 tags = []
 rebuild = false

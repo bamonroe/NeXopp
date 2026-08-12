@@ -257,8 +257,7 @@ one it was authored in rather than converting it.
 writer yet, so the open path still refuses `.rnote`.** Derived from upstream Rnote **0.14.2**
 (`crates/rnote-engine/src/fileformats/rnoteformat/`, tag `v0.14.2`) cross-checked against the five
 ground-truth fixtures in `app/src/test/resources/fixtures/rnote/` (see that directory's README and
-`docs/tools.md` for how they are regenerated). The stroke/pen → `Element` mapping and the
-canvas → pages/layers mapping are *not* here; they belong to their own scope items in `TODO.toml`.
+`docs/tools.md` for how they are regenerated).
 
 ### The container: gzip, then one JSON object
 
@@ -358,8 +357,93 @@ pressures, which is exactly `Stroke.uniformWidth`.
 on a single canvas, page *i* offset by `i × format.height` (`1122.52`) with **no gap**, and all five
 distinct page backgrounds collapsed into one canvas background with `pattern: "none"`. `layers.xopp`'s
 three layers collapsed onto `user_layer: 0` (except the highlighter, which went to the
-`highlighter` layer). Turning that back into pages and layers is the sibling scope's job, not this
-one's.
+`highlighter` layer). The rule that turns that back into pages and layers is the next section.
+
+### Decision (2026-08-12): canvas ↔ pages, layers & backgrounds
+
+Rnote is **one canvas with four fixed layer slots and one background**; we are **a list of
+fixed-size `Page`s, each with its own stacked `Layer`s and its own `Background`**
+(`format/model/Document.kt`, `format/model/Background.kt`). This is the rule that converts between
+them, in both directions.
+
+**The four canvas layouts.** `document.config.layout` is one of `fixed_size`,
+`continuous_vertical`, `semi_infinite`, `infinite` (upstream `document/layout.rs`; default
+`infinite`, which is what `rnote-cli import` writes). Only `fixed_size` is page-shaped: upstream
+sizes the document as `ceil(contentHeight / format.height) × format.height`, exactly our page
+stack. **We ignore `layout` on import and always paginate the same way**, because the layout only
+controls how Rnote grows the canvas while editing — the strokes sit at the same coordinates either
+way.
+
+**Ignore `document.x/y/width/height`.** In the infinite layouts these are *viewport* bounds, not
+content bounds: every imported fixture carries `x = -3270.803, y = -4586.079` with a canvas several
+times taller than its content. Page count comes from the **strokes' own bounding box**, never from
+this rectangle.
+
+**Import — cutting the canvas into pages.**
+
+1. **Page size** is `format.width × format.height` px ÷ `4/3` → pt (A4: `793.701 × 1122.52 px` →
+   `595.28 × 841.89 pt`). Every page gets the same size.
+2. **Origin shift.** Content may sit left of or above the canvas origin. Take the bounding box of
+   all strokes and translate everything by `(-min(0, minX), -min(0, minY))` so nothing is cut off
+   the top-left. The shift is not recorded anywhere — it is absorbed into the geometry.
+3. **Page count** = `max(1, ceil(maxY / pageHeight))` over the shifted content.
+4. **Assignment**: a stroke belongs to the page containing the **top edge of its bounding box**
+   (`floor(minY / pageHeight)`), and is translated by `-pageIndex × pageHeight` to become
+   page-local. **A stroke that straddles a page boundary is never split** — splitting would change
+   its geometry irreversibly and could not be undone on export. It stays whole on its starting page
+   and overhangs the bottom edge.
+5. **Horizontal overflow** (`x > pageWidth`, from Rnote's sideways-infinite canvas) is kept as-is;
+   it overhangs the right edge rather than spawning a column of pages, because `.xopp` has no
+   concept of a page grid.
+
+This is the exact inverse of what `rnote-cli import` does — `backgrounds.xopp`'s five pages landed
+at `y = 40.0, 1162.5, 2285.0, 3407.6, 4530.1`, i.e. page *i* at `i × 1122.52` with no gap.
+
+**Import — layers.** Rnote's layer slot is per-stroke (`chrono_components[i].value.layer`) and its
+z-order is fixed by upstream `StrokeLayer: Ord` — bottom to top: `document`, `image`,
+`highlighter`, `user_layer 0`, `user_layer 1`, … (note the **highlighter renders *below* the pen
+layers**, which is why highlighting doesn't cover ink). We create **one `Layer` per distinct slot
+that actually has strokes**, in that order, with `Layer.name` set to the slot's own name
+(`document`, `image`, `highlighter`, `user_layer 0`, …) so export is a straight lookup and the
+layer panel shows something meaningful. Within a layer, elements keep `chrono.t` order. Every page
+gets the same layer stack (empty layers included, so page-to-page layer indices line up).
+
+**Import — background.** The single canvas background is copied onto **every** page as a
+`Background.Solid`, with `background.color` (four `0.0`–`1.0` channels) → ARGB and
+`background.pattern` → the `.xopp` ruling style:
+
+| Rnote `pattern` | `.xopp` `style` | Notes |
+|---|---|---|
+| `none` | `plain` | |
+| `lines` | `ruled` | horizontal rules |
+| `grid` | `graph` | |
+| `dots` | `dotted` | |
+| `isometric_grid` | `isograph` | |
+| `isometric_dots` | `isodotted` | |
+| — | `lined` | `ruled` + a vertical margin line at 72 pt; exports as `lines`, the margin line is lost |
+| — | `staves` | music staves; exports as `none` (colour kept), the ruling is lost |
+
+`pattern_size` and `pattern_color` are **dropped on import** — `.xopp` stores no ruling geometry or
+line colour, both are desktop rendering constants. On export we write the constants Xournal++
+renders with, converted to px: `ruled`/`lined` → `[32, 32]` (24 pt spacing, `RuledBackgroundView`),
+`graph`/`dotted`/`isograph`/`isodotted` → `[18.893, 18.893]` (14.17 pt = 5 mm,
+`GraphBackgroundView`). Rnote's default is `[32, 32]`, so a plain ruled sheet round-trips visually.
+
+**Export — pages back onto the canvas.** `layout` is written as **`fixed_size`**, not the
+`infinite` that `rnote-cli` emits, so Rnote draws page boundaries in the same places we do.
+`document.x = y = 0`; `width` = the widest page, `height` = the sum of page heights. `format` comes
+from **page 1** (× `4/3` back into px). Pages stack at **cumulative y offsets** — identical to
+`i × pageHeight` for the uniform documents that are the norm. A document with **mixed page sizes**
+still exports with every stroke in the right place, but re-importing it cuts the canvas at page 1's
+height and so re-pages it wrongly; that is a known lossy case and the save path warns.
+
+**Export — layers and backgrounds collapse.** A stroke's slot is chosen by, in order: `Tool.HIGHLIGHTER`
+→ `highlighter`; `ImageElement` → `image`; a `Layer.name` that is one of Rnote's own slot names →
+that slot; otherwise `user_layer <stack index>`. `chrono.t` is assigned sequentially in painters
+order across the whole document, starting at 1 (slot 0 is always `null`). The **per-page backgrounds
+collapse to one** — page 1's wins — and a `Background.Pdf` or `Background.Pixmap` has no Rnote home
+at all: it exports as the page colour with `pattern: "none"` and the PDF/image reference is lost,
+which the save path warns about.
 
 ### Decision (2026-08-12): the `.rnote` lossy-mapping policy
 
@@ -378,8 +462,12 @@ font_style|underline|strikethrough>}`; `.xopp` `<text>` holds one style for the 
 `TextElement` per run would need real text shaping to place them. Whether to do it anyway is its own
 open scope item),
 a `bitmapimage`'s non-affine transform components (shear/rotation beyond what a `.xopp` bounding box
-can express), and `chrono.layer == "document"`. Also dropped: `camera`, `snap_positions`, and the
-`format` block's cosmetic `border_color`/`show_borders`/`show_origin_indicator`.
+can express), and the background's `pattern_size`/`pattern_color`. Also dropped: `camera`,
+`snap_positions`, `layout`, `document.x/y/width/height`, and the `format` block's cosmetic
+`border_color`/`show_borders`/`show_origin_indicator`. **Superseded (2026-08-12):** an earlier
+version of this list dropped `chrono.layer == "document"` strokes — the canvas ↔ pages decision
+above now keeps them as a named `document` layer instead, since preserving them costs nothing and
+losing content contradicts the round-trip principle.
 
 **Dropped on export (NeXopp → Rnote):** the `.xopp` nominal pen width, `Tool.ERASER` strokes (Rnote
 keeps no eraser stroke), and `RawElement`s (an XML fragment has no JSON home).

@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers"
+title = "Decide how Rnote's canvas layout maps to fixed pages and layers"
+description = """
+Rnote is built around a continuous/infinite canvas with configurable layouts, while the NeXopp model (app/src/main/java/com/nexopp/format/model/Document.kt) is a list of fixed-size Pages each holding ordered Layers. Work out the correspondence before any reader is written, because it decides the shape of the whole importer.
+
+Investigate against the real fixtures from the "Generate .rnote test fixtures with rnote-cli" task: what layout modes Rnote supports and how each is stored; whether a .rnote file records page boundaries at all or only a document extent plus a page size hint; how Rnote represents backgrounds (its pattern types and colours) versus our Background sealed interface in app/src/main/java/com/nexopp/format/model/Background.kt (Solid ruling styles, Pdf, Pixmap); whether Rnote has layers in our sense, and if not, what a multi-layer .xopp collapses to when `rnote-cli import` converts it (test this directly with the layers fixture); and how an embedded/annotated PDF is carried, versus our Background.Pdf plus the app/src/main/java/com/nexopp/io/PdfStore.kt reference machinery.
+
+Then record the decision in docs/architecture.md: how an infinite-canvas document is cut into pages on import, and how our fixed pages are laid out on export. State the rule concretely enough that it can be implemented and tested.
+
+Output is TODO items, not code: add atomic `task` items for the pagination and background conversion. Close this scope once they exist."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "map-rnote-s-stroke-and-pen-model-onto-the-nexopp-document-model"
 title = "Map Rnote's stroke and pen model onto the NeXopp document model"
 description = """
