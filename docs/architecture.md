@@ -1016,6 +1016,10 @@ app/
         RnoteBackgroundMapper.kt # canvas RnoteBackground <-> per-page Background.Solid: colour
                              #   both ways, pattern <-> ruling style per the table above; a
                              #   pdf/pixmap page exports as a white unpatterned canvas
+        RnotePagination.kt   #   the canvas->pages geometry above, on bounding boxes alone:
+                             #   pageLayout() (page size in pt, page count, origin shift),
+                             #   pageIndexFor() (top edge decides, never splits) and
+                             #   pageOriginPx() (px offset to add per page)
         RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->

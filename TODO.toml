@@ -36,31 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "rnote-pagination-primitives-for-cutting-the-canvas-into-pages"
-title = "rnote: pagination primitives for cutting the canvas into pages"
-description = """
-Add `app/src/main/java/com/nexopp/format/rnote/RnotePagination.kt` implementing the import-side geometry from docs/architecture.md section 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds'. It works on axis-aligned bounding boxes only, so it can be written and tested before the stroke converters land.
-
-Define `data class RnoteBounds(val minX: Double, val minY: Double, val maxX: Double, val maxY: Double)` and `data class RnotePageLayout(val pageWidth: Double, val pageHeight: Double, val pageCount: Int, val shiftX: Double, val shiftY: Double)` (page sizes in pt).
-
-`fun pageLayout(format: RnoteFormat, contentBounds: RnoteBounds?): RnotePageLayout` — pageWidth = format.width / (4.0/3.0), pageHeight = format.height / (4.0/3.0). shiftX = -minOf(0.0, contentBounds.minX) in px, shiftY likewise; both 0.0 when contentBounds is null. pageCount = max(1, ceil((contentBounds.maxY + shiftY) / format.height)) using the px-space height, or 1 when contentBounds is null. Deliberately ignore snapshot.docX/docY/docWidth/docHeight and snapshot.layout — the doc explains why.
-
-`fun pageIndexFor(bounds: RnoteBounds, layout: RnotePageLayout, format: RnoteFormat): Int` — floor((bounds.minY + layout.shiftY) / format.height), coerced into 0 until layout.pageCount. Never splits a stroke.
-
-`fun pageOriginPx(pageIndex: Int, layout: RnotePageLayout, format: RnoteFormat): Pair<Double, Double>` returning the px translation to subtract from a stroke's coordinates: (layout.shiftX, layout.shiftY - pageIndex * format.height). Callers add the shift then subtract the page origin, then scale px -> pt by dividing by 4.0/3.0.
-
-Verify with `app/src/test/java/com/nexopp/format/rnote/RnotePaginationTest.kt`: using the A4 format from `fixtures/rnote/backgrounds.rnote` (793.701 x 1122.52 px) assert pageWidth ~= 595.28 and pageHeight ~= 841.89 within 0.01; with contentBounds maxY = 4570.1 (that fixture's last stroke) assert pageCount == 5; assert pageIndexFor returns 0,1,2,3,4 for minY 40.0, 1162.5, 2285.0, 3407.6, 4530.1; assert a negative minY of -100.0 produces shiftY 100.0 and page index 0. Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 250
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-build-the-per-page-layer-stack-from-chrono-layers"
 title = "rnote: build the per-page layer stack from chrono layers"
 description = """
