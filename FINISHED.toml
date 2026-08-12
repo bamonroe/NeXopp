@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "map-rnote-s-stroke-and-pen-model-onto-the-nexopp-document-model"
+title = "Map Rnote's stroke and pen model onto the NeXopp document model"
+description = """
+Decide how Rnote content maps onto the internal model in app/src/main/java/com/nexopp/format/model/ (Document, Page, Layer, Stroke, StrokePoint, TextElement, ImageElement, TexImageElement, RawElement, Tool, LineStyle) — and, just as importantly, what is LOST in each direction.
+
+The leverage here is that `rnote-cli import` (see the fixtures task) converts an existing `.xopp` into `.rnote`, giving a known-input/known-output pair: take each committed .xopp fixture and its converted .rnote twin and diff what survived. That tells us empirically how Rnote itself maps the Xournal++ model, which is the same mapping we need in reverse.
+
+Investigate and record: how Rnote represents a brush stroke (its pen/brush styles and their width/pressure curves) versus our pressure polyline of StrokePoint(x, y, width); whether its shape strokes are stored as parametric shapes or flattened polylines, and what that means for our ShapeBuilder-produced strokes; how colour and alpha are stored versus XoppColor; whether it has a highlighter equivalent for Tool.HIGHLIGHTER; how text and embedded images are stored versus TextElement/ImageElement; and whether anything in Rnote has no `.xopp` representation at all.
+
+Then write down a **lossy-mapping policy** in docs/architecture.md, as a dated decision: what we drop silently, what we preserve verbatim (RawElement already exists for exactly this — unmodelled markup that must survive a round trip), and what we refuse to import. The project`s guiding principle is round-trip safety, so the policy must state explicitly what a .rnote -> edit -> .rnote round trip is guaranteed to preserve.
+
+Output is TODO items, not code: add atomic `task` items per element type conversion. Close this scope once they exist."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-snapshot-model"
 title = "Parse the Rnote engine snapshot into an intermediate model"
 description = """

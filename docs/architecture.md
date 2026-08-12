@@ -322,6 +322,72 @@ already correct for the caller. Version tolerance is one fallback (`document.con
 the kind so a newer Rnote file still loads what it can. A missing required key throws
 `IllegalArgumentException` naming its dotted path.
 
+### The stroke & pen mapping (measured against the fixture twins)
+
+Every number below was **read out of the committed fixtures**, not out of upstream source: each
+`.rnote` fixture is `rnote-cli import` of the `.xopp` of the same name, so the pair is a
+known-input/known-output sample of how Rnote itself maps the Xournal++ model. That is the mapping we
+implement in reverse.
+
+**Units.** Rnote stores **px at 96 dpi**; `.xopp` stores **pt at 72 dpi**. The scale is exactly
+`4/3` (`30 pt → 40.0`, `12 pt → 16.0`, `1.5 pt → 2.0`). Positions, widths and font sizes all go
+through it. Colour is four `0.0`–`1.0` channels versus `XoppColor`'s 8-bit `#rrggbbaa`
+(`0.5 ↔ 0x80`, one rounding step each way).
+
+| Rnote | NeXopp model | Notes |
+|---|---|---|
+| `brushstroke` `{path,style:{smooth:{…}}}` | `Stroke` | `path.start` + `segments[].lineto.end` is a pressure polyline, 1:1 with `StrokePoint` |
+| `style.smooth.stroke_width` + per-point `pressure` | `StrokePoint.width` | `width = stroke_width × pressure ÷ (4/3)` |
+| `style.smooth.stroke_color` | `Stroke.color` | RGBA both ways |
+| `chrono.layer == "highlighter"` | `Tool.HIGHLIGHTER` | Rnote has no eraser stroke — `Tool.ERASER` has no home |
+| `chrono.t` | element order in a `Layer` | already sorted ascending by `RnoteSnapshot` |
+| `style.smooth.line_style` (`solid`…) | `LineStyle` | `solid ↔ PLAIN`; the dashed family still needs a name-by-name check |
+| `style.smooth.fill_color` | `Stroke.fill` | `null` ↔ no fill; Rnote fill is full RGBA, ours an alpha |
+| `textstroke` `{text,transform,text_style}` | `TextElement` | `font_family`/`font_size`/`color` map; the affine's translation is (x, y) |
+| `bitmapimage` `{image:{data,pixel_width,pixel_height,memory_format},rectangle}` | `ImageElement` | **not** PNG — `data` is a base64 raw pixel buffer (`R8g8b8a8Premultiplied`); needs an encode/decode step |
+| `shapestroke` | `Stroke` | parametric shape; import flattens to a polyline (no fixture yet — `rnote-cli import` never emits one) |
+| `vectorimage` | — | SVG; nothing in `.xopp` can hold it |
+
+**Pressure.** For `plain.xopp`'s pressure stroke (`width="1.41 1.20 0.98 0.76"`) Rnote wrote
+`stroke_width 1.6` with pressures `1.0, 0.817, 0.633`: it sets `stroke_width = max(point widths) ×
+4/3` and `pressure_i = w_i / max`. The `.xopp` width attribute's **leading nominal pen width**
+(`1.41`) has no Rnote home and is dropped. A constant-width stroke comes back as all-`1.0`
+pressures, which is exactly `Stroke.uniformWidth`.
+
+**Geometry.** Rnote is one infinite canvas: `backgrounds.xopp`'s five pages landed as five strokes
+on a single canvas, page *i* offset by `i × format.height` (`1122.52`) with **no gap**, and all five
+distinct page backgrounds collapsed into one canvas background with `pattern: "none"`. `layers.xopp`'s
+three layers collapsed onto `user_layer: 0` (except the highlighter, which went to the
+`highlighter` layer). Turning that back into pages and layers is the sibling scope's job, not this
+one's.
+
+### Decision (2026-08-12): the `.rnote` lossy-mapping policy
+
+The project's guiding principle is round-trip safety, so state plainly what survives.
+
+**A `.rnote` → edit → `.rnote` round trip preserves:** stroke geometry and per-point pressure,
+stroke colour and alpha, fill, highlighter-ness, painters order, text content with its family/size/
+colour/position, bitmap image pixels and placement, and the canvas format and background.
+
+**Dropped silently on import (Rnote → NeXopp):** the smooth style's `pressure_curve` and `line_cap`,
+a `textstroke`'s `font_weight`, `font_style`, `alignment`, `max_width` and `ranged_text_attributes`,
+a `bitmapimage`'s non-affine transform components (shear/rotation beyond what a `.xopp` bounding box
+can express), and `chrono.layer == "document"`. Also dropped: `camera`, `snap_positions`, and the
+`format` block's cosmetic `border_color`/`show_borders`/`show_origin_indicator`.
+
+**Dropped on export (NeXopp → Rnote):** the `.xopp` nominal pen width, `Tool.ERASER` strokes (Rnote
+keeps no eraser stroke), and `RawElement`s (an XML fragment has no JSON home).
+
+**Refused, not silently mangled:** `vectorimage` — an SVG stroke has no `.xopp` representation at
+all, so importing one would lose it on the next save. A file containing one loads with the rest of
+its content and reports the skipped strokes rather than pretending they were read.
+
+**Not preserved verbatim:** unlike the `.xopp` side, there is **no `RawElement` equivalent** for
+unmodelled Rnote payload. `RawElement` is XML-shaped (`name`/`attrs`/`body`) and cannot hold a JSON
+subtree, and a `.rnote` → `.xopp` conversion has nowhere to put it either. Unknown stroke tags are
+therefore counted and reported, not round-tripped — this is the one place we knowingly accept loss,
+because the alternative is a second raw-payload model on the `.xopp` side that nothing would read.
+
 ### Decision (2026-08-12): a hand-rolled JSON layer, no new dependency
 
 The payload is parsed with a **dependency-free JSON reader of our own**, in

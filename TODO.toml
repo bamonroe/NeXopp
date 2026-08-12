@@ -36,29 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "map-rnote-s-stroke-and-pen-model-onto-the-nexopp-document-model"
-title = "Map Rnote's stroke and pen model onto the NeXopp document model"
-description = """
-Decide how Rnote content maps onto the internal model in app/src/main/java/com/nexopp/format/model/ (Document, Page, Layer, Stroke, StrokePoint, TextElement, ImageElement, TexImageElement, RawElement, Tool, LineStyle) — and, just as importantly, what is LOST in each direction.
-
-The leverage here is that `rnote-cli import` (see the fixtures task) converts an existing `.xopp` into `.rnote`, giving a known-input/known-output pair: take each committed .xopp fixture and its converted .rnote twin and diff what survived. That tells us empirically how Rnote itself maps the Xournal++ model, which is the same mapping we need in reverse.
-
-Investigate and record: how Rnote represents a brush stroke (its pen/brush styles and their width/pressure curves) versus our pressure polyline of StrokePoint(x, y, width); whether its shape strokes are stored as parametric shapes or flattened polylines, and what that means for our ShapeBuilder-produced strokes; how colour and alpha are stored versus XoppColor; whether it has a highlighter equivalent for Tool.HIGHLIGHTER; how text and embedded images are stored versus TextElement/ImageElement; and whether anything in Rnote has no `.xopp` representation at all.
-
-Then write down a **lossy-mapping policy** in docs/architecture.md, as a dated decision: what we drop silently, what we preserve verbatim (RawElement already exists for exactly this — unmodelled markup that must survive a round trip), and what we refuse to import. The project`s guiding principle is round-trip safety, so the policy must state explicitly what a .rnote -> edit -> .rnote round trip is guaranteed to preserve.
-
-Output is TODO items, not code: add atomic `task` items per element type conversion. Close this scope once they exist."""
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 130
-created = 2026-08-11
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers"
 title = "Decide how Rnote's canvas layout maps to fixed pages and layers"
 description = """
@@ -98,6 +75,181 @@ category = "feature"
 urgency = "normal"
 order = 150
 created = 2026-08-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-unit-and-colour-conversion-primitives"
+title = "rnote: unit and colour conversion primitives"
+description = """
+Add app/src/main/java/com/nexopp/format/rnote/RnoteUnits.kt with the shared primitives every stroke converter needs. See docs/architecture.md, 'The stroke & pen mapping (measured against the fixture twins)'.
+
+Functions (all top-level, in package com.nexopp.format.rnote):
+- const val PX_PER_PT = 4.0 / 3.0  (Rnote is px at 96 dpi, .xopp is pt at 72 dpi)
+- fun pxToPt(px: Double): Double = px / PX_PER_PT
+- fun ptToPx(pt: Double): Double = pt * PX_PER_PT
+- fun RnoteColor.toXopp(): Int — pack to the same 0xAARRGGBB Int that format/model uses (check how XoppColor.kt parses '#rrggbbaa' and produce the identical Int layout); each channel is (v.coerceIn(0.0,1.0) * 255.0).roundToInt().
+- fun rnoteColorOf(argb: Int): RnoteColor — the inverse, each channel byte / 255.0.
+- fun affineTranslation(affine: List<Double>): Pair<Double, Double> — a bitmapimage/textstroke 'transform.affine' is a 9-element row-major 3x3 array; return the translation pair (elements 2 and 5). Throw IllegalArgumentException('malformed transform.affine') if size != 9.
+
+Add app/src/test/java/com/nexopp/format/rnote/RnoteUnitsTest.kt asserting: 30 pt -> 40.0 px and back; RnoteColor(1.0,1.0,0.0,0.5).toXopp() equals the Int for #ffff0080; rnoteColorOf round-trips it; affineTranslation on a 9-element identity-with-translation array returns that translation; a 4-element array throws.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 160
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-convert-a-brushstroke-into-a-stroke"
+title = "rnote: convert a brushstroke into a Stroke"
+description = """
+Add app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt with
+
+fun brushStrokeToStroke(stroke: RnoteStroke): Stroke?
+
+converting a kind=='brushstroke' RnoteStroke (body is raw JsonValue) into format.model.Stroke. Return null for any other kind. Uses the helpers from RnoteUnits.kt. The exact JSON shape is documented in docs/architecture.md, section 'The stroke & pen mapping (measured against the fixture twins)'.
+
+Rules:
+- Points: body.path.start is {pos:[x,y],pressure:p}; body.path.segments is an array of single-key-tagged objects whose value has .end = {pos,pressure} (the tag is 'lineto' in every fixture; accept any tag and read .end, skipping a segment with no .end). Point list = start followed by each segment end.
+- Coordinates: StrokePoint.x/y = pxToPt(pos[0]/pos[1]).
+- Width: let sw = body.style.smooth.stroke_width (default 2.0 if absent). StrokePoint.width = pxToPt(sw * pressure), pressure defaulting to 1.0.
+- uniformWidth = true when every pressure is 1.0 (within 1e-6), else false.
+- color = body.style.smooth.stroke_color.toXopp(); default opaque black when absent.
+- tool = Tool.HIGHLIGHTER when stroke.layer == "highlighter", else Tool.PEN.
+- lineStyle: map body.style.smooth.line_style 'solid'->LineStyle.PLAIN, 'dashed'->DASHED, 'dotted'->DOTTED, 'dashed_dotted'/'dashdot'->DASH_DOT, anything else -> PLAIN.
+- fill = body.style.smooth.fill_color's alpha as 0..255 when the object is present and non-null, else null.
+- capStyle = null, extraAttrs = emptyMap().
+- Tolerate the 'textured' style tag the same way as 'smooth' (read stroke_width/stroke_color out of whichever single style tag is present) so a textured-brush file still converts.
+
+Test in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt against the committed fixture app/src/test/resources/fixtures/rnote/plain.rnote (open it the way RnoteSnapshotTest.kt already does): it has three brushstrokes. Assert stroke 1 is Tool.PEN, uniformWidth=false, 3 points, first point (100.0, 100.0) in pt within 1e-2 and widths (1.2, 0.98, 0.76) within 1e-2; stroke 2 has uniformWidth=true and width 1.5; stroke 3 is Tool.HIGHLIGHTER with width 8.5 and a half-alpha yellow colour.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 170
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-convert-a-textstroke-into-a-textelement"
+title = "rnote: convert a textstroke into a TextElement"
+description = """
+Add fun textStrokeToText(stroke: RnoteStroke): TextElement? to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt (same file as brushStrokeToStroke). Returns null unless stroke.kind == "textstroke". Shape documented in docs/architecture.md, 'The stroke & pen mapping (measured against the fixture twins)'.
+
+Rules:
+- content = body.text (required; throw IllegalArgumentException naming the path if missing).
+- (x, y) = affineTranslation(body.transform.affine) mapped through pxToPt. Default (0.0, 0.0) when transform is absent.
+- font = body.text_style.font_family, default "Sans".
+- size = pxToPt(body.text_style.font_size), default 16.0 px -> 12.0 pt.
+- color = body.text_style.color.toXopp(), default opaque black.
+- extraAttrs = emptyMap(). font_weight, font_style, alignment, max_width and ranged_text_attributes are dropped per the lossy-mapping policy in the same doc — do not invent .xopp attributes for them.
+
+Test in RnoteStrokeConvertTest.kt against app/src/test/resources/fixtures/rnote/text-image.rnote, whose single textstroke is the text 'a & b < c > d' at font Sans, size 16.0 px, colour rgb(0.063,0.063,0.063): assert content, font == "Sans", size == 12.0 within 1e-2, and the colour Int matches #101010ff.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 180
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-convert-a-bitmapimage-into-an-imageelement"
+title = "rnote: convert a bitmapimage into an ImageElement"
+description = """
+Add fun bitmapImageToImage(stroke: RnoteStroke): ImageElement? to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt. Returns null unless stroke.kind == "bitmapimage". Shape documented in docs/architecture.md, 'The stroke & pen mapping (measured against the fixture twins)'.
+
+The catch: body.image.data is NOT a PNG. It is base64 of a raw pixel buffer whose layout is body.image.memory_format (the fixtures use "R8g8b8a8Premultiplied"), sized body.image.pixel_width x pixel_height. ImageElement.data must be PNG bytes, so this task needs an encoder.
+
+Steps:
+1. Add app/src/main/java/com/nexopp/format/rnote/RawImageCodec.kt with:
+   - fun decodeBase64(text: String): ByteArray — use java.util.Base64.getMimeDecoder() (JVM + Android 8+, and it tolerates line breaks).
+   - fun unpremultiply(rgba: ByteArray): ByteArray — in place of premultiplied alpha, divide each of r,g,b by a/255 (leave the pixel untouched when a == 0). Skip when memory_format does not end in "Premultiplied".
+   - fun encodePng(rgba: ByteArray, width: Int, height: Int): ByteArray — a minimal RGBA8 PNG writer: 8-byte signature, IHDR (bit depth 8, colour type 6, no interlace), one IDAT of the scanlines each prefixed by filter byte 0 and compressed with java.util.zip.Deflater, then IEND. CRC32 per chunk with java.util.zip.CRC32. Do NOT use android.graphics.Bitmap — unit tests run on the plain JVM where it is a stub that throws.
+2. In bitmapImageToImage: pixels = encodePng(unpremultiply(decodeBase64(body.image.data)), pixel_width, pixel_height).
+3. Bounds from body.rectangle: centre = affineTranslation(rectangle.transform.affine), half extents = rectangle.cuboid.half_extents[0]/[1]. left = pxToPt(cx - hx), right = pxToPt(cx + hx), top = pxToPt(cy - hy), bottom = pxToPt(cy + hy). Rotation/shear in the affine is dropped per the lossy-mapping policy.
+
+Tests: app/src/test/java/com/nexopp/format/rnote/RawImageCodecTest.kt asserts encodePng output starts with the PNG signature bytes, contains the IHDR/IDAT/IEND chunk names, and that inflating the IDAT payload yields width*height*4 + height bytes; plus an unpremultiply case with a half-alpha pixel. In RnoteStrokeConvertTest.kt use app/src/test/resources/fixtures/rnote/text-image.rnote, whose bitmapimage is a 2x2 red image in a 50 pt box: assert the box is left=100, top=100, right=150, bottom=150 within 1e-2 and that data is a valid PNG signature.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 190
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-flatten-a-shapestroke-into-a-stroke"
+title = "rnote: flatten a shapestroke into a Stroke"
+description = """
+Add fun shapeStrokeToStroke(stroke: RnoteStroke): Stroke? to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt. Returns null unless stroke.kind == "shapestroke".
+
+Rnote stores a shapestroke parametrically, so it must be flattened to the pressure polyline .xopp uses (see docs/architecture.md, 'The stroke & pen mapping'). There is NO fixture for this — rnote-cli import from .xopp never emits one — so build it from the shape tags upstream writes: body.shape is a single-key-tagged object, one of 'line' {start:[x,y],end:[x,y]}, 'rect' (cuboid + transform, like bitmapimage's rectangle), 'ellipse' (radii + transform), 'quadbez' {start,cp,end}, 'cubbez' {start,cp1,cp2,end}, 'polyline' {start,path:[…]}, 'polygon' (as polyline, closed). Ignore any other tag (return null).
+
+Flattening:
+- line/polyline/polygon: the vertices as-is; polygon repeats the first vertex last.
+- rect: the four corners from centre +/- half extents, closed (5 points).
+- ellipse: sample 32 points around it.
+- quadbez/cubbez: sample 24 points along the curve with the standard Bezier formula.
+- Every point through pxToPt; width is constant for all points = pxToPt(body.style.smooth.stroke_width), so uniformWidth = true. colour, lineStyle and fill come from body.style exactly as brushStrokeToStroke reads them — extract that style reading into a private helper both functions call rather than duplicating it.
+
+Test in RnoteStrokeConvertTest.kt with hand-built JSON (JsonReader.parse on a string literal — no fixture exists): a 'line' shape gives 2 points at the expected pt coordinates with equal widths; a 'rect' gives 5 points with the first equal to the last; an unknown shape tag returns null.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 200
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-skip-and-report-unconvertible-strokes"
+title = "rnote: skip-and-report unconvertible strokes"
+description = """
+Give the .rnote import path one place that records what it could not convert, per the lossy-mapping policy in docs/architecture.md ('Decision (2026-08-12): the .rnote lossy-mapping policy').
+
+In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt add:
+
+data class RnoteConversion(val elements: List<Element>, val skipped: Map<String, Int>)
+
+fun convertStrokes(strokes: List<RnoteStroke>): RnoteConversion
+
+which walks the (already z-sorted) list, dispatching on kind to brushStrokeToStroke / shapeStrokeToStroke / textStrokeToText / bitmapImageToImage, and appending each non-null result to elements in order. For a kind nothing handles — 'vectorimage' (an SVG has no .xopp home) or an unknown tag from a newer Rnote — do not throw and do not fabricate an element: increment skipped[kind]. Also skip (and count under its kind) any stroke whose chrono layer is "document". A converter that throws IllegalArgumentException on malformed JSON must not sink the whole file: catch it, count the stroke under its kind, and carry on.
+
+Test in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: convertStrokes on the parsed plain.rnote snapshot gives 3 Stroke elements and an empty skipped map; on text-image.rnote gives a TextElement and an ImageElement; a hand-built RnoteStroke with kind 'vectorimage' yields no elements and skipped == mapOf("vectorimage" to 1).
+
+Note for whoever wires the reader up later: the skipped map is what the UI reports to the user — do not silently drop it.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 210
+created = 2026-08-12
 tags = []
 rebuild = false
 emulator_debug = false
