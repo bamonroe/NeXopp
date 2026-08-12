@@ -58,7 +58,8 @@ reference clone, and desktop Xournal++'s writer. Where the sample and the refere
 The same `<xournal>` XML is written in one of two containers, chosen in the "Save As" dialog and
 then made **sticky** — every later plain Save reuses the last-picked format (owned by
 `format/SaveFormat.kt`, wired in `MainActivity`; opening a document adopts the format it was
-stored in, classified by `format/FileKind.kt` — see below).
+stored in, classified by `format/FileKind.kt` — see below). `SaveFormat` also names the *document*
+format, not just the `.xopp` container — see "one flat `SaveFormat`, extended to `.rnote`" below.
 
 #### What the open path accepts (`format/FileKind.kt`)
 
@@ -499,6 +500,45 @@ The payload is parsed with a **dependency-free JSON reader of our own**, in
 The reader stays a **generic JSON tree** (parse → `JsonValue`) rather than a typed schema, because
 tolerating several Rnote versions means probing for keys, exactly what upstream does with
 `ijson::IValue`.
+
+### Decision (2026-08-12): one flat `SaveFormat`, extended to `.rnote`
+
+Every save path assumed the file on disk was a `.xopp`. `.rnote` breaks that, and the question was
+whether `SaveFormat` should grow a third member or split into two axes (document format × container
+variant). **It stays one flat enum**, gaining an `RNOTE` member and per-member data.
+
+**Why flat, not a product type.** The two axes are not independent: `.xopp` has two containers
+(gzip, ZIP package), `.rnote` has exactly one (gzip). A `format × container` pair would make
+`RNOTE × ZIP` representable and force every call site to reject it at runtime; the flat enum has
+only reachable states. The members are therefore renamed to say both halves at once —
+`XOPP_GZIP`, `XOPP_ZIP`, `RNOTE` — because "ORIGINAL" reads as "original of what?" once a second
+document format sits beside it.
+
+**Each member carries its own facts** (`mime`, `extension`, `label`), the shape `ExportFormat`
+already uses, so no call site spells out a mime string or an extension again.
+
+**Save formats and export formats stay separate types.** `ExportFormat` describes one-way targets
+that are never reopened as editable documents, and its load-bearing distinction (`isMultiFile`,
+`isRaster`) is meaningless for a save target; conversely a save format's container semantics are
+meaningless for an export. Sharing one enum would give both halves fields the other must ignore.
+They share a *shape*, not a type.
+
+**The picker needs no second launcher.** Neither `.xopp` nor `.rnote` has a registered MIME type,
+so all three members keep `application/octet-stream` and the single `CreateDocument` launcher
+registered in `MainActivity` still serves every save. Only the suggested **file name** varies: the
+`xoppNameFor` helper in `io/SaveTarget.kt` becomes format-aware and swaps in `format.extension`.
+
+**A file opened as `.rnote` stays `.rnote`.** Format stickiness is unchanged: opening adopts the
+format the file was stored in (`FileKind.RNOTE` → `SaveFormat.RNOTE`, filling the empty cell in the
+open-path table above), and a plain Save writes the same format straight back to the same URI. The
+lossy-mapping warning that a `.xopp`-shaped document needs before it is written as `.rnote` is the
+save-time warning covered by its own task, not a change to this stickiness rule.
+
+**Session restore.** `OpenTab.format` and the `TabIndex` line format already persist the format by
+`name`, so `RNOTE` costs nothing there — but the **rename must not silently downgrade a restored
+tab**: `TabIndex.decode` maps the legacy names `ORIGINAL`/`ZIPPED` onto `XOPP_GZIP`/`XOPP_ZIP`
+before falling back to the default. The per-tab document *snapshots* under `TabStore` stay `.xopp`
+whatever the tab's save format is — they are our own session cache, not an interchange file.
 
 ## Stack — pinned 2026-07-30
 

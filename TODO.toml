@@ -36,29 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "scope-save-save-as-and-file-picker-handling-for-a-second-document-format"
-title = "Scope save/save-as and file-picker handling for a second document format"
-description = """
-Every save path in the app currently assumes the document on disk is a `.xopp`. Before .rnote can be written, work out what has to become format-aware.
-
-Read and map the current assumptions: app/src/main/java/com/nexopp/format/SaveFormat.kt (an enum of ORIGINAL vs ZIPPED — both `.xopp` variants; the "Save As makes it sticky" rule lives here); the saveLauncher registered with CreateDocument(XOPP_MIME) and the XOPP_MIME constant in app/src/main/java/com/nexopp/MainActivity.kt; the save path in app/src/main/java/com/nexopp/MainActivityDocuments.kt; app/src/main/java/com/nexopp/io/SaveTarget.kt; and the Save As dialog in app/src/main/java/com/nexopp/ui/EditorDialogs.kt (which offers the format choice today).
-
-Decide: whether SaveFormat grows an RNOTE entry or whether a new orthogonal axis (document format x container variant) is the right model — the current enum conflates "which format" with "which .xopp container", and adding a third unlike entry may be the wrong shape. Also decide how the picker mime type and default extension follow the choice, what happens on a plain Save of a file that was opened as .rnote (does it stay .rnote?), and how the tab/session store in app/src/main/java/com/nexopp/tabs/ records which format a restored tab came from.
-
-Note the overlap with the export work already broken out: ExportFormat (see the "Add an ExportFormat enum" task) carries mime/extension/label for every export target. Decide whether save formats should share that type or stay separate, and say why in the decision record.
-
-Record the decision in docs/architecture.md next to the existing format decisions. Output is TODO items, not code: add the atomic `task` items the refactor breaks into. Close this scope once they exist."""
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 150
-created = 2026-08-11
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-unit-and-colour-conversion-primitives"
 title = "rnote: unit and colour conversion primitives"
 description = """
@@ -447,6 +424,158 @@ level = "task"
 category = "feature"
 urgency = "normal"
 order = 290
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "saveformat-rename-members-and-give-each-its-mime-extension-and-label"
+title = "SaveFormat: rename members and give each its mime, extension and label"
+description = """
+Reshape app/src/main/java/com/nexopp/format/SaveFormat.kt per docs/architecture.md, 'Decision (2026-08-12): one flat SaveFormat, extended to .rnote'.
+
+Make it a constructor-carrying enum in the shape of format/ExportFormat.kt:
+  enum class SaveFormat(val mime: String, val extension: String, val label: String)
+with three members (keep the existing KDoc prose on the first two):
+- XOPP_GZIP("application/octet-stream", "xopp", "Xournal++ (gzip)") — was ORIGINAL
+- XOPP_ZIP("application/octet-stream", "xopp", "Xournal++ (ZIP package)") — was ZIPPED
+- RNOTE("application/octet-stream", "rnote", "Rnote") — new; gzip-compressed JSON, one container only.
+Extension has no leading dot, like ExportFormat.extension.
+
+Then rename every ORIGINAL/ZIPPED reference (compiler will find them): MainActivity.kt, MainActivityDocuments.kt, panes/EditorPane.kt, tabs/OpenTab.kt, tabs/TabIndex.kt, io/DocumentIo.kt, ui/EditorDialogs.kt, and the tests under app/src/test (tabs/TabStoreTest.kt, tabs/TabIndexTest.kt and any io tests). Do NOT add behaviour for RNOTE in this task — the when-branches in DocumentIo.encode and the Save As dialog get their own tasks; if the compiler demands exhaustiveness, have the RNOTE branch throw UnsupportedOperationException("Rnote save not wired yet").
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 300
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "tabindex-accept-the-legacy-original-zipped-format-names-on-restore"
+title = "TabIndex: accept the legacy ORIGINAL/ZIPPED format names on restore"
+description = """
+After the SaveFormat rename, a session index written by an older build stores format names that no longer resolve, and TabIndex.decode's runCatching falls back to the default — silently downgrading a restored ZIPPED tab to gzip.
+
+In app/src/main/java/com/nexopp/tabs/TabIndex.kt, replace the inline
+  format = runCatching { SaveFormat.valueOf(f[3]) }.getOrDefault(SaveFormat.ORIGINAL)
+with a private fun formatOf(name: String): SaveFormat that maps the legacy names first —
+"ORIGINAL" -> SaveFormat.XOPP_GZIP, "ZIPPED" -> SaveFormat.XOPP_ZIP — then tries
+SaveFormat.valueOf(name), defaulting to SaveFormat.XOPP_GZIP for anything unrecognised. Document in its KDoc that the legacy names are what pre-rename sessions on disk contain.
+
+Add tests to app/src/test/java/com/nexopp/tabs/TabIndexTest.kt: a hand-written index line carrying ORIGINAL decodes to XOPP_GZIP; one carrying ZIPPED decodes to XOPP_ZIP; one carrying RNOTE decodes to RNOTE; one carrying junk decodes to XOPP_GZIP. Encode must keep writing the current enum names (round-trip test stays green).
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 310
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "make-the-suggested-save-file-name-follow-the-save-format"
+title = "Make the suggested save file name follow the save format"
+description = """
+app/src/main/java/com/nexopp/io/SaveTarget.kt hard-codes XOPP_SUFFIX = ".xopp", so a document saved as .rnote would still be offered a .xopp name.
+
+Replace xoppNameFor(sourceName: String) with:
+  fun saveNameFor(sourceName: String, format: SaveFormat): String
+Same rules as today (trim; empty -> "Untitled.<ext>"; only a real extension is replaced, a leading dot is part of the name, a name with no dot gains one), but the suffix is "." + format.extension and the early-return checks that suffix case-insensitively. Keep XOPP_SUFFIX only if something else still needs it; otherwise delete it and derive the suffix from the format.
+
+Update the two call sites in app/src/main/java/com/nexopp/MainActivityDocuments.kt (the LoadedFile.Pdf and LoadedFile.Image branches, around lines 94 and 109) to pass the saveFormat they just set.
+
+Update app/src/test/java/com/nexopp/io/SaveTargetTest.kt: every existing case gains a SaveFormat.XOPP_GZIP argument and keeps its expectation, plus new cases saveNameFor("bhm_prior.pdf", SaveFormat.RNOTE) == "bhm_prior.rnote", saveNameFor("notes.rnote", SaveFormat.RNOTE) == "notes.rnote", and saveNameFor("", SaveFormat.RNOTE) == "Untitled.rnote".
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "refactor"
+urgency = "normal"
+order = 320
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "save-as-dialog-offer-rnote-and-swap-the-name-s-extension-with-the-format"
+title = "Save As dialog: offer Rnote and swap the name's extension with the format"
+description = """
+In app/src/main/java/com/nexopp/ui/EditorDialogs.kt, SaveAsDialog (around lines 42-86) offers exactly two .xopp variants and seeds the name field with the literal "document.xopp".
+
+Changes:
+1. Add a third FormatOption below the existing two: selected = format == SaveFormat.RNOTE, title "Rnote", subtitle "Rnote document (.rnote); some Xournal++ features are not preserved.", onClick sets format = SaveFormat.RNOTE.
+2. Seed the name from the initial format instead of a literal: remember { mutableStateOf("document." + initialFormat.extension) }.
+3. When the user picks a different format, rewrite the name's extension in place: on each FormatOption click, set name = saveNameFor(name, newFormat) (the helper from the 'suggested save file name follows the format' task), so switching to Rnote turns "notes.xopp" into "notes.rnote" and back. Do not touch the stem the user typed.
+4. Update the KDoc: it names ORIGINAL/ZIPPED and must describe all three members after the rename, pointing at docs/architecture.md rather than restating the container detail.
+
+emulator_debug is on for this one: install and open the Save As dialog, screenshot it with three options, and check that tapping Rnote rewrites the extension in the name field.
+
+Verify with: scripts/build.sh, then the emulator pass."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 330
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = true
+
+[[task]]
+id = "open-a-rnote-as-an-editable-document-with-rnote-as-its-sticky-format"
+title = "Open a .rnote as an editable document with RNOTE as its sticky format"
+description = """
+app/src/main/java/com/nexopp/io/DocumentIo.kt line ~194 still has FileKind.RNOTE -> error("Rnote files are not supported yet"). Replace it once the .rnote reader chain lands (the 'assemble a Document from the snapshot' task is its entry point).
+
+Change that branch to decode the staged file through the rnote reader and return
+  LoadedFile.Doc(document, pdf = null, SaveFormat.RNOTE, images = <pictures extracted from bitmapimage strokes>)
+so the existing loadDocument path in MainActivityDocuments.kt (the is LoadedFile.Doc branch, which already does saveFormat = loaded.format) makes RNOTE sticky with no change of its own. A .rnote has no PDF background, so pdf stays null and missingPdf false.
+
+Also update the open-path table in docs/architecture.md, section 'What the open path accepts': the RNOTE row currently reads 'not yet - rejected with "Rnote files are not supported yet"' with an empty sticky-format cell; make it the real loader and SaveFormat.RNOTE. Mention .rnote support in README.md's list of what can be opened.
+
+Add a test that reading one of the fixtures under app/src/test/resources/fixtures/rnote returns LoadedFile.Doc with format == SaveFormat.RNOTE and a non-empty page list.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 340
+created = 2026-08-12
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "route-saving-to-the-rnote-writer-when-saveformat-is-rnote"
+title = "Route saving to the rnote writer when SaveFormat is RNOTE"
+description = """
+app/src/main/java/com/nexopp/io/DocumentIo.kt's encode (around line 274) switches on SaveFormat with two branches, ORIGINAL and ZIPPED. Add the third.
+
+- SaveFormat.RNOTE -> write the document as gzip-compressed Rnote JSON to the staged output, via the rnote writer entry point (the 'lay fixed pages back onto the canvas on export' task owns the geometry side; this task is only the wiring, and is blocked until that writer exists).
+- Neither the portable PDF reference nor the ZIP attachment path applies: a .rnote carries no PDF background, so the pdf argument is ignored on this branch.
+- Update the KDoc on encode and on MainActivity.saveDocument in MainActivityDocuments.kt (~line 340), both of which enumerate the two .xopp containers today and claim 'both formats are single files' - still true of all three, but the prose must name Rnote.
+
+The lossy-save warning is a separate task ('warn on save when a document's pages or backgrounds cannot survive .rnote'); do not duplicate it here.
+
+Add a round-trip test: build a small Document, encode it with SaveFormat.RNOTE, read the bytes back through the rnote reader, and assert the stroke count and page count survive.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 350
 created = 2026-08-12
 tags = []
 rebuild = false

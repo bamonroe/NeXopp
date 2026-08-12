@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "scope-save-save-as-and-file-picker-handling-for-a-second-document-format"
+title = "Scope save/save-as and file-picker handling for a second document format"
+description = """
+Every save path in the app currently assumes the document on disk is a `.xopp`. Before .rnote can be written, work out what has to become format-aware.
+
+Read and map the current assumptions: app/src/main/java/com/nexopp/format/SaveFormat.kt (an enum of ORIGINAL vs ZIPPED — both `.xopp` variants; the "Save As makes it sticky" rule lives here); the saveLauncher registered with CreateDocument(XOPP_MIME) and the XOPP_MIME constant in app/src/main/java/com/nexopp/MainActivity.kt; the save path in app/src/main/java/com/nexopp/MainActivityDocuments.kt; app/src/main/java/com/nexopp/io/SaveTarget.kt; and the Save As dialog in app/src/main/java/com/nexopp/ui/EditorDialogs.kt (which offers the format choice today).
+
+Decide: whether SaveFormat grows an RNOTE entry or whether a new orthogonal axis (document format x container variant) is the right model — the current enum conflates "which format" with "which .xopp container", and adding a third unlike entry may be the wrong shape. Also decide how the picker mime type and default extension follow the choice, what happens on a plain Save of a file that was opened as .rnote (does it stay .rnote?), and how the tab/session store in app/src/main/java/com/nexopp/tabs/ records which format a restored tab came from.
+
+Note the overlap with the export work already broken out: ExportFormat (see the "Add an ExportFormat enum" task) carries mime/extension/label for every export target. Decide whether save formats should share that type or stay separate, and say why in the decision record.
+
+Record the decision in docs/architecture.md next to the existing format decisions. Output is TODO items, not code: add the atomic `task` items the refactor breaks into. Close this scope once they exist."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "decide-how-rnote-s-canvas-layout-maps-to-fixed-pages-and-layers"
 title = "Decide how Rnote's canvas layout maps to fixed pages and layers"
 description = """
