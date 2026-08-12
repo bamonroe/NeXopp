@@ -36,33 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "rnote-unit-and-colour-conversion-primitives"
-title = "rnote: unit and colour conversion primitives"
-description = """
-Add app/src/main/java/com/nexopp/format/rnote/RnoteUnits.kt with the shared primitives every stroke converter needs. See docs/architecture.md, 'The stroke & pen mapping (measured against the fixture twins)'.
-
-Functions (all top-level, in package com.nexopp.format.rnote):
-- const val PX_PER_PT = 4.0 / 3.0  (Rnote is px at 96 dpi, .xopp is pt at 72 dpi)
-- fun pxToPt(px: Double): Double = px / PX_PER_PT
-- fun ptToPx(pt: Double): Double = pt * PX_PER_PT
-- fun RnoteColor.toXopp(): Int — pack to the same 0xAARRGGBB Int that format/model uses (check how XoppColor.kt parses '#rrggbbaa' and produce the identical Int layout); each channel is (v.coerceIn(0.0,1.0) * 255.0).roundToInt().
-- fun rnoteColorOf(argb: Int): RnoteColor — the inverse, each channel byte / 255.0.
-- fun affineTranslation(affine: List<Double>): Pair<Double, Double> — a bitmapimage/textstroke 'transform.affine' is a 9-element row-major 3x3 array; return the translation pair (elements 2 and 5). Throw IllegalArgumentException('malformed transform.affine') if size != 9.
-
-Add app/src/test/java/com/nexopp/format/rnote/RnoteUnitsTest.kt asserting: 30 pt -> 40.0 px and back; RnoteColor(1.0,1.0,0.0,0.5).toXopp() equals the Int for #ffff0080; rnoteColorOf round-trips it; affineTranslation on a 9-element identity-with-translation array returns that translation; a 4-element array throws.
-
-Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 160
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-convert-a-brushstroke-into-a-stroke"
 title = "rnote: convert a brushstroke into a Stroke"
 description = """

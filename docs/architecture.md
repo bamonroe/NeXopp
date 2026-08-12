@@ -816,6 +816,8 @@ app/
         RnoteSnapshot.kt     #   engine_snapshot -> intermediate model (format, background, layout,
                              #   canvas extent, chrono-ordered strokes with their bodies raw);
                              #   tolerates the 0.6-0.12 flat document shape, not yet a Document
+        RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
+                             #   ARGB int, translation out of a 9-element transform.affine
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
