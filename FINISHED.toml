@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-container-layer"
+title = "Read the .rnote gzip+JSON container and its version wrapper"
+description = """
+Add the container layer that turns .rnote bytes into a parsed JSON payload, mirroring how format/Xopp.kt wraps gzip around the XML reader. Format details: docs/architecture.md, section "The .rnote format — container & serialisation".
+
+New file app/src/main/java/com/nexopp/format/rnote/RnoteContainer.kt, object RnoteContainer:
+- fun open(input: java.io.InputStream): RnoteWrapper — wrap the stream in java.util.zip.GZIPInputStream, read it fully as UTF-8, and parse it with com.nexopp.format.json.JsonReader (from the rnote-json-parser task).
+- fun parseJson(text: String): RnoteWrapper — the same from an already-decompressed string, so tests can work without gzip.
+- data class RnoteWrapper(val version: String, val major: Int, val minor: Int, val patch: Int, val snapshot: JsonValue), where snapshot is data.engine_snapshot.
+- Version handling: read the top-level "version" string and parse it as semver (split on ".", strip any "-suffix" from the patch part). Reject anything below 0.6 with IllegalArgumentException("unsupported .rnote version: <version>"). Reject a missing/blank version, a missing "data" object, or a missing "data.engine_snapshot" with a clear message naming the missing key. Versions 0.6 and up are accepted; the flat-vs-nested document shape difference is handled by the next task, not here.
+
+Tests: new app/src/test/java/com/nexopp/format/rnote/RnoteContainerTest.kt: open() each of the five fixtures in app/src/test/resources/fixtures/rnote/ and assert version == "0.14.2" and that snapshot has a "document" member; assert parseJson rejects {"version":"0.5.2","data":{"engine_snapshot":{}}} with the unsupported-version message; assert it rejects a wrapper with no "data"; assert open() on a gzip .xopp fixture throws (the JSON parser will reject "<xournal").
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. List the new format/rnote/ package in the repository-layout section of docs/architecture.md in the same commit."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = ["rnote", "format"]
+
+[[task]]
 id = "rnote-filekind-verdict"
 title = "Give FileKind an RNOTE verdict by peeking inside the gzip"
 description = """

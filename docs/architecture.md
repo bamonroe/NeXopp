@@ -596,6 +596,9 @@ app/
       json/                  # JsonValue, JsonReader — the dependency-free JSON layer (.rnote payload)
                              #   generic tree, not a schema; depth-capped at 256; bad input throws
                              #   JsonReader.MalformedJsonException (TruncatedJsonException when cut short)
+      rnote/                 # the .rnote side of the format layer
+        RnoteContainer.kt    #   gunzip + parse the {"version","data":{"engine_snapshot"}} wrapper;
+                             #   rejects pre-0.6 versions and names any missing key
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
