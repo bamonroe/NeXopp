@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-canvas-background-to-per-page-background-solid"
+title = "rnote: canvas background to per-page Background.Solid"
+description = """
+Add `app/src/main/java/com/nexopp/format/rnote/RnoteBackgroundMapper.kt` with two functions converting between `RnoteBackground` (format/rnote/RnoteSnapshot.kt) and `Background.Solid` (format/model/Background.kt), per the table in docs/architecture.md section 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds'.
+
+`fun toXoppBackground(bg: RnoteBackground): Background.Solid` — colour: each of bg.color.r/g/b/a is 0.0-1.0, convert with `(c * 255).roundToInt().coerceIn(0, 255)` and pack ARGB as `(a shl 24) or (r shl 16) or (g shl 8) or b`. Style: pattern 'none'->"plain", 'lines'->"ruled", 'grid'->"graph", 'dots'->"dotted", 'isometric_grid'->"isograph", 'isometric_dots'->"isodotted"; any unknown pattern string -> "plain". patternWidth/patternHeight/patternColor are dropped.
+
+`fun toRnoteBackground(bg: Background): RnoteBackground` — for Background.Solid invert the table, plus "lined"->'lines' and "staves"->'none' and any unknown style->'none'. For Background.Pdf and Background.Pixmap return white with pattern 'none' (the reference is lost; the save-path warning is a separate task). patternWidth/patternHeight: 32.0 for 'lines', 18.893 for 'grid'/'dots'/'isometric_grid'/'isometric_dots', else 32.0. patternColor: Rnote's default (r=0.8, g=0.9, b=1.0, a=1.0).
+
+Verify with a new `app/src/test/java/com/nexopp/format/rnote/RnoteBackgroundMapperTest.kt`: parse `fixtures/rnote/empty.rnote` (pattern 'dots', white) and assert it maps to Background.Solid(0xFFFFFFFF.toInt(), "dotted"); parse `fixtures/rnote/plain.rnote` (pattern 'none') and assert style "plain"; assert every style name round-trips style -> pattern -> style for plain/ruled/graph/dotted/isograph/isodotted. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "trace-the-full-xopp-rnote-feature-gap-matrix-and-decide-the-per-tab-document-mode"
 title = "Trace the full xopp/rnote feature-gap matrix and decide the per-tab document mode"
 description = """

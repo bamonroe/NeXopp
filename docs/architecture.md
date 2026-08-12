@@ -1013,6 +1013,9 @@ app/
                              #   walks a whole z-sorted list into an RnoteConversion(elements,
                              #   skipped): a vectorimage, an unknown tag or a malformed body is
                              #   counted per kind in `skipped`, never thrown and never faked
+        RnoteBackgroundMapper.kt # canvas RnoteBackground <-> per-page Background.Solid: colour
+                             #   both ways, pattern <-> ruling style per the table above; a
+                             #   pdf/pixmap page exports as a white unpatterned canvas
         RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
