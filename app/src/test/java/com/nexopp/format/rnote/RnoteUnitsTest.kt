@@ -37,8 +37,8 @@ class RnoteUnitsTest {
     }
 
     @Test
-    fun `affineTranslation reads elements two and five`() {
-        val affine = listOf(1.0, 0.0, 17.5, 0.0, 1.0, -4.25, 0.0, 0.0, 1.0)
+    fun `affineTranslation reads the column-major translation at six and seven`() {
+        val affine = listOf(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 17.5, -4.25, 1.0)
         assertEquals(17.5 to -4.25, affineTranslation(affine))
     }
 

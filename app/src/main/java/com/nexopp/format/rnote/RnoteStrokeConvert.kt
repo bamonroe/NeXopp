@@ -5,14 +5,16 @@ import com.nexopp.format.json.JsonValue
 import com.nexopp.format.model.LineStyle
 import com.nexopp.format.model.Stroke
 import com.nexopp.format.model.StrokePoint
+import com.nexopp.format.model.TextElement
 import com.nexopp.format.model.Tool
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * The `brushstroke` → [Stroke] half of the `.rnote` stroke mapping. The JSON shapes and every
- * constant here are documented in `docs/architecture.md`, section "The stroke & pen mapping
- * (measured against the fixture twins)"; the units and colour packing come from `RnoteUnits.kt`.
+ * The per-stroke half of the `.rnote` mapping: `brushstroke` → [Stroke] and `textstroke` →
+ * [TextElement]. The JSON shapes and every constant here are documented in
+ * `docs/architecture.md`, section "The stroke & pen mapping (measured against the fixture twins)";
+ * the units and colour packing come from `RnoteUnits.kt`.
  */
 
 /** The default pen width Rnote writes when `style.*.stroke_width` is absent, in px. */
@@ -23,6 +25,12 @@ private const val DEFAULT_COLOR = 0xFF000000.toInt()
 
 /** Pressures within this of 1.0 count as "no pressure", i.e. a uniform-width stroke. */
 private const val PRESSURE_EPSILON = 1e-6
+
+/** The font a `textstroke` falls back to when `text_style.font_family` is absent. */
+private const val DEFAULT_FONT = "Sans"
+
+/** The font size Rnote writes by default, in px — 12 pt once converted. */
+private const val DEFAULT_FONT_SIZE_PX = 16.0
 
 /**
  * Convert one `brushstroke` into a [Stroke].
@@ -59,6 +67,45 @@ fun brushStrokeToStroke(stroke: RnoteStroke): Stroke? {
         fill = fillAlpha(style?.obj("fill_color")),
         extraAttrs = emptyMap(),
     )
+}
+
+/**
+ * Convert one `textstroke` into a [TextElement].
+ *
+ * `.xopp` gives a text box a single font, size and colour, so only `font_family`, `font_size` and
+ * `color` cross over; `font_weight`, `font_style`, `alignment`, `max_width` and
+ * `ranged_text_attributes` are dropped per the lossy-mapping policy in `docs/architecture.md`
+ * rather than invented as `.xopp` attributes. The position is the translation of the stroke's
+ * affine, in pt.
+ *
+ * @param stroke A slot from [RnoteSnapshot.strokes].
+ * @return The converted text element, or null if [stroke] is not a `textstroke`.
+ * @throws IllegalArgumentException If `text` is missing or the affine is malformed.
+ */
+fun textStrokeToText(stroke: RnoteStroke): TextElement? {
+    if (stroke.kind != "textstroke") return null
+    val content = stroke.body.obj("text")?.str()
+        ?: throw IllegalArgumentException("missing textstroke.text")
+    val style = stroke.body.obj("text_style")
+    val (x, y) = textPosition(stroke.body.obj("transform"))
+    return TextElement(
+        font = style?.obj("font_family")?.str() ?: DEFAULT_FONT,
+        size = pxToPt(style?.obj("font_size")?.num() ?: DEFAULT_FONT_SIZE_PX),
+        x = x,
+        y = y,
+        color = style?.obj("color")?.let { rnoteColor(it)?.toXopp() } ?: DEFAULT_COLOR,
+        content = content,
+        extraAttrs = emptyMap(),
+    )
+}
+
+/** A `transform.affine`'s translation in pt, or the origin when the stroke carries no transform. */
+private fun textPosition(transform: JsonValue?): Pair<Double, Double> {
+    val affine = transform?.obj("affine")?.arr() ?: return 0.0 to 0.0
+    val (x, y) = affineTranslation(
+        affine.map { it.num() ?: throw IllegalArgumentException("malformed transform.affine") },
+    )
+    return pxToPt(x) to pxToPt(y)
 }
 
 /**

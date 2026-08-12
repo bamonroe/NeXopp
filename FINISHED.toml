@@ -17,6 +17,30 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-convert-a-textstroke-into-a-textelement"
+title = "rnote: convert a textstroke into a TextElement"
+description = """
+Add fun textStrokeToText(stroke: RnoteStroke): TextElement? to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt (same file as brushStrokeToStroke). Returns null unless stroke.kind == "textstroke". Shape documented in docs/architecture.md, 'The stroke & pen mapping (measured against the fixture twins)'.
+
+Rules:
+- content = body.text (required; throw IllegalArgumentException naming the path if missing).
+- (x, y) = affineTranslation(body.transform.affine) mapped through pxToPt. Default (0.0, 0.0) when transform is absent.
+- font = body.text_style.font_family, default "Sans".
+- size = pxToPt(body.text_style.font_size), default 16.0 px -> 12.0 pt.
+- color = body.text_style.color.toXopp(), default opaque black.
+- extraAttrs = emptyMap(). font_weight, font_style, alignment, max_width and ranged_text_attributes are dropped per the lossy-mapping policy in the same doc — do not invent .xopp attributes for them.
+
+Test in RnoteStrokeConvertTest.kt against app/src/test/resources/fixtures/rnote/text-image.rnote, whose single textstroke is the text 'a & b < c > d' at font Sans, size 16.0 px, colour rgb(0.063,0.063,0.063): assert content, font == "Sans", size == 12.0 within 1e-2, and the colour Int matches #101010ff.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-convert-a-brushstroke-into-a-stroke"
 title = "rnote: convert a brushstroke into a Stroke"
 description = """

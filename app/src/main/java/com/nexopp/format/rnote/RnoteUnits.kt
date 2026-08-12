@@ -52,14 +52,17 @@ fun rnoteColorOf(argb: Int): RnoteColor = RnoteColor(
 )
 
 /**
- * Read the translation out of a `transform.affine` — the 9-element, row-major 3x3 matrix a
- * `bitmapimage` or `textstroke` carries. The translation sits at indices 2 and 5.
+ * Read the translation out of a `transform.affine` — the 9-element 3x3 matrix a `bitmapimage` or
+ * `textstroke` carries. Rnote serialises it through nalgebra, which stores a matrix
+ * **column-major**, so the translation sits at indices 6 and 7 (not 2 and 5). The fixture twins
+ * confirm it: `text-image.rnote`'s textstroke is `[1,0,0,-0,1,0,96,96,1]` and its `.xopp` twin
+ * places the text at 72 pt = 96 px.
  *
- * @param affine The 9-element row-major matrix as parsed from the JSON.
+ * @param affine The 9-element column-major matrix as parsed from the JSON.
  * @return The (x, y) translation.
  * @throws IllegalArgumentException If the matrix is not 9 elements long.
  */
 fun affineTranslation(affine: List<Double>): Pair<Double, Double> {
     require(affine.size == 9) { "malformed transform.affine" }
-    return affine[2] to affine[5]
+    return affine[6] to affine[7]
 }

@@ -309,7 +309,9 @@ single-key-tagged object; the five tags are `brushstroke`, `shapestroke`, `texts
 `{"value":{"t":n,"layer":…}}` giving z-order and layer, where `layer` is `{"user_layer":n}` or one
 of the strings `highlighter`, `image`, `document`. `document.config.background.pattern_size` is a
 two-element `[width, height]` array, and every colour is four `0.0`–`1.0` channels (`r`,`g`,`b`,`a`),
-not 8-bit components.
+not 8-bit components. A `transform.affine` is a 9-element **column-major** 3x3 matrix (nalgebra's
+storage order), so its translation sits at indices **6 and 7**, not 2 and 5 — `text-image.rnote`'s
+textstroke is `[1,0,0,-0,1,0,96,96,1]` and its `.xopp` twin places the text at 72 pt = 96 px.
 
 **The intermediate model (`RnoteSnapshot.kt`).** The snapshot is read into plain Kotlin data
 classes — `RnoteFormat`, `RnoteBackground`, `RnoteColor`, and a flat `RnoteStroke` list — keeping
@@ -343,7 +345,7 @@ through it. Colour is four `0.0`–`1.0` channels versus `XoppColor`'s 8-bit `#r
 | `chrono.t` | element order in a `Layer` | already sorted ascending by `RnoteSnapshot` |
 | `style.smooth.line_style` (`solid`…) | `LineStyle` | `solid ↔ PLAIN`; the dashed family still needs a name-by-name check |
 | `style.smooth.fill_color` | `Stroke.fill` | `null` ↔ no fill; Rnote fill is full RGBA, ours an alpha |
-| `textstroke` `{text,transform,text_style}` | `TextElement` | `font_family`/`font_size`/`color` map; the affine's translation is (x, y) |
+| `textstroke` `{text,transform,text_style}` | `TextElement` | `font_family`/`font_size`/`color` map; the affine's translation is (x, y). Defaults: `Sans`, 16 px = 12 pt, opaque black, origin |
 | `bitmapimage` `{image:{data,pixel_width,pixel_height,memory_format},rectangle}` | `ImageElement` | **not** PNG — `data` is a base64 raw pixel buffer (`R8g8b8a8Premultiplied`); needs an encode/decode step |
 | `shapestroke` | `Stroke` | parametric shape; import flattens to a polyline (no fixture yet — `rnote-cli import` never emits one) |
 | `vectorimage` | — | SVG; nothing in `.xopp` can hold it |

@@ -6,13 +6,15 @@ import com.nexopp.format.model.Tool
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The `brushstroke` → `Stroke` conversion against `plain.rnote`, the ground-truth twin of
- * `plain.xopp` (see `docs/architecture.md`, "The stroke & pen mapping"), plus hand-built payloads
- * for the shapes no fixture covers.
+ * The `brushstroke` → `Stroke` and `textstroke` → `TextElement` conversions against `plain.rnote`
+ * and `text-image.rnote`, the ground-truth twins of `plain.xopp` and `text-image.xopp` (see
+ * `docs/architecture.md`, "The stroke & pen mapping"), plus hand-built payloads for the shapes no
+ * fixture covers.
  */
 class RnoteStrokeConvertTest {
 
@@ -99,6 +101,49 @@ class RnoteStrokeConvertTest {
         // No stroke_width and no stroke_color: the 2.0 px default in opaque black.
         assertEquals(1.5, stroke.points[0].width, 1e-9)
         assertEquals(0xFF000000.toInt(), stroke.color)
+    }
+
+    @Test
+    fun `the textstroke keeps its content, font, size, colour and position`() {
+        val text = textStrokeToText(strokes("text-image").single { it.kind == "textstroke" })!!
+        assertEquals("a & b < c > d", text.content)
+        assertEquals("Sans", text.font)
+        assertEquals(12.0, text.size, 1e-2)
+        assertEquals(0xFF101010.toInt(), text.color)
+        // The affine's translation is 96 px in both axes — 72 pt, matching the .xopp twin.
+        assertEquals(72.0, text.x, 1e-2)
+        assertEquals(72.0, text.y, 1e-2)
+        assertTrue(text.extraAttrs.isEmpty())
+    }
+
+    @Test
+    fun `a brushstroke converts to no text and a textstroke to no stroke`() {
+        val textstroke = strokes("text-image").single { it.kind == "textstroke" }
+        assertNull(textStrokeToText(strokes("plain")[0]))
+        assertNull(brushStrokeToStroke(textstroke))
+    }
+
+    @Test
+    fun `a textstroke with no style or transform falls back to Sans 12pt black at the origin`() {
+        val text = textStrokeToText(
+            RnoteStroke(1, "textstroke", JsonReader("""{"text":"hi"}""").parse(), 1L, "user_layer", 0),
+        )!!
+        assertEquals("hi", text.content)
+        assertEquals("Sans", text.font)
+        assertEquals(12.0, text.size, 1e-9)
+        assertEquals(0xFF000000.toInt(), text.color)
+        assertEquals(0.0, text.x, 1e-9)
+        assertEquals(0.0, text.y, 1e-9)
+    }
+
+    @Test
+    fun `a textstroke with no text is rejected by name`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            textStrokeToText(
+                RnoteStroke(1, "textstroke", JsonReader("""{"text_style":{}}""").parse(), 1L, "user_layer", 0),
+            )
+        }
+        assertEquals("missing textstroke.text", error.message)
     }
 
     @Test
