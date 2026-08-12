@@ -592,6 +592,9 @@ app/
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
                              #   malformed entities decode to raw text; truncated input throws
                              #   XmlPullReader.TruncatedXmlException instead of hanging/crashing
+      json/                  # JsonValue, JsonReader — the dependency-free JSON layer (.rnote payload)
+                             #   generic tree, not a schema; depth-capped at 256; bad input throws
+                             #   JsonReader.MalformedJsonException (TruncatedJsonException when cut short)
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document

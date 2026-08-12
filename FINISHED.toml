@@ -17,6 +17,30 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-json-parser"
+title = "Add a dependency-free JSON reader in format/json/"
+description = """
+Add a minimal, dependency-free JSON parser so the .rnote payload can be read on-device and in JVM unit tests alike. Design decision and rationale: docs/architecture.md, section "The .rnote format — container & serialisation".
+
+Create two new files, modelled closely on the existing hand-rolled XML layer in app/src/main/java/com/nexopp/format/xml/XmlPullReader.kt (same doc-comment style, same "TruncatedXmlException"-style error type):
+
+1. app/src/main/java/com/nexopp/format/json/JsonValue.kt — a sealed class tree:
+   sealed class JsonValue with subclasses JsonObject(val members: Map<String, JsonValue>) (LinkedHashMap, insertion order preserved), JsonArray(val items: List<JsonValue>), JsonString(val value: String), JsonNumber(val value: Double), JsonBool(val value: Boolean), and object JsonNull.
+   Add convenience accessors on JsonValue: obj(key: String): JsonValue? (null unless this is a JsonObject with that key), arr(): List<JsonValue>? , str(): String?, num(): Double?, bool(): Boolean?, and isNull(): Boolean. Also a path helper: fun path(vararg keys: String): JsonValue? walking obj() for each key.
+
+2. app/src/main/java/com/nexopp/format/json/JsonReader.kt — class JsonReader(private val s: String) with fun parse(): JsonValue that parses one whole document and throws on trailing non-whitespace. Full RFC 8259 grammar: objects, arrays, strings with the \\" \\\\ \\/ \\b \\f \\n \\r \\t and \\uXXXX escapes (including surrogate pairs), numbers (leading minus, exponent, fraction) parsed with toDouble(), true/false/null literals, and whitespace skipping. Throw a nested class MalformedJsonException(message: String) : IllegalArgumentException with the character offset in the message; throw a TruncatedJsonException subclass of it when the input ends mid-value. Guard nesting depth at 256 and throw rather than blowing the stack.
+
+Tests: new app/src/test/java/com/nexopp/format/json/JsonReaderTest.kt covering: a nested object/array round-trip of a small literal; every escape sequence including a surrogate pair (e.g. "😀" == an emoji); numbers with exponents and negatives; empty object and empty array; duplicate keys (last wins); rejection of a trailing comma, an unquoted key, a stray comma, and truncated input (assert the exception type); and depth-limit rejection of 300 nested arrays.
+
+Verify with: scripts/build.sh testDebugUnitTest. No emulator pass. Document the new format/json/ package in the repository-layout section of docs/architecture.md in the same commit."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = ["rnote", "format"]
+
+[[task]]
 id = "investigate-the-rnote-container-and-serialisation-format"
 title = "Investigate the .rnote container and serialisation format"
 description = """
