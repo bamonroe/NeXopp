@@ -123,6 +123,7 @@ fun EditorScreen(
     currentSaveFormat: () -> SaveFormat,
     onImportPdf: (ImportPdfMode) -> Unit,
     onExportPdf: () -> Unit,
+    onExportImages: () -> Unit,
     onPickImage: (Placement) -> Unit,
     /** A pane's canvas has just been built: its index, then the view. */
     onSurfaceCreated: (Int, DrawingSurfaceView) -> Unit,
@@ -151,6 +152,7 @@ fun EditorScreen(
             onNewTab = { tabs.onNew() },
             onSave = onSave,
             onExportPdf = onExportPdf,
+            onExportImages = onExportImages,
             splitView = splitView,
             onToggleSplitView = onToggleSplitView,
         )

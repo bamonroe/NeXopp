@@ -679,6 +679,15 @@ authoritative flow; don't invent another one.
   vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
   of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
   editable `.xopp`.
+- **Export images** — the menu's **Export images** writes **one image file per page** instead of a
+  single document, so it asks you to pick a **folder** rather than a file name. Each page is
+  flattened exactly as the editor draws it — background (ruled sheet, imported PDF page, or picture)
+  with every **visible** layer composited on top; layers you have hidden stay out of the export — and
+  saved at **300 dpi**, print quality. Files are named `document-001.png`, `document-002.png` and so
+  on, zero-padded so the folder lists in page order. **PNG** (lossless), **JPEG** and **WebP** (both
+  quality 92) are supported; a page taller or wider than 8192 px at the chosen resolution is scaled
+  down to fit rather than blowing up memory. A page that can't be rendered is skipped, and the toast
+  tells you how many files actually landed.
 - **Fonts in generated PDFs** — when NeXopp *generates* a PDF page for you (the text-import path), it
   typesets with **DejaVu Sans** (plus its **bold**, *oblique* and ***bold-oblique*** companions, used
   for markdown emphasis) and **DejaVu Sans Mono**, which ship inside the app. Because they are

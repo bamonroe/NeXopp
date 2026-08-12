@@ -1,8 +1,11 @@
 package com.nexopp
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import android.provider.DocumentsContract
 import com.nexopp.audio.documentAudioFiles
+import com.nexopp.format.ExportFormat
 import com.nexopp.format.SaveFormat
 import com.nexopp.io.LoadedFile
 import com.nexopp.io.StorageLimits
@@ -240,6 +243,55 @@ internal fun MainActivity.extractPdfTextInBackground(file: File, into: DrawingSu
 internal fun MainActivity.exportPdf(uri: Uri) = runCatching {
     staging.writeTo(uri) { output: java.io.OutputStream -> surface?.exportPdf(output) }
 }.onFailure { toast("PDF export failed: ${it.message}") }
+
+/**
+ * Flatten [pages] to one image file each inside the picked folder, named `base-001.png` and so on
+ * (see [ExportFormat.fileName]).
+ *
+ * Raster export is inherently multi-file — SAF's `CreateDocument` can only ever hand back a single
+ * destination — so this takes a tree grant from `OpenDocumentTree` and creates a child document per
+ * page. A page that fails to rasterise is skipped rather than aborting the run; the toast reports
+ * how many files actually landed.
+ */
+internal fun MainActivity.exportRaster(
+    treeUri: Uri,
+    format: ExportFormat,
+    pages: List<Int>,
+    dpi: Int,
+    baseName: String,
+) = runCatching {
+    val view = surface ?: return@runCatching
+    val parent = DocumentsContract.buildDocumentUriUsingTree(
+        treeUri,
+        DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    var written = 0
+    for (index in pages) {
+        val bitmap = view.rasterizePage(index, dpi) ?: continue
+        try {
+            val child = DocumentsContract.createDocument(
+                contentResolver, parent, format.mime, format.fileName(baseName, index),
+            ) ?: continue
+            staging.writeTo(child) { out -> bitmap.compress(format.compressFormat(), format.quality(), out) }
+            written++
+        } finally {
+            bitmap.recycle()
+        }
+    }
+    toast(if (written == 1) "Exported 1 page" else "Exported $written pages")
+}.onFailure { toast("Export failed: ${it.message}") }
+
+/** The Android encoder for a raster [ExportFormat]; PDF and SVG never reach here. */
+private fun ExportFormat.compressFormat(): Bitmap.CompressFormat = when (this) {
+    ExportFormat.JPEG -> Bitmap.CompressFormat.JPEG
+    // WEBP_LOSSY rather than the deprecated WEBP: same output, and it keeps the quality argument
+    // meaningful on API 30+.
+    ExportFormat.WEBP -> Bitmap.CompressFormat.WEBP_LOSSY
+    else -> Bitmap.CompressFormat.PNG
+}
+
+/** Encoder quality: lossless for PNG, and a high-but-not-wasteful 92 for the lossy formats. */
+private fun ExportFormat.quality(): Int = if (this == ExportFormat.PNG) 100 else 92
 
 /** Read the picked image's bytes and place it at the tap that started the pick. */
 internal fun MainActivity.insertPickedImage(uri: Uri) = runCatching {

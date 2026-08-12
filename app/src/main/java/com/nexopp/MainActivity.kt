@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.nexopp.audio.AudioSession
+import com.nexopp.format.ExportFormat
 import com.nexopp.format.SaveFormat
 import com.nexopp.io.DocumentIo
 import com.nexopp.io.IncomingDocument
@@ -74,6 +75,21 @@ class MainActivity : ComponentActivity() {
 
     /** The mode chosen in the Import PDF dialog, kept until the SAF picker returns the PDF. */
     private var pendingImportMode: ImportPdfMode = ImportPdfMode.REPLACE
+
+    // What to export, kept until the folder picker returns a tree. The Export dialog sets these
+    // before launching; the defaults are what the plain "Export images" menu entry uses.
+
+    /** Raster format the pending export writes. */
+    internal var pendingExportFormat: ExportFormat = ExportFormat.PNG
+
+    /** Zero-based page indices the pending export covers; empty means "every page". */
+    internal var pendingExportPages: List<Int> = emptyList()
+
+    /** Resolution of the pending raster export, in dots per inch. */
+    internal var pendingExportDpi: Int = DEFAULT_EXPORT_DPI
+
+    /** File-name stem the pending export's per-page names are built from. */
+    internal var pendingExportBaseName: String = "document"
 
     /** The file name last chosen in the Save As dialog; reused by plain Save. Per pane. */
     internal var pendingSaveName: String
@@ -184,6 +200,28 @@ class MainActivity : ComponentActivity() {
         }
 
     /**
+     * The destination for a raster export: a **folder**, not a file, because every format except
+     * PDF writes one document per page (see [ExportFormat.isMultiFile]).
+     */
+    private val exportFolderLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            uri?.let {
+                exportRaster(
+                    it, pendingExportFormat, pendingExportPages, pendingExportDpi, pendingExportBaseName,
+                )
+            }
+        }
+
+    /** Ask for a folder, then write every page of the active document there as an image. */
+    internal fun launchRasterExport(format: ExportFormat, pages: List<Int>, dpi: Int, baseName: String) {
+        pendingExportFormat = format
+        pendingExportPages = pages.ifEmpty { surface?.doc?.pages?.indices?.toList().orEmpty() }
+        pendingExportDpi = dpi
+        pendingExportBaseName = baseName
+        exportFolderLauncher.launch(null)
+    }
+
+    /**
      * Hardware-keyboard shortcuts for the spline tool, which is the one tool whose gesture spans
      * several taps: Enter commits the open curve, Backspace drops its last control point, and Escape
      * throws it away. Handled here rather than in the surface so the canvas never has to take
@@ -230,6 +268,9 @@ class MainActivity : ComponentActivity() {
                         importPdfLauncher.launch(arrayOf(PDF_MIME))
                     },
                     onExportPdf = { exportPdfLauncher.launch("document.pdf") },
+                    onExportImages = {
+                        launchRasterExport(ExportFormat.PNG, emptyList(), DEFAULT_EXPORT_DPI, "document")
+                    },
                     onPickImage = { placement ->
                         pendingImagePlacement = placement
                         pickImageLauncher.launch(arrayOf("image/*"))
@@ -338,6 +379,9 @@ class MainActivity : ComponentActivity() {
         // is at stake.
         const val XOPP_MIME = "application/octet-stream"
         const val PDF_MIME = "application/pdf"
+
+        /** Raster-export resolution: print quality, and a sane default until the Export dialog lands. */
+        const val DEFAULT_EXPORT_DPI = 300
 
         /**
          * Folders under `filesDir` holding each pane's cached tab session (see [TabStore]), in pane

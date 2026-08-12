@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
@@ -77,6 +78,7 @@ fun EditorTopBar(
     onNewTab: () -> Unit,
     onSave: () -> Unit,
     onExportPdf: () -> Unit,
+    onExportImages: () -> Unit,
     splitView: Boolean,
     onToggleSplitView: () -> Unit,
 ) {
@@ -99,6 +101,7 @@ fun EditorTopBar(
                 onSaveAs = { ui.showSaveAs = true },
                 onImportPdf = { ui.showImportPdf = true },
                 onExportPdf = onExportPdf,
+                onExportImages = onExportImages,
                 onSettings = { ui.showSettings = true },
                 splitView = splitView,
                 onToggleSplitView = onToggleSplitView,
@@ -491,6 +494,7 @@ private fun OverflowMenu(
     onSaveAs: () -> Unit,
     onImportPdf: () -> Unit,
     onExportPdf: () -> Unit,
+    onExportImages: () -> Unit,
     onSettings: () -> Unit,
     splitView: Boolean,
     onToggleSplitView: () -> Unit,
@@ -519,6 +523,11 @@ private fun OverflowMenu(
             text = { Text("Export PDF") },
             leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
             onClick = { open = false; onExportPdf() },
+        )
+        DropdownMenuItem(
+            text = { Text("Export images") },
+            leadingIcon = { Icon(Icons.Filled.Image, contentDescription = null) },
+            onClick = { open = false; onExportImages() },
         )
         DropdownMenuItem(
             text = { Text("Save") },

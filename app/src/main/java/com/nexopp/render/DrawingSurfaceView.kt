@@ -707,6 +707,31 @@ class DrawingSurfaceView @JvmOverloads constructor(
     /** Flatten the current document (backgrounds, PDF pages, and all annotations) to a PDF. */
     fun exportPdf(out: java.io.OutputStream) = PdfExporter(pdfSource, imageSource).export(doc, out)
 
+    /**
+     * Flatten page [index] to a bitmap at [dpi] — background picture and all visible layers — for
+     * raster export. The background is rendered synchronously here rather than through the async
+     * tile path, so an export never races the canvas and drops a PDF page.
+     *
+     * Returns null when the index is out of range or the page is degenerate, so one bad page can't
+     * take a whole export down. The caller owns the bitmap and must recycle it.
+     */
+    fun rasterizePage(index: Int, dpi: Int): android.graphics.Bitmap? {
+        val page = doc.pages.getOrNull(index) ?: return null
+        val (widthPx, _) = PageRasterizer.sizeFor(page.width, page.height, dpi) ?: return null
+        val pageImage = when (val bg = page.background) {
+            is Background.Pdf -> pdfSource?.render(bg.pageNo, widthPx)
+            is Background.Pixmap -> imageSource.render(bg.filename, widthPx)
+            else -> null
+        }
+        return PageRasterizer.render(page, dpi, pageImage, hiddenLayerIndices(index))
+    }
+
+    /** Layer indices hidden on page [pageIndex], in the form the page renderers take. */
+    internal fun hiddenLayerIndices(pageIndex: Int): Set<Int> {
+        val page = doc.pages.getOrNull(pageIndex) ?: return emptySet()
+        return page.layers.indices.filterTo(HashSet()) { isLayerHidden(pageIndex, it) }
+    }
+
     // --- undo / redo ---------------------------------------------------------------------------
 
     /** Revert the most recent edit (stroke or erase gesture). No-op when there's nothing to undo. */
