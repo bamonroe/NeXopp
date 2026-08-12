@@ -17,6 +17,25 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "extend-the-svg-exporter-to-text-images-and-latex-elements"
+title = "Extend the SVG exporter to text, images and LaTeX elements"
+description = """
+Follow-on to the "Add an SVG exporter for page backgrounds and strokes" task (do that first). Fill in the element types it left as a TODO, in app/src/main/java/com/nexopp/render/SvgExporter.kt. Mirror how app/src/main/java/com/nexopp/render/PdfVectorPainter.kt and ElementRenderer.kt handle each type.
+
+- TextElement -> <text x=".." y=".." font-family=".." font-size=".." fill="#rrggbb"> with one <tspan x=".." dy=".."> per wrapped line, so multi-line text boxes keep their line breaks. Take the font family/size from the element FontDescription (app/src/main/java/com/nexopp/format/FontDescription.kt) and the line breaking from the same helper the on-screen renderer uses. SVG text baselines sit on the baseline like the model does, so no extra offset is needed beyond the first line ascent — match what ElementRenderer computes.
+- ImageElement -> <image x y width height xlink:href="data:image/png;base64,{...}"> embedding the image bytes inline so the SVG is self-contained. The base64 payload is already stored in the model (see ImageElement in app/src/main/java/com/nexopp/format/model/Element.kt) — emit it directly rather than decoding and re-encoding. Also declare xmlns:xlink on the root <svg> element when at least one image is emitted.
+- TexImageElement -> same <image> treatment as ImageElement, using its rendered PNG payload.
+- RawElement -> skip silently (it is preserved-but-unmodelled markup and has no visual form we can render).
+
+Extend app/src/test/java/com/nexopp/render/SvgExporterTest.kt with cases for: a two-line TextElement producing two <tspan> children, an ImageElement producing a data: URI and the xlink namespace on the root, a TexImageElement producing an <image>, and a RawElement producing no output. Verify with scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "add-an-svg-exporter-for-page-backgrounds-and-strokes"
 title = "Add an SVG exporter for page backgrounds and strokes"
 description = """
