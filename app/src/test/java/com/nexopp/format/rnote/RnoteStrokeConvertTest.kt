@@ -185,6 +185,116 @@ class RnoteStrokeConvertTest {
         assertEquals("missing rectangle.transform.affine", error.message)
     }
 
+    private fun parseShape(json: String): RnoteStroke =
+        RnoteStroke(1, "shapestroke", JsonReader(json).parse(), 1L, "user_layer", 0)
+
+    @Test
+    fun `a line shape flattens to its two endpoints at a constant width`() {
+        val stroke = shapeStrokeToStroke(
+            parseShape(
+                """
+                {"shape":{"line":{"start":[0.0,0.0],"end":[96.0,48.0]}},
+                 "style":{"smooth":{"stroke_width":4.0,
+                   "stroke_color":{"r":0.0,"g":0.0,"b":1.0,"a":1.0}}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertEquals(Tool.PEN, stroke.tool)
+        assertTrue(stroke.uniformWidth)
+        assertEquals(2, stroke.points.size)
+        assertEquals(0.0, stroke.points[0].x, 1e-9)
+        assertEquals(0.0, stroke.points[0].y, 1e-9)
+        assertEquals(72.0, stroke.points[1].x, 1e-9)
+        assertEquals(36.0, stroke.points[1].y, 1e-9)
+        for (point in stroke.points) assertEquals(3.0, point.width, 1e-9)
+        assertEquals(0xFF0000FF.toInt(), stroke.color)
+    }
+
+    @Test
+    fun `a rect shape flattens to five corners that close on the first`() {
+        val stroke = shapeStrokeToStroke(
+            parseShape(
+                """
+                {"shape":{"rect":{"cuboid":{"half_extents":[24.0,12.0]},
+                   "transform":{"affine":[1,0,0,0,1,0,96,48,1]}}},
+                 "style":{"smooth":{"stroke_width":2.0}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertEquals(5, stroke.points.size)
+        assertEquals(stroke.points.first().x, stroke.points.last().x, 1e-9)
+        assertEquals(stroke.points.first().y, stroke.points.last().y, 1e-9)
+        // Centre 96,48 px +/- 24,12 px is 72,36 pt +/- 18,9 pt.
+        assertEquals(54.0, stroke.points[0].x, 1e-9)
+        assertEquals(27.0, stroke.points[0].y, 1e-9)
+        assertEquals(90.0, stroke.points[2].x, 1e-9)
+        assertEquals(45.0, stroke.points[2].y, 1e-9)
+    }
+
+    @Test
+    fun `an ellipse samples its perimeter and closes`() {
+        val stroke = shapeStrokeToStroke(
+            parseShape(
+                """
+                {"shape":{"ellipse":{"radii":[96.0,48.0],
+                   "transform":{"affine":[1,0,0,0,1,0,96,96,1]}}},
+                 "style":{"smooth":{"stroke_width":2.0}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertEquals(33, stroke.points.size)
+        assertEquals(stroke.points.first().x, stroke.points.last().x, 1e-9)
+        // Angle 0 sits at the centre plus the x radius: (96+96, 96) px = (144, 72) pt.
+        assertEquals(144.0, stroke.points[0].x, 1e-9)
+        assertEquals(72.0, stroke.points[0].y, 1e-9)
+        // A quarter turn on is the centre plus the y radius.
+        assertEquals(72.0, stroke.points[8].x, 1e-9)
+        assertEquals(108.0, stroke.points[8].y, 1e-9)
+    }
+
+    @Test
+    fun `a cubic bezier is sampled from its start to its end`() {
+        val stroke = shapeStrokeToStroke(
+            parseShape(
+                """
+                {"shape":{"cubbez":{"start":[0.0,0.0],"cp1":[0.0,96.0],
+                   "cp2":[96.0,96.0],"end":[96.0,0.0]}},
+                 "style":{"smooth":{"stroke_width":2.0}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertEquals(24, stroke.points.size)
+        assertEquals(0.0, stroke.points.first().x, 1e-9)
+        assertEquals(0.0, stroke.points.first().y, 1e-9)
+        assertEquals(72.0, stroke.points.last().x, 1e-9)
+        assertEquals(0.0, stroke.points.last().y, 1e-9)
+        // The curve bulges towards the control points without reaching them.
+        assertTrue(stroke.points[12].y > 18.0 && stroke.points[12].y < 54.0)
+    }
+
+    @Test
+    fun `a polygon repeats its first vertex and a polyline does not`() {
+        val path = """"start":[0.0,0.0],"path":[[96.0,0.0],[96.0,96.0]]"""
+        val open = shapeStrokeToStroke(parseShape("""{"shape":{"polyline":{$path}}}"""))!!
+        val shut = shapeStrokeToStroke(parseShape("""{"shape":{"polygon":{$path}}}"""))!!
+        assertEquals(3, open.points.size)
+        assertEquals(4, shut.points.size)
+        assertEquals(0.0, shut.points.last().x, 1e-9)
+        assertEquals(0.0, shut.points.last().y, 1e-9)
+        // No stroke_width anywhere: the 2.0 px default, uniform along the shape.
+        for (point in open.points) assertEquals(1.5, point.width, 1e-9)
+    }
+
+    @Test
+    fun `an unknown shape tag converts to null`() {
+        assertNull(shapeStrokeToStroke(parseShape("""{"shape":{"spiral":{"turns":3}}}""")))
+    }
+
+    @Test
+    fun `a brushstroke is not a shapestroke`() {
+        assertNull(shapeStrokeToStroke(strokes("plain")[0]))
+    }
+
     @Test
     fun `a segment with no end is skipped rather than breaking the stroke`() {
         val stroke = brushStrokeToStroke(

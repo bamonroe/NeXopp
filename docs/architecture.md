@@ -347,7 +347,7 @@ through it. Colour is four `0.0`–`1.0` channels versus `XoppColor`'s 8-bit `#r
 | `style.smooth.fill_color` | `Stroke.fill` | `null` ↔ no fill; Rnote fill is full RGBA, ours an alpha |
 | `textstroke` `{text,transform,text_style}` | `TextElement` | `font_family`/`font_size`/`color` map; the affine's translation is (x, y). Defaults: `Sans`, 16 px = 12 pt, opaque black, origin |
 | `bitmapimage` `{image:{data,pixel_width,pixel_height,memory_format},rectangle}` | `ImageElement` | **not** PNG — `data` is a base64 raw pixel buffer (`R8g8b8a8Premultiplied`), re-encoded by `RawImageCodec`; the `rectangle` is the box (see below) |
-| `shapestroke` | `Stroke` | parametric shape; import flattens to a polyline (no fixture yet — `rnote-cli import` never emits one) |
+| `shapestroke` `{shape:{line|rect|ellipse|quadbez|cubbez|polyline|polygon:{…}},style}` | `Stroke` | parametric shape flattened to a polyline (see below); any other shape tag is skipped |
 | `vectorimage` | — | SVG; nothing in `.xopp` can hold it |
 
 **Images.** A `bitmapimage` carries *uncompressed* pixels: `image.data` is base64 of a
@@ -360,6 +360,17 @@ affine's translation is the **centre** and `cuboid.half_extents` the half width/
 `left = (cx − hx) ÷ 4/3` and so on — `text-image.rnote`'s `166.667 ± 33.333` px is the `.xopp`
 twin's 100–150 pt box. Rotation and shear in that affine are dropped, so a rotated image lands as
 its upright bounding box.
+
+**Shapes.** A `shapestroke` keeps its geometry *parametrically* — a `line`'s two endpoints, an
+`ellipse`'s radii — where `.xopp` only has pressure polylines, so `shapeStrokeToStroke` flattens it:
+`line`/`polyline` give their vertices as-is, `polygon` the same closed, `rect` its four corners from
+the `cuboid.half_extents` around the affine's translation, `ellipse` 32 samples around its
+perimeter, and `quadbez`/`cubbez` 24 samples along the curve (De Casteljau, both endpoints
+included). Closed shapes repeat their first vertex last so a fill has an edge to close on, and
+rotation in a `rect`/`ellipse` affine is dropped exactly as it is for a `bitmapimage`. The pen does
+not vary along a shape, so every vertex carries `style.*.stroke_width` and the stroke is
+`uniformWidth`. There is **no fixture** — `rnote-cli import` from `.xopp` never emits a shapestroke
+— so the tests build the payloads by hand from the tags upstream writes.
 
 **Pressure.** For `plain.xopp`'s pressure stroke (`width="1.41 1.20 0.98 0.76"`) Rnote wrote
 `stroke_width 1.6` with pressures `1.0, 0.817, 0.633`: it sets `stroke_width = max(point widths) ×

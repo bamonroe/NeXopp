@@ -17,6 +17,31 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-flatten-a-shapestroke-into-a-stroke"
+title = "rnote: flatten a shapestroke into a Stroke"
+description = """
+Add fun shapeStrokeToStroke(stroke: RnoteStroke): Stroke? to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt. Returns null unless stroke.kind == "shapestroke".
+
+Rnote stores a shapestroke parametrically, so it must be flattened to the pressure polyline .xopp uses (see docs/architecture.md, 'The stroke & pen mapping'). There is NO fixture for this — rnote-cli import from .xopp never emits one — so build it from the shape tags upstream writes: body.shape is a single-key-tagged object, one of 'line' {start:[x,y],end:[x,y]}, 'rect' (cuboid + transform, like bitmapimage's rectangle), 'ellipse' (radii + transform), 'quadbez' {start,cp,end}, 'cubbez' {start,cp1,cp2,end}, 'polyline' {start,path:[…]}, 'polygon' (as polyline, closed). Ignore any other tag (return null).
+
+Flattening:
+- line/polyline/polygon: the vertices as-is; polygon repeats the first vertex last.
+- rect: the four corners from centre +/- half extents, closed (5 points).
+- ellipse: sample 32 points around it.
+- quadbez/cubbez: sample 24 points along the curve with the standard Bezier formula.
+- Every point through pxToPt; width is constant for all points = pxToPt(body.style.smooth.stroke_width), so uniformWidth = true. colour, lineStyle and fill come from body.style exactly as brushStrokeToStroke reads them — extract that style reading into a private helper both functions call rather than duplicating it.
+
+Test in RnoteStrokeConvertTest.kt with hand-built JSON (JsonReader.parse on a string literal — no fixture exists): a 'line' shape gives 2 points at the expected pt coordinates with equal widths; a 'rect' gives 5 points with the first equal to the last; an unknown shape tag returns null.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-convert-a-bitmapimage-into-an-imageelement"
 title = "rnote: convert a bitmapimage into an ImageElement"
 description = """
