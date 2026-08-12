@@ -370,7 +370,13 @@ stroke colour and alpha, fill, highlighter-ness, painters order, text content wi
 colour/position, bitmap image pixels and placement, and the canvas format and background.
 
 **Dropped silently on import (Rnote → NeXopp):** the smooth style's `pressure_curve` and `line_cap`,
-a `textstroke`'s `font_weight`, `font_style`, `alignment`, `max_width` and `ranged_text_attributes`,
+a `textstroke`'s `font_weight`, `font_style`, `alignment`, `max_width` and `ranged_text_attributes`
+(that last one is per-character-range styling, confirmed in upstream `textstroke.rs` as
+`{range: [byteStart, byteEnd], attribute: <one of font_family|font_size|font_weight|text_color|
+font_style|underline|strikethrough>}`; `.xopp` `<text>` holds one style for the whole box and, unlike
+`<image>`, carries **no width/height** — only an x,y anchor — so splitting a box into one
+`TextElement` per run would need real text shaping to place them. Whether to do it anyway is its own
+open scope item),
 a `bitmapimage`'s non-affine transform components (shear/rotation beyond what a `.xopp` bounding box
 can express), and `chrono.layer == "document"`. Also dropped: `camera`, `snap_positions`, and the
 `format` block's cosmetic `border_color`/`show_borders`/`show_origin_indicator`.
