@@ -671,23 +671,32 @@ authoritative flow; don't invent another one.
   - **Source** — a link to [github.com/bamonroe/NeXopp](https://github.com/bamonroe/NeXopp).
   - **Buy me a coffee** — a link to [patreon.com/bamonroe](https://www.patreon.com/bamonroe) if you'd
     like to support the work. Every link opens in your browser.
-- **Export PDF** — the menu's **Export PDF** flattens the document to a PDF — the whole thing by
-  default, or a chosen **page range**: each exported page is drawn at its true size with its background (a PDF page, an image, or a ruled sheet) and every
-  stroke and element merged on top, then written to the location you pick. Pages backed by an
-  **image** keep that picture in the export, at print-usable resolution. When a page came from an **imported
-  PDF**, its original page is **kept as vector content** and your annotations are laid over it as
-  vectors too — so re-exporting an unchanged PDF stays about its original size and sharpness instead
-  of ballooning from a rasterised copy. Use this to share an annotated copy; **Save** keeps the
-  editable `.xopp`.
-- **Export images** — the menu's **Export images** writes **one image file per page** instead of a
-  single document, so it asks you to pick a **folder** rather than a file name. Each page is
-  flattened exactly as the editor draws it — background (ruled sheet, imported PDF page, or picture)
-  with every **visible** layer composited on top; layers you have hidden stay out of the export — and
-  saved at **300 dpi**, print quality. Files are named `document-001.png`, `document-002.png` and so
-  on, zero-padded so the folder lists in page order. **PNG** (lossless), **JPEG** and **WebP** (both
-  quality 92) are supported; a page taller or wider than 8192 px at the chosen resolution is scaled
-  down to fit rather than blowing up memory. A page that can't be rendered is skipped, and the toast
-  tells you how many files actually landed.
+- **Export…** — one dialog in the ☰ menu drives every export. It asks four things:
+  - **Format** — **PDF**, **SVG**, **PNG**, **JPEG** or **WebP**.
+  - **File name** — the stem the exported files are named from (`document` by default).
+  - **Pages** — which pages go out, written as a comma-separated list of page numbers and ranges:
+    `1-3,5` is pages 1, 2, 3 and 5, `8-` runs from page 8 to the end, and **leaving it blank exports
+    the whole document**. The line under the field counts the pages your entry resolves to as you
+    type, and **Export…** is disabled if that count is zero.
+  - **Resolution** — **150**, **300** (the default) or **600 dpi**, shown only for the pixel formats;
+    PDF and SVG are vector output and have no resolution to choose.
+
+  What you're asked for next depends on the format. **PDF** is a single file, so you pick a
+  destination **file name and location**. **SVG and the image formats write one file per page**, so
+  you pick a **folder** instead, and the files land in it named `document-001.svg`,
+  `document-002.svg` and so on — zero-padded so the folder lists in page order.
+
+  Every page is flattened exactly as the editor draws it: its background (a ruled sheet, an imported
+  PDF page, or a picture) with the strokes and elements merged on top. In a **PDF** export, a page
+  that came from an **imported PDF** keeps its original page as **vector** content with your
+  annotations laid over it as vectors too — so re-exporting an unchanged PDF stays about its original
+  size and sharpness instead of ballooning from a rasterised copy; pages backed by an **image** keep
+  that picture at print-usable resolution. In an **image** export, layers you have hidden stay out of
+  the export, **PNG** is lossless while **JPEG** and **WebP** use quality 92, and a page taller or
+  wider than 8192 px at the chosen resolution is scaled down to fit rather than blowing up memory.
+  A page that can't be rendered is skipped, and the toast tells you how many files actually landed.
+
+  Use this to share a flattened copy; **Save** keeps the editable `.xopp`.
 - **Fonts in generated PDFs** — when NeXopp *generates* a PDF page for you (the text-import path), it
   typesets with **DejaVu Sans** (plus its **bold**, *oblique* and ***bold-oblique*** companions, used
   for markdown emphasis) and **DejaVu Sans Mono**, which ship inside the app. Because they are

@@ -665,7 +665,7 @@ app/
       EditorBackHandler.kt   # back peels off one transient editor state at a time before leaving the app
       PaneState.kt           # per-pane canvas state the chrome mirrors (zoom, page, layer, undo) + the pane count
       SplitLayout.kt         # two panes side by side with a draggable bar down the middle
-      EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import dialogs
+      EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import/export dialogs
       SideToolbar.kt         # left vertical rail: the shell + tool-group slots; each pop-up is a Toolbar*.kt below
       EditorTool.kt          # the editor's tool modes + their labels/icons (pure)
       ToolbarColorPopup.kt   # rail slot: the merged colour + tip-size drop-down (wraps ColorPalette.kt)
@@ -1277,6 +1277,22 @@ the file signature because the model stores encoded bytes without recording thei
 `<svg>` declares `xmlns:xlink` only when at least one `<image>` is emitted. A `<teximage>` with no
 rendered PNG, and any `RawElement` (preserved-but-unmodelled markup), are skipped silently.
 
+**Choosing an export.** All three exporters hang off **one** `ExportDialog` (`EditorDialogs.kt`),
+opened from the ☰ menu's **Export…** via `EditorUiState.showExport` like every other chooser. It
+collects a format, a file-name stem, a page spec and — only when `ExportFormat.isRaster` — a DPI from
+`EXPORT_DPI_OPTIONS`, resolving the spec through `PageRange.parse` on each keystroke so it can show
+the page count and disable confirm on an empty selection. The dialog knows nothing about storage: it
+hands the four choices up through `EditorScreen`'s `onExport` to `MainActivity.beginExport`, which
+re-resolves the spec against the **open document** (the authority on page count), stashes the result
+in the `pendingExport…` fields, and opens the picker `ExportFormat.isMultiFile` dictates —
+`CreateDocument` for PDF, `OpenDocumentTree` for SVG and the raster formats. When the picker returns,
+the folder launcher branches on `isRaster` into `exportRaster` (bitmap per page via `PageRasterizer`,
+encoded with the format's `CompressFormat`) or `exportSvg` (`SvgExporter` per page through a UTF-8
+writer); both create one child document per page named by `ExportFormat.fileName`, skip a page that
+fails rather than aborting, and toast the count actually written. Routing the picker off `isMultiFile`
+rather than a per-format `when` is the point of the flag: SAF's `CreateDocument` can only ever yield a
+single destination, so a per-page format asked for a file would silently export one page.
+
 **Fonts in generated PDFs.** The PDF **base-14** fonts (`PDType1Font.HELVETICA` and friends) only
 encode WinAnsi, so `PdfVectorPainter` drops any codepoint outside `0x20..0xFF`. That is acceptable
 for `.xopp` `<text>` elements — desktop Xournal++ owns their font description and the element is
@@ -1565,7 +1581,7 @@ selection is a **view-only** overlay derived from the PDF — it isn't part of t
 it doesn't affect round-trip (matching how desktop selects a PDF background's text).
 
 **Chrome (`ui/`).** `EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
-icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export PDF, Save,
+icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export…, Save,
 and Settings; a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
 Pages; and the canvas filling the rest. Each rail button owns its own `DropdownMenu`, so the pop-up
 is anchored to that button (opening to the right of the rail) rather than filling the screen. The

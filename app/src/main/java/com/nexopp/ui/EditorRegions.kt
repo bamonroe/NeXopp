@@ -16,8 +16,8 @@ import androidx.compose.material.icons.automirrored.filled.NoteAdd
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
@@ -77,8 +77,6 @@ fun EditorTopBar(
     onOpen: () -> Unit,
     onNewTab: () -> Unit,
     onSave: () -> Unit,
-    onExportPdf: () -> Unit,
-    onExportImages: () -> Unit,
     splitView: Boolean,
     onToggleSplitView: () -> Unit,
 ) {
@@ -100,8 +98,7 @@ fun EditorTopBar(
                 onSave = onSave,
                 onSaveAs = { ui.showSaveAs = true },
                 onImportPdf = { ui.showImportPdf = true },
-                onExportPdf = onExportPdf,
-                onExportImages = onExportImages,
+                onExport = { ui.showExport = true },
                 onSettings = { ui.showSettings = true },
                 splitView = splitView,
                 onToggleSplitView = onToggleSplitView,
@@ -493,8 +490,7 @@ private fun OverflowMenu(
     onSave: () -> Unit,
     onSaveAs: () -> Unit,
     onImportPdf: () -> Unit,
-    onExportPdf: () -> Unit,
-    onExportImages: () -> Unit,
+    onExport: () -> Unit,
     onSettings: () -> Unit,
     splitView: Boolean,
     onToggleSplitView: () -> Unit,
@@ -520,14 +516,9 @@ private fun OverflowMenu(
             onClick = { open = false; onImportPdf() },
         )
         DropdownMenuItem(
-            text = { Text("Export PDF") },
-            leadingIcon = { Icon(Icons.Filled.PictureAsPdf, contentDescription = null) },
-            onClick = { open = false; onExportPdf() },
-        )
-        DropdownMenuItem(
-            text = { Text("Export images") },
-            leadingIcon = { Icon(Icons.Filled.Image, contentDescription = null) },
-            onClick = { open = false; onExportImages() },
+            text = { Text("Export…") },
+            leadingIcon = { Icon(Icons.Filled.FileDownload, contentDescription = null) },
+            onClick = { open = false; onExport() },
         )
         DropdownMenuItem(
             text = { Text("Save") },

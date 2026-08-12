@@ -3,6 +3,8 @@ package com.nexopp.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,7 +27,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
+import com.nexopp.format.DEFAULT_EXPORT_DPI
+import com.nexopp.format.EXPORT_DPI_OPTIONS
+import com.nexopp.format.ExportFormat
 import com.nexopp.format.FontDescription
+import com.nexopp.format.PageRange
 import com.nexopp.format.SaveFormat
 import com.nexopp.render.ImportPdfMode
 import kotlin.math.roundToInt
@@ -209,6 +215,91 @@ fun TextBoxDialog(
             TextButton(onClick = { onConfirm(content, family, bold, italic, size.toDouble(), colorArgb) }) {
                 Text("Save")
             }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/**
+ * The one Export chooser, driving every export path: pick a [ExportFormat], name the files, choose
+ * which pages go out, and — for a pixel format — at what resolution.
+ *
+ * The page field takes the [PageRange] syntax (`"1-3,5"`, blank for the whole document) and is
+ * resolved on every keystroke so the supporting line can say how many pages the spec actually means;
+ * a spec that resolves to nothing disables the confirm button rather than exporting an empty run.
+ * The DPI row only appears for a raster format, since vector output has no resolution to choose.
+ *
+ * Which SAF picker the confirm opens is the caller's business — a single-file format wants a
+ * destination file, a per-page one wants a folder (see [ExportFormat.isMultiFile]).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ExportDialog(
+    pageCount: Int,
+    currentPage: Int,
+    onDismiss: () -> Unit,
+    onExport: (format: ExportFormat, pageSpec: String, dpi: Int, baseName: String) -> Unit,
+) {
+    var format by remember { mutableStateOf(ExportFormat.PDF) }
+    var baseName by remember { mutableStateOf("document") }
+    var spec by remember { mutableStateOf("") }
+    var dpi by remember { mutableStateOf(DEFAULT_EXPORT_DPI) }
+    val selected = PageRange.parse(spec, pageCount).size
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Format", style = MaterialTheme.typography.labelMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (f in ExportFormat.entries) {
+                        FilterChip(
+                            selected = format == f,
+                            onClick = { format = f },
+                            label = { Text(f.label) },
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = baseName,
+                    onValueChange = { baseName = it },
+                    label = { Text("File name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = spec,
+                    onValueChange = { spec = it },
+                    label = { Text("Pages") },
+                    // The page the user is looking at is the likeliest single-page export, so the
+                    // hint doubles as a worked example of the syntax.
+                    placeholder = { Text("all pages (e.g. 1-3, ${currentPage + 1})") },
+                    supportingText = {
+                        Text(if (selected == 1) "1 page" else "$selected pages")
+                    },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (format.isRaster) {
+                    Text("Resolution", style = MaterialTheme.typography.labelMedium)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (option in EXPORT_DPI_OPTIONS) {
+                            FilterChip(
+                                selected = dpi == option,
+                                onClick = { dpi = option },
+                                label = { Text("$option dpi") },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onExport(format, spec, dpi, baseName.ifBlank { "document" }) },
+                enabled = selected > 0,
+            ) { Text("Export…") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )

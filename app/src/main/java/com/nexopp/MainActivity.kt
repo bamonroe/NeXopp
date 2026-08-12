@@ -15,7 +15,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.nexopp.audio.AudioSession
+import com.nexopp.format.DEFAULT_EXPORT_DPI
 import com.nexopp.format.ExportFormat
+import com.nexopp.format.PageRange
 import com.nexopp.format.SaveFormat
 import com.nexopp.io.DocumentIo
 import com.nexopp.io.IncomingDocument
@@ -76,13 +78,13 @@ class MainActivity : ComponentActivity() {
     /** The mode chosen in the Import PDF dialog, kept until the SAF picker returns the PDF. */
     private var pendingImportMode: ImportPdfMode = ImportPdfMode.REPLACE
 
-    // What to export, kept until the folder picker returns a tree. The Export dialog sets these
-    // before launching; the defaults are what the plain "Export images" menu entry uses.
+    // What to export, kept between the Export dialog's confirm and the SAF picker returning a
+    // destination. [beginExport] fills them in; the launchers below read them back.
 
-    /** Raster format the pending export writes. */
-    internal var pendingExportFormat: ExportFormat = ExportFormat.PNG
+    /** Format the pending export writes. */
+    internal var pendingExportFormat: ExportFormat = ExportFormat.PDF
 
-    /** Zero-based page indices the pending export covers; empty means "every page". */
+    /** Zero-based page indices the pending export covers, already resolved from the range spec. */
     internal var pendingExportPages: List<Int> = emptyList()
 
     /** Resolution of the pending raster export, in dots per inch. */
@@ -196,29 +198,42 @@ class MainActivity : ComponentActivity() {
 
     private val exportPdfLauncher =
         registerForActivityResult(ActivityResultContracts.CreateDocument(PDF_MIME)) { uri ->
-            uri?.let { exportPdf(it) }
+            uri?.let { exportPdf(it, pendingExportPages) }
         }
 
     /**
-     * The destination for a raster export: a **folder**, not a file, because every format except
+     * The destination for a multi-file export: a **folder**, not a file, because every format except
      * PDF writes one document per page (see [ExportFormat.isMultiFile]).
      */
     private val exportFolderLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             uri?.let {
-                exportRaster(
-                    it, pendingExportFormat, pendingExportPages, pendingExportDpi, pendingExportBaseName,
-                )
+                val pages = pendingExportPages
+                val format = pendingExportFormat
+                if (format.isRaster) {
+                    exportRaster(it, format, pages, pendingExportDpi, pendingExportBaseName)
+                } else {
+                    exportSvg(it, pages, pendingExportBaseName)
+                }
             }
         }
 
-    /** Ask for a folder, then write every page of the active document there as an image. */
-    internal fun launchRasterExport(format: ExportFormat, pages: List<Int>, dpi: Int, baseName: String) {
+    /**
+     * Act on the Export dialog: resolve its [PageRange] [spec] against the open document, then open
+     * the picker the [format] needs — one destination file for PDF, a folder for everything else.
+     */
+    internal fun beginExport(format: ExportFormat, spec: String, dpi: Int, baseName: String) {
+        val pageCount = surface?.doc?.pages?.size ?: 0
         pendingExportFormat = format
-        pendingExportPages = pages.ifEmpty { surface?.doc?.pages?.indices?.toList().orEmpty() }
+        pendingExportPages = PageRange.parse(spec, pageCount)
         pendingExportDpi = dpi
         pendingExportBaseName = baseName
-        exportFolderLauncher.launch(null)
+        if (pendingExportPages.isEmpty()) {
+            toast("Nothing to export")
+            return
+        }
+        if (format.isMultiFile) exportFolderLauncher.launch(null)
+        else exportPdfLauncher.launch(format.fileName(baseName, null))
     }
 
     /**
@@ -267,9 +282,8 @@ class MainActivity : ComponentActivity() {
                         pendingImportMode = mode
                         importPdfLauncher.launch(arrayOf(PDF_MIME))
                     },
-                    onExportPdf = { exportPdfLauncher.launch("document.pdf") },
-                    onExportImages = {
-                        launchRasterExport(ExportFormat.PNG, emptyList(), DEFAULT_EXPORT_DPI, "document")
+                    onExport = { format, spec, dpi, baseName ->
+                        beginExport(format, spec, dpi, baseName)
                     },
                     onPickImage = { placement ->
                         pendingImagePlacement = placement
@@ -379,9 +393,6 @@ class MainActivity : ComponentActivity() {
         // is at stake.
         const val XOPP_MIME = "application/octet-stream"
         const val PDF_MIME = "application/pdf"
-
-        /** Raster-export resolution: print quality, and a sane default until the Export dialog lands. */
-        const val DEFAULT_EXPORT_DPI = 300
 
         /**
          * Folders under `filesDir` holding each pane's cached tab session (see [TabStore]), in pane

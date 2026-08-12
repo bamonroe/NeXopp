@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import com.nexopp.format.ExportFormat
 import com.nexopp.format.SaveFormat
 import com.nexopp.render.ImportPdfMode
 import com.nexopp.render.captureBackgroundRegion
@@ -47,6 +48,8 @@ fun BoxScope.EditorOverlays(
     currentSaveFormat: () -> SaveFormat,
     onSaveAs: (filename: String, format: SaveFormat) -> Unit,
     onImportPdf: (ImportPdfMode) -> Unit,
+    /** Export confirmed: the chosen format, [com.nexopp.format.PageRange] spec, DPI and file stem. */
+    onExport: (ExportFormat, String, Int, String) -> Unit,
 ) {
     val surface = pane.surface
     val palette = rememberColorPaletteState(settings, onSettingsChange)
@@ -100,6 +103,17 @@ fun BoxScope.EditorOverlays(
             initialFormat = currentSaveFormat(),
             onConfirm = { filename, format -> ui.showSaveAs = false; onSaveAs(filename, format) },
             onDismiss = { ui.showSaveAs = false },
+        )
+    }
+    if (ui.showExport) {
+        ExportDialog(
+            pageCount = pane.pageCount,
+            currentPage = pane.currentPage,
+            onDismiss = { ui.showExport = false },
+            onExport = { format, spec, dpi, baseName ->
+                ui.showExport = false
+                onExport(format, spec, dpi, baseName)
+            },
         )
     }
 }

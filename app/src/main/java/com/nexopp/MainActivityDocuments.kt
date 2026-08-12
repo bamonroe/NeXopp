@@ -19,6 +19,7 @@ import com.nexopp.render.blankDocument
 import com.nexopp.render.PdfPageCache
 import com.nexopp.render.PdfTextExtractor
 import com.nexopp.render.PdfTextIndexCache
+import com.nexopp.render.SvgExporter
 import com.nexopp.tabs.OpenTab
 import com.nexopp.tabs.TabStore
 import com.nexopp.ui.AppSettings
@@ -281,6 +282,37 @@ internal fun MainActivity.exportRaster(
         } finally {
             bitmap.recycle()
         }
+    }
+    toast(if (written == 1) "Exported 1 page" else "Exported $written pages")
+}.onFailure { toast("Export failed: ${it.message}") }
+
+/**
+ * Write [pages] to one SVG file each inside the picked folder, named like the raster export's files
+ * (see [ExportFormat.fileName]).
+ *
+ * The vector twin of [exportRaster], and multi-file for the same reason: SVG holds a single page, so
+ * a document becomes a folder of them. A page that fails to serialise is skipped rather than
+ * aborting the run, and the toast reports how many files actually landed.
+ */
+internal fun MainActivity.exportSvg(
+    treeUri: Uri,
+    pages: List<Int>,
+    baseName: String,
+) = runCatching {
+    val doc = surface?.doc ?: return@runCatching
+    val parent = DocumentsContract.buildDocumentUriUsingTree(
+        treeUri,
+        DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    val exporter = SvgExporter()
+    var written = 0
+    for (index in pages) {
+        val page = doc.pages.getOrNull(index) ?: continue
+        val child = DocumentsContract.createDocument(
+            contentResolver, parent, ExportFormat.SVG.mime, ExportFormat.SVG.fileName(baseName, index),
+        ) ?: continue
+        staging.writeTo(child) { out -> out.writer().use { exporter.export(page, it) } }
+        written++
     }
     toast(if (written == 1) "Exported 1 page" else "Exported $written pages")
 }.onFailure { toast("Export failed: ${it.message}") }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import com.nexopp.format.ExportFormat
 import com.nexopp.format.SaveFormat
 import com.nexopp.format.model.Tool
 import com.nexopp.render.DrawingSurfaceView
@@ -122,8 +123,12 @@ fun EditorScreen(
     onSaveAs: (filename: String, format: SaveFormat) -> Unit,
     currentSaveFormat: () -> SaveFormat,
     onImportPdf: (ImportPdfMode) -> Unit,
-    onExportPdf: () -> Unit,
-    onExportImages: () -> Unit,
+    /**
+     * Export confirmed in the Export dialog: the chosen format, the [com.nexopp.format.PageRange]
+     * spec typed into the Pages field, the raster DPI, and the file-name stem. The screen doesn't
+     * know which SAF picker that needs — the host resolves the spec and opens the right one.
+     */
+    onExport: (ExportFormat, String, Int, String) -> Unit,
     onPickImage: (Placement) -> Unit,
     /** A pane's canvas has just been built: its index, then the view. */
     onSurfaceCreated: (Int, DrawingSurfaceView) -> Unit,
@@ -151,8 +156,6 @@ fun EditorScreen(
             onOpen = onOpen,
             onNewTab = { tabs.onNew() },
             onSave = onSave,
-            onExportPdf = onExportPdf,
-            onExportImages = onExportImages,
             splitView = splitView,
             onToggleSplitView = onToggleSplitView,
         )
@@ -224,6 +227,7 @@ fun EditorScreen(
             currentSaveFormat = currentSaveFormat,
             onSaveAs = onSaveAs,
             onImportPdf = onImportPdf,
+            onExport = onExport,
         )
     }
 }

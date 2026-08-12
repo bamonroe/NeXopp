@@ -58,3 +58,9 @@ enum class ExportFormat(
         if (pageIndex == null) "$base.$extension"
         else "$base-${(pageIndex + 1).toString().padStart(3, '0')}.$extension"
 }
+
+/** Raster-export resolution the Export dialog starts on: print quality without a huge bitmap. */
+const val DEFAULT_EXPORT_DPI = 300
+
+/** The resolutions the Export dialog offers for a raster format: screen, print, and oversampled. */
+val EXPORT_DPI_OPTIONS = listOf(150, DEFAULT_EXPORT_DPI, 600)
