@@ -17,6 +17,32 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-convert-a-bitmapimage-into-an-imageelement"
+title = "rnote: convert a bitmapimage into an ImageElement"
+description = """
+Add fun bitmapImageToImage(stroke: RnoteStroke): ImageElement? to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt. Returns null unless stroke.kind == "bitmapimage". Shape documented in docs/architecture.md, 'The stroke & pen mapping (measured against the fixture twins)'.
+
+The catch: body.image.data is NOT a PNG. It is base64 of a raw pixel buffer whose layout is body.image.memory_format (the fixtures use "R8g8b8a8Premultiplied"), sized body.image.pixel_width x pixel_height. ImageElement.data must be PNG bytes, so this task needs an encoder.
+
+Steps:
+1. Add app/src/main/java/com/nexopp/format/rnote/RawImageCodec.kt with:
+   - fun decodeBase64(text: String): ByteArray — use java.util.Base64.getMimeDecoder() (JVM + Android 8+, and it tolerates line breaks).
+   - fun unpremultiply(rgba: ByteArray): ByteArray — in place of premultiplied alpha, divide each of r,g,b by a/255 (leave the pixel untouched when a == 0). Skip when memory_format does not end in "Premultiplied".
+   - fun encodePng(rgba: ByteArray, width: Int, height: Int): ByteArray — a minimal RGBA8 PNG writer: 8-byte signature, IHDR (bit depth 8, colour type 6, no interlace), one IDAT of the scanlines each prefixed by filter byte 0 and compressed with java.util.zip.Deflater, then IEND. CRC32 per chunk with java.util.zip.CRC32. Do NOT use android.graphics.Bitmap — unit tests run on the plain JVM where it is a stub that throws.
+2. In bitmapImageToImage: pixels = encodePng(unpremultiply(decodeBase64(body.image.data)), pixel_width, pixel_height).
+3. Bounds from body.rectangle: centre = affineTranslation(rectangle.transform.affine), half extents = rectangle.cuboid.half_extents[0]/[1]. left = pxToPt(cx - hx), right = pxToPt(cx + hx), top = pxToPt(cy - hy), bottom = pxToPt(cy + hy). Rotation/shear in the affine is dropped per the lossy-mapping policy.
+
+Tests: app/src/test/java/com/nexopp/format/rnote/RawImageCodecTest.kt asserts encodePng output starts with the PNG signature bytes, contains the IHDR/IDAT/IEND chunk names, and that inflating the IDAT payload yields width*height*4 + height bytes; plus an unpremultiply case with a half-alpha pixel. In RnoteStrokeConvertTest.kt use app/src/test/resources/fixtures/rnote/text-image.rnote, whose bitmapimage is a 2x2 red image in a 50 pt box: assert the box is left=100, top=100, right=150, bottom=150 within 1e-2 and that data is a valid PNG signature.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-convert-a-textstroke-into-a-textelement"
 title = "rnote: convert a textstroke into a TextElement"
 description = """

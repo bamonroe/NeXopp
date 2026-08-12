@@ -346,9 +346,20 @@ through it. Colour is four `0.0`–`1.0` channels versus `XoppColor`'s 8-bit `#r
 | `style.smooth.line_style` (`solid`…) | `LineStyle` | `solid ↔ PLAIN`; the dashed family still needs a name-by-name check |
 | `style.smooth.fill_color` | `Stroke.fill` | `null` ↔ no fill; Rnote fill is full RGBA, ours an alpha |
 | `textstroke` `{text,transform,text_style}` | `TextElement` | `font_family`/`font_size`/`color` map; the affine's translation is (x, y). Defaults: `Sans`, 16 px = 12 pt, opaque black, origin |
-| `bitmapimage` `{image:{data,pixel_width,pixel_height,memory_format},rectangle}` | `ImageElement` | **not** PNG — `data` is a base64 raw pixel buffer (`R8g8b8a8Premultiplied`); needs an encode/decode step |
+| `bitmapimage` `{image:{data,pixel_width,pixel_height,memory_format},rectangle}` | `ImageElement` | **not** PNG — `data` is a base64 raw pixel buffer (`R8g8b8a8Premultiplied`), re-encoded by `RawImageCodec`; the `rectangle` is the box (see below) |
 | `shapestroke` | `Stroke` | parametric shape; import flattens to a polyline (no fixture yet — `rnote-cli import` never emits one) |
 | `vectorimage` | — | SVG; nothing in `.xopp` can hold it |
+
+**Images.** A `bitmapimage` carries *uncompressed* pixels: `image.data` is base64 of a
+`pixel_width × pixel_height` buffer in `image.memory_format` (the fixtures use
+`R8g8b8a8Premultiplied`), while `.xopp` embeds a PNG. `RawImageCodec` bridges the two — base64
+decode, un-premultiply the alpha when the format name says so, then write a minimal RGBA8 PNG
+(`Deflater` + `CRC32`, filter type 0, one `IDAT`). It deliberately avoids `android.graphics.Bitmap`,
+which is a throwing stub under JVM unit tests. The box comes from the stroke's own `rectangle`: the
+affine's translation is the **centre** and `cuboid.half_extents` the half width/height, so
+`left = (cx − hx) ÷ 4/3` and so on — `text-image.rnote`'s `166.667 ± 33.333` px is the `.xopp`
+twin's 100–150 pt box. Rotation and shear in that affine are dropped, so a rotated image lands as
+its upright bounding box.
 
 **Pressure.** For `plain.xopp`'s pressure stroke (`width="1.41 1.20 0.98 0.76"`) Rnote wrote
 `stroke_width 1.6` with pressures `1.0, 0.817, 0.633`: it sets `stroke_width = max(point widths) ×
@@ -820,7 +831,11 @@ app/
                              #   tolerates the 0.6-0.12 flat document shape, not yet a Document
         RnoteStrokeConvert.kt #  brushstroke -> model.Stroke: pressure polyline to StrokePoints,
                              #   stroke_width x pressure to per-vertex width, layer to Tool,
-                             #   line_style/fill_color across; null for any other stroke kind
+                             #   line_style/fill_color across; textstroke -> model.TextElement;
+                             #   bitmapimage -> model.ImageElement (rectangle -> pt box, pixels
+                             #   re-encoded); null for any other stroke kind
+        RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
+                             #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
                              #   ARGB int, translation out of a 9-element transform.affine
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)

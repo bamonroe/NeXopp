@@ -2,6 +2,7 @@ package com.nexopp.format.rnote
 
 import com.nexopp.format.json.JsonObject
 import com.nexopp.format.json.JsonValue
+import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.LineStyle
 import com.nexopp.format.model.Stroke
 import com.nexopp.format.model.StrokePoint
@@ -97,6 +98,68 @@ fun textStrokeToText(stroke: RnoteStroke): TextElement? {
         content = content,
         extraAttrs = emptyMap(),
     )
+}
+
+/**
+ * Convert one `bitmapimage` into an [ImageElement].
+ *
+ * Rnote keeps the pixels raw — `image.data` is base64 of an uncompressed buffer in
+ * `image.memory_format` — while `.xopp` embeds a PNG, so the pixels are un-premultiplied and
+ * re-encoded through [RawImageCodec]. The bounds come from the stroke's `rectangle`: its affine's
+ * translation is the centre and `cuboid.half_extents` the half width and height. Rotation and
+ * shear in the affine have no `.xopp` home and are dropped per the lossy-mapping policy, so a
+ * rotated image lands as its upright bounding box.
+ *
+ * @param stroke A slot from [RnoteSnapshot.strokes].
+ * @return The converted image, or null if [stroke] is not a `bitmapimage`.
+ * @throws IllegalArgumentException If the image or its rectangle is missing or malformed.
+ */
+fun bitmapImageToImage(stroke: RnoteStroke): ImageElement? {
+    if (stroke.kind != "bitmapimage") return null
+    val image = stroke.body.obj("image")
+        ?: throw IllegalArgumentException("missing bitmapimage.image")
+    val width = image.obj("pixel_width")?.num()?.toInt()
+        ?: throw IllegalArgumentException("missing bitmapimage.image.pixel_width")
+    val height = image.obj("pixel_height")?.num()?.toInt()
+        ?: throw IllegalArgumentException("missing bitmapimage.image.pixel_height")
+    val raw = RawImageCodec.decodeBase64(
+        image.obj("data")?.str() ?: throw IllegalArgumentException("missing bitmapimage.image.data"),
+    )
+    val straight =
+        if (RawImageCodec.isPremultiplied(image.obj("memory_format")?.str())) {
+            RawImageCodec.unpremultiply(raw)
+        } else {
+            raw
+        }
+    val (cx, cy) = rectangleCentre(stroke.body.obj("rectangle"))
+    val (hx, hy) = rectangleHalfExtents(stroke.body.obj("rectangle"))
+    return ImageElement(
+        left = pxToPt(cx - hx),
+        top = pxToPt(cy - hy),
+        right = pxToPt(cx + hx),
+        bottom = pxToPt(cy + hy),
+        data = RawImageCodec.encodePng(straight, width, height),
+        extraAttrs = emptyMap(),
+    )
+}
+
+/** The centre of a `rectangle`, in px — the translation of its own affine. */
+private fun rectangleCentre(rectangle: JsonValue?): Pair<Double, Double> {
+    val affine = rectangle?.obj("transform")?.obj("affine")?.arr()
+        ?: throw IllegalArgumentException("missing rectangle.transform.affine")
+    return affineTranslation(
+        affine.map { it.num() ?: throw IllegalArgumentException("malformed transform.affine") },
+    )
+}
+
+/** The half width and height of a `rectangle`, in px. */
+private fun rectangleHalfExtents(rectangle: JsonValue?): Pair<Double, Double> {
+    val extents = rectangle?.obj("cuboid")?.obj("half_extents")?.arr()
+        ?: throw IllegalArgumentException("missing rectangle.cuboid.half_extents")
+    val x = extents.getOrNull(0)?.num()
+    val y = extents.getOrNull(1)?.num()
+    if (x == null || y == null) throw IllegalArgumentException("malformed cuboid.half_extents")
+    return x to y
 }
 
 /** A `transform.affine`'s translation in pt, or the origin when the stroke carries no transform. */

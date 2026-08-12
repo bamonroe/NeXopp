@@ -3,6 +3,7 @@ package com.nexopp.format.rnote
 import com.nexopp.format.json.JsonReader
 import com.nexopp.format.model.LineStyle
 import com.nexopp.format.model.Tool
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -144,6 +145,44 @@ class RnoteStrokeConvertTest {
             )
         }
         assertEquals("missing textstroke.text", error.message)
+    }
+
+    @Test
+    fun `the bitmapimage keeps its pt box and comes back as a png`() {
+        val stroke = strokes("text-image").first { it.kind == "bitmapimage" }
+        val image = bitmapImageToImage(stroke)!!
+        assertEquals(100.0, image.left, 1e-2)
+        assertEquals(100.0, image.top, 1e-2)
+        assertEquals(150.0, image.right, 1e-2)
+        assertEquals(150.0, image.bottom, 1e-2)
+        assertArrayEquals(
+            RawImageCodec.PNG_SIGNATURE,
+            image.data.copyOfRange(0, RawImageCodec.PNG_SIGNATURE.size),
+        )
+    }
+
+    @Test
+    fun `a stroke of another kind is not an image`() {
+        assertNull(bitmapImageToImage(strokes("text-image").first { it.kind == "textstroke" }))
+    }
+
+    @Test
+    fun `a bitmapimage with no rectangle is rejected by name`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            bitmapImageToImage(
+                RnoteStroke(
+                    1,
+                    "bitmapimage",
+                    JsonReader(
+                        """{"image":{"data":"/wAA/w==","pixel_width":1,"pixel_height":1}}""",
+                    ).parse(),
+                    1L,
+                    "image",
+                    0,
+                ),
+            )
+        }
+        assertEquals("missing rectangle.transform.affine", error.message)
     }
 
     @Test
