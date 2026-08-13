@@ -65,7 +65,7 @@ object TabIndex {
                 title = unescape(f[1]),
                 document = placeholder(),
                 uri = unescape(f[2]).ifEmpty { null },
-                format = runCatching { SaveFormat.valueOf(f[3]) }.getOrDefault(SaveFormat.XOPP_GZIP),
+                format = formatOf(f[3]),
                 pdfPath = unescape(f[4]).ifEmpty { null },
                 page = f[5].toIntOrNull() ?: 0,
                 docKey = f.getOrNull(6)?.let(::unescape)?.ifEmpty { null } ?: id,
@@ -73,6 +73,18 @@ object TabIndex {
             )
         }
         return TabSession(tabs, active.coerceIn(0, maxOf(0, tabs.size - 1)))
+    }
+
+    /**
+     * Resolve a stored format name. Sessions written before the [SaveFormat] rename hold the old
+     * member names on disk — `ORIGINAL` for what is now [SaveFormat.XOPP_GZIP] and `ZIPPED` for
+     * [SaveFormat.XOPP_ZIP] — so those are translated before the current names are tried. Anything
+     * still unrecognised falls back to [SaveFormat.XOPP_GZIP], the default format.
+     */
+    private fun formatOf(name: String): SaveFormat = when (name) {
+        "ORIGINAL" -> SaveFormat.XOPP_GZIP
+        "ZIPPED" -> SaveFormat.XOPP_ZIP
+        else -> runCatching { SaveFormat.valueOf(name) }.getOrDefault(SaveFormat.XOPP_GZIP)
     }
 
     /** Escape the separators (and the escape character itself) so a field can hold any text. */

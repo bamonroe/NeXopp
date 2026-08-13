@@ -55,6 +55,30 @@ class TabIndexTest {
     }
 
     @Test
+    fun `a pre-rename session's ORIGINAL format decodes to XOPP_GZIP`() {
+        val back = TabIndex.decode("active\t0\nt1\tone\t\tORIGINAL\t\t0\n") { doc() }
+        assertEquals(SaveFormat.XOPP_GZIP, back.tabs[0].format)
+    }
+
+    @Test
+    fun `a pre-rename session's ZIPPED format decodes to XOPP_ZIP`() {
+        val back = TabIndex.decode("active\t0\nt1\tone\t\tZIPPED\t\t0\n") { doc() }
+        assertEquals(SaveFormat.XOPP_ZIP, back.tabs[0].format)
+    }
+
+    @Test
+    fun `a stored RNOTE format decodes to RNOTE`() {
+        val back = TabIndex.decode("active\t0\nt1\tone\t\tRNOTE\t\t0\n") { doc() }
+        assertEquals(SaveFormat.RNOTE, back.tabs[0].format)
+    }
+
+    @Test
+    fun `encode keeps writing the current enum names`() {
+        val session = TabSession(listOf(OpenTab("t1", "a", doc(), format = SaveFormat.XOPP_ZIP)), 0)
+        assertEquals(true, TabIndex.encode(session).contains("XOPP_ZIP"))
+    }
+
+    @Test
     fun `an active index past the end is clamped`() {
         val back = TabIndex.decode("active\t9\nt1\tone\t\tXOPP_GZIP\t\t0\n") { doc() }
         assertEquals(0, back.activeIndex)

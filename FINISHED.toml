@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "tabindex-accept-the-legacy-original-zipped-format-names-on-restore"
+title = "TabIndex: accept the legacy ORIGINAL/ZIPPED format names on restore"
+description = """
+After the SaveFormat rename, a session index written by an older build stores format names that no longer resolve, and TabIndex.decode's runCatching falls back to the default — silently downgrading a restored ZIPPED tab to gzip.
+
+In app/src/main/java/com/nexopp/tabs/TabIndex.kt, replace the inline
+  format = runCatching { SaveFormat.valueOf(f[3]) }.getOrDefault(SaveFormat.ORIGINAL)
+with a private fun formatOf(name: String): SaveFormat that maps the legacy names first —
+"ORIGINAL" -> SaveFormat.XOPP_GZIP, "ZIPPED" -> SaveFormat.XOPP_ZIP — then tries
+SaveFormat.valueOf(name), defaulting to SaveFormat.XOPP_GZIP for anything unrecognised. Document in its KDoc that the legacy names are what pre-rename sessions on disk contain.
+
+Add tests to app/src/test/java/com/nexopp/tabs/TabIndexTest.kt: a hand-written index line carrying ORIGINAL decodes to XOPP_GZIP; one carrying ZIPPED decodes to XOPP_ZIP; one carrying RNOTE decodes to RNOTE; one carrying junk decodes to XOPP_GZIP. Encode must keep writing the current enum names (round-trip test stays green).
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "saveformat-rename-members-and-give-each-its-mime-extension-and-label"
 title = "SaveFormat: rename members and give each its mime, extension and label"
 description = """
