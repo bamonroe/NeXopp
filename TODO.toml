@@ -36,31 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "make-the-suggested-save-file-name-follow-the-save-format"
-title = "Make the suggested save file name follow the save format"
-description = """
-app/src/main/java/com/nexopp/io/SaveTarget.kt hard-codes XOPP_SUFFIX = ".xopp", so a document saved as .rnote would still be offered a .xopp name.
-
-Replace xoppNameFor(sourceName: String) with:
-  fun saveNameFor(sourceName: String, format: SaveFormat): String
-Same rules as today (trim; empty -> "Untitled.<ext>"; only a real extension is replaced, a leading dot is part of the name, a name with no dot gains one), but the suffix is "." + format.extension and the early-return checks that suffix case-insensitively. Keep XOPP_SUFFIX only if something else still needs it; otherwise delete it and derive the suffix from the format.
-
-Update the two call sites in app/src/main/java/com/nexopp/MainActivityDocuments.kt (the LoadedFile.Pdf and LoadedFile.Image branches, around lines 94 and 109) to pass the saveFormat they just set.
-
-Update app/src/test/java/com/nexopp/io/SaveTargetTest.kt: every existing case gains a SaveFormat.XOPP_GZIP argument and keeps its expectation, plus new cases saveNameFor("bhm_prior.pdf", SaveFormat.RNOTE) == "bhm_prior.rnote", saveNameFor("notes.rnote", SaveFormat.RNOTE) == "notes.rnote", and saveNameFor("", SaveFormat.RNOTE) == "Untitled.rnote".
-
-Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "refactor"
-urgency = "normal"
-order = 320
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "save-as-dialog-offer-rnote-and-swap-the-name-s-extension-with-the-format"
 title = "Save As dialog: offer Rnote and swap the name's extension with the format"
 description = """

@@ -10,7 +10,7 @@ import com.nexopp.format.SaveFormat
 import com.nexopp.io.LoadedFile
 import com.nexopp.io.StorageLimits
 import com.nexopp.io.UriStaging
-import com.nexopp.io.xoppNameFor
+import com.nexopp.io.saveNameFor
 import com.nexopp.render.DrawingSurfaceView
 import com.nexopp.render.ImageImport
 import com.nexopp.render.ImportPdfMode
@@ -91,7 +91,7 @@ internal fun MainActivity.loadDocument(staged: File, source: Uri) {
             // plain Save asks for a destination instead of writing document bytes over the PDF,
             // and suggest the PDF's own name with the extension swapped. The PDF itself stays on
             // as the page background, so the saved file still opens over it in desktop Xournal++.
-            pendingSaveName = xoppNameFor(displayName(source))
+            pendingSaveName = saveNameFor(displayName(source), saveFormat)
             tabs.updateActive { it.copy(title = pendingSaveName, uri = null) }
             tabsTick.value++
             return
@@ -106,7 +106,7 @@ internal fun MainActivity.loadDocument(staged: File, source: Uri) {
             }
             // Like a PDF import, the tab has no `.xopp` behind it yet: drop the source URI so a
             // plain Save asks where to put one instead of writing document bytes over the image.
-            pendingSaveName = xoppNameFor(loaded.name)
+            pendingSaveName = saveNameFor(loaded.name, saveFormat)
             tabs.updateActive { it.copy(title = pendingSaveName, uri = null) }
             tabsTick.value++
             return

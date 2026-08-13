@@ -726,7 +726,7 @@ They share a *shape*, not a type.
 **The picker needs no second launcher.** Neither `.xopp` nor `.rnote` has a registered MIME type,
 so all three members keep `application/octet-stream` and the single `CreateDocument` launcher
 registered in `MainActivity` still serves every save. Only the suggested **file name** varies: the
-`xoppNameFor` helper in `io/SaveTarget.kt` becomes format-aware and swaps in `format.extension`.
+`saveNameFor(sourceName, format)` helper in `io/SaveTarget.kt` swaps in `format.extension`.
 
 **A file opened as `.rnote` stays `.rnote`.** Format stickiness is unchanged: opening adopts the
 format the file was stored in (`FileKind.RNOTE` → `SaveFormat.RNOTE`, filling the empty cell in the
@@ -1073,7 +1073,7 @@ app/
       ScratchDir.kt          # unique-per-call file names (staging and both stores), so overlapping writes can't collide
       StoreFiles.kt          # the sweep both stores share: drop unreferenced files, then trim oldest-first to a byte budget
       IncomingDocument.kt    # picks the document URI out of an incoming view/edit intent (pure, testable)
-      SaveTarget.kt          # the .xopp suffix we always write, and the name to suggest when a PDF is first saved
+      SaveTarget.kt          # the name to suggest, in the save format's extension, when a PDF is first saved
       PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index, byte-budget eviction
       ImageStore.kt          # one never-rewritten copy per pixmap background reference; same liveness sweep and byte budget
       ImageStore.kt          # never-rewritten copy of every pixmap background picture; same sweep and byte budget
