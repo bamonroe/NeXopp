@@ -17,6 +17,32 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-lay-fixed-pages-back-onto-the-canvas-on-export"
+title = "rnote: lay fixed pages back onto the canvas on export"
+description = """
+The export-side geometry, mirroring the import assembler. Add `app/src/main/java/com/nexopp/format/rnote/RnoteDocumentWriterGeometry.kt` (the JSON serialisation itself is a later task; this one is pure geometry and slot assignment, unit-testable on its own).
+
+Per docs/architecture.md 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds':
+
+`fun canvasFormat(document: Document): RnoteFormat` — from page 1: width = page.width * (4.0/3.0), height = page.height * (4.0/3.0), dpi = 96.0, orientation = if (page.width <= page.height) "portrait" else "landscape". Empty document: A4, 793.701 x 1122.52.
+
+`fun pageOriginsPx(document: Document): List<Double>` — cumulative y offsets in px: page 0 at 0.0, page i at the sum of preceding page heights * (4.0/3.0). For uniform pages this equals i * format.height.
+
+`fun canvasExtent(document: Document): RnoteBounds` — x = 0.0, y = 0.0, maxX = widest page * (4.0/3.0), maxY = sum of page heights * (4.0/3.0). The writer emits layout "fixed_size" (NOT "infinite"), so Rnote draws page boundaries where we do.
+
+`fun slotFor(element: Element, layer: Layer, layerIndex: Int): Pair<String, Int?>` returning (layer name, userLayer index) — in order: a Stroke with Tool.HIGHLIGHTER -> ("highlighter", null); an ImageElement -> ("image", null); a Layer.name that is exactly "document", "image", "highlighter" or "user_layer <n>" -> that slot; otherwise ("user_layer", layerIndex).
+
+`fun hasMixedPageSizes(document: Document): Boolean` — true when any page differs from page 1 in width or height. The save path uses this to warn that re-import will re-page the document wrongly.
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteDocumentWriterGeometryTest.kt`: load `fixtures/backgrounds.xopp` through the existing .xopp reader and assert canvasFormat is 793.701 x 1122.52 within 0.01 and pageOriginsPx is [0, 1122.52, 2245.04, 3367.56, 4490.08] within 0.01 — the same stacking rnote-cli produced; assert hasMixedPageSizes is false for it; assert slotFor puts a highlighter stroke on "highlighter" and an image on "image" regardless of its layer. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-assemble-a-document-from-the-snapshot"
 title = "rnote: assemble a Document from the snapshot"
 description = """

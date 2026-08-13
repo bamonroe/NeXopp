@@ -1032,6 +1032,11 @@ app/
                              #   pageLayout() (page size in pt, page count, origin shift),
                              #   pageIndexFor() (top edge decides, never splits) and
                              #   pageOriginPx() (px offset to add per page)
+        RnoteDocumentWriterGeometry.kt # the pages->canvas geometry above, the export mirror of
+                             #   the two files below: canvasFormat() (page 1 back into px),
+                             #   pageOriginsPx() (cumulative y offsets, no gap), canvasExtent()
+                             #   (widest page x whole stack), slotFor() (element -> rnote layer
+                             #   slot) and hasMixedPageSizes() (the re-pages-wrongly warning)
         RnoteLayerStack.kt   #   the canvas->layers rule above, on slot names alone:
                              #   layerSlotName() (stroke -> "user_layer n"/"highlighter"/...),
                              #   layerOrder() (fixed upstream z-order, highlighter below the pen
