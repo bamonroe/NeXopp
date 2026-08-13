@@ -33,6 +33,7 @@ import com.nexopp.format.ExportFormat
 import com.nexopp.format.FontDescription
 import com.nexopp.format.PageRange
 import com.nexopp.format.SaveFormat
+import com.nexopp.io.saveNameFor
 import com.nexopp.render.ImportPdfMode
 import kotlin.math.roundToInt
 
@@ -40,10 +41,11 @@ import kotlin.math.roundToInt
 private val TEXT_FAMILIES = listOf("Sans", "Serif", "Monospace")
 
 /**
- * "Save As" chooser: name the file and pick the on-disk format. [SaveFormat.XOPP_GZIP] writes the
- * standard gzip `.xopp` (a PDF background stays linked by location); [SaveFormat.XOPP_ZIP] writes a
- * single self-contained file with the PDF embedded inside (see `docs/architecture.md`). The choice
- * becomes sticky — later plain Saves reuse it — so the picker pre-selects the current format.
+ * "Save As" chooser: name the file and pick the on-disk format. [SaveFormat.XOPP_GZIP] and
+ * [SaveFormat.XOPP_ZIP] both write Xournal++ documents, while [SaveFormat.RNOTE] writes Rnote's own
+ * format and cannot carry every Xournal++ feature (see `docs/architecture.md`). The choice becomes
+ * sticky — later plain Saves reuse it — so the picker pre-selects the current format, and picking a
+ * different one swaps the name's extension via [saveNameFor] without touching the typed stem.
  */
 @Composable
 fun SaveAsDialog(
@@ -51,8 +53,12 @@ fun SaveAsDialog(
     onConfirm: (filename: String, format: SaveFormat) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var name by remember { mutableStateOf("document.xopp") }
+    var name by remember { mutableStateOf("document.${initialFormat.extension}") }
     var format by remember { mutableStateOf(initialFormat) }
+    fun pick(picked: SaveFormat) {
+        format = picked
+        name = saveNameFor(name, picked)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Save As") },
@@ -70,13 +76,19 @@ fun SaveAsDialog(
                     selected = format == SaveFormat.XOPP_GZIP,
                     title = "Original (gzip)",
                     subtitle = "Standard Xournal++ file; any PDF background stays linked by location.",
-                    onClick = { format = SaveFormat.XOPP_GZIP },
+                    onClick = { pick(SaveFormat.XOPP_GZIP) },
                 )
                 FormatOption(
                     selected = format == SaveFormat.XOPP_ZIP,
                     title = "Zipped (single file)",
                     subtitle = "One portable file with the PDF embedded inside.",
-                    onClick = { format = SaveFormat.XOPP_ZIP },
+                    onClick = { pick(SaveFormat.XOPP_ZIP) },
+                )
+                FormatOption(
+                    selected = format == SaveFormat.RNOTE,
+                    title = "Rnote",
+                    subtitle = "Rnote document (.rnote); some Xournal++ features are not preserved.",
+                    onClick = { pick(SaveFormat.RNOTE) },
                 )
             }
         },

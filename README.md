@@ -743,6 +743,11 @@ authoritative flow; don't invent another one.
       (1.3.5) has a bug in its ZIP reader that rejects a *correctly* labelled archive, so NeXopp
       deliberately writes a slightly non-standard internal marker to open on that release. This is a
       temporary workaround; it will be reverted to the standard once upstream fixes the bug.
+  - **Rnote** — an Rnote document (`.rnote`). Rnote's format can't carry every Xournal++ feature,
+    so some detail is not preserved; pick it only when you want the file in Rnote.
+
+  Picking a format also rewrites the **extension in the name field** to match (`notes.xopp` becomes
+  `notes.rnote` and back); the stem you typed is left alone.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 

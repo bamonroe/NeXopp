@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "save-as-dialog-offer-rnote-and-swap-the-name-s-extension-with-the-format"
+title = "Save As dialog: offer Rnote and swap the name's extension with the format"
+description = """
+In app/src/main/java/com/nexopp/ui/EditorDialogs.kt, SaveAsDialog (around lines 42-86) offers exactly two .xopp variants and seeds the name field with the literal "document.xopp".
+
+Changes:
+1. Add a third FormatOption below the existing two: selected = format == SaveFormat.RNOTE, title "Rnote", subtitle "Rnote document (.rnote); some Xournal++ features are not preserved.", onClick sets format = SaveFormat.RNOTE.
+2. Seed the name from the initial format instead of a literal: remember { mutableStateOf("document." + initialFormat.extension) }.
+3. When the user picks a different format, rewrite the name's extension in place: on each FormatOption click, set name = saveNameFor(name, newFormat) (the helper from the 'suggested save file name follows the format' task), so switching to Rnote turns "notes.xopp" into "notes.rnote" and back. Do not touch the stem the user typed.
+4. Update the KDoc: it names ORIGINAL/ZIPPED and must describe all three members after the rename, pointing at docs/architecture.md rather than restating the container detail.
+
+emulator_debug is on for this one: install and open the Save As dialog, screenshot it with three options, and check that tapping Rnote rewrites the extension in the name field.
+
+Verify with: scripts/build.sh, then the emulator pass."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "make-the-suggested-save-file-name-follow-the-save-format"
 title = "Make the suggested save file name follow the save format"
 description = """
