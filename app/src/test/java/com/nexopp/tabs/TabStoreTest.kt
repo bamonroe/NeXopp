@@ -29,8 +29,8 @@ class TabStoreTest {
         val store = TabStore(tmp.newFolder())
         val session = TabSession(
             tabs = listOf(
-                OpenTab("t1", "first.xopp", doc(111.0), "content://docs/1", SaveFormat.ZIPPED, "/cache/pdf-1.pdf", 2),
-                OpenTab("t2", "second.xopp", doc(222.0), "content://docs/2", SaveFormat.ZIPPED, "/cache/pdf-2.pdf", 5),
+                OpenTab("t1", "first.xopp", doc(111.0), "content://docs/1", SaveFormat.XOPP_ZIP, "/cache/pdf-1.pdf", 2),
+                OpenTab("t2", "second.xopp", doc(222.0), "content://docs/2", SaveFormat.XOPP_ZIP, "/cache/pdf-2.pdf", 5),
             ),
             activeIndex = 1,
         )

@@ -40,8 +40,8 @@ import kotlin.math.roundToInt
 private val TEXT_FAMILIES = listOf("Sans", "Serif", "Monospace")
 
 /**
- * "Save As" chooser: name the file and pick the on-disk format. [SaveFormat.ORIGINAL] writes the
- * standard gzip `.xopp` (a PDF background stays linked by location); [SaveFormat.ZIPPED] writes a
+ * "Save As" chooser: name the file and pick the on-disk format. [SaveFormat.XOPP_GZIP] writes the
+ * standard gzip `.xopp` (a PDF background stays linked by location); [SaveFormat.XOPP_ZIP] writes a
  * single self-contained file with the PDF embedded inside (see `docs/architecture.md`). The choice
  * becomes sticky — later plain Saves reuse it — so the picker pre-selects the current format.
  */
@@ -67,16 +67,16 @@ fun SaveAsDialog(
                 )
                 Text("Format", style = MaterialTheme.typography.labelMedium)
                 FormatOption(
-                    selected = format == SaveFormat.ORIGINAL,
+                    selected = format == SaveFormat.XOPP_GZIP,
                     title = "Original (gzip)",
                     subtitle = "Standard Xournal++ file; any PDF background stays linked by location.",
-                    onClick = { format = SaveFormat.ORIGINAL },
+                    onClick = { format = SaveFormat.XOPP_GZIP },
                 )
                 FormatOption(
-                    selected = format == SaveFormat.ZIPPED,
+                    selected = format == SaveFormat.XOPP_ZIP,
                     title = "Zipped (single file)",
                     subtitle = "One portable file with the PDF embedded inside.",
-                    onClick = { format = SaveFormat.ZIPPED },
+                    onClick = { format = SaveFormat.XOPP_ZIP },
                 )
             }
         },

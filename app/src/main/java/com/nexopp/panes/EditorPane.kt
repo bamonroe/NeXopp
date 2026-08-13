@@ -31,7 +31,7 @@ class EditorPane(
      * The sticky save format for this pane. "Save As" sets it; every later plain Save reuses it.
      * Opening a document adopts the format it was stored in.
      */
-    var saveFormat: SaveFormat = SaveFormat.ORIGINAL
+    var saveFormat: SaveFormat = SaveFormat.XOPP_GZIP
 
     /** The file name last chosen in the Save As dialog for this pane; reused by plain Save. */
     var pendingSaveName: String = "document.xopp"

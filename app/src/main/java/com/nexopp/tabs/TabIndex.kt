@@ -65,7 +65,7 @@ object TabIndex {
                 title = unescape(f[1]),
                 document = placeholder(),
                 uri = unescape(f[2]).ifEmpty { null },
-                format = runCatching { SaveFormat.valueOf(f[3]) }.getOrDefault(SaveFormat.ORIGINAL),
+                format = runCatching { SaveFormat.valueOf(f[3]) }.getOrDefault(SaveFormat.XOPP_GZIP),
                 pdfPath = unescape(f[4]).ifEmpty { null },
                 page = f[5].toIntOrNull() ?: 0,
                 docKey = f.getOrNull(6)?.let(::unescape)?.ifEmpty { null } ?: id,

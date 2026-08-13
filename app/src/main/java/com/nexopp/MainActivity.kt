@@ -100,7 +100,8 @@ class MainActivity : ComponentActivity() {
 
     /**
      * The sticky save format. "Save As" sets it; every later plain Save reuses it, so once you save
-     * ZIPPED once, Save keeps writing ZIPPED. Opening a document adopts the format it was stored in.
+     * a ZIP package once, Save keeps writing one. Opening a document adopts the format it was stored
+     * in.
      */
     internal var saveFormat: SaveFormat
         get() = pane.saveFormat

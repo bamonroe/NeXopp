@@ -25,7 +25,7 @@ sealed interface LoadedFile {
     /**
      * A raw PDF, which becomes a fresh annotatable document over its pages. [generated] marks one we
      * typeset ourselves from a text file: it exists only in the cache, so the saved `.xopp` has to
-     * carry the bytes with it ([SaveFormat.ZIPPED]) rather than link a path that will be swept.
+     * carry the bytes with it ([SaveFormat.XOPP_ZIP]) rather than link a path that will be swept.
      */
     data class Pdf(val file: File, val generated: Boolean = false) : LoadedFile
 
@@ -153,7 +153,7 @@ class DocumentIo(
      * Read a staged local copy into a [LoadedFile], sniffing the container by its leading bytes and
      * never by extension: the picker is unfiltered and SAF gives us `content://` URIs with no
      * reliable suffix. The verdict also fixes the sticky save format, so a reopened ZIP keeps saving
-     * ZIPPED and a gzip `.xopp` keeps saving gzip.
+     * as a ZIP package and a gzip `.xopp` keeps saving gzip.
      */
     fun read(staged: File, name: String = staged.name, source: Uri? = null): LoadedFile {
         val kind = staged.inputStream().use { FileKind.sniff(it.buffered()) }
@@ -182,7 +182,7 @@ class DocumentIo(
                         LoadedFile.Doc(
                             doc,
                             pdf,
-                            SaveFormat.ZIPPED,
+                            SaveFormat.XOPP_ZIP,
                             images = images,
                             missingImage = refs.pixmapReferences(doc).any { it !in images },
                         )
@@ -210,7 +210,7 @@ class DocumentIo(
         return LoadedFile.Doc(
             doc,
             pdf,
-            SaveFormat.ORIGINAL,
+            SaveFormat.XOPP_GZIP,
             missingPdf = ref != null && pdf == null,
             images = images,
             missingImage = references.any { it !in images },
@@ -264,9 +264,9 @@ class DocumentIo(
      * slow or flaky remote share, serialising straight down the wire risks leaving a half-written
      * `.xopp` behind, so the finished bytes are always pushed across in one later pass.
      *
-     * - [SaveFormat.ORIGINAL] — gzip XML, PDF background linked by path/URI, made **relative** to
+     * - [SaveFormat.XOPP_GZIP] — gzip XML, PDF background linked by path/URI, made **relative** to
      *   [target] whenever the PDF sits in the same folder ([portableReference]).
-     * - [SaveFormat.ZIPPED] — a ZIP package with [pdf] embedded (`domain="attach"`, `bg.pdf`).
+     * - [SaveFormat.XOPP_ZIP] — a ZIP package with [pdf] embedded (`domain="attach"`, `bg.pdf`).
      */
     fun encode(
         document: Document,
@@ -278,8 +278,8 @@ class DocumentIo(
         val out = staging.newFile("save")
         out.outputStream().use { output ->
             when (format) {
-                SaveFormat.ORIGINAL -> Xopp.save(refs.portableReference(document, target), output)
-                SaveFormat.ZIPPED -> {
+                SaveFormat.XOPP_GZIP -> Xopp.save(refs.portableReference(document, target), output)
+                SaveFormat.XOPP_ZIP -> {
                     // Pictures ride inside the package as numbered entries, so a ZIP save is
                     // self-contained for pixmap backgrounds exactly as it already is for the PDF.
                     val bundled = documentWithPixmapAttachments(document) { images[it] }
@@ -291,6 +291,8 @@ class DocumentIo(
                         bundled.entries,
                     )
                 }
+                // The writer exists but nothing routes to it yet — that's its own task.
+                SaveFormat.RNOTE -> throw UnsupportedOperationException("Rnote save not wired yet")
             }
         }
         return out

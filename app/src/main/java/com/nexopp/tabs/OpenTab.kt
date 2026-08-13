@@ -21,7 +21,7 @@ data class OpenTab(
     /** The `content://` URI this document came from, or null when it has never been opened/saved. */
     val uri: String? = null,
     /** The sticky save format for this document (see [SaveFormat]) — per-tab, not per-app. */
-    val format: SaveFormat = SaveFormat.ORIGINAL,
+    val format: SaveFormat = SaveFormat.XOPP_GZIP,
     /** On-disk path of the PDF backing this document's `pdf` backgrounds, or null when there is none. */
     val pdfPath: String? = null,
     /** The page that was in view, so re-selecting the tab lands where you left it. */

@@ -85,7 +85,7 @@ internal fun MainActivity.loadDocument(staged: File, source: Uri) {
         is LoadedFile.Pdf -> {
             // A PDF we typeset from a text file lives only in the prunable cache, so there is no
             // stable path to link: save it as a ZIP package with the bytes embedded instead.
-            saveFormat = if (loaded.generated) SaveFormat.ZIPPED else SaveFormat.ORIGINAL
+            saveFormat = if (loaded.generated) SaveFormat.XOPP_ZIP else SaveFormat.XOPP_GZIP
             adoptPdf(loaded.file, ImportPdfMode.REPLACE, source.toString(), inStore = loaded.generated)
             // The tab came from a PDF, so it has no `.xopp` on disk yet: drop the source URI so
             // plain Save asks for a destination instead of writing document bytes over the PDF,
@@ -99,7 +99,7 @@ internal fun MainActivity.loadDocument(staged: File, source: Uri) {
         // An image likewise isn't a document to parse — it becomes a one-page document with the
         // picture as that page's pixmap background.
         is LoadedFile.Image -> {
-            saveFormat = SaveFormat.ORIGINAL
+            saveFormat = SaveFormat.XOPP_GZIP
             if (!adoptImage(loaded.file, source.toString())) {
                 toast("Couldn't read that image")
                 return
@@ -340,8 +340,8 @@ internal fun MainActivity.insertPickedImage(uri: Uri) = runCatching {
 /**
  * Write the current document to [uri] in the sticky [saveFormat]. Both formats are single files,
  * so both go through the plain CreateDocument picker:
- * - [SaveFormat.ORIGINAL] — gzip XML, PDF background left linked by path/URI (interchange-safe).
- * - [SaveFormat.ZIPPED] — a ZIP package with the PDF embedded (`domain="attach"`, `bg.pdf`).
+ * - [SaveFormat.XOPP_GZIP] — gzip XML, PDF background left linked by path/URI (interchange-safe).
+ * - [SaveFormat.XOPP_ZIP] — a ZIP package with the PDF embedded (`domain="attach"`, `bg.pdf`).
  */
 internal fun MainActivity.saveDocument(uri: Uri) {
     val view = surface ?: return

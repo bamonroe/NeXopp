@@ -22,7 +22,7 @@ class TabIndexTest {
     fun `every field survives a round trip`() {
         val session = TabSession(
             tabs = listOf(
-                OpenTab("t1", "notes.xopp", doc(), "content://docs/1", SaveFormat.ZIPPED, "/data/bg.pdf", 4),
+                OpenTab("t1", "notes.xopp", doc(), "content://docs/1", SaveFormat.XOPP_ZIP, "/data/bg.pdf", 4),
                 OpenTab("t2", "Untitled", doc()),
             ),
             activeIndex = 1,
@@ -43,20 +43,20 @@ class TabIndexTest {
 
     @Test
     fun `a truncated line is skipped rather than failing the whole restore`() {
-        val text = "active\t0\nt1\tone\t\tORIGINAL\t\t0\nbroken\n"
+        val text = "active\t0\nt1\tone\t\tXOPP_GZIP\t\t0\nbroken\n"
         val back = TabIndex.decode(text) { doc() }
         assertEquals(listOf("t1"), back.tabs.map { it.id })
     }
 
     @Test
-    fun `an unknown save format falls back to ORIGINAL`() {
+    fun `an unknown save format falls back to XOPP_GZIP`() {
         val back = TabIndex.decode("active\t0\nt1\tone\t\tBOGUS\t\t0\n") { doc() }
-        assertEquals(SaveFormat.ORIGINAL, back.tabs[0].format)
+        assertEquals(SaveFormat.XOPP_GZIP, back.tabs[0].format)
     }
 
     @Test
     fun `an active index past the end is clamped`() {
-        val back = TabIndex.decode("active\t9\nt1\tone\t\tORIGINAL\t\t0\n") { doc() }
+        val back = TabIndex.decode("active\t9\nt1\tone\t\tXOPP_GZIP\t\t0\n") { doc() }
         assertEquals(0, back.activeIndex)
     }
 
@@ -72,7 +72,7 @@ class TabIndexTest {
 
     @Test
     fun `a record written before document keys existed gets its own key`() {
-        val back = TabIndex.decode("active\t0\nt1\tone\t\tORIGINAL\t\t0\n") { doc() }
+        val back = TabIndex.decode("active\t0\nt1\tone\t\tXOPP_GZIP\t\t0\n") { doc() }
         assertEquals("t1", back.tabs[0].docKey)
     }
 

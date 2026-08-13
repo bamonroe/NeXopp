@@ -17,6 +17,30 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "saveformat-rename-members-and-give-each-its-mime-extension-and-label"
+title = "SaveFormat: rename members and give each its mime, extension and label"
+description = """
+Reshape app/src/main/java/com/nexopp/format/SaveFormat.kt per docs/architecture.md, 'Decision (2026-08-12): one flat SaveFormat, extended to .rnote'.
+
+Make it a constructor-carrying enum in the shape of format/ExportFormat.kt:
+  enum class SaveFormat(val mime: String, val extension: String, val label: String)
+with three members (keep the existing KDoc prose on the first two):
+- XOPP_GZIP("application/octet-stream", "xopp", "Xournal++ (gzip)") — was ORIGINAL
+- XOPP_ZIP("application/octet-stream", "xopp", "Xournal++ (ZIP package)") — was ZIPPED
+- RNOTE("application/octet-stream", "rnote", "Rnote") — new; gzip-compressed JSON, one container only.
+Extension has no leading dot, like ExportFormat.extension.
+
+Then rename every ORIGINAL/ZIPPED reference (compiler will find them): MainActivity.kt, MainActivityDocuments.kt, panes/EditorPane.kt, tabs/OpenTab.kt, tabs/TabIndex.kt, io/DocumentIo.kt, ui/EditorDialogs.kt, and the tests under app/src/test (tabs/TabStoreTest.kt, tabs/TabIndexTest.kt and any io tests). Do NOT add behaviour for RNOTE in this task — the when-branches in DocumentIo.encode and the Save As dialog get their own tasks; if the compiler demands exhaustiveness, have the RNOTE branch throw UnsupportedOperationException("Rnote save not wired yet").
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "refactor"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-warn-on-save-when-a-document-s-pages-or-backgrounds-cannot-survive-rnote"
 title = "rnote: warn on save when a document's pages or backgrounds cannot survive .rnote"
 description = """

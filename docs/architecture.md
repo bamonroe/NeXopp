@@ -71,23 +71,23 @@ no signature at all — it is recognised by the whole sample decoding as printab
 
 | Magic | `FileKind` | Loaded as | Sticky `SaveFormat` |
 |---|---|---|---|
-| `PK` | `ZIP` | ZIP-package `.xopp` (`XoppZip.open`) — the PDF travels inside | `ZIPPED` |
-| `1f 8b` | `GZIP` | gzip `.xopp` (`NeXopp.open`), PDF background relinked by path/URI | `ORIGINAL` |
+| `PK` | `ZIP` | ZIP-package `.xopp` (`XoppZip.open`) — the PDF travels inside | `XOPP_ZIP` |
+| `1f 8b` | `GZIP` | gzip `.xopp` (`NeXopp.open`), PDF background relinked by path/URI | `XOPP_GZIP` |
 | `1f 8b`, and the decompressed prefix is JSON naming `engine_snapshot` | `RNOTE` | not yet — rejected with "Rnote files are not supported yet" | — |
-| `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `ORIGINAL` |
-| `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`NeXopp.parseXml`); saved back compressed | `ORIGINAL` |
-| `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, one page the size of the image with it as the page's pixmap background (`render/ImageImport.kt`) | `ORIGINAL` |
-| none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `ZIPPED` |
+| `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `XOPP_GZIP` |
+| `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`NeXopp.parseXml`); saved back compressed | `XOPP_GZIP` |
+| `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, one page the size of the image with it as the page's pixmap background (`render/ImageImport.kt`) | `XOPP_GZIP` |
+| none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `XOPP_ZIP` |
 | anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
-- **`ORIGINAL`** — the legacy gzip `.xopp` (`format/NeXopp.kt`, JDK `GZIPOutputStream`). A PDF
+- **`XOPP_GZIP`** — the legacy gzip `.xopp` (`format/NeXopp.kt`, JDK `GZIPOutputStream`). A PDF
   background stays **linked by location** (`domain="absolute"`, its path/URI). The
   interchange-safe default desktop Xournal++ also writes.
-- **`ZIPPED`** — a self-contained ZIP-package `.xopp` (`format/XoppZip.kt`) with the PDF
+- **`XOPP_ZIP`** — a self-contained ZIP-package `.xopp` (`format/XoppZip.kt`) with the PDF
   **embedded inside** the archive. Entries: `mimetype`, `META-INF/version`
   (`current=<fileversion>\nmin=1`), `content.xml` (the same XML, plain — *not* gzipped), and the
   PDF as `bg.pdf` (referenced by `domain="attach"`, `filename="bg.pdf"` — an in-archive entry
-  name, not a sibling path). Because the PDF travels inside the one file, a ZIPPED document
+  name, not a sibling path). Because the PDF travels inside the one file, an `XOPP_ZIP` document
   reopens **in this app** with its background intact (no sibling to resolve).
   - **Intentional mimetype deviation (targeting release Xournal++ on Arch Linux).** The
     spec-correct mimetype is `application/xournal++`, but the *released* Xournal++ 1.3.5 (the
@@ -156,11 +156,11 @@ regenerate it on write (or omit it — desktop tolerates its absence).
   background of the doc. The `domain` follows from the chosen `SaveFormat` (see the container
   section above), applied by `documentWithPdfDomain` in `render/PdfBackgroundDomain.kt`:
   - `domain="absolute"` — `filename` is the PDF's path/URI; the .xopp links to it in place (what
-    the gzip `ORIGINAL` format writes). There is **no `relative` domain**: desktop carries a
+    the gzip `XOPP_GZIP` format writes). There is **no `relative` domain**: desktop carries a
     relative path under this same domain and resolves it against the .xopp's own folder
     (`LoadHandler::getAbsoluteFilepath`), using an absolute one as-is. See *Relative PDF
     references* below — a relative path is the portable form, so it is what we prefer to write.
-  - `domain="attach"` — the PDF is bundled *inside* the `ZIPPED` container as the `bg.pdf` archive
+  - `domain="attach"` — the PDF is bundled *inside* the `XOPP_ZIP` container as the `bg.pdf` archive
     entry; `filename` is that in-archive name (`bg.pdf`), which desktop resolves via
     `readZipAttachment`. Self-contained and portable, and reopens with its background intact in this
     app (the PDF travels in the same file). *(The earlier gzip-plus-sibling attach — a
@@ -770,8 +770,8 @@ native for stylus latency and platform fit).
   Without this a line drew at the raw base width while a pen stroke at the same setting drew at
   `0.25–1.0×` of it, so the line looked visibly thicker.
 - **`.xopp` I/O — no third-party format libraries.** Both containers use only the JDK's
-  `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`ORIGINAL`), and the
-  ZIP-package via `ZipInputStream` / `ZipOutputStream` (`ZIPPED`, `format/XoppZip.kt`). XML goes
+  `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`XOPP_GZIP`), and the
+  ZIP-package via `ZipInputStream` / `ZipOutputStream` (`XOPP_ZIP`, `format/XoppZip.kt`). XML goes
   through Android's built-in streaming `XmlPullParser` (read) and `XmlSerializer` (write).
   Streaming keeps large documents off the heap and gives us exact control over attribute
   preservation (a fidelity requirement above).
@@ -1062,7 +1062,7 @@ app/
       XoppWriter.kt          # Document -> XML
       NeXopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
-      SaveFormat.kt          # ORIGINAL (gzip) vs ZIPPED (single-file) — the sticky save choice
+      SaveFormat.kt          # XOPP_GZIP / XOPP_ZIP / RNOTE — the sticky save choice, with mime+extension
       FileKind.kt            # content sniffing for open: ZIP / GZIP / RNOTE / PDF / XML / TEXT / IMAGE / UNKNOWN
       PageRange.kt           # user-typed 1-based page spec ("1-3,5,8-") -> sorted 0-based indices
                              #   forgiving by design: parses on every keystroke, never throws
@@ -1765,7 +1765,7 @@ new pages are sized from the incoming PDF with `PdfImport.pagesFor(reference = n
 reference at the joined file (`documentWithPdfReference`) **and** appends the pages in a **single
 undoable edit** — the two halves must move together, since the appended `pageno` values index the
 joined document. Existing pages keep their `pageno`, being at the front of the join. `Save`
-(`ORIGINAL`) links the joined PDF by path; `Save As` (`ZIPPED`) embeds it as `bg.pdf` through the
+(`XOPP_GZIP`) links the joined PDF by path; `Save As` (`XOPP_ZIP`) embeds it as `bg.pdf` through the
 usual `documentWithPdfDomain` rewrite, which is the easy case. **Export
 PDF** (`PdfExporter`) flattens the document back out with **PDFBox** (`com.tom-roush:pdfbox-android`,
 the one non-framework runtime dependency — see the note below): a `pdf`-backed page whose source PDF
@@ -1948,9 +1948,9 @@ unchanged, while `DrawingSurfaceView.setImageSources` hands the map to `ImageBac
 prefers the local copy and only falls back to opening the reference itself. A reference nothing could
 resolve leaves that page blank and toasts (`LoadedFile.Doc.missingImage`).
 
-Saving mirrors the PDF rules. `SaveFormat.ORIGINAL` relativises each pixmap reference against the
+Saving mirrors the PDF rules. `SaveFormat.XOPP_GZIP` relativises each pixmap reference against the
 document's own folder where it lives there (`portablePixmapReferences`, the pixmap twin of the PDF
-path) and otherwise leaves it alone. `SaveFormat.ZIPPED` bundles: `documentWithPixmapAttachments`
+path) and otherwise leaves it alone. `SaveFormat.XOPP_ZIP` bundles: `documentWithPixmapAttachments`
 re-points every pixmap background at `domain="attach"`, `filename="bg-<n>.<ext>"` and hands
 `XoppZip.save` the entry → file map to embed, with the extension sniffed from the picture's own bytes
 (`extensionFor`) because desktop picks its image loader by suffix and a `content://` URI has none. A
@@ -2084,9 +2084,9 @@ Two consequences fall out of the generated PDF living only in the cache:
   instead: once the folder exceeds `StorageLimits.pdfCacheBytes` (Settings → Storage), `prune`
   evicts the oldest non-live files until it fits, and drops the index entries whose file it deleted,
   so an evicted entry simply regenerates on the next open.
-- **It must be saved `ZIPPED`, not `ORIGINAL`.** There is no stable on-disk source to link: the
+- **It must be saved `XOPP_ZIP`, not `XOPP_GZIP`.** There is no stable on-disk source to link: the
   cache path would be swept and the document would reopen blank. So the text branch makes the sticky
-  save format `ZIPPED`, and `encode` embeds the bytes through the existing `domain="attach"` path.
+  save format `XOPP_ZIP`, and `encode` embeds the bytes through the existing `domain="attach"` path.
   `TextImportRoundTripTest` guards the whole journey — open text → annotate → save → reopen — and
   `TextImportTest` the caching contract.
 - **It is bounded by a size cap.** Typesetting holds the whole text *and* its whole laid-out page
@@ -2206,7 +2206,7 @@ relativises on the filesystem, a `content://` one on its SAF document id via
 blank with the existing "Background PDF not found" note — the reference itself is still written back
 untouched on save, so nothing is silently dropped.
 
-**Writing** (`DocumentIo.portableReference`, applied on every `ORIGINAL` save) rewrites the
+**Writing** (`DocumentIo.portableReference`, applied on every `XOPP_GZIP` save) rewrites the
 reference to be relative to the save destination whenever the PDF sits in the same folder — matching
 SAF document-id volumes, or two filesystem paths. It is a heuristic, not a preference: a resolvable
 relative path is strictly better than a `content://` URI no desktop can read, and there is nothing
