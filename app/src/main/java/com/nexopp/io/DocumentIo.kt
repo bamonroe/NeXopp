@@ -9,12 +9,16 @@ import com.nexopp.format.Xopp
 import com.nexopp.format.XoppZip
 import com.nexopp.format.model.Background
 import com.nexopp.format.model.Document
+import com.nexopp.format.rnote.RnoteContainer
+import com.nexopp.format.rnote.RnoteSnapshot
+import com.nexopp.format.rnote.readDocument
 import com.nexopp.render.ATTACH_DOMAIN
 import com.nexopp.render.PdfMerger
 import com.nexopp.render.TextPdfGenerator
 import com.nexopp.render.documentWithPdfDomain
 import com.nexopp.render.documentWithPixmapAttachments
 import java.io.File
+import java.io.InputStream
 
 /**
  * What a staged file turned out to hold. [DocumentIo.read] sniffs the container and returns one of
@@ -190,8 +194,10 @@ class DocumentIo(
                 FileKind.GZIP -> linked(Xopp.open(input), name, source)
                 // Desktop Xournal++ can write plain XML; accept it and save it back compressed.
                 FileKind.XML -> linked(Xopp.parseXml(input.reader(Charsets.UTF_8).readText()), name, source)
-                // Sniffed apart from a gzip `.xopp` already, but the reader hasn't landed yet.
-                FileKind.RNOTE -> error("Rnote files are not supported yet")
+                // An Rnote file: gzip + JSON, converted into our document model. It has no linked
+                // PDF and no `pixmap` backgrounds — a `bitmapimage` becomes an `<image>` element
+                // carrying its own bytes — so there is nothing to resolve on the side.
+                FileKind.RNOTE -> readRnote(input)
                 else -> error("unrecognised file type")
             }
         }
@@ -312,3 +318,20 @@ class DocumentIo(
         const val JOINED_PDF_DIR = "pdf-joined"
     }
 }
+
+/**
+ * Read a `.rnote` stream into a document, sticky at [SaveFormat.RNOTE] so an opened Rnote file
+ * keeps saving as one. Split out of [DocumentIo.read] so it is reachable without a
+ * `ContentResolver`: an Rnote file resolves nothing off the filesystem, unlike a `.xopp`.
+ *
+ * There is no PDF background in the format and no `pixmap` background either — a `bitmapimage`
+ * becomes an `<image>` element carrying its own bytes — so both side tables stay empty.
+ *
+ * @param input A stream positioned at the start of a `.rnote` file. Not closed.
+ * @return The converted document.
+ */
+internal fun readRnote(input: InputStream): LoadedFile.Doc = LoadedFile.Doc(
+    document = readDocument(RnoteSnapshot.parse(RnoteContainer.open(input).snapshot)).document,
+    pdf = null,
+    format = SaveFormat.RNOTE,
+)

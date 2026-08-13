@@ -36,31 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "open-a-rnote-as-an-editable-document-with-rnote-as-its-sticky-format"
-title = "Open a .rnote as an editable document with RNOTE as its sticky format"
-description = """
-app/src/main/java/com/nexopp/io/DocumentIo.kt line ~194 still has FileKind.RNOTE -> error("Rnote files are not supported yet"). Replace it once the .rnote reader chain lands (the 'assemble a Document from the snapshot' task is its entry point).
-
-Change that branch to decode the staged file through the rnote reader and return
-  LoadedFile.Doc(document, pdf = null, SaveFormat.RNOTE, images = <pictures extracted from bitmapimage strokes>)
-so the existing loadDocument path in MainActivityDocuments.kt (the is LoadedFile.Doc branch, which already does saveFormat = loaded.format) makes RNOTE sticky with no change of its own. A .rnote has no PDF background, so pdf stays null and missingPdf false.
-
-Also update the open-path table in docs/architecture.md, section 'What the open path accepts': the RNOTE row currently reads 'not yet - rejected with "Rnote files are not supported yet"' with an empty sticky-format cell; make it the real loader and SaveFormat.RNOTE. Mention .rnote support in README.md's list of what can be opened.
-
-Add a test that reading one of the fixtures under app/src/test/resources/fixtures/rnote returns LoadedFile.Doc with format == SaveFormat.RNOTE and a non-empty page list.
-
-Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 340
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "route-saving-to-the-rnote-writer-when-saveformat-is-rnote"
 title = "Route saving to the rnote writer when SaveFormat is RNOTE"
 description = """

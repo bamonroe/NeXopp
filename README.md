@@ -56,8 +56,9 @@ authoritative flow; don't invent another one.
   gzip-compressed `.xopp` (the usual desktop format), a single-file zipped `.xopp` package (its
   bundled PDF travels inside), an uncompressed Xournal++ XML file, a **plain PDF** — picking a
   PDF opens it as a fresh annotatable document exactly as **Import PDF** below does — and a
-  **plain-text file** (see **Open a text file** below), and an **image** (see **Open an image**
-  below). A file that
+  **plain-text file** (see **Open a text file** below), an **image** (see **Open an image**
+  below), and an **Rnote `.rnote` file**, which is converted into an editable document (its
+  canvas is cut into pages, and it keeps saving as `.rnote`). A file that
   is none of these is refused with an "Open failed" notice. Whichever `.xopp` container it came
   from is remembered, so a later Save writes it back in the same one.
   **Files on remote shares work too** — anything the system picker lists, including SSHFS, FTP,

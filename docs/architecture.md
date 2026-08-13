@@ -73,7 +73,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 |---|---|---|---|
 | `PK` | `ZIP` | ZIP-package `.xopp` (`XoppZip.open`) — the PDF travels inside | `XOPP_ZIP` |
 | `1f 8b` | `GZIP` | gzip `.xopp` (`NeXopp.open`), PDF background relinked by path/URI | `XOPP_GZIP` |
-| `1f 8b`, and the decompressed prefix is JSON naming `engine_snapshot` | `RNOTE` | not yet — rejected with "Rnote files are not supported yet" | — |
+| `1f 8b`, and the decompressed prefix is JSON naming `engine_snapshot` | `RNOTE` | Rnote file (`RnoteContainer.open` → `RnoteSnapshot.parse` → `readDocument`), no PDF or pixmap to relink | `RNOTE` |
 | `%PDF-` | `PDF` | fresh annotatable document, one page per PDF page (`PdfImport.documentFor`) | `XOPP_GZIP` |
 | `<?xml` / `<xournal` | `XML` | uncompressed Xournal++ XML (`NeXopp.parseXml`); saved back compressed | `XOPP_GZIP` |
 | `89 PNG 0d 0a 1a 0a`, `ff d8 ff`, `RIFF` + `WEBP` at 8 | `IMAGE` | PNG / JPEG / WebP, one page the size of the image with it as the page's pixmap background (`render/ImageImport.kt`) | `XOPP_GZIP` |
