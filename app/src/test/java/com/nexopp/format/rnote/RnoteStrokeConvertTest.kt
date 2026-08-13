@@ -141,6 +141,33 @@ class RnoteStrokeConvertTest {
     }
 
     @Test
+    fun `a bold italic textstroke folds its weight and style into the font description`() {
+        assertEquals("Sans Bold Italic", styledFont(""""font_weight":700,"font_style":"italic""""))
+    }
+
+    @Test
+    fun `a regular weight and style leaves the family unadorned`() {
+        assertEquals("Sans", styledFont(""""font_weight":400,"font_style":"regular""""))
+    }
+
+    @Test
+    fun `an unrecognised weight or style counts as unstyled`() {
+        assertEquals("Serif", styledFont(""""font_family":"Serif","font_style":"oblique""""))
+    }
+
+    /** Convert a textstroke whose `text_style` holds [style], and return its composed font. */
+    private fun styledFont(style: String): String = textStrokeToText(
+        RnoteStroke(
+            1,
+            "textstroke",
+            JsonReader("""{"text":"hi","text_style":{$style}}""").parse(),
+            1L,
+            "user_layer",
+            0,
+        ),
+    )!!.font
+
+    @Test
     fun `a textstroke with no text is rejected by name`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             textStrokeToText(

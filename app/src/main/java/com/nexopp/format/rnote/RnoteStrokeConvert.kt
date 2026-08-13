@@ -1,5 +1,6 @@
 package com.nexopp.format.rnote
 
+import com.nexopp.format.FontDescription
 import com.nexopp.format.json.JsonObject
 import com.nexopp.format.json.JsonValue
 import com.nexopp.format.model.Element
@@ -39,6 +40,9 @@ private const val BEZIER_SAMPLES = 24
 
 /** The font a `textstroke` falls back to when `text_style.font_family` is absent. */
 private const val DEFAULT_FONT = "Sans"
+
+/** The `font_weight` at and above which a `textstroke` counts as bold (CSS semi-bold). */
+private const val BOLD_WEIGHT = 600.0
 
 /** The font size Rnote writes by default, in px — 12 pt once converted. */
 private const val DEFAULT_FONT_SIZE_PX = 16.0
@@ -181,9 +185,10 @@ private fun shapeVertices(tag: String, shape: JsonValue): List<Vertex>? = when (
 /**
  * Convert one `textstroke` into a [TextElement].
  *
- * `.xopp` gives a text box a single font, size and colour, so only `font_family`, `font_size` and
- * `color` cross over; `font_weight`, `font_style`, `alignment`, `max_width` and
- * `ranged_text_attributes` are dropped per the lossy-mapping policy in `docs/architecture.md`
+ * `.xopp` gives a text box a single font, size and colour, so `font_family`, `font_size` and
+ * `color` cross over, and `font_weight`/`font_style` fold into the Pango font description as the
+ * `Bold` and `Italic` tokens (weight >= 600 is bold, style `italic` is italic). `alignment`,
+ * `max_width` and `ranged_text_attributes` are dropped per the lossy-mapping policy in `docs/architecture.md`
  * rather than invented as `.xopp` attributes. The position is the translation of the stroke's
  * affine, in pt.
  *
@@ -198,7 +203,7 @@ fun textStrokeToText(stroke: RnoteStroke): TextElement? {
     val style = stroke.body.obj("text_style")
     val (x, y) = textPosition(stroke.body.obj("transform"))
     return TextElement(
-        font = style?.obj("font_family")?.str() ?: DEFAULT_FONT,
+        font = fontDescription(style).compose(),
         size = pxToPt(style?.obj("font_size")?.num() ?: DEFAULT_FONT_SIZE_PX),
         x = x,
         y = y,
@@ -207,6 +212,21 @@ fun textStrokeToText(stroke: RnoteStroke): TextElement? {
         extraAttrs = emptyMap(),
     )
 }
+
+/**
+ * Fold a `text_style` object into a [FontDescription].
+ *
+ * Rnote stores a CSS-style `font_weight` (400 regular, 700 bold) and a `font_style` string of
+ * `regular` or `italic`; anything absent or unrecognised means unstyled.
+ *
+ * @param style The stroke's `text_style` object, or null when it has none.
+ * @return The family plus bold/italic flags, ready for [FontDescription.compose].
+ */
+private fun fontDescription(style: JsonValue?) = FontDescription(
+    family = style?.obj("font_family")?.str() ?: DEFAULT_FONT,
+    bold = (style?.obj("font_weight")?.num() ?: 0.0) >= BOLD_WEIGHT,
+    italic = style?.obj("font_style")?.str() == "italic",
+)
 
 /**
  * Convert one `bitmapimage` into an [ImageElement].

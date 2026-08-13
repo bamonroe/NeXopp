@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-map-textstroke-font-weight-and-font-style-into-the-pango-font-description"
+title = "rnote: map textstroke font_weight and font_style into the Pango font description"
+description = """
+In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt, textStrokeToText() currently sets TextElement.font to text_style.font_family verbatim (line ~190) and drops font_weight and font_style. Use the existing helper app/src/main/java/com/nexopp/format/FontDescription.kt instead: build FontDescription(family = text_style.font_family ?: DEFAULT_FONT, bold = ..., italic = ...) and pass .compose() as TextElement.font.
+
+Rules: bold when text_style.font_weight is a number >= 600 (Rnote stores a u16 CSS-style weight; 400 is regular, 700 bold); italic when text_style.font_style is the string "italic" (the other value is "regular"). Absent or unrecognised values mean not bold / not italic.
+
+Update the KDoc on textStrokeToText() (it currently says font_weight and font_style are dropped) and the Rnote-to-xopp mapping table row for textstroke in docs/architecture.md (~line 348) to say weight and style now cross over through the Pango description.
+
+Verify with new unit tests beside the existing textstroke tests in app/src/test: a textstroke with font_weight 700 and font_style "italic" gives font == "Sans Bold Italic"; weight 400 with style "regular" gives "Sans"; missing text_style still gives the DEFAULT_FONT. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "open-a-rnote-as-an-editable-document-with-rnote-as-its-sticky-format"
 title = "Open a .rnote as an editable document with RNOTE as its sticky format"
 description = """
