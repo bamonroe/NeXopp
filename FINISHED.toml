@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-build-the-per-page-layer-stack-from-chrono-layers"
+title = "rnote: build the per-page layer stack from chrono layers"
+description = """
+Add `app/src/main/java/com/nexopp/format/rnote/RnoteLayerStack.kt` implementing the layer half of docs/architecture.md section 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds'.
+
+Each `RnoteStroke` (format/rnote/RnoteSnapshot.kt) carries `layer: String` (one of "user_layer", "highlighter", "image", "document") and `userLayer: Int?`.
+
+`fun layerSlotName(stroke: RnoteStroke): String` — "user_layer " + (stroke.userLayer ?: 0) when layer == "user_layer", else stroke.layer verbatim. Unknown layer strings fall through as themselves.
+
+`fun layerOrder(slotName: String): Int` — the fixed upstream z-order, bottom to top: "document" = 0, "image" = 1, "highlighter" = 2, "user_layer n" = 3 + n. Unknown names sort last. Note the highlighter deliberately sits BELOW the user layers.
+
+`fun layerSlots(strokes: List<RnoteStroke>): List<String>` — the distinct slot names present in strokes, sorted by layerOrder, bottom-first. This is the layer stack every page gets.
+
+Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteLayerStackTest.kt` against the real fixtures: `fixtures/rnote/plain.rnote` and `fixtures/rnote/layers.rnote` both yield ["highlighter", "user_layer 0"] (highlighter first, because it is the bottom layer); `fixtures/rnote/text-image.rnote` yields ["image", "user_layer 0"]; `fixtures/rnote/backgrounds.rnote` yields ["user_layer 0"]. Also unit-test layerOrder directly for document < image < highlighter < user_layer 0 < user_layer 1. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-12
+tags = []
+
+[[task]]
 id = "rnote-pagination-primitives-for-cutting-the-canvas-into-pages"
 title = "rnote: pagination primitives for cutting the canvas into pages"
 description = """

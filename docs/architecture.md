@@ -1020,6 +1020,10 @@ app/
                              #   pageLayout() (page size in pt, page count, origin shift),
                              #   pageIndexFor() (top edge decides, never splits) and
                              #   pageOriginPx() (px offset to add per page)
+        RnoteLayerStack.kt   #   the canvas->layers rule above, on slot names alone:
+                             #   layerSlotName() (stroke -> "user_layer n"/"highlighter"/...),
+                             #   layerOrder() (fixed upstream z-order, highlighter below the pen
+                             #   layers) and layerSlots() (the stack every page gets)
         RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
