@@ -1036,7 +1036,14 @@ app/
                              #   the two files below: canvasFormat() (page 1 back into px),
                              #   pageOriginsPx() (cumulative y offsets, no gap), canvasExtent()
                              #   (widest page x whole stack), slotFor() (element -> rnote layer
-                             #   slot) and hasMixedPageSizes() (the re-pages-wrongly warning)
+                             #   slot), isSlotName() (a layer name rnote can hold as-is) and
+                             #   hasMixedPageSizes() (the re-pages-wrongly warning)
+        RnoteExportWarnings.kt # exportWarnings(document) -> one plain sentence per **report** row
+                             #   of the feature-gap matrix above that actually applies (mixed page
+                             #   sizes/backgrounds, pdf+pixmap backgrounds, eraser strokes, raw
+                             #   elements, LaTeX boxes, audio links, layer names, highlighter
+                             #   z-order); pure, empty list = show nothing. The save flow displays
+                             #   it: modal on Save As, snackbar on a plain Save
         RnoteLayerStack.kt   #   the canvas->layers rule above, on slot names alone:
                              #   layerSlotName() (stroke -> "user_layer n"/"highlighter"/...),
                              #   layerOrder() (fixed upstream z-order, highlighter below the pen

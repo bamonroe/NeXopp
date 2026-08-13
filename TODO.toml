@@ -36,37 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "rnote-warn-on-save-when-a-document-s-pages-or-backgrounds-cannot-survive-rnote"
-title = "rnote: warn on save when a document's pages or backgrounds cannot survive .rnote"
-description = """
-Saving as .rnote collapses structure that .xopp holds. Per docs/architecture.md 'The complete .xopp <-> .rnote feature-gap matrix', every row marked **report** must be surfaced, never silent.
-
-Add `app/src/main/java/com/nexopp/format/rnote/RnoteExportWarnings.kt` with `fun exportWarnings(document: Document): List<String>`, returning one human-readable line per condition found:
-- hasMixedPageSizes(document) (from the export-geometry task) -> "Pages have different sizes; Rnote uses one page size, so reopening may split pages differently."
-- more than one distinct Background across pages -> "Pages have different backgrounds; Rnote keeps only one, so page 1's background will be used for all."
-- any Background.Pdf -> "PDF page backgrounds are not saved in .rnote; the annotations are kept but the PDF is not."
-- any Background.Pixmap -> "Image page backgrounds are not saved in .rnote."
-- any Stroke with Tool.ERASER -> "Eraser strokes are not saved in .rnote."
-- any RawElement -> "N unrecognised elements from the original file are not saved in .rnote."
-- any TexImageElement -> "N LaTeX boxes are saved as plain images; the LaTeX source is lost." (the matrix decides they export as a bitmapimage of the rendered PNG, so the visual survives and only the source is lost)
-- any Stroke or TextElement carrying a non-empty audio fn -> "Audio recording links are not saved in .rnote."
-- any Layer with a name that is not one of Rnote's own slot names -> "Layer names are not saved in .rnote."
-- any Tool.HIGHLIGHTER stroke on a layer above a layer holding non-highlighter elements -> "Rnote always draws highlighter below ink, so highlighting that currently covers ink will move behind it."
-
-Return an empty list when nothing applies. This function is pure and must not touch the UI; wiring it in is the separate task 'Show the .rnote lossy-save warnings in the save flow'.
-
-Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteExportWarningsTest.kt`: `fixtures/backgrounds.xopp` (five different backgrounds, uniform page size) produces exactly the different-backgrounds warning; `fixtures/plain.xopp` produces an empty list; a hand-built Document with a Background.Pdf page produces the PDF warning; a hand-built two-layer Document with a highlighter stroke on the upper layer produces the z-order warning. Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 290
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "saveformat-rename-members-and-give-each-its-mime-extension-and-label"
 title = "SaveFormat: rename members and give each its mime, extension and label"
 description = """

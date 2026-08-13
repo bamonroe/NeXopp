@@ -104,13 +104,25 @@ fun slotFor(element: Element, layer: Layer, layerIndex: Int): Pair<String, Int?>
     val name = layer.name
     if (name != null) {
         if (name in NAMED_SLOTS) return name to null
-        if (name.startsWith("$USER_LAYER ")) {
-            val number = name.removePrefix("$USER_LAYER ").toIntOrNull()
-            if (number != null && number >= 0) return USER_LAYER to number
-        }
+        userLayerNumber(name)?.let { return USER_LAYER to it }
     }
     return USER_LAYER to layerIndex
 }
+
+/**
+ * Whether [name] is one of Rnote's own slot names — the fixed three, or the pen slot in its
+ * numbered `user_layer <n>` spelling. A layer named anything else keeps its content but loses its
+ * name on export, which is why `RnoteExportWarnings` asks.
+ *
+ * @param name A [Layer.name] from the document being exported.
+ * @return True when [slotFor] would take the name at its word rather than renumbering it.
+ */
+fun isSlotName(name: String): Boolean = name in NAMED_SLOTS || userLayerNumber(name) != null
+
+/** The `n` in a `user_layer <n>` layer name, or null when the name isn't that. */
+private fun userLayerNumber(name: String): Int? =
+    if (!name.startsWith("$USER_LAYER ")) null
+    else name.removePrefix("$USER_LAYER ").toIntOrNull()?.takeIf { it >= 0 }
 
 /**
  * Whether any page differs in size from page 1. Such a document still *exports* with every stroke
