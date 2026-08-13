@@ -68,11 +68,7 @@ fun convertStrokes(strokes: List<RnoteStroke>): RnoteConversion {
     val elements = ArrayList<Element>(strokes.size)
     val skipped = LinkedHashMap<String, Int>()
     for (stroke in strokes) {
-        val element = try {
-            convertStroke(stroke)
-        } catch (_: IllegalArgumentException) {
-            null
-        }
+        val element = convertStrokeOrNull(stroke)
         if (element == null) {
             skipped[stroke.kind] = (skipped[stroke.kind] ?: 0) + 1
         } else {
@@ -80,6 +76,21 @@ fun convertStrokes(strokes: List<RnoteStroke>): RnoteConversion {
         }
     }
     return RnoteConversion(elements, skipped)
+}
+
+/**
+ * Convert a single stroke under the skip-and-report policy: null means "nothing here can express
+ * it", whether because no converter claims the kind or because its body is malformed. Callers that
+ * need to keep each element paired with its source stroke (the document reader, which needs the
+ * stroke's layer slot) use this; [convertStrokes] is the same walk over a whole list.
+ *
+ * @param stroke A slot from [RnoteSnapshot.strokes].
+ * @return The converted element, or null if it must be skipped and reported.
+ */
+fun convertStrokeOrNull(stroke: RnoteStroke): Element? = try {
+    convertStroke(stroke)
+} catch (_: IllegalArgumentException) {
+    null
 }
 
 /** Dispatch one stroke to the converter for its kind, or null when no converter claims it. */

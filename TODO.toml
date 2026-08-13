@@ -36,32 +36,6 @@ rebuild = true
 emulator_debug = false
 
 [[task]]
-id = "rnote-assemble-a-document-from-the-snapshot"
-title = "rnote: assemble a Document from the snapshot"
-description = """
-The assembler that ties the .rnote import together. Depends on the pagination, layer-stack and background tasks plus the per-stroke converters (brushstroke/textstroke/bitmapimage/shapestroke). Add `app/src/main/java/com/nexopp/format/rnote/RnoteDocumentReader.kt`.
-
-`fun readDocument(snapshot: RnoteSnapshot): RnoteImport` where `data class RnoteImport(val document: Document, val skipped: List<String>)` — skipped is the skip-and-report list from the sibling task.
-
-Algorithm, per docs/architecture.md 'Decision (2026-08-12): canvas <-> pages, layers & backgrounds':
-1. Convert each RnoteStroke to an Element with the per-kind converters, keeping its px bounding box; unconvertible kinds go to skipped.
-2. Union the bounding boxes into an RnoteBounds; call pageLayout(snapshot.format, bounds).
-3. Call layerSlots(snapshot.strokes) for the stack; every page gets the same stack, in the same order, empty layers included, with Layer.name set to the slot name.
-4. For each element: pageIndex = pageIndexFor(its bounds, layout, format); translate by pageOriginPx then scale px -> pt (divide by 4.0/3.0); append to that page's layer for its slot. Strokes are already sorted by chrono t then slot index by RnoteSnapshot.parse, so appending preserves painters order.
-5. Build Page(width = layout.pageWidth, height = layout.pageHeight, background = toXoppBackground(snapshot.background), layers = the stack) for each of layout.pageCount pages, and Document(creator = "NeXopp", pages = those).
-
-Verify with `app/src/test/java/com/nexopp/format/rnote/RnoteDocumentReaderTest.kt` against the fixtures and their .xopp twins in app/src/test/resources/fixtures/: backgrounds.rnote gives 5 pages of 595.28 x 841.89 pt with one stroke each, each stroke's first point near (30, 30) pt; layers.rnote gives 1 page with layers ["highlighter", "user_layer 0"] holding 1 and 2 elements; text-image.rnote gives 1 page whose "image" layer holds the ImageElement and whose "user_layer 0" holds the TextElement; empty.rnote gives exactly 1 page with a dotted background and no elements. Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 270
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-lay-fixed-pages-back-onto-the-canvas-on-export"
 title = "rnote: lay fixed pages back onto the canvas on export"
 description = """

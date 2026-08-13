@@ -454,6 +454,16 @@ renders with, converted to px: `ruled`/`lined` → `[32, 32]` (24 pt spacing, `R
 `graph`/`dotted`/`isograph`/`isodotted` → `[18.893, 18.893]` (14.17 pt = 5 mm,
 `GraphBackgroundView`). Rnote's default is `[32, 32]`, so a plain ruled sheet round-trips visually.
 
+**Import — the assembler.** `RnoteDocumentReader.readDocument(snapshot)` is the one place those
+three rules meet: it converts each stroke (keeping it paired with its slot), unions the converted
+elements' bounding boxes into the canvas content bounds, calls `pageLayout`/`layerSlots`, then drops
+each element into its `[page][slot]` cell translated to be page-local, and builds `Document(creator
+= "NeXopp")`. It returns an **`RnoteImport(document, skipped)`**, where `skipped` is the
+ready-to-show report (`"2 vectorimage strokes could not be converted"`) required by the
+lossy-mapping policy below. Two edge cases the rules above leave open: a canvas with **no strokes
+at all** still gets one `user_layer 0` layer, so an imported blank file is drawable; and an element
+with **no geometry** lands on page 1.
+
 **Export — pages back onto the canvas.** `layout` is written as **`fixed_size`**, not the
 `infinite` that `rnote-cli` emits, so Rnote draws page boundaries in the same places we do.
 `document.x = y = 0`; `width` = the widest page, `height` = the sum of page heights. `format` comes
@@ -500,8 +510,9 @@ round-trip principle.
 all, so importing one would lose it on the next save. A file containing one loads with the rest of
 its content and reports the skipped strokes rather than pretending they were read. The count lives
 in `RnoteConversion.skipped` (kind → how many), filled by `convertStrokes()`; a malformed stroke
-body is counted the same way rather than failing the whole import. Whoever wires the reader to the
-UI **must surface that map** — dropping it silently is the one thing this policy forbids.
+body is counted the same way rather than failing the whole import. `RnoteDocumentReader` turns that
+tally into the ready-to-show `RnoteImport.skipped` lines, and whoever wires the reader to the UI
+**must surface them** — dropping them silently is the one thing this policy forbids.
 
 **Not preserved verbatim:** unlike the `.xopp` side, there is **no `RawElement` equivalent** for
 unmodelled Rnote payload. `RawElement` is XML-shaped (`name`/`attrs`/`body`) and cannot hold a JSON
@@ -1012,7 +1023,8 @@ app/
                              #   re-encoded); null for any other stroke kind. convertStrokes()
                              #   walks a whole z-sorted list into an RnoteConversion(elements,
                              #   skipped): a vectorimage, an unknown tag or a malformed body is
-                             #   counted per kind in `skipped`, never thrown and never faked
+                             #   counted per kind in `skipped`, never thrown and never faked.
+                             #   convertStrokeOrNull() is that policy for a single stroke
         RnoteBackgroundMapper.kt # canvas RnoteBackground <-> per-page Background.Solid: colour
                              #   both ways, pattern <-> ruling style per the table above; a
                              #   pdf/pixmap page exports as a white unpatterned canvas
@@ -1024,6 +1036,10 @@ app/
                              #   layerSlotName() (stroke -> "user_layer n"/"highlighter"/...),
                              #   layerOrder() (fixed upstream z-order, highlighter below the pen
                              #   layers) and layerSlots() (the stack every page gets)
+        RnoteDocumentReader.kt # the assembler over all four: readDocument(snapshot) -> RnoteImport
+                             #   (document, skipped), converting + paginating + bucketing strokes
+                             #   into pages of identical layer stacks and one shared background;
+                             #   `skipped` is the ready-to-show conversion report
         RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
