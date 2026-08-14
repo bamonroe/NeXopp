@@ -12,6 +12,7 @@ import com.nexopp.format.model.Document
 import com.nexopp.format.rnote.RnoteContainer
 import com.nexopp.format.rnote.RnoteSnapshot
 import com.nexopp.format.rnote.readDocument
+import com.nexopp.format.rnote.writeRnote
 import com.nexopp.render.ATTACH_DOMAIN
 import com.nexopp.render.PdfMerger
 import com.nexopp.render.TextPdfGenerator
@@ -273,6 +274,9 @@ class DocumentIo(
      * - [SaveFormat.XOPP_GZIP] — gzip XML, PDF background linked by path/URI, made **relative** to
      *   [target] whenever the PDF sits in the same folder ([portableReference]).
      * - [SaveFormat.XOPP_ZIP] — a ZIP package with [pdf] embedded (`domain="attach"`, `bg.pdf`).
+     * - [SaveFormat.RNOTE] — gzip JSON, Rnote's own format. [pdf] and [images] are **ignored**: the
+     *   format has no PDF background and no pixmap reference to bundle or link. What such a document
+     *   loses on the way in is `exportWarnings`' job to say, not this one's.
      */
     fun encode(
         document: Document,
@@ -297,8 +301,9 @@ class DocumentIo(
                         bundled.entries,
                     )
                 }
-                // The writer exists but nothing routes to it yet — that's its own task.
-                SaveFormat.RNOTE -> throw UnsupportedOperationException("Rnote save not wired yet")
+                // Neither side table applies: a `.rnote` carries no PDF background and no pixmap
+                // reference, so there is nothing to embed or make relative.
+                SaveFormat.RNOTE -> writeRnote(document, output)
             }
         }
         return out

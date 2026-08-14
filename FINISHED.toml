@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "route-saving-to-the-rnote-writer-when-saveformat-is-rnote"
+title = "Route saving to the rnote writer when SaveFormat is RNOTE"
+description = """
+app/src/main/java/com/nexopp/io/DocumentIo.kt's encode (around line 274) switches on SaveFormat with two branches, ORIGINAL and ZIPPED. Add the third.
+
+- SaveFormat.RNOTE -> write the document as gzip-compressed Rnote JSON to the staged output, via the rnote writer entry point (the 'lay fixed pages back onto the canvas on export' task owns the geometry side; this task is only the wiring, and is blocked until that writer exists).
+- Neither the portable PDF reference nor the ZIP attachment path applies: a .rnote carries no PDF background, so the pdf argument is ignored on this branch.
+- Update the KDoc on encode and on MainActivity.saveDocument in MainActivityDocuments.kt (~line 340), both of which enumerate the two .xopp containers today and claim 'both formats are single files' - still true of all three, but the prose must name Rnote.
+
+The lossy-save warning is a separate task ('warn on save when a document's pages or backgrounds cannot survive .rnote'); do not duplicate it here.
+
+Add a round-trip test: build a small Document, encode it with SaveFormat.RNOTE, read the bytes back through the rnote reader, and assert the stroke count and page count survive.
+
+Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-container-writer"
 title = "Write the .rnote container: version wrapper plus gzip"
 description = """

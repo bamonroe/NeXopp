@@ -254,8 +254,10 @@ one it was authored in rather than converting it.
 
 ## The `.rnote` format — container & serialisation (code-derived — this is its authoritative home)
 
-**Status: container and snapshot parsing implemented (`format/rnote/`); no document mapping and no
-writer yet, so the open path still refuses `.rnote`.** Derived from upstream Rnote **0.14.2**
+**Status: read and write both implemented (`format/rnote/`).** The open path accepts a `.rnote`
+(`FileKind.RNOTE` → `readRnote`) and the save path writes one (`SaveFormat.RNOTE` → `writeRnote`);
+what a document loses on the way out is reported by `exportWarnings`. Derived from upstream Rnote
+**0.14.2**
 (`crates/rnote-engine/src/fileformats/rnoteformat/`, tag `v0.14.2`) cross-checked against the five
 ground-truth fixtures in `app/src/test/resources/fixtures/rnote/` (see that directory's README and
 `docs/tools.md` for how they are regenerated).

@@ -338,10 +338,11 @@ internal fun MainActivity.insertPickedImage(uri: Uri) = runCatching {
 }.onFailure { toast("Image insert failed: ${it.message}") }
 
 /**
- * Write the current document to [uri] in the sticky [saveFormat]. Both formats are single files,
- * so both go through the plain CreateDocument picker:
+ * Write the current document to [uri] in the sticky [saveFormat]. All three formats are single
+ * files, so all three go through the plain CreateDocument picker:
  * - [SaveFormat.XOPP_GZIP] — gzip XML, PDF background left linked by path/URI (interchange-safe).
  * - [SaveFormat.XOPP_ZIP] — a ZIP package with the PDF embedded (`domain="attach"`, `bg.pdf`).
+ * - [SaveFormat.RNOTE] — gzip JSON in Rnote's own format, with no PDF background of any kind.
  */
 internal fun MainActivity.saveDocument(uri: Uri) {
     val view = surface ?: return
