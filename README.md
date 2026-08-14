@@ -15,7 +15,9 @@ Android reopens correctly on the desktop, and vice versa.
 > functional — pen/highlighter/eraser drawing with pressure, colour and width pickers, undo/redo,
 > zoom, pan, a page navigator (add/remove/jump, 1-4 pages per row), on-device authoring of text/image/LaTeX elements,
 > LaTeX math rendering, multi-page documents with layers and backgrounds, and PDF import and
-> export. The controls live in a vertical rail down the left edge. Run `scripts/todo.sh list` for what's next.
+> export. **Rnote `.rnote` files open and save too**, with anything the two formats can't share
+> reported rather than dropped quietly. The controls live in a vertical rail down the left edge.
+> Run `scripts/todo.sh list` for what's next.
 
 ## Requirements
 
@@ -768,15 +770,14 @@ authoritative flow; don't invent another one.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 
-The file on disk is the only source of truth — there's no cloud, account, or custom format.
-
 ## Project layout
 
 Every package and what it holds is documented, file by file, in
 [`docs/architecture.md`](docs/architecture.md) — the authoritative layout. The app's Kotlin
-sources live under `app/src/main/java/com/xopp/android/` (`format/`, `io/`, `render/`, `audio/`,
-`tabs/`, `panes/`, `ui/`, plus `MainActivity.kt`), with JVM unit tests under `app/src/test/` and
-the containerized build in `Dockerfile`, `compose.yaml` and `scripts/build.sh`.
+sources live under `app/src/main/java/com/nexopp/` (`format/`, `io/`, `render/`, `audio/`,
+`tabs/`, `panes/`, `ui/`, plus `MainActivity.kt`), with JVM unit tests under `app/src/test/`.
+The build runs through the shared toolchain container in `/data/android`; `scripts/build.sh` is
+this repo's thin wrapper over it (see [`docs/tools.md`](docs/tools.md)).
 
 ## Licence
 

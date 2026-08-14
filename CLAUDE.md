@@ -144,6 +144,13 @@ and the host stays clean.
 - Don't rely on host-installed language toolchains or services — pin them in the container so
   the build is the same everywhere.
 
+**How this project satisfies it (the reason for the deviation, recorded here as the rule above
+requires):** NeXopp has **no `Dockerfile` or `compose.yaml` of its own**. Every build already runs
+in a container — the baked `android-builder:local` image in the **shared `/data/android` toolchain**,
+which is the one front door for every APK on this box — so an in-repo image would be a second,
+divergent copy of the same environment. `scripts/build.sh` is the thin wrapper over it; see the
+Android build section above and `docs/tools.md`.
+
 ### Web servers are written in Rust
 
 **If this project needs a web server, write it in Rust.** Rust is the default for any HTTP /

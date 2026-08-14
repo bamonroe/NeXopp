@@ -5,8 +5,8 @@ read/write data path, the core components, the repository layout, and the load-b
 decisions. `CLAUDE.md` points here; the specifics live here.
 
 > Status: the lossless `.xopp` format core and the Compose/`SurfaceView` editor are implemented,
-> including PDF import and export. This doc is kept current as the code evolves; record design
-> decisions here so they aren't re-litigated.
+> including PDF import and export, and `.rnote` files read and write both ways. This doc is kept
+> current as the code evolves; record design decisions here so they aren't re-litigated.
 
 ## Prior art — has someone already done this?
 
@@ -80,7 +80,7 @@ no signature at all — it is recognised by the whole sample decoding as printab
 | none, but the sample decodes as printable UTF-8 (tab/CR/LF allowed, leading BOM skipped) | `TEXT` | plain text (`.txt`, `.md`), typeset into a generated PDF-backed document (`io/TextImport.kt`) | `XOPP_ZIP` |
 | anything else (empty or binary) | `UNKNOWN` | rejected with an "Open failed" toast | — |
 
-- **`XOPP_GZIP`** — the legacy gzip `.xopp` (`format/NeXopp.kt`, JDK `GZIPOutputStream`). A PDF
+- **`XOPP_GZIP`** — the legacy gzip `.xopp` (`format/Xopp.kt`, JDK `GZIPOutputStream`). A PDF
   background stays **linked by location** (`domain="absolute"`, its path/URI). The
   interchange-safe default desktop Xournal++ also writes.
 - **`XOPP_ZIP`** — a self-contained ZIP-package `.xopp` (`format/XoppZip.kt`) with the PDF
@@ -818,9 +818,11 @@ native for stylus latency and platform fit).
 - **`.xopp` I/O — no third-party format libraries.** Both containers use only the JDK's
   `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`XOPP_GZIP`), and the
   ZIP-package via `ZipInputStream` / `ZipOutputStream` (`XOPP_ZIP`, `format/XoppZip.kt`). XML goes
-  through Android's built-in streaming `XmlPullParser` (read) and `XmlSerializer` (write).
-  Streaming keeps large documents off the heap and gives us exact control over attribute
-  preservation (a fidelity requirement above).
+  through our **own** streaming layer (`format/xml/XmlPullReader.kt` / `XmlWriter.kt`) rather than
+  the platform's `XmlPullParser`, for the same reason the JSON layer is hand-rolled: the platform
+  parser is a stub off-device, and this keeps attribute order, entity handling and truncation
+  errors under our control (a fidelity requirement above). `.rnote` adds nothing here — gzip plus
+  `format/json/`.
 - **PDF export — PDFBox (`com.tom-roush:pdfbox-android`).** *Decision (2026-07-31):* the one
   non-framework runtime dependency, taken deliberately. The framework `android.graphics.pdf`
   writer (`PdfDocument`) can only paint onto a canvas, so exporting an imported PDF forced every
@@ -1036,14 +1038,21 @@ and reads as an ordinary module of small functions.
 settings.gradle.kts, build.gradle.kts, gradle.properties   # Gradle config
 gradle/libs.versions.toml                                  # version catalog (all deps/plugins)
 gradlew, gradle/wrapper/                                    # Gradle wrapper (pinned 8.9)
-Dockerfile, compose.yaml, .dockerignore                    # containerized build image + service
-scripts/build.sh                                           # docker/podman build entry point
+scripts/build.sh                                           # build entry point: a thin wrapper over
+                                                           #   /data/android/build.sh, the shared
+                                                           #   toolchain container (see docs/tools.md).
+                                                           #   There is no in-repo Dockerfile — the
+                                                           #   image is baked and lives there
+scripts/connected-test.sh                                  # runs the androidTest suite on that
+                                                           #   directory's emulator (not Gradle's task)
+scripts/todo.sh                                            # TODO.toml/FINISHED.toml CLI (the `todo` skill)
+.claude/skills/                                            # the repo's own Claude skills, incl. `todo`
 
 app/
   build.gradle.kts                                         # module config (SDK levels, Compose, deps)
   src/main/AndroidManifest.xml
   src/main/res/                                            # strings, Material 3 theme, adaptive icon
-  src/main/java/com/xopp/android/
+  src/main/java/com/nexopp/
     MainActivity.kt          # hosts the editor; SAF launchers, intent handovers, panes, lifecycle
     MainActivityDocuments.kt # its document I/O half: open/load, PDF & image adoption, save/export
     MainActivityTabs.kt      # its tab/session half: tab strip state, show/switch/close, restore, split view
@@ -1136,7 +1145,7 @@ app/
       XoppColor.kt           # #RRGGBBAA <-> ARGB int, named colours
       XoppReader.kt          # XML -> Document
       XoppWriter.kt          # Document -> XML
-      NeXopp.kt                # gzip open/save + parse/serialize entry points
+      Xopp.kt                # gzip open/save + parse/serialize entry points
       XoppZip.kt             # ZIP-package open/save (PDF embedded); see the mimetype caveat
       SaveFormat.kt          # XOPP_GZIP / XOPP_ZIP / RNOTE — the sticky save choice, with mime+extension
       FileKind.kt            # content sniffing for open: ZIP / GZIP / RNOTE / PDF / XML / TEXT / IMAGE / UNKNOWN
@@ -1152,9 +1161,11 @@ app/
       SaveTarget.kt          # the name to suggest, in the save format's extension, when a PDF is first saved
       PdfStore.kt            # one background-PDF file per open document; never rewritten, content-cache index, byte-budget eviction
       ImageStore.kt          # one never-rewritten copy per pixmap background reference; same liveness sweep and byte budget
-      ImageStore.kt          # never-rewritten copy of every pixmap background picture; same sweep and byte budget
       TextImport.kt          # text file -> generated background PDF, cached by content hash
       PdfReference.kt        # how a .xopp names its background PDF: relative <-> absolute paths and SAF document ids
+      DocumentReferences.kt  # resolves a document's PDF/pixmap background references on import
+                             #   (absolute, content://, relative, attached) and relativises them on
+                             #   save, so a copied file keeps its backgrounds
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
@@ -1176,6 +1187,10 @@ app/
       DrawingSurfacePalette.kt # the surface's radial palette: invocation gestures, open menu, commit (extensions)
       DrawingSurfaceSelection.kt # the surface's selection: rubber-band start, PDF-text selection, and the
                              # delete/restyle/copy/cut/paste/duplicate edits (extensions)
+      BackgroundSelection.kt # the background-select tool: a rectangle marquee that copies a flattened
+                             #   page region into the image clipboard (extensions)
+      DocumentSearch.kt      # find-in-document over text boxes and the PDF text layer: hits in
+                             #   page-local pt, plus the current/total counter the chrome shows
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
@@ -1222,6 +1237,7 @@ app/
       PdfVectorPainter.kt    # draws a page's strokes/text/images as vector overlay onto a PDFBox stream
       PdfBackgroundPainter.kt # draws a fresh (non-PDF) page's background ruling as PDFBox vectors
       PdfPageTransform.kt    # maps .xopp top-left points into PDF bottom-left user space (pure)
+      PdfColor.kt            # ARGB int -> PDFBox's separate RGB stroking/filling parameters
       SvgExporter.kt         # flattens one page to a standalone SVG 1.1 document (background + strokes)
       SvgElementPainter.kt   # the SVG markup for text boxes, images and LaTeX images (data: URIs)
       SvgBackgroundPainter.kt # draws a page's sheet fill and ruling as SVG rect/line/circle primitives
@@ -1281,7 +1297,15 @@ app/
       PaneState.kt           # per-pane canvas state the chrome mirrors (zoom, page, layer, undo) + the pane count
       SplitLayout.kt         # two panes side by side with a draggable bar down the middle
       EditorOverlays.kt      # what layers over the canvas: selection bars + author/save/import/export dialogs
+      EditorActionBars.kt    # those selection bars themselves: the Select / text-select / spline
+                             #   contextual bars and their recolour + re-width drop-downs
+      EditorDialogs.kt       # the chooser and warning dialogs: Save As (name + format), Import PDF,
+                             #   Export, the text/LaTeX box editors, and the two lossy-save dialogs
+      Dialogs.kt             # the generic text-entry and rename dialogs the rest build on
       SideToolbar.kt         # left vertical rail: the shell + tool-group slots; each pop-up is a Toolbar*.kt below
+      ToolbarPopup.kt        # the rail's shared furniture: slot touch-target size, menu headings, popup shells
+      ToolbarParameterObjects.kt # the layer/page callback bundles the rail takes, so SideToolbar's
+                             #   signature stays readable instead of 27 loose lambdas
       EditorTool.kt          # the editor's tool modes + their labels/icons (pure)
       ToolbarColorPopup.kt   # rail slot: the merged colour + tip-size drop-down (wraps ColorPalette.kt)
       ToolbarSizePopup.kt    # the three pen-width slot rows + their long-press resize dialog
@@ -1293,6 +1317,8 @@ app/
       TabStrip.kt            # the horizontal strip of open-tab titles: select, reorder, close, long-press menu
       TabOverviewPopup.kt    # a grid of every open tab shown as the page it was left on
       ColorPalette.kt        # the one colour picker (swatches + custom slot + recents) all three sites use
+      Swatches.kt            # the colour and pen-width swatch marks the pickers are built from (pure sizing)
+      ListRowControls.kt     # the up/down/delete triplet every reorderable settings list row uses
       ColorPicker.kt         # the arbitrary-colour HSV/hex dialog behind the palette's custom slot
       RadialPalette.kt       # the pen-tip radial menu's model: two rings of slots holding PaletteActions (pure)
       RadialPaletteHitTest.kt # maps a flick's (angle, radius) from the anchor onto a slot, or cancel (pure)
@@ -1317,14 +1343,23 @@ app/
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       PageCounter.kt         # always-visible "page X of Y" badge; its corner is a setting
       SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
-      SettingsSections.kt    # the section bodies (Stylus / Editor / Toolbar / Navigation / Appearance / Storage) + shared controls
+      StylusSection.kt       # settings page: pressure feel, hover, barrel actions, palette invocation
+      EditorSection.kt       # settings page: the tool a document opens in, and how edits snap
+      ToolbarSection.kt      # settings page: rail edge, item order/visibility, pen width slots
+      NavigationSection.kt   # settings page: momentum, pan sensitivity, page columns, counters
+      AppearanceSection.kt   # settings page: theme mode, dynamic colour, chrome
+      StorageSection.kt      # settings page: the import and cache byte budgets
+      SettingsWidgets.kt     # the controls every section shares: SwitchRow, OptionGroup, DropdownRow,
+                             #   the sliders, and the drag-to-reorder row math (dragTargetIndex, pure)
       AboutSection.kt        # the About page and the links it sends people to
       AppSettings.kt         # AppSettings model + SettingsStore (SharedPreferences persistence)
       theme/                 # XoppTheme (Material You), Color
-  src/test/java/com/xopp/android/format/                   # JVM unit tests for the format layer
-  src/test/java/com/xopp/android/render/                   # JVM unit tests for layout/grid/LaTeX geometry
-  src/test/java/com/xopp/android/audio/                    # JVM unit tests for fn/ts mapping + WAV framing
-  src/androidTest/java/com/xopp/android/                   # on-device smoke test (load/draw/save/reopen)
+        ChromeColors.kt      #   the one place the Compose ColorScheme is mapped onto the canvas'
+                             #   non-Compose chrome — the SurfaceView can't read MaterialTheme itself
+  src/test/java/com/nexopp/format/                         # JVM unit tests for the format layer
+  src/test/java/com/nexopp/render/                         # JVM unit tests for layout/grid/LaTeX geometry
+  src/test/java/com/nexopp/audio/                          # JVM unit tests for fn/ts mapping + WAV framing
+  src/androidTest/java/com/nexopp/                         # on-device smoke test (load/draw/save/reopen)
 ```
 
 The **`format/` package is the heart** and is deliberately free of Android dependencies so the
@@ -1434,8 +1469,10 @@ finds. That's what makes the palette system unit-testable (`RadialPaletteTest`,
 `RadialPaletteHitTestTest`, `RadialPaletteLayoutTest`, `RadialPaletteCodecTest`, `PaletteListTest`,
 `PaletteActionCatalogTest`, etc.) and keeps the settings diagram in sync with the live menu.
 
-**What the unit tests cover** (this section is the one authoritative inventory — `README.md`
-and `docs/tools.md` link here rather than restating it). The `format/` tests exercise the
+### What the unit tests cover
+
+This section is the one authoritative inventory — `README.md` and `docs/tools.md` link here rather
+than restating it. The `format/` tests exercise the
 `.xopp` round-trip: the colour codec, every element type, XML escaping, model reserialization,
 a gzip round-trip, the PDF-background on-disk shape, the fixture-driven `FormatDriftTest`
 asserting schema coverage, and `XmlEqualityRoundTripTest`, which checks that the XML we emit
@@ -1723,7 +1760,9 @@ never crosses above the line it was grabbed at; a drag that can't move anything 
 list, which keeps `finishGesture` from recording an empty undo step. The whole drag is one undo step,
 and because it only rewrites coordinates the result round-trips through save unchanged.
 
-**Selecting objects (`render/`).** The **Select** tools (`EditorTool.SELECT`,
+### Selecting objects (`render/`)
+
+The **Select** tools (`EditorTool.SELECT`,
 `EditorTool.LASSO_SELECT`, `EditorTool.TEXT_SELECT`, and `EditorTool.BG_SELECT`) share the rail's
 Select group, but their gestures stay separate. Object selection (`selectMode`) mirrors desktop
 Xournal++: a one-finger **drag** draws a rubber-band marquee and selects every element **wholly
@@ -2237,7 +2276,9 @@ visual — the whole band already catches touches) so there's an obvious finger-
 round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`, which is an **index of sections** (`SettingsSection` —
 Stylus, Editor, Toolbar, Palette, Navigation, Appearance, Storage): each row opens that section as its own page, with back returning to the
-index and back from the index leaving settings. Section bodies live in `SettingsSections.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
+index and back from the index leaving settings. Each section body is its own file (`StylusSection.kt`,
+`EditorSection.kt`, `ToolbarSection.kt`, `NavigationSection.kt`, `AppearanceSection.kt`, `StorageSection.kt`),
+over the controls they share in `SettingsWidgets.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives beside its pop-up (`ToolbarColorPopup.kt` / `ToolbarSizePopup.kt`); the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in
 `ColorPicker.kt`. Every place a colour is chosen — the pen's rail button, the text-box dialog, the
@@ -2252,7 +2293,7 @@ comma-joined pref) shared by all three pickers; only the pen's own picks pass `a
 text or a selection fills recents without changing what the pen draws with next launch. The **Select** tool adds a rail entry and a floating action bar; its
 mechanics are in [Selecting objects](#selecting-objects-render) above.
 
-## Relative PDF references {#relative-pdf-references}
+## Relative PDF references
 
 A background reference is only useful if it still resolves on the machine that opens the file next.
 An absolute Linux path means nothing on Android, and a `content://` URI means nothing anywhere but
