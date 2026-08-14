@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-flatten-ranged-text-attributes-into-disjoint-runs"
+title = "rnote: flatten ranged_text_attributes into disjoint runs"
+description = """
+Add a pure helper file app/src/main/java/com/nexopp/format/rnote/RnoteTextRuns.kt that flattens a textstrokes text_style.ranged_text_attributes into a partition of disjoint runs over the string.
+
+Input shape (confirmed against rnote v0.14.2 crates/rnote-engine/src/strokes/textstroke.rs): a JSON array of {range: [byteStart, byteEnd], attribute: {<kind>: <value>}} where kind is one of font_family (String), font_size (f64), font_weight (u16), text_color (Color), font_style ("regular"|"italic"), underline (bool), strikethrough (bool). Ranges are BYTE offsets into the UTF-8 encoding of text and MAY OVERLAP; a later entry in the array wins over an earlier one on the bytes they share.
+
+Expose: data class TextRun(val startByte: Int, val endByte: Int, val attrs: Map<String, String>) and fun flattenRuns(rangedAttrs: JsonValue?, textByteLength: Int): List<TextRun> returning runs that are non-overlapping, ascending, and together cover 0 until textByteLength (gaps between attributed ranges become runs with an empty attrs map). Attribute values are kept as their raw JSON rendered to a string so runs compare by equality; ignore entries whose range is malformed, reversed, or out of bounds rather than throwing.
+
+Also expose fun uniformAttribute(runs: List<TextRun>, kind: String): String? returning the single value of that attribute kind when every run carries the same value for it, and null when the runs disagree or any run lacks it.
+
+This task adds no call sites - it is consumed by the follow-up task that promotes whole-string attributes. Verify with unit tests in app/src/test covering: no attributes gives one run spanning the whole text; two non-overlapping ranges give three runs (before, a, b) when they do not touch; overlapping ranges give the later entrys value on the shared bytes; uniformAttribute returns the value for a range covering the whole string and null for a partial one. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-map-textstroke-font-weight-and-font-style-into-the-pango-font-description"
 title = "rnote: map textstroke font_weight and font_style into the Pango font description"
 description = """

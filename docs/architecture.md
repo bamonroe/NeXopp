@@ -1024,6 +1024,11 @@ app/
                              #   walks a whole z-sorted list into an RnoteConversion(elements,
                              #   skipped): a vectorimage, an unknown tag or a malformed body is
                              #   counted per kind in `skipped`, never thrown and never faked.
+        RnoteTextRuns.kt     #   text_style.ranged_text_attributes -> disjoint TextRuns over the
+                             #   UTF-8 byte range of the text (later entries win where ranges
+                             #   overlap, uncovered bytes become bare runs); uniformAttribute()
+                             #   answers whether one attribute holds for the whole string, which
+                             #   is what may be promoted onto the .xopp text box
                              #   convertStrokeOrNull() is that policy for a single stroke
         RnoteBackgroundMapper.kt # canvas RnoteBackground <-> per-page Background.Solid: colour
                              #   both ways, pattern <-> ruling style per the table above; a
