@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-flatten-an-arrow-shapestroke-into-a-stroke"
+title = "rnote: flatten an arrow shapestroke into a Stroke"
+description = """
+shapeStrokeToStroke() in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt handles line, rect, ellipse, quadbez, cubbez, polyline and polygon. Upstream Rnote v0.14.2 (crates/rnote-compose/src/shapes/shape.rs, enum Shape) has one more tag: "arrow". Today an arrow is skipped and counted into RnoteConversion.skipped, so a file full of arrows imports empty. See docs/architecture.md, gap matrix row 'parametric shapes'.
+
+Fetch the struct first to get the field names right — https://raw.githubusercontent.com/flxzt/rnote/v0.14.2/crates/rnote-compose/src/shapes/arrow.rs — it is a start/tip pair plus the tip geometry.
+
+Add an "arrow" branch that emits the shaft plus both barbs as ONE open polyline, in this order: start -> tip -> left barb end -> tip -> right barb end. Retracing the tip keeps it a single .xopp stroke (which has no move-to) while drawing a recognisable arrowhead. Compute the barbs from the shaft direction: each barb is the tip rotated by +/- 150 degrees about the tip, at a length of min(shaft length / 4, 5 * style stroke_width in px), matching how upstream sizes the head. Do not close the polyline — an arrow has no fill.
+
+Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt (hand-built body, as the other shape tests do): an arrow from [0,0] to [100,0] gives a Stroke with 5 points whose first is (0,0) pt and whose second and fourth are both the tip (100,0) pt, and RnoteConversion.skipped no longer counts it. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-flatten-quadbezto-and-cubbezto-brushstroke-segments"
 title = "rnote: flatten quadbezto and cubbezto brushstroke segments"
 description = """

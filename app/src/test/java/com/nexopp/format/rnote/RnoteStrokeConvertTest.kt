@@ -413,6 +413,31 @@ class RnoteStrokeConvertTest {
     }
 
     @Test
+    fun `an arrow flattens to a shaft and two barbs retraced through the tip`() {
+        val stroke = shapeStrokeToStroke(
+            parseShape(
+                """
+                {"shape":{"arrow":{"start":[0.0,0.0],"tip":[100.0,0.0]}},
+                 "style":{"smooth":{"stroke_width":2.0}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertEquals(5, stroke.points.size)
+        assertEquals(0.0, stroke.points[0].x, 1e-9)
+        assertEquals(0.0, stroke.points[0].y, 1e-9)
+        // The tip, 100 px = 75 pt, is visited twice so the head stays one stroke.
+        for (i in listOf(1, 3)) {
+            assertEquals(75.0, stroke.points[i].x, 1e-9)
+            assertEquals(0.0, stroke.points[i].y, 1e-9)
+        }
+        // Barbs are min(100/4, 5*2) = 10 px long and mirror each other about the shaft.
+        assertEquals(stroke.points[2].x, stroke.points[4].x, 1e-9)
+        assertEquals(stroke.points[2].y, -stroke.points[4].y, 1e-9)
+        assertTrue(stroke.points[2].x < 75.0)
+        assertEquals(3.75, kotlin.math.abs(stroke.points[2].y), 1e-9)
+    }
+
+    @Test
     fun `an unknown shape tag converts to null`() {
         assertNull(shapeStrokeToStroke(parseShape("""{"shape":{"spiral":{"turns":3}}}""")))
     }

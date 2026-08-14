@@ -14,6 +14,7 @@ import com.nexopp.format.model.Tool
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
@@ -38,6 +39,12 @@ private const val ELLIPSE_SAMPLES = 32
 
 /** Samples taken along a `quadbez`/`cubbez`, counting both endpoints. */
 private const val BEZIER_SAMPLES = 24
+
+/** Half-angle of an arrow's head: each barb leaves the tip 150 degrees off the shaft direction. */
+private const val ARROW_BARB_DEGREES = 150.0
+
+/** An arrow barb is at most this many stroke widths long, and never more than a quarter shaft. */
+private const val ARROW_BARB_WIDTHS = 5.0
 
 /** The font a `textstroke` falls back to when `text_style.font_family` is absent. */
 private const val DEFAULT_FONT = "Sans"
@@ -169,7 +176,8 @@ fun brushStrokeToStroke(stroke: RnoteStroke): Stroke? {
  * Rnote stores a shape *parametrically* — a `line`'s two endpoints, an `ellipse`'s radii — while
  * `.xopp` only knows pressure polylines, so the shape is flattened to vertices here: straight
  * shapes give their corners, an `ellipse` [ELLIPSE_SAMPLES] samples around its perimeter, and a
- * `quadbez`/`cubbez` [BEZIER_SAMPLES] samples along the curve. Closed shapes (`rect`, `ellipse`,
+ * `quadbez`/`cubbez` [BEZIER_SAMPLES] samples along the curve, and an `arrow` its shaft plus a
+ * two-barb head retraced through the tip. Closed shapes (`rect`, `ellipse`,
  * `polygon`) repeat their first vertex last so a fill has something to close. The pen never varies
  * along a shape, so every vertex gets `style.*.stroke_width` and the stroke is uniform-width.
  *
@@ -180,8 +188,8 @@ fun brushStrokeToStroke(stroke: RnoteStroke): Stroke? {
 fun shapeStrokeToStroke(stroke: RnoteStroke): Stroke? {
     if (stroke.kind != "shapestroke") return null
     val (tag, shape) = singleTag(stroke.body.obj("shape")) ?: return null
-    val vertices = shapeVertices(tag, shape) ?: return null
     val style = strokeStyle(stroke.body)
+    val vertices = shapeVertices(tag, shape, style.widthPx) ?: return null
     val widthPt = pxToPt(style.widthPx)
     return style.toStroke(
         stroke,
@@ -196,9 +204,10 @@ fun shapeStrokeToStroke(stroke: RnoteStroke): Stroke? {
  * A shape whose payload is malformed (an endpoint that is not a two-number array) also flattens to
  * null, so a half-written shape is skipped rather than landing as a broken stroke.
  */
-private fun shapeVertices(tag: String, shape: JsonValue): List<Vertex>? = when (tag) {
+private fun shapeVertices(tag: String, shape: JsonValue, widthPx: Double): List<Vertex>? = when (tag) {
     "line" -> listOfNotNull(vertexAt(shape.obj("start")), vertexAt(shape.obj("end")))
         .takeIf { it.size == 2 }
+    "arrow" -> arrowVertices(shape, widthPx)
     "rect" -> boxCorners(shape)
     "ellipse" -> ellipseSamples(shape)
     "quadbez" -> bezierSamples(listOf("start", "cp", "end").map { vertexAt(shape.obj(it)) })
@@ -476,6 +485,31 @@ private fun bezierSamples(controls: List<Vertex?>): List<Vertex>? {
         }
         level.single()
     }
+}
+
+/**
+ * An `arrow`'s shaft and head as one open polyline: `start` -> `tip` -> left barb -> `tip` ->
+ * right barb.
+ *
+ * A `.xopp` stroke has no move-to, so the tip is retraced to get back out to the second barb and
+ * keep the whole arrow a single stroke. Each barb leaves the tip at [ARROW_BARB_DEGREES] off the
+ * shaft direction, [ARROW_BARB_WIDTHS] stroke widths long but never longer than a quarter of the
+ * shaft, matching how upstream sizes the head.
+ */
+private fun arrowVertices(shape: JsonValue, widthPx: Double): List<Vertex>? {
+    val (sx, sy) = vertexAt(shape.obj("start")) ?: return null
+    val tip = vertexAt(shape.obj("tip")) ?: return null
+    val (tx, ty) = tip
+    val shaft = hypot(tx - sx, ty - sy)
+    if (shaft == 0.0) return listOf(sx to sy, tip)
+    val dx = (tx - sx) / shaft
+    val dy = (ty - sy) / shaft
+    val barb = minOf(shaft / 4.0, ARROW_BARB_WIDTHS * widthPx)
+    val barbs = listOf(ARROW_BARB_DEGREES, -ARROW_BARB_DEGREES).map { degrees ->
+        val a = Math.toRadians(degrees)
+        tx + (dx * cos(a) - dy * sin(a)) * barb to ty + (dx * sin(a) + dy * cos(a)) * barb
+    }
+    return listOf(sx to sy, tip, barbs[0], tip, barbs[1])
 }
 
 /** A `polyline`/`polygon`'s vertices: its `start` followed by every point in `path`. */

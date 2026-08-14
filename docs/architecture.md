@@ -576,7 +576,7 @@ only the verdicts.
 | cap style | `capStyle`: `round`\|`butt`\|`square` | `line_cap`: `rounded`\|`straight` | **approx** *(task)* — `rounded→round`, `straight→butt` | **approx** — `round→rounded`, `butt`/`square`→`straight` |
 | brush style variant | — | `smooth` \| `rough` \| `textured` | **approx** — width/colour/fill are read from whichever tag is present; the sketchy and grainy renderings are lost | always `smooth` |
 | rough/textured options | — | `seed`, `density`, `distribution`, `fill_style`, `hachure_angle`, … | **drop** — renderer-only | — |
-| parametric shapes | polyline only | `line`, `rect`, `ellipse`, `quadbez`, `cubbez`, `polyline`, `polygon`, `arrow` | **approx** — flattened to a polyline; `arrow` is not handled yet and is **report**ed *(task)* | always a polyline brushstroke |
+| parametric shapes | polyline only | `line`, `rect`, `ellipse`, `quadbez`, `cubbez`, `polyline`, `polygon`, `arrow` | **approx** — flattened to a polyline; an `arrow` becomes its shaft plus a two-barb head, retraced through the tip so it stays one stroke | always a polyline brushstroke |
 | audio `ts`/`fn` | on strokes *and* text | — | n/a | **report** — the pen-replay anchor is lost (the `.wav` sidecar was never in the file) |
 
 **Text.** Which of these are representable at all is settled by the one-box decision below; this
