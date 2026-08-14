@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import com.nexopp.audio.documentAudioFiles
 import com.nexopp.format.ExportFormat
 import com.nexopp.format.SaveFormat
+import com.nexopp.format.rnote.exportWarnings
 import com.nexopp.io.LoadedFile
 import com.nexopp.io.StorageLimits
 import com.nexopp.io.UriStaging
@@ -364,6 +365,9 @@ internal fun MainActivity.saveDocument(uri: Uri) {
 internal fun MainActivity.afterSaved(view: DrawingSurfaceView, uri: Uri) {
     // Hold the grant so the next plain Save can write back here without asking again.
     io.persist(uri)
+    // The file is already written, so this is a report, not a question: the snackbar says it once.
+    lossyReport.value = if (reportLossesAfterSave) saveWarningsFor(saveFormat) else emptyList()
+    reportLossesAfterSave = false
     // The tab now belongs to the file it was just written to: relabel it and remember where it
     // lives, so the strip shows the real name and a restored session points at the same document.
     tabs.updateActive { it.copy(title = displayName(uri), uri = uri.toString()) }
@@ -386,6 +390,9 @@ internal fun MainActivity.afterSaved(view: DrawingSurfaceView, uri: Uri) {
  * share), and only fall back to asking for a location when we don't.
  */
 internal fun MainActivity.saveActiveTab() {
+    // No format was chosen this time, so nothing has warned yet: whatever this save drops is
+    // reported once it lands.
+    reportLossesAfterSave = true
     val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable)
     if (target != null) saveDocument(target) else saveLauncher.launch(pendingSaveName)
 }
@@ -396,10 +403,29 @@ internal fun MainActivity.documentHasAudio(view: DrawingSurfaceView): Boolean =
 
 /**
  * Apply a Save As choice: make [format] the sticky format (so later plain Saves reuse it),
- * remember the file name, and open the single-file picker. Both formats write one file.
+ * remember the file name, and open the single-file picker. All three formats write one file.
+ *
+ * Anything the chosen format would drop has **already** been shown and confirmed by the Save As
+ * flow, so the completed save says nothing more (see `docs/architecture.md`, "no per-tab document
+ * mode — the editor stays uniform, the save path warns").
  */
 internal fun MainActivity.beginSaveAs(filename: String, format: SaveFormat) {
     saveFormat = format
     pendingSaveName = filename
+    reportLossesAfterSave = false
     saveLauncher.launch(filename)
+}
+
+/**
+ * What the open document would lose if it were written as [format] — the pure `exportWarnings`
+ * lines, or empty when nothing is lost. Only `.rnote` can drop anything: both `.xopp` containers
+ * hold the whole model.
+ *
+ * @param format The format the user is considering.
+ * @return One plain sentence per loss, in a stable order; empty means "say nothing at all".
+ */
+internal fun MainActivity.saveWarningsFor(format: SaveFormat): List<String> {
+    if (format != SaveFormat.RNOTE) return emptyList()
+    val view = surface ?: return emptyList()
+    return exportWarnings(view.toDocument())
 }

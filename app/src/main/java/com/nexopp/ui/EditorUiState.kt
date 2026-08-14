@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.nexopp.format.FontDescription
+import com.nexopp.format.SaveFormat
 import com.nexopp.format.model.LineStyle
 import com.nexopp.render.Placement
 
@@ -30,6 +31,23 @@ class TextDefaults {
     /** Font colour (opaque ARGB) for new text boxes. */
     var color by mutableStateOf(PEN_COLORS.first())
 }
+
+/**
+ * A Save As the user has chosen but not yet confirmed, because the chosen format would lose
+ * something. Holding the confirmation as a closure keeps the *decision* here and the *doing* with
+ * whoever asked for the save — the UI never learns what a save involves.
+ *
+ * @property warnings The plain sentences from
+ *   [com.nexopp.format.rnote.exportWarnings]; never empty, since an empty list must show nothing.
+ * @property format The format that was chosen — the *new* one, which is not sticky yet and so
+ *   cannot be read back off the tab.
+ * @property onConfirm Run when the user goes ahead anyway. Cancelling simply drops this.
+ */
+class PendingLossySave(
+    val warnings: List<String>,
+    val format: SaveFormat,
+    val onConfirm: () -> Unit,
+)
 
 /**
  * Everything [EditorScreen] remembers that isn't a mirror of a canvas (that's [PaneState]) and isn't
@@ -59,6 +77,18 @@ class EditorUiState(tool: EditorTool, color: Int, width: Float) {
     var showImportPdf by mutableStateOf(false)
     /** Whether the Export dialog is showing. */
     var showExport by mutableStateOf(false)
+
+    /**
+     * A Save As whose format would lose something, waiting on a deliberate yes. Non-null puts the
+     * warning modal up in place of writing anything.
+     */
+    var pendingLossySave by mutableStateOf<PendingLossySave?>(null)
+
+    /**
+     * The losses of a save that has **already happened**, shown read-only when the user taps
+     * *Details* on the snackbar. Empty means the dialog is closed.
+     */
+    var lossyDetails by mutableStateOf<List<String>>(emptyList())
 
     /** Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar. */
     var fullPage by mutableStateOf(false)

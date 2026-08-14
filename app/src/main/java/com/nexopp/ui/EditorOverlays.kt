@@ -47,6 +47,12 @@ fun BoxScope.EditorOverlays(
     onSettingsChange: (AppSettings) -> Unit,
     currentSaveFormat: () -> SaveFormat,
     onSaveAs: (filename: String, format: SaveFormat) -> Unit,
+    /**
+     * What the open document would lose if it were saved in the given format, one sentence per loss
+     * and empty when it would lose nothing. Supplied by the host so the text stays owned by
+     * `exportWarnings` and is never composed here.
+     */
+    saveWarnings: (SaveFormat) -> List<String>,
     onImportPdf: (ImportPdfMode) -> Unit,
     /** Export confirmed: the chosen format, [com.nexopp.format.PageRange] spec, DPI and file stem. */
     onExport: (ExportFormat, String, Int, String) -> Unit,
@@ -101,9 +107,31 @@ fun BoxScope.EditorOverlays(
     if (ui.showSaveAs) {
         SaveAsDialog(
             initialFormat = currentSaveFormat(),
-            onConfirm = { filename, format -> ui.showSaveAs = false; onSaveAs(filename, format) },
+            onConfirm = { filename, format ->
+                ui.showSaveAs = false
+                // A format that would drop something asks first; one that wouldn't says nothing.
+                val warnings = saveWarnings(format)
+                if (warnings.isEmpty()) {
+                    onSaveAs(filename, format)
+                } else {
+                    ui.pendingLossySave =
+                        PendingLossySave(warnings, format) { onSaveAs(filename, format) }
+                }
+            },
             onDismiss = { ui.showSaveAs = false },
         )
+    }
+    ui.pendingLossySave?.let { pending ->
+        LossySaveDialog(
+            warnings = pending.warnings,
+            confirmLabel = "Save as ${pending.format.label}",
+            onConfirm = { ui.pendingLossySave = null; pending.onConfirm() },
+            // Cancel writes nothing and leaves the tab's format exactly as it was.
+            onDismiss = { ui.pendingLossySave = null },
+        )
+    }
+    if (ui.lossyDetails.isNotEmpty()) {
+        LossySaveDetailsDialog(ui.lossyDetails, onDismiss = { ui.lossyDetails = emptyList() })
     }
     if (ui.showExport) {
         ExportDialog(

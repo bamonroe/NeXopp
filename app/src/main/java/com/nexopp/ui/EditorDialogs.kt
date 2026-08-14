@@ -98,6 +98,62 @@ fun SaveAsDialog(
 }
 
 /**
+ * The confirmation shown **before** a Save As whose chosen format would drop something: the losses in
+ * plain sentences, Cancel and go-ahead. Choosing a format is a deliberate act, so it gets a
+ * deliberate confirmation (see `docs/architecture.md`, "no per-tab document mode — the editor stays
+ * uniform, the save path warns").
+ *
+ * The lines are computed by `exportWarnings` and passed in verbatim — this dialog never writes copy
+ * about what a format can hold — and it is only ever shown for a **non-empty** list: a "nothing will
+ * be lost" reassurance is the same train-the-user-to-dismiss problem the modal is trying to avoid.
+ *
+ * @param warnings The losses, one sentence each.
+ * @param confirmLabel The go-ahead button's label, naming the format being written.
+ * @param onConfirm Save anyway.
+ * @param onDismiss Cancel: nothing is written and the tab's format is untouched.
+ */
+@Composable
+fun LossySaveDialog(
+    warnings: List<String>,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Some content will not be saved") },
+        text = { WarningLines(warnings) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/**
+ * The same list, read-only, for a save that has **already** happened — what the snackbar's *Details*
+ * action opens. There is nothing to confirm, so the only button closes it.
+ *
+ * @param warnings The losses, one sentence each.
+ * @param onDismiss Close.
+ */
+@Composable
+fun LossySaveDetailsDialog(warnings: List<String>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Some content was not saved") },
+        text = { WarningLines(warnings) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+    )
+}
+
+/** The shared body of the two warning dialogs: one line per loss, in the order they were computed. */
+@Composable
+private fun WarningLines(warnings: List<String>) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (line in warnings) Text("• $line", style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
  * "Import PDF" chooser: does the picked PDF become the whole document ([ImportPdfMode.REPLACE], which
  * discards the current pages) or land after the pages already open ([ImportPdfMode.APPEND])? A `.xopp`
  * can reference just one background PDF, so when the document already has one ([merging]) the append

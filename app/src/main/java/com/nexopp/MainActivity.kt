@@ -154,6 +154,20 @@ class MainActivity : ComponentActivity() {
     /** What long-running transfer is in flight, or null. Drives the editor's blocking progress note. */
     internal var busy = mutableStateOf<String?>(null)
 
+    /**
+     * What the save that just landed could not carry into its format, or empty. Set only by a
+     * **plain** Save — a Save As has already shown the same lines in its confirmation modal, so
+     * repeating them in a snackbar would be saying it twice.
+     */
+    internal val lossyReport = mutableStateOf<List<String>>(emptyList())
+
+    /**
+     * Whether the next completed save should fill [lossyReport]. Set by [saveActiveTab] and cleared
+     * by [beginSaveAs], which are the two ways a save starts; they share one launcher, so the flag
+     * is how the completion tells them apart.
+     */
+    internal var reportLossesAfterSave = false
+
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             uri?.let { insertPickedImage(it) }
@@ -279,6 +293,9 @@ class MainActivity : ComponentActivity() {
                     onExit = { finish() },
                     onSaveAs = { name, format -> beginSaveAs(name, format) },
                     currentSaveFormat = { saveFormat },
+                    saveWarnings = { format -> saveWarningsFor(format) },
+                    lossyReport = lossyReport.value,
+                    onLossyReportShown = { lossyReport.value = emptyList() },
                     onImportPdf = { mode ->
                         pendingImportMode = mode
                         importPdfLauncher.launch(arrayOf(PDF_MIME))

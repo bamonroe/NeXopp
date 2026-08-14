@@ -17,6 +17,31 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "show-the-rnote-lossy-save-warnings-in-the-save-flow"
+title = "Show the .rnote lossy-save warnings in the save flow"
+description = """
+The plumbing half of docs/architecture.md 'Decision (2026-08-12): no per-tab document mode — the editor stays uniform, the save path warns'. The editor gains NO mode and NO per-tab state beyond OpenTab.format; this task is only the reporting. Blocked until exportWarnings() exists (task 'rnote: warn on save when a document's pages or backgrounds cannot survive .rnote').
+
+Two behaviours, both driven by RnoteExportWarnings.exportWarnings(document):
+
+1. Save As, in app/src/main/java/com/nexopp/ui/EditorDialogs.kt / the save-as flow in MainActivityDocuments.kt: when the chosen SaveFormat is RNOTE and exportWarnings is non-empty, show a modal AlertDialog BEFORE writing — title 'Some content will not be saved', the warning lines as body text, buttons 'Cancel' and 'Save as Rnote'. Cancel writes nothing and leaves the tab's format untouched. Confirm proceeds with the existing write and the existing format-stickiness switch.
+2. A plain Save of a tab whose format is already RNOTE: write immediately, then show a snackbar 'Some content was not saved' with a 'Details' action that opens the same list in a read-only dialog. No modal — the user already chose this format.
+
+An EMPTY warning list must show nothing in either path: no dialog, no snackbar. Do not add a 'nothing will be lost' confirmation.
+
+Do not compute warning text in the UI — every string comes from exportWarnings, which stays pure.
+
+Also per that decision: the tab strip gets NO format badge. Do not add one; the tab title is the file name and already carries the extension.
+
+Verify: scripts/build.sh, then the emulator pass — open fixtures/backgrounds.xopp, Save As with Rnote selected, screenshot the warning dialog, cancel and confirm the file was not written; then confirm and screenshot; then plain-Save the now-.rnote tab and screenshot the snackbar. Check adb logcat for exceptions."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "route-saving-to-the-rnote-writer-when-saveformat-is-rnote"
 title = "Route saving to the rnote writer when SaveFormat is RNOTE"
 description = """

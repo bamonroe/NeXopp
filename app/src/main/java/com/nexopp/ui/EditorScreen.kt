@@ -9,8 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.nexopp.format.ExportFormat
@@ -122,6 +127,19 @@ fun EditorScreen(
     onSave: () -> Unit,
     onSaveAs: (filename: String, format: SaveFormat) -> Unit,
     currentSaveFormat: () -> SaveFormat,
+    /**
+     * What the open document would lose if saved in the given format, one sentence per loss and
+     * empty when nothing is lost. Drives the Save As confirmation; the screen never writes the text.
+     */
+    saveWarnings: (SaveFormat) -> List<String> = { emptyList() },
+    /**
+     * What a save that has **already happened** lost, or empty. A plain Save of a tab that is
+     * already in a lossy format writes first and reports after, in a snackbar — the user chose that
+     * format once, and a modal on every save would only train them to dismiss it.
+     */
+    lossyReport: List<String> = emptyList(),
+    /** [lossyReport] has been shown; clear it so the same save is not reported twice. */
+    onLossyReportShown: () -> Unit = {},
     onImportPdf: (ImportPdfMode) -> Unit,
     /**
      * Export confirmed in the Export dialog: the chosen format, the [com.nexopp.format.PageRange]
@@ -173,9 +191,25 @@ fun EditorScreen(
 ) {
     val ui = rememberEditorUiState(settings)
     val pane = ui.pane(activePane)
+    val snackbars = remember { SnackbarHostState() }
 
     // Back peels the editor's transient layers off one at a time before it ever exits.
     EditorBackHandler(ui = ui, pane = pane, busy = busy != null, onExit = onExit)
+
+    // A save that lost something: say so once, briefly, with the full list a tap away.
+    LaunchedEffect(lossyReport) {
+        if (lossyReport.isEmpty()) return@LaunchedEffect
+        val lines = lossyReport
+        // Consume *after* the snackbar closes, never before: clearing the state is what this
+        // effect is keyed on, so an early call cancels the very coroutine that is showing it.
+        val result = snackbars.showSnackbar(
+            message = "Some content was not saved",
+            actionLabel = "Details",
+            duration = SnackbarDuration.Long,
+        )
+        onLossyReportShown()
+        if (result == SnackbarResult.ActionPerformed) ui.lossyDetails = lines
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -184,6 +218,7 @@ fun EditorScreen(
                     topBar(ui, pane, tabs[activePane.coerceIn(tabs.indices)])
                 }
             },
+            snackbarHost = { SnackbarHost(snackbars) },
         ) { padding ->
             EditorBody(
                 ui = ui,
@@ -226,6 +261,7 @@ fun EditorScreen(
             onSettingsChange = onSettingsChange,
             currentSaveFormat = currentSaveFormat,
             onSaveAs = onSaveAs,
+            saveWarnings = saveWarnings,
             onImportPdf = onImportPdf,
             onExport = onExport,
         )

@@ -750,6 +750,17 @@ authoritative flow; don't invent another one.
   Picking a format also rewrites the **extension in the name field** to match (`notes.xopp` becomes
   `notes.rnote` and back); the stem you typed is left alone.
 
+- **What Rnote can't keep, said out loud.** If you choose **Rnote** for a document that would lose
+  something — mixed page sizes, a PDF or image page background, per-page backgrounds, layer names,
+  eraser strokes, LaTeX boxes, audio links, or highlighting that currently sits *over* your ink —
+  a dialog lists exactly what, with **Cancel** and **Save as Rnote**. Nothing is written until you
+  choose, and cancelling leaves the tab as it was. A document that loses nothing saves straight
+  away with no dialog at all.
+
+  After that, a plain **Save** of an already-`.rnote` file just writes, and reports the same list in
+  a brief message at the bottom of the screen with a **Details** button — you already chose the
+  format, so it doesn't ask again.
+
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.

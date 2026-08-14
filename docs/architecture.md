@@ -665,6 +665,22 @@ Two rules follow for whoever implements this: the warning list is computed by th
 `exportWarnings` function (its own task) and never by the UI, and an empty list must show nothing at
 all — a "nothing will be lost" dialog is the same training-to-dismiss problem.
 
+**How it is wired.** The lines cross the UI boundary as data, never as logic:
+
+- `EditorScreen`/`EditorOverlays` take a **`saveWarnings: (SaveFormat) -> List<String>`** callback.
+  `MainActivity.saveWarningsFor` is the only implementation — `exportWarnings(document)` for
+  `RNOTE`, empty for both `.xopp` containers, which lose nothing. The UI never decides *what* a
+  format can hold; it only decides whether a non-empty list means a dialog.
+- The Save As confirmation is `EditorUiState.pendingLossySave` (`PendingLossySave`: the lines, the
+  chosen format — which is **not** sticky yet, so it can't be read off the tab — and the
+  go-ahead closure). `LossySaveDialog` shows it; cancelling drops the closure and writes nothing.
+- The plain-Save report travels the other way: `MainActivity.lossyReport` is set in `afterSaved`
+  and rendered as a Material 3 snackbar by the `Scaffold`'s `snackbarHost`, whose *Details* action
+  opens the same list read-only (`LossySaveDetailsDialog`).
+- **Which of the two fires** is `MainActivity.reportLossesAfterSave`, a one-shot flag: `beginSaveAs`
+  clears it (the modal already asked) and `saveActiveTab` sets it. The two paths share one SAF
+  launcher, so the completion has no other way to tell them apart.
+
 ### Decision (2026-08-12): one `textstroke` stays one `<text>` — no run splitting
 
 **A Rnote text box imports as exactly one `TextElement`, always.** We do not split a box into one
