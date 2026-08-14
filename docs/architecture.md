@@ -8,6 +8,35 @@ decisions. `CLAUDE.md` points here; the specifics live here.
 > including PDF import and export, and `.rnote` files read and write both ways. This doc is kept
 > current as the code evolves; record design decisions here so they aren't re-litigated.
 
+## Map of this document
+
+This is the largest spoke, so read it the way `CLAUDE.md` says to read the repo — **follow the row
+you need, not the whole file**. Each section below is the authoritative home for what it owns;
+nothing here is repeated in another section.
+
+| Section | What it owns |
+|---|---|
+| [Prior art](#prior-art--has-someone-already-done-this) | why we build rather than adopt, and the reference clone |
+| [The `.xopp` format](#the-xopp-format-code-derived--this-is-its-authoritative-home) | the on-disk schema: units, colour, element tree, round-trip hazards |
+| [The `.rnote` format](#the-rnote-format--container--serialisation-code-derived--this-is-its-authoritative-home) | the JSON container, the stroke/pen mapping, the canvas ↔ pages rule, the lossy policy and the full feature-gap matrix |
+| [Stack](#stack--pinned-2026-07-30) | what we build on and every load-bearing dependency decision |
+| [Data path](#data-path) | staging, tabs and the session cache, split view, the in-memory model |
+| [Repository layout](#repository-layout) | every package and file, and what each holds |
+| [UI palette family](#ui-palette-family--geometry-codecs-pickers) | the radial palette's geometry, codecs and pickers |
+| [What the unit tests cover](#what-the-unit-tests-cover) | the one inventory of the test suite |
+| [Rendering & editing](#rendering--editing-render) | the canvas loop, page/layer edits, shapes, styles, the erasers, authoring |
+| [Audio-annotated strokes](#audio-annotated-strokes-audio) | record, replay and sidecar transfer for `fn`/`ts` |
+| [Vertical space](#vertical-space-renderverticalspaceopskt) | the insert/remove-space tool |
+| [Selecting objects](#selecting-objects-render) | marquee, lasso, text and background selection, and the edits on them |
+| [PDF backgrounds & rasterisation](#pdf-backgrounds--rasterisation-render) | importing a PDF as pages, the caches, the text layer |
+| [Exporting](#exporting-pdf-svg-and-raster) | PDF, SVG and raster export, and the fonts they embed |
+| [Generating the text-import PDF](#generating-the-text-import-pdf) | how a text file is typeset into a background PDF |
+| [Opening an image](#opening-an-image-as-a-document-renderimageimportkt) · [a text file](#opening-a-text-file-as-a-document-iotextimportkt) | the two non-document open paths |
+| [Markdown import](#markdown-import-rendermarkdown) | parsing, inline spans, wrapping and page breaking |
+| [The editor chrome](#the-editor-chrome-ui) | the screen's assembly, the rail, the tab strip, settings |
+| [Relative PDF references](#relative-pdf-references) | how a `.xopp` names its background PDF, in every spelling |
+| [Stylus & selection roadmap](#stylus--selection-roadmap) | what is deliberately not built yet |
+
 ## Prior art — has someone already done this?
 
 Surveyed 2026-07-30. **Conclusion: no maintained, native, full-fidelity `.xopp` editor for
@@ -1469,7 +1498,7 @@ finds. That's what makes the palette system unit-testable (`RadialPaletteTest`,
 `RadialPaletteHitTestTest`, `RadialPaletteLayoutTest`, `RadialPaletteCodecTest`, `PaletteListTest`,
 `PaletteActionCatalogTest`, etc.) and keeps the settings diagram in sync with the live menu.
 
-### What the unit tests cover
+## What the unit tests cover
 
 This section is the one authoritative inventory — `README.md` and `docs/tools.md` link here rather
 than restating it. The `format/` tests exercise the
@@ -1487,7 +1516,9 @@ project's parent dir, so the file resolves inside the container). The sample is 
 so the test **self-skips when it is absent** — the suite is green with or without it, and
 dropping a fresh `udiff.xopp` at the repo root is all it takes to turn the extra coverage on.
 
-**Rendering (`render/`).** Every repaint is **paced to the display**: `DrawingSurfaceView.render()`
+## Rendering & editing (`render/`)
+
+Every repaint is **paced to the display**: `DrawingSurfaceView.render()`
 never paints inline, it flags a `Choreographer` frame callback that runs the actual `paint()` once
 per vsync, collapsing everything requested in between. This matters because a digitiser reports far
 faster than the panel refreshes (240 Hz against 120 Hz on the large tablets): painting straight from
@@ -1716,7 +1747,9 @@ layer. Tapping an existing text box reopens it for editing (clearing the content
 matched by element identity. The view keeps the loaded document intact and only appends/edits, so
 every page, layer, and element round-trips through save.
 
-**Audio-annotated strokes (`audio/`).** Xournal++ can record while you write and then replay from
+## Audio-annotated strokes (`audio/`)
+
+Xournal++ can record while you write and then replay from
 any stroke: the stroke carries `fn` (a `.wav` file name) and `ts` (how far into that recording it was
 started). We implement both ends of that.
 
@@ -1748,7 +1781,9 @@ stopping a recording) pushes them back out. Without a nominated folder audio sti
 for the session — only the hand-off to and from the desktop is missing, and the app says so. `fn` is
 reduced to a bare file name before use, so a hand-edited path in a document can't escape that folder.
 
-**Vertical space (`render/VerticalSpaceOps.kt`).** The **Vertical space** tool
+## Vertical space (`render/VerticalSpaceOps.kt`)
+
+The **Vertical space** tool
 (`EditorTool.VERTICAL_SPACE` → the surface's `verticalSpaceMode`, classified as
 `GestureIntent.VERTICAL_SPACE`) reflows a page: pointer-down latches the grabbed page and the
 page-local Y of the grab line, and each move frame re-applies `VerticalSpaceOps.shiftBelow` to the
@@ -1760,7 +1795,7 @@ never crosses above the line it was grabbed at; a drag that can't move anything 
 list, which keeps `finishGesture` from recording an empty undo step. The whole drag is one undo step,
 and because it only rewrites coordinates the result round-trips through save unchanged.
 
-### Selecting objects (`render/`)
+## Selecting objects (`render/`)
 
 The **Select** tools (`EditorTool.SELECT`,
 `EditorTool.LASSO_SELECT`, `EditorTool.TEXT_SELECT`, and `EditorTool.BG_SELECT`) share the rail's
@@ -1837,7 +1872,9 @@ background is a page attribute rather than part of the region, so it is copied b
 region is view state only — never recorded in history — and clears on a new marquee drag, on a tool
 change (the `backgroundSelectMode` setter), on Back, and on `load`.
 
-**PDF (`render/`).** A `<background type="pdf">` page shows its PDF page as the background image:
+## PDF backgrounds & rasterisation (`render/`)
+
+A `<background type="pdf">` page shows its PDF page as the background image:
 `PdfPageCache` wraps the framework `PdfRenderer` (dependency-free, serialised — `PdfRenderer` is
 not thread-safe) and `BackgroundRenderer` draws the rasterised page.
 
@@ -1881,8 +1918,11 @@ reference at the joined file (`documentWithPdfReference`) **and** appends the pa
 undoable edit** — the two halves must move together, since the appended `pageno` values index the
 joined document. Existing pages keep their `pageno`, being at the front of the join. `Save`
 (`XOPP_GZIP`) links the joined PDF by path; `Save As` (`XOPP_ZIP`) embeds it as `bg.pdf` through the
-usual `documentWithPdfDomain` rewrite, which is the easy case. **Export
-PDF** (`PdfExporter`) flattens the document back out with **PDFBox** (`com.tom-roush:pdfbox-android`,
+usual `documentWithPdfDomain` rewrite, which is the easy case.
+
+## Exporting: PDF, SVG and raster
+
+**Export PDF** (`PdfExporter`) flattens the document back out with **PDFBox** (`com.tom-roush:pdfbox-android`,
 the one non-framework runtime dependency — see the note below): a `pdf`-backed page whose source PDF
 is available (`PdfPageCache.source`, the cached import) is **imported verbatim so its original vector
 content is preserved** (`PDDocument.importPage`), and the annotations are appended over it as a
@@ -1977,7 +2017,9 @@ yields each page the moment `linesPerPage` lines have accumulated — so memory 
 rather than with the file, and a page can be written out before the input is fully read. The list form
 is a thin wrapper over the streaming one, so both give byte-identical layout.
 
-**Generating the text-import PDF.** `TextPdfGenerator` turns a plain-text file into the PDF a text
+## Generating the text-import PDF
+
+`TextPdfGenerator` turns a plain-text file into the PDF a text
 import is opened against. It owns only the authoring — layout is entirely `TextPaginator`'s — and
 emits **real, selectable text**: a white sheet per page, then one `beginText`/`setFont`/
 `newLineAtOffset`/`showText` per laid-out line at `heightPt - baselineFromTop(i)` (PDF's origin is
@@ -2021,7 +2063,9 @@ A source that yields no blocks still gets one blank sheet, matching the plain pa
 out again — asserting the words survive, the markup characters do not, and more than one face is
 embedded on the page.
 
-**Wiring an image into the open path (`render/ImageImport.kt`).** The `.xopp` format has exactly one
+## Opening an image as a document (`render/ImageImport.kt`)
+
+The `.xopp` format has exactly one
 home for a picture behind a page — `<background type="pixmap">` — so an opened PNG/JPEG/WebP becomes a
 **single page** carrying `Background.Pixmap(domain="absolute", filename=<source content:// URI>)` and
 one empty layer. The page is sized straight from the image's pixels at the 72-dpi baseline `.xopp`
@@ -2080,7 +2124,9 @@ enter the file, and a bundled one survives the whole `documentWithPixmapAttachme
 `XoppZip.save` → `XoppZip.open` path with its entry bytes and the annotations over it intact —
 numbering one entry per image-backed page and leaving an unreachable picture's reference alone.
 
-**Wiring a text file into the open path (`io/TextImport.kt`).** A `.xopp` cannot represent "a text
+## Opening a text file as a document (`io/TextImport.kt`)
+
+A `.xopp` cannot represent "a text
 file" — the only thing that round-trips is a PDF background — so `DocumentIo.read()` short-circuits
 `FileKind.TEXT` the same way it does `FileKind.PDF`: typeset the bytes, return
 `LoadedFile.Pdf(generated = true)`, and every path downstream (background rasterisation,
@@ -2100,7 +2146,9 @@ second path would buy nothing. The `MARKDOWN` branch in the generator runs the m
 layout and `MarkdownPdfWriter` in place of `TextPaginator`. Each flavour carries its own `cachePrefix` (`text:` / `markdown:`) so the
 same bytes opened as `notes.txt` and as `notes.md` cannot collide in `PdfStore`.
 
-**Parsing markdown (`render/markdown/`).** Structure and geometry are split the same way plain text
+## Markdown import (`render/markdown/`)
+
+Structure and geometry are split the same way plain text
 splits them: `MarkdownParser` turns source into a tree of `MarkdownBlock` and stops there — no
 measurement, no wrapping, no pages — exactly as `TextPaginator` is pure geometry with no knowledge of
 markup. The parser is dependency-free by policy (no CommonMark library): it is a **line-based
@@ -2234,7 +2282,9 @@ to word indices (`PdfTextIndex.anchorWord`), the range is highlighted (`drawText
 selection is a **view-only** overlay derived from the PDF — it isn't part of the `.xopp` document, so
 it doesn't affect round-trip (matching how desktop selects a PDF background's text).
 
-**Chrome (`ui/`).** `EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
+## The editor chrome (`ui/`)
+
+`EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
 icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export…, Save,
 and Settings; a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
 Pages; and the canvas filling the rest. Each rail button owns its own `DropdownMenu`, so the pop-up

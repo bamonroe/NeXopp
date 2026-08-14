@@ -19,7 +19,22 @@ you pull in a spoke only when the task touches it, instead of reading everything
 | **How the system works internally** (data flow, layout) | `docs/architecture.md` |
 | **How a user runs/uses it** (setup, build & run) | `README.md`               |
 | **External tools & build pipelines** (Android, deploy, device harnesses) | `docs/tools.md` |
-| **[Any other spoke — protocol, commands, API…]** | `docs/[name].md`          |
+| Any *new* spoke (a protocol, an API, a second app) | `docs/<name>.md`, added to this table in the same commit |
+
+**`docs/architecture.md` is the big spoke — route into it, don't read it whole.** It opens with
+its own [map](docs/architecture.md#map-of-this-document); these are the rows worth knowing by heart:
+
+| The task touches…                                | Section of `docs/architecture.md` |
+|--------------------------------------------------|------------------------------------|
+| the `.xopp` schema (elements, attributes, units, colour) | [The `.xopp` format](docs/architecture.md#the-xopp-format-code-derived--this-is-its-authoritative-home) |
+| anything `.rnote` — the JSON container, the stroke mapping, what does or doesn't survive | [The `.rnote` format](docs/architecture.md#the-rnote-format--container--serialisation-code-derived--this-is-its-authoritative-home), whose **feature-gap matrix** is the per-feature verdict |
+| where a file or package lives, or adding one     | [Repository layout](docs/architecture.md#repository-layout) |
+| opening/saving, staging, tabs, split view        | [Data path](docs/architecture.md#data-path) |
+| the canvas, tools, gestures, erasers, selection  | [Rendering & editing](docs/architecture.md#rendering--editing-render) and [Selecting objects](docs/architecture.md#selecting-objects-render) |
+| PDF backgrounds, or any export                   | [PDF backgrounds & rasterisation](docs/architecture.md#pdf-backgrounds--rasterisation-render), [Exporting](docs/architecture.md#exporting-pdf-svg-and-raster) |
+| the Compose chrome, rail, tab strip, settings    | [The editor chrome](docs/architecture.md#the-editor-chrome-ui) |
+| adding or changing a test                        | [What the unit tests cover](docs/architecture.md#what-the-unit-tests-cover) |
+| a dependency, or why one was chosen              | [Stack](docs/architecture.md#stack--pinned-2026-07-30) |
 
 **Two classes of fact:**
 
