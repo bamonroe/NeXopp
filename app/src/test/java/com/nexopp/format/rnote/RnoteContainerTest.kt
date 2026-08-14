@@ -86,6 +86,28 @@ class RnoteContainerTest {
         assertTrue(e.message.orEmpty(), e.message.orEmpty().isNotBlank())
     }
 
+    @Test
+    fun `what we write comes back through the reader`() {
+        val snapshot = writeSnapshot(com.nexopp.format.model.Document())
+        val wrapper = RnoteContainer.parseJson(RnoteContainer.writeJson(snapshot))
+        assertEquals(RnoteContainer.WRITE_VERSION, wrapper.version)
+        assertNotNull(wrapper.snapshot.obj("stroke_components"))
+
+        // And the same through the gzip both halves actually use on disk.
+        val bytes = java.io.ByteArrayOutputStream()
+        RnoteContainer.write(snapshot, bytes)
+        val reopened = RnoteContainer.open(ByteArrayInputStream(bytes.toByteArray()))
+        assertEquals(RnoteContainer.WRITE_VERSION, reopened.version)
+        assertEquals("fixed_size", RnoteSnapshot.parse(reopened.snapshot).layout)
+    }
+
+    @Test
+    fun `the version we stamp is the one the mapping was read out of`() {
+        // Rnote chains its TryFrom conversions forward from this string, so it must not drift
+        // ahead of the fixtures the mapping was measured against.
+        assertEquals(open("plain").version, RnoteContainer.WRITE_VERSION)
+    }
+
     private fun assertThrows(block: () -> Unit): IllegalArgumentException =
         try {
             block()

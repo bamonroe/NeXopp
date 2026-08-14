@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-container-writer"
+title = "Write the .rnote container: version wrapper plus gzip"
+description = """
+The export mirror of RnoteContainer.open. Add to app/src/main/java/com/nexopp/format/rnote/RnoteContainer.kt:
+
+- 'const val WRITE_VERSION = "0.14.2"' - the upstream release the whole mapping was derived from, so an older Rnote sees a version it can chain its TryFrom conversions from.
+- 'fun writeJson(snapshot: JsonValue): String' - wrap as {"version":WRITE_VERSION,"data":{"engine_snapshot":<snapshot>}} and emit it compactly through the JSON writer. This is the test seam: no gzip needed.
+- 'fun write(snapshot: JsonValue, output: OutputStream)' - GZIPOutputStream over writeJson's UTF-8 bytes. Does not close [output], matching open()'s contract of not closing its input.
+
+Then add app/src/main/java/com/nexopp/format/rnote/RnoteDocumentWriter.kt with the one public entry point the save path calls: 'fun writeRnote(document: Document, output: OutputStream)' = RnoteContainer.write(writeSnapshot(document), output). Keep it a thin file; the assembling lives in RnoteSnapshotWriter.kt.
+
+Test in app/src/test/java/com/nexopp/format/rnote/RnoteContainerTest.kt: writeJson round-trips through parseJson with the version intact; write() then open() over a ByteArrayOutputStream/ByteArrayInputStream returns an equivalent snapshot. Add app/src/test/java/com/nexopp/format/rnote/RnoteDocumentWriterTest.kt: a full Document -> writeRnote -> RnoteContainer.open -> RnoteSnapshot.parse -> readDocument round trip, asserting page count, layer names, stroke count and stroke geometry survive.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-13
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-snapshot-assembler"
 title = "Assemble the engine_snapshot JSON from a Document"
 description = """

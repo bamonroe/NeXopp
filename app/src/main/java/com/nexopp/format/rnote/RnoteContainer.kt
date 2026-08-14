@@ -1,17 +1,31 @@
 package com.nexopp.format.rnote
 
 import com.nexopp.format.json.JsonReader
+import com.nexopp.format.json.JsonString
 import com.nexopp.format.json.JsonValue
+import com.nexopp.format.json.jsonObject
+import com.nexopp.format.json.toJsonString
 import java.io.InputStream
+import java.io.OutputStream
 import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 /**
  * Top-level `.rnote` container I/O: gzip on the outside, one JSON object within — the same
  * wrapper a classic `.xopp` uses, with JSON in place of XML (see `docs/architecture.md`, section
- * "The `.rnote` format — container & serialisation"). This layer only unwraps and version-checks;
- * turning the snapshot into a document model belongs to the reader above it.
+ * "The `.rnote` format — container & serialisation"). This layer only unwraps, version-checks and
+ * re-wraps; turning a snapshot into a document model (or back) belongs to the reader and writer
+ * above it.
  */
 object RnoteContainer {
+
+    /**
+     * The version stamped on every file we write: the upstream release the whole mapping was read
+     * out of. Rnote chains its `TryFrom` conversions **forward** from the version in the file, so
+     * naming the one we actually match is what lets an older Rnote convert our payload rather than
+     * misread it.
+     */
+    const val WRITE_VERSION = "0.14.2"
 
     /**
      * The oldest Rnote release whose payload shape we read. Older files use `store_snapshot` and
@@ -77,6 +91,32 @@ object RnoteContainer {
         val snapshot = data.obj("engine_snapshot")
             ?: throw IllegalArgumentException("missing \"data.engine_snapshot\" in the .rnote container")
         return RnoteWrapper(version, major, minor, patch, snapshot)
+    }
+
+    /**
+     * Wrap an `engine_snapshot` in the container document, as compact JSON — the mirror of
+     * [parseJson], and the seam tests use so they need no gzip round trip.
+     *
+     * @param snapshot The `engine_snapshot` object, from [writeSnapshot].
+     * @return The whole decompressed container document.
+     */
+    fun writeJson(snapshot: JsonValue): String = jsonObject(
+        "version" to JsonString(WRITE_VERSION),
+        "data" to jsonObject("engine_snapshot" to snapshot),
+    ).toJsonString()
+
+    /**
+     * Write a `.rnote` stream: [writeJson]'s UTF-8 bytes through gzip. Does not close [output],
+     * matching [open]'s contract of not closing its input — but does finish the gzip member, so the
+     * bytes are complete when it returns.
+     *
+     * @param snapshot The `engine_snapshot` object, from [writeSnapshot].
+     * @param output The stream to write the file to.
+     */
+    fun write(snapshot: JsonValue, output: OutputStream) {
+        val gzip = GZIPOutputStream(output)
+        gzip.write(writeJson(snapshot).toByteArray(Charsets.UTF_8))
+        gzip.finish()
     }
 
     /**
