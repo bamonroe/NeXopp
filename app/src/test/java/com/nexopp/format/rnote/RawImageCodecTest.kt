@@ -1,17 +1,22 @@
 package com.nexopp.format.rnote
 
 import java.io.ByteArrayOutputStream
+import java.util.zip.CRC32
+import java.util.zip.Deflater
 import java.util.zip.Inflater
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * The raw-pixels → PNG encoder and the premultiplied-alpha fix-up a `bitmapimage` goes through.
- * The assertions read the encoder's own output back (chunk names, inflated scanline size) because
- * nothing on the JVM side can decode a PNG for us — `android.graphics` is a stub in unit tests.
+ * The raw-pixels ↔ PNG codec and the premultiplied-alpha fix-ups a `bitmapimage` goes through, in
+ * both directions: the encoder an import needs and the decoder an export needs.
+ *
+ * Some assertions still read the encoder's *bytes* back (chunk names, inflated scanline size) rather
+ * than going through the decoder, so a matching pair of bugs in the two halves cannot cancel out.
  */
 class RawImageCodecTest {
 
@@ -104,5 +109,140 @@ class RawImageCodecTest {
             byteArrayOf(0xFF.toByte(), 0, 0, 0xFF.toByte()),
             RawImageCodec.decodeBase64("/wAA\n/w=="),
         )
+    }
+
+    @Test
+    fun `encode then decode returns the pixels unchanged`() {
+        val pixels = ByteArray(3 * 2 * 4) { (it * 11 % 256).toByte() }
+        val image = RawImageCodec.decodePng(RawImageCodec.encodePng(pixels, 3, 2))!!
+        assertEquals(3, image.width)
+        assertEquals(2, image.height)
+        assertArrayEquals(pixels, image.rgba)
+    }
+
+    @Test
+    fun `every scanline filter type unfilters back to the same pixels`() {
+        // Our own encoder only writes filter 0, but libpng picks per row, so a user's imported
+        // picture can carry any of the five.
+        val pixels = ByteArray(4 * 3 * 4) { (it * 23 % 256).toByte() }
+        for (filter in 0..4) {
+            val image = RawImageCodec.decodePng(pngWithFilter(pixels, 4, 3, filter))
+            assertArrayEquals("filter $filter", pixels, image?.rgba)
+        }
+    }
+
+    @Test
+    fun `grey and rgb images expand to rgba`() {
+        val grey = RawImageCodec.decodePng(pngWithSamples(byteArrayOf(0x40, 0x80.toByte()), 2, 1, 0))!!
+        assertArrayEquals(
+            byteArrayOf(0x40, 0x40, 0x40, 0xFF.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0xFF.toByte()),
+            grey.rgba,
+        )
+        val rgb = RawImageCodec.decodePng(pngWithSamples(byteArrayOf(1, 2, 3), 1, 1, 2))!!
+        assertArrayEquals(byteArrayOf(1, 2, 3, 0xFF.toByte()), rgb.rgba)
+    }
+
+    @Test
+    fun `anything we cannot decode is null rather than an exception`() {
+        val png = RawImageCodec.encodePng(redSquare(), 2, 2)
+        // A JPEG, a truncated file, an empty buffer, an interlaced image and a palette image.
+        assertNull(RawImageCodec.decodeToRaw(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())))
+        assertNull(RawImageCodec.decodePng(png.copyOfRange(0, png.size / 2)))
+        assertNull(RawImageCodec.decodePng(ByteArray(0)))
+        assertNull(RawImageCodec.decodePng(png.also { it[RawImageCodec.PNG_SIGNATURE.size + 8 + 12] = 1 }))
+        assertNull(RawImageCodec.decodePng(pngWithSamples(byteArrayOf(0), 1, 1, 3)))
+    }
+
+    @Test
+    fun `premultiplying is the inverse of unpremultiplying within a rounding step`() {
+        val straight = byteArrayOf(0xFF.toByte(), 0x80.toByte(), 0x40, 0x80.toByte(), 0x11, 0x22, 0x33, 0xFF.toByte())
+        val back = RawImageCodec.unpremultiply(RawImageCodec.premultiply(straight))
+        for (i in straight.indices) {
+            val delta = Math.abs((straight[i].toInt() and 0xFF) - (back[i].toInt() and 0xFF))
+            assertTrue("byte $i drifted by $delta", delta <= 1)
+        }
+        // An opaque buffer is untouched in both directions.
+        val opaque = byteArrayOf(0x40, 0x50, 0x60, 0xFF.toByte())
+        assertArrayEquals(opaque, RawImageCodec.premultiply(opaque))
+    }
+
+    /** A PNG whose every row uses [filter], so the decoder's unfiltering is what is under test. */
+    private fun pngWithFilter(rgba: ByteArray, width: Int, height: Int, filter: Int): ByteArray {
+        val stride = width * 4
+        val raw = ByteArray(height * (stride + 1))
+        for (row in 0 until height) {
+            raw[row * (stride + 1)] = filter.toByte()
+            for (i in 0 until stride) {
+                val here = rgba[row * stride + i].toInt() and 0xFF
+                val left = if (i >= 4) rgba[row * stride + i - 4].toInt() and 0xFF else 0
+                val up = if (row > 0) rgba[(row - 1) * stride + i].toInt() and 0xFF else 0
+                val upLeft = if (row > 0 && i >= 4) rgba[(row - 1) * stride + i - 4].toInt() and 0xFF else 0
+                val predicted = when (filter) {
+                    1 -> left
+                    2 -> up
+                    3 -> (left + up) / 2
+                    4 -> paeth(left, up, upLeft)
+                    else -> 0
+                }
+                raw[row * (stride + 1) + 1 + i] = ((here - predicted) and 0xFF).toByte()
+            }
+        }
+        return assemble(raw, width, height, colorType = 6)
+    }
+
+    /** A PNG of already-unfiltered [samples] under [colorType], for the channel-expansion cases. */
+    private fun pngWithSamples(samples: ByteArray, width: Int, height: Int, colorType: Int): ByteArray {
+        val channels = intArrayOf(1, 0, 3, 1, 2, 0, 4)[colorType]
+        val stride = width * channels
+        val raw = ByteArray(height * (stride + 1))
+        for (row in 0 until height) {
+            samples.copyInto(raw, row * (stride + 1) + 1, row * stride, (row + 1) * stride)
+        }
+        return assemble(raw, width, height, colorType)
+    }
+
+    /** Wrap already-filtered scanlines as a PNG file: signature, IHDR, one IDAT, IEND. */
+    private fun assemble(raw: ByteArray, width: Int, height: Int, colorType: Int): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write(RawImageCodec.PNG_SIGNATURE)
+        val ihdr = ByteArrayOutputStream()
+        for (value in listOf(width, height)) {
+            for (shift in listOf(24, 16, 8, 0)) ihdr.write((value ushr shift) and 0xFF)
+        }
+        ihdr.write(8)
+        ihdr.write(colorType)
+        for (i in 0 until 3) ihdr.write(0)
+        writeChunk(out, "IHDR", ihdr.toByteArray())
+        val deflater = Deflater()
+        deflater.setInput(raw)
+        deflater.finish()
+        val idat = ByteArrayOutputStream()
+        val buffer = ByteArray(4096)
+        while (!deflater.finished()) idat.write(buffer, 0, deflater.deflate(buffer))
+        deflater.end()
+        writeChunk(out, "IDAT", idat.toByteArray())
+        writeChunk(out, "IEND", ByteArray(0))
+        return out.toByteArray()
+    }
+
+    /** One PNG chunk: length, type, body, CRC32 over type and body. */
+    private fun writeChunk(out: ByteArrayOutputStream, type: String, body: ByteArray) {
+        for (shift in listOf(24, 16, 8, 0)) out.write((body.size ushr shift) and 0xFF)
+        val typeBytes = type.toByteArray(Charsets.US_ASCII)
+        out.write(typeBytes)
+        out.write(body)
+        val crc = CRC32()
+        crc.update(typeBytes)
+        crc.update(body)
+        for (shift in listOf(24, 16, 8, 0)) out.write((crc.value.toInt() ushr shift) and 0xFF)
+    }
+
+    /** PNG's Paeth predictor, duplicated here so the test does not lean on the code under test. */
+    private fun paeth(a: Int, b: Int, c: Int): Int {
+        val p = a + b - c
+        val pa = Math.abs(p - a)
+        val pb = Math.abs(p - b)
+        val pc = Math.abs(p - c)
+        return if (pa <= pb && pa <= pc) a else if (pb <= pc) b else c
     }
 }

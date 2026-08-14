@@ -7,13 +7,24 @@ import java.util.zip.Deflater
 import kotlin.math.roundToInt
 
 /**
+ * An uncompressed picture as both sides of the `bitmapimage` mapping hold one: straight-alpha RGBA8,
+ * row-major, four bytes per pixel.
+ *
+ * @property width The width in pixels.
+ * @property height The height in pixels.
+ * @property rgba `width × height × 4` bytes.
+ */
+class RawImage(val width: Int, val height: Int, val rgba: ByteArray)
+
+/**
  * The raw-pixels ↔ PNG step a `bitmapimage` needs: Rnote stores an image as base64 of an
  * **uncompressed** pixel buffer (`memory_format`, e.g. `R8g8b8a8Premultiplied`), while
  * [com.nexopp.format.model.ImageElement] carries the PNG bytes `.xopp` embeds. See
  * `docs/architecture.md`, "The stroke & pen mapping (measured against the fixture twins)".
  *
- * Everything here is plain JDK (`Base64`, `Deflater`, `CRC32`) rather than `android.graphics` so
- * the conversion is unit-testable on the JVM, where `Bitmap` is a stub that throws.
+ * Everything here is plain JDK (`Base64`, `Deflater`, `CRC32`, `Inflater`) rather than
+ * `android.graphics` so the conversion is unit-testable on the JVM, where `Bitmap` is a stub that
+ * throws.
  */
 object RawImageCodec {
 
@@ -63,6 +74,29 @@ object RawImageCodec {
     }
 
     /**
+     * Redo premultiplied alpha in an RGBA8 buffer — the inverse of [unpremultiply], and what a
+     * buffer needs before it is written under the `R8g8b8a8Premultiplied` memory format.
+     *
+     * @param rgba An RGBA8 buffer, four bytes per pixel, straight alpha.
+     * @return A new buffer with its colour channels scaled by their alpha.
+     */
+    fun premultiply(rgba: ByteArray): ByteArray {
+        val out = rgba.copyOf()
+        var i = 0
+        while (i + BYTES_PER_PIXEL <= out.size) {
+            val alpha = out[i + 3].toInt() and 0xFF
+            if (alpha != 255) {
+                for (channel in 0 until 3) {
+                    val value = (out[i + channel].toInt() and 0xFF) * alpha / 255.0
+                    out[i + channel] = value.roundToInt().coerceIn(0, 255).toByte()
+                }
+            }
+            i += BYTES_PER_PIXEL
+        }
+        return out
+    }
+
+    /**
      * Whether a Rnote `memory_format` name describes premultiplied alpha.
      *
      * @param memoryFormat The `image.memory_format` string, or null when the file omits it.
@@ -95,6 +129,31 @@ object RawImageCodec {
         writeChunk(png, "IEND", ByteArray(0))
         return png.toByteArray()
     }
+
+    /**
+     * Decode a PNG back into straight-alpha RGBA8 pixels — the inverse of [encodePng], delegated to
+     * [PngDecode].
+     *
+     * @param png The whole file's bytes.
+     * @return The pixels, or null when this is not a PNG shape we decode (16-bit, interlaced,
+     *   palette, truncated).
+     */
+    fun decodePng(png: ByteArray): RawImage? = PngDecode.decode(png)
+
+    /**
+     * Decode whatever an `<image>` element carries into raw pixels, ready to be written as a
+     * `bitmapimage`.
+     *
+     * **PNG only.** A `.xopp` may embed a JPEG, and there is deliberately no JPEG decoder here: a
+     * baseline decoder is far more code than the rest of this file, and `android.graphics` is off
+     * limits for the reason in the class doc. A JPEG therefore returns null and the writer skips and
+     * reports that image rather than shipping a wrong one — see the Images row of the feature-gap
+     * matrix in `docs/architecture.md`.
+     *
+     * @param data The encoded bytes from the element.
+     * @return The pixels, or null when nothing here can decode them.
+     */
+    fun decodeToRaw(data: ByteArray): RawImage? = decodePng(data)
 
     /** The 13-byte `IHDR` body: size, 8-bit depth, colour type 6 (RGBA), no interlace. */
     private fun ihdr(width: Int, height: Int): ByteArray {

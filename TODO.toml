@@ -147,34 +147,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "rnote-decode-png-to-raw"
-title = "Decode encoded image bytes back to a raw RGBA buffer"
-description = """
-The inverse of RawImageCodec.encodePng, needed before an ImageElement can be written as a bitmapimage. Add to app/src/main/java/com/nexopp/format/rnote/RawImageCodec.kt:
-
-- 'fun decodePng(png: ByteArray): RawImage?' returning a data class RawImage(width, height, rgba) - straight-alpha RGBA8, row-major - or null when the bytes are not a PNG this decoder handles.
-- 'fun premultiply(rgba: ByteArray): ByteArray' - the inverse of unpremultiply, so the buffer matches the "R8g8b8a8Premultiplied" memory_format the fixtures use.
-
-Constraint (load-bearing): NO android.graphics.Bitmap. Bitmap is a throwing stub under JVM unit tests, which is exactly why encodePng was hand-rolled; the decoder has the same constraint. Use only java.util.zip.Inflater/CRC32 and java.util.Base64.
-
-Scope of the PNG decoder: parse the signature, walk the chunks, read IHDR, concatenate every IDAT, inflate, then undo the per-scanline filters (types 0-4 - None, Sub, Up, Average, Paeth; all five are required by the spec and libpng emits them). Support bit depth 8 with colour types 6 (RGBA), 2 (RGB, alpha 255), 0 (grey) and 4 (grey+alpha), expanding each to RGBA8. Return null - never throw - for interlaced (IHDR byte 12 != 0), 16-bit, or palette (colour type 3) images, and for anything malformed.
-
-JPEG: do NOT write a JPEG decoder. A .xopp <image> may carry JPEG bytes, and a baseline JPEG decoder is far too much code for this. Instead 'fun decodeToRaw(data: ByteArray): RawImage?' returns null for anything that is not a decodable PNG, and the caller (the bitmapimage encoder task) turns that null into a skipped image plus a save warning. Record that decision in docs/architecture.md's gap matrix Images row, replacing the current 'needs the INVERSE of RawImageCodec' note.
-
-Test in app/src/test/java/com/nexopp/format/rnote/RawImageCodecTest.kt: encodePng then decodePng round-trips a small RGBA buffer exactly; premultiply(unpremultiply(x)) is identity within 1 LSB; a truncated PNG, a JPEG SOI header and an interlaced IHDR all return null.
-
-Verify: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 315
-created = 2026-08-13
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-encode-bitmapimage"
 title = "Encode an ImageElement or TexImageElement as an rnote bitmapimage"
 description = """
