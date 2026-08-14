@@ -89,28 +89,196 @@ rebuild = false
 emulator_debug = true
 
 [[task]]
-id = "break-down-the-rnote-writer-json-emission-and-element-encoders"
-title = "Break down the .rnote writer: JSON emission and element encoders"
+id = "rnote-json-writer"
+title = "Write a compact JSON emitter beside the JSON reader"
 description = """
-Gap found while building the feature-gap matrix: there is NO task anywhere for actually serialising a Document to .rnote. The existing items cover the geometry ('rnote: lay fixed pages back onto the canvas on export', which explicitly says 'the JSON serialisation itself is a later task'), the warnings, and the routing ('Route saving to the rnote writer when SaveFormat is RNOTE', which is blocked on a writer that does not exist). The writer itself is missing.
+app/src/main/java/com/nexopp/format/json/ has JsonReader.kt (text -> JsonValue) and JsonValue.kt, but NO writer. Add app/src/main/java/com/nexopp/format/json/JsonWriter.kt: a 'fun JsonValue.toJsonString(): String' (plus a builder-friendly 'JsonWriter.write(value: JsonValue): String') that emits the compact, whitespace-free form serde_json writes.
 
-Investigate and add the atomic tasks for:
-- A JSON WRITER beside the existing reader in app/src/main/java/com/nexopp/format/json/ — the reader parses to JsonValue; check whether a JsonValue -> compact-string emitter exists yet and add a task if not. Rnote writes with serde_json and no whitespace.
-- The CONTAINER writer mirroring RnoteContainer.kt: gzip the UTF-8 JSON, wrap it as {"version":"0.14.2","data":{"engine_snapshot":{...}}}.
-- The SNAPSHOT assembler: document.config.format/background/layout, document x/y/width/height from canvasExtent, stroke_components as {"value":<stroke>,"version":n} slots with a leading null at index 0, the parallel chrono_components, and chrono_counter = max(t) + 1.
-- One ELEMENT ENCODER per kind, each its own task: Stroke -> brushstroke (smooth style, pressure_curve "linear", the line_style and line_cap mappings), TextElement -> textstroke, ImageElement -> bitmapimage, and TexImageElement -> a bitmapimage of its rendered PNG.
+Rules:
+- JsonObject: {"k":v,...} in member (LinkedHashMap) order; JsonArray: [a,b,...]; JsonNull: null; JsonBool: true/false.
+- JsonString: escape \\" \\\\ and the C0 controls (\\b \\f \\n \\r \\t, else \\u00XX). Do NOT escape / or non-ASCII - serde_json emits UTF-8 verbatim.
+- JsonNumber: a Double. Emit a whole number with no fraction as an integer ('3' not '3.0') ONLY where Rnote uses an integer (pixel_width, font_weight, t, version, chrono_counter); otherwise emit the shortest round-tripping decimal. Simplest rule that satisfies both: if the value is finite and equals its own toLong().toDouble() AND abs < 1e15, emit the toLong() form, else emit Double.toString(). Non-finite (NaN/Inf) throws IllegalArgumentException - JSON has no literal for them.
+- Add small JsonObject/JsonArray construction helpers if that keeps the encoders readable (e.g. 'fun jsonObject(vararg pairs: Pair<String, JsonValue>)').
 
-Every per-feature verdict the encoders must honour is already decided and written down — read docs/architecture.md, 'The complete .xopp <-> .rnote feature-gap matrix', and do not re-decide any of it here. Two rows are load-bearing and easy to miss:
-- pressure_curve must be written as "linear": it is upstream's default AND the identity, so widths are not re-curved on reopen.
-- bitmapimage needs the INVERSE of RawImageCodec — encoded PNG/JPEG bytes back to a raw premultiplied RGBA buffer. RawImageCodec deliberately avoids android.graphics.Bitmap because it is a throwing stub under JVM unit tests, so the decoder has the same constraint. Scope how a JPEG is handled; this may be the hardest single item.
+Add app/src/test/java/com/nexopp/format/json/JsonWriterTest.kt: round-trip every fixture-shaped value (nested objects, arrays, escapes, negative and fractional numbers) through JsonReader -> toJsonString -> JsonReader and assert equality; assert the exact compact text for a small literal; assert NaN throws.
 
-Output is TODO items, not code. Close this scope once they exist."""
+Verify: scripts/build.sh testDebugUnitTest"""
 status = "active"
-level = "scope"
+level = "task"
 category = "feature"
 urgency = "normal"
-order = 450
-created = 2026-08-12
+order = 300
+created = 2026-08-13
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-encode-brushstroke"
+title = "Encode a Stroke as an rnote brushstroke"
+description = """
+The export mirror of brushStrokeToStroke in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt. Add app/src/main/java/com/nexopp/format/rnote/RnoteStrokeEncode.kt with 'fun strokeToBrushStroke(stroke: Stroke): JsonValue' building the JSON documented in docs/architecture.md ('The stroke & pen mapping'):
+
+{"path":{"start":{"pos":[x,y],"pressure":p},"segments":[{"lineto":{"end":{"pos":[x,y],"pressure":p}}},...]},"style":{"smooth":{"stroke_width":w,"stroke_color":{r,g,b,a},"fill_color":null|{r,g,b,a},"pressure_curve":"linear","line_style":s,"line_cap":c}}}
+
+- Geometry: every StrokePoint x/y through ptToPx (RnoteUnits.kt). Points[0] is 'start', the rest are 'lineto' segments in order. Always lineto, never quadbezto/cubbezto (gap matrix: 'always lineto').
+- Pressure: stroke_width = max(point widths) * 4/3 (i.e. ptToPx of the max width); pressure_i = width_i / max. A max of 0 (or an empty point list) writes stroke_width 0 and pressure 1.0 rather than dividing by zero. This is the exact inverse of the import rule.
+- pressure_curve is ALWAYS the string "linear" - upstream's default and the identity, so widths are not re-curved on reopen (gap matrix, load-bearing).
+- stroke_color = rnoteColorOf(stroke.color) (RnoteUnits.kt).
+- fill_color: null when Stroke.fill is null; otherwise the stroke colour at that alpha, i.e. rnoteColorOf((fill shl 24) or (color and 0x00FFFFFF)).
+- line_style: PLAIN->"solid", DOTTED->"dotted", DASHED and DASH_DOT->"dashed_equidistant" (gap matrix).
+- line_cap: capStyle "round" or null -> "rounded"; "butt" and "square" -> "straight" (gap matrix).
+- Tool is NOT encoded here: highlighter-ness lives in the chrono layer slot, which slotFor() in RnoteDocumentWriterGeometry.kt already decides.
+
+Add app/src/test/java/com/nexopp/format/rnote/RnoteStrokeEncodeTest.kt: encode a stroke, feed the result back through brushStrokeToStroke (wrapped in an RnoteStroke), and assert points, colour, fill, lineStyle, capStyle and uniformWidth survive; assert pressure_curve is "linear"; assert a zero-width stroke does not produce NaN.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 305
+created = 2026-08-13
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-encode-textstroke"
+title = "Encode a TextElement as an rnote textstroke"
+description = """
+The export mirror of textStrokeToText in RnoteStrokeConvert.kt. Add 'fun textToTextStroke(text: TextElement): JsonValue' to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeEncode.kt:
+
+{"text":<content>,"transform":{"affine":[1,0,0,-0,1,0,x,y,1]},"text_style":{"font_family":f,"font_size":s,"font_weight":w,"font_style":"regular"|"italic","color":{r,g,b,a},"max_width":null,"alignment":"start","ranged_text_attributes":[]}}
+
+- The affine is COLUMN-MAJOR (nalgebra): translation at indices 6 and 7, and the fixtures write index 3 as -0.0. Add a shared 'fun affineOf(x: Double, y: Double): JsonValue' in RnoteStrokeEncode.kt so the bitmapimage encoder reuses it; x/y are ptToPx(text.x), ptToPx(text.y).
+- font_family / bold / italic come from parsing TextElement.font with com.nexopp.format.FontDescription (the same class the import side uses to compose it) - check its parse entry point and use it rather than re-parsing the Pango string here.
+- font_weight: 700 when bold, else 400. font_style: "italic" when italic, else "regular".
+- font_size = ptToPx(text.size). color = rnoteColorOf(text.color).
+- max_width and alignment are Rnote's defaults (null / "start") and ranged_text_attributes is always empty - a .xopp text box has one uniform style (gap matrix, Text section).
+- TextElement.extraAttrs (the audio fn/ts pair) has no home and is dropped; the save warning already covers it.
+
+Test in RnoteStrokeEncodeTest.kt: encode, feed back through textStrokeToText, assert content, font string, size, x, y and colour survive for plain, bold, italic and bold-italic fonts; assert the affine's translation sits at indices 6 and 7.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 310
+created = 2026-08-13
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-decode-png-to-raw"
+title = "Decode encoded image bytes back to a raw RGBA buffer"
+description = """
+The inverse of RawImageCodec.encodePng, needed before an ImageElement can be written as a bitmapimage. Add to app/src/main/java/com/nexopp/format/rnote/RawImageCodec.kt:
+
+- 'fun decodePng(png: ByteArray): RawImage?' returning a data class RawImage(width, height, rgba) - straight-alpha RGBA8, row-major - or null when the bytes are not a PNG this decoder handles.
+- 'fun premultiply(rgba: ByteArray): ByteArray' - the inverse of unpremultiply, so the buffer matches the "R8g8b8a8Premultiplied" memory_format the fixtures use.
+
+Constraint (load-bearing): NO android.graphics.Bitmap. Bitmap is a throwing stub under JVM unit tests, which is exactly why encodePng was hand-rolled; the decoder has the same constraint. Use only java.util.zip.Inflater/CRC32 and java.util.Base64.
+
+Scope of the PNG decoder: parse the signature, walk the chunks, read IHDR, concatenate every IDAT, inflate, then undo the per-scanline filters (types 0-4 - None, Sub, Up, Average, Paeth; all five are required by the spec and libpng emits them). Support bit depth 8 with colour types 6 (RGBA), 2 (RGB, alpha 255), 0 (grey) and 4 (grey+alpha), expanding each to RGBA8. Return null - never throw - for interlaced (IHDR byte 12 != 0), 16-bit, or palette (colour type 3) images, and for anything malformed.
+
+JPEG: do NOT write a JPEG decoder. A .xopp <image> may carry JPEG bytes, and a baseline JPEG decoder is far too much code for this. Instead 'fun decodeToRaw(data: ByteArray): RawImage?' returns null for anything that is not a decodable PNG, and the caller (the bitmapimage encoder task) turns that null into a skipped image plus a save warning. Record that decision in docs/architecture.md's gap matrix Images row, replacing the current 'needs the INVERSE of RawImageCodec' note.
+
+Test in app/src/test/java/com/nexopp/format/rnote/RawImageCodecTest.kt: encodePng then decodePng round-trips a small RGBA buffer exactly; premultiply(unpremultiply(x)) is identity within 1 LSB; a truncated PNG, a JPEG SOI header and an interlaced IHDR all return null.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 315
+created = 2026-08-13
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-encode-bitmapimage"
+title = "Encode an ImageElement or TexImageElement as an rnote bitmapimage"
+description = """
+The export mirror of bitmapImageToImage in RnoteStrokeConvert.kt. Add to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeEncode.kt:
+
+'fun imageToBitmapImage(image: ImageElement): JsonValue?' and 'fun texImageToBitmapImage(tex: TexImageElement): JsonValue?', both null when the pixels cannot be decoded (see below). Shape, matching the text-image.rnote fixture exactly:
+
+{"image":{"data":<base64 raw RGBA>,"rectangle":{"cuboid":{"half_extents":[pw/2,ph/2]},"transform":{"affine":[1,0,0,-0,1,0,pw/2,ph/2,1]}},"pixel_width":pw,"pixel_height":ph,"memory_format":"R8g8b8a8Premultiplied"},"rectangle":{"cuboid":{"half_extents":[hx,hy]},"transform":{"affine":[1,0,0,-0,1,0,cx,cy,1]}}}
+
+- The INNER rectangle is in pixel space: half extents pixel_width/2 and pixel_height/2, centred on itself.
+- The OUTER rectangle is the placement in canvas px: cx = ptToPx((left+right)/2), cy = ptToPx((top+bottom)/2), hx = ptToPx((right-left)/2), hy = ptToPx((bottom-top)/2). Reuse affineOf() from the brushstroke/textstroke task.
+- Pixels: RawImageCodec.decodeToRaw(element.data) -> premultiply -> Base64.getEncoder().encodeToString (no line breaks; the reader uses the MIME decoder so either works, but serde writes one line).
+- A TexImageElement encodes its rendered PNG (TexImageElement.data); a null data or an undecodable buffer returns null so the caller can skip and report it. The LaTeX source is lost either way - exportWarnings already says so.
+- Return null rather than throwing: one unreadable image must not sink the save.
+
+Test in RnoteStrokeEncodeTest.kt: build an ImageElement from RawImageCodec.encodePng of a known 2x2 buffer, encode it, feed the result back through bitmapImageToImage and assert the pt box and the pixels survive; assert a TexImageElement with null data encodes to null; assert a JPEG-headered ImageElement encodes to null.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 320
+created = 2026-08-13
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-snapshot-assembler"
+title = "Assemble the engine_snapshot JSON from a Document"
+description = """
+The export mirror of readDocument in RnoteDocumentReader.kt. Add app/src/main/java/com/nexopp/format/rnote/RnoteSnapshotWriter.kt with 'fun writeSnapshot(document: Document): JsonValue' producing the engine_snapshot object:
+
+{"document":{"config":{"format":{...},"background":{...},"layout":"fixed_size"},"x":0,"y":0,"width":W,"height":H},"stroke_components":[...],"chrono_components":[...],"chrono_counter":N}
+
+- format from canvasFormat(document) (RnoteDocumentWriterGeometry.kt), written as {width,height,dpi,orientation}. background from toRnoteBackground(document.pages.first().background) (RnoteBackgroundMapper.kt), written as {color,pattern,pattern_size:[w,h],pattern_color}; an empty document uses a white 'none' background. layout is ALWAYS the string "fixed_size" (gap matrix).
+- x/y/width/height from canvasExtent(document) - x and y are 0, width/height the box extent.
+- Walk pages in order, layers bottom-first, elements in order. For each element: its slot comes from slotFor(element, layer, layerIndex) and its canvas position from pageOriginsPx(document)[pageIndex] - translate the element DOWN by that offset (in pt) before encoding, the inverse of the reader's page-local translate.
+- Encode each element with the RnoteStrokeEncode entry points: Stroke -> brushstroke, TextElement -> textstroke, ImageElement/TexImageElement -> bitmapimage. A Stroke with tool == ERASER, a RawElement, and any element whose encoder returns null are SKIPPED (exportWarnings already reports all three).
+- stroke_components is [{"value":null,"version":0}] followed by one {"value":{"<tag>":<body>},"version":1} per encoded element; slot 0 is always null (slotmap index 0).
+- chrono_components is the parallel array: [{"value":null,"version":0}] then {"value":{"t":i,"layer":L},"version":1} where t counts from 1 in painters order and L is {"user_layer":n} for the user_layer slot or the bare string "highlighter"/"image"/"document" otherwise.
+- chrono_counter = max(t) + 1, i.e. the element count + 1.
+- Do NOT write camera or snap_positions (gap matrix: omit).
+
+Add app/src/test/java/com/nexopp/format/rnote/RnoteSnapshotWriterTest.kt: build a two-page document with a pen stroke, a highlighter stroke and a text box; write the snapshot; parse it back with RnoteSnapshot.parse and assert the stroke count, the slot 0 null, the layer slots, ascending t, chrono_counter, layout "fixed_size" and that page 2's stroke sits one page height down the canvas.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 325
+created = 2026-08-13
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "rnote-container-writer"
+title = "Write the .rnote container: version wrapper plus gzip"
+description = """
+The export mirror of RnoteContainer.open. Add to app/src/main/java/com/nexopp/format/rnote/RnoteContainer.kt:
+
+- 'const val WRITE_VERSION = "0.14.2"' - the upstream release the whole mapping was derived from, so an older Rnote sees a version it can chain its TryFrom conversions from.
+- 'fun writeJson(snapshot: JsonValue): String' - wrap as {"version":WRITE_VERSION,"data":{"engine_snapshot":<snapshot>}} and emit it compactly through the JSON writer. This is the test seam: no gzip needed.
+- 'fun write(snapshot: JsonValue, output: OutputStream)' - GZIPOutputStream over writeJson's UTF-8 bytes. Does not close [output], matching open()'s contract of not closing its input.
+
+Then add app/src/main/java/com/nexopp/format/rnote/RnoteDocumentWriter.kt with the one public entry point the save path calls: 'fun writeRnote(document: Document, output: OutputStream)' = RnoteContainer.write(writeSnapshot(document), output). Keep it a thin file; the assembling lives in RnoteSnapshotWriter.kt.
+
+Test in app/src/test/java/com/nexopp/format/rnote/RnoteContainerTest.kt: writeJson round-trips through parseJson with the version intact; write() then open() over a ByteArrayOutputStream/ByteArrayInputStream returns an equivalent snapshot. Add app/src/test/java/com/nexopp/format/rnote/RnoteDocumentWriterTest.kt: a full Document -> writeRnote -> RnoteContainer.open -> RnoteSnapshot.parse -> readDocument round trip, asserting page count, layer names, stroke count and stroke geometry survive.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 330
+created = 2026-08-13
 tags = []
 rebuild = false
 emulator_debug = false

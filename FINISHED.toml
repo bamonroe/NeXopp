@@ -17,6 +17,30 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "break-down-the-rnote-writer-json-emission-and-element-encoders"
+title = "Break down the .rnote writer: JSON emission and element encoders"
+description = """
+Gap found while building the feature-gap matrix: there is NO task anywhere for actually serialising a Document to .rnote. The existing items cover the geometry ('rnote: lay fixed pages back onto the canvas on export', which explicitly says 'the JSON serialisation itself is a later task'), the warnings, and the routing ('Route saving to the rnote writer when SaveFormat is RNOTE', which is blocked on a writer that does not exist). The writer itself is missing.
+
+Investigate and add the atomic tasks for:
+- A JSON WRITER beside the existing reader in app/src/main/java/com/nexopp/format/json/ — the reader parses to JsonValue; check whether a JsonValue -> compact-string emitter exists yet and add a task if not. Rnote writes with serde_json and no whitespace.
+- The CONTAINER writer mirroring RnoteContainer.kt: gzip the UTF-8 JSON, wrap it as {"version":"0.14.2","data":{"engine_snapshot":{...}}}.
+- The SNAPSHOT assembler: document.config.format/background/layout, document x/y/width/height from canvasExtent, stroke_components as {"value":<stroke>,"version":n} slots with a leading null at index 0, the parallel chrono_components, and chrono_counter = max(t) + 1.
+- One ELEMENT ENCODER per kind, each its own task: Stroke -> brushstroke (smooth style, pressure_curve "linear", the line_style and line_cap mappings), TextElement -> textstroke, ImageElement -> bitmapimage, and TexImageElement -> a bitmapimage of its rendered PNG.
+
+Every per-feature verdict the encoders must honour is already decided and written down — read docs/architecture.md, 'The complete .xopp <-> .rnote feature-gap matrix', and do not re-decide any of it here. Two rows are load-bearing and easy to miss:
+- pressure_curve must be written as "linear": it is upstream's default AND the identity, so widths are not re-curved on reopen.
+- bitmapimage needs the INVERSE of RawImageCodec — encoded PNG/JPEG bytes back to a raw premultiplied RGBA buffer. RawImageCodec deliberately avoids android.graphics.Bitmap because it is a throwing stub under JVM unit tests, so the decoder has the same constraint. Scope how a JPEG is handled; this may be the hardest single item.
+
+Output is TODO items, not code. Close this scope once they exist."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-map-line-cap-onto-the-xopp-capstyle"
 title = "rnote: map line_cap onto the xopp capStyle"
 description = """
