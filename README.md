@@ -761,6 +761,11 @@ authoritative flow; don't invent another one.
   a brief message at the bottom of the screen with a **Details** button — you already chose the
   format, so it doesn't ask again.
 
+- **The same in reverse, on open.** Opening a `.rnote` that holds something NeXopp can't represent —
+  an SVG (vector) drawing, or a text box with mixed styling inside it — loads everything else and
+  says so in the same brief message, **Some content could not be opened**, with **Details** for the
+  list. Nothing is ever dropped without telling you.
+
 The file on disk is the only source of truth — there's no cloud, account, or custom format.
 
 The file on disk is the only source of truth — there's no cloud, account, or custom format.

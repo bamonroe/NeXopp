@@ -37,6 +37,7 @@ import com.nexopp.render.undoLastSplineNode
 import com.nexopp.tabs.TabManager
 import com.nexopp.tabs.TabStore
 import com.nexopp.ui.AppSettings
+import com.nexopp.ui.ContentNotice
 import com.nexopp.ui.EditorScreen
 import com.nexopp.ui.SettingsStore
 import com.nexopp.ui.theme.XoppTheme
@@ -155,14 +156,15 @@ class MainActivity : ComponentActivity() {
     internal var busy = mutableStateOf<String?>(null)
 
     /**
-     * What the save that just landed could not carry into its format, or empty. Set only by a
-     * **plain** Save — a Save As has already shown the same lines in its confirmation modal, so
-     * repeating them in a snackbar would be saying it twice.
+     * What the format crossing that just happened could not carry, or null: strokes a `.rnote` open
+     * could not convert, or content the save just written could not hold. On the save side it is set
+     * only by a **plain** Save — a Save As has already shown the same lines in its confirmation
+     * modal, so repeating them in a snackbar would be saying it twice.
      */
-    internal val lossyReport = mutableStateOf<List<String>>(emptyList())
+    internal val notice = mutableStateOf<ContentNotice?>(null)
 
     /**
-     * Whether the next completed save should fill [lossyReport]. Set by [saveActiveTab] and cleared
+     * Whether the next completed save should fill [notice]. Set by [saveActiveTab] and cleared
      * by [beginSaveAs], which are the two ways a save starts; they share one launcher, so the flag
      * is how the completion tells them apart.
      */
@@ -294,8 +296,8 @@ class MainActivity : ComponentActivity() {
                     onSaveAs = { name, format -> beginSaveAs(name, format) },
                     currentSaveFormat = { saveFormat },
                     saveWarnings = { format -> saveWarningsFor(format) },
-                    lossyReport = lossyReport.value,
-                    onLossyReportShown = { lossyReport.value = emptyList() },
+                    notice = notice.value,
+                    onNoticeShown = { notice.value = null },
                     onImportPdf = { mode ->
                         pendingImportMode = mode
                         importPdfLauncher.launch(arrayOf(PDF_MIME))

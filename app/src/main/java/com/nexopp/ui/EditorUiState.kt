@@ -50,6 +50,17 @@ class PendingLossySave(
 )
 
 /**
+ * Content that could not cross a format boundary, on a crossing that has **already happened** —
+ * a `.rnote` opened with strokes we cannot express, or one saved with content it cannot hold. Both
+ * are reports rather than questions, so both take the same route: a snackbar carrying [message],
+ * with [lines] behind its *Details* action.
+ *
+ * @property message The one-line summary, which is also the details dialog's title.
+ * @property lines The losses in full, one sentence each; never empty.
+ */
+class ContentNotice(val message: String, val lines: List<String>)
+
+/**
  * Everything [EditorScreen] remembers that isn't a mirror of a canvas (that's [PaneState]) and isn't
  * persisted (that's [AppSettings]): the live pen, which dialogs are open, and the pending authoring
  * placement.
@@ -85,10 +96,10 @@ class EditorUiState(tool: EditorTool, color: Int, width: Float) {
     var pendingLossySave by mutableStateOf<PendingLossySave?>(null)
 
     /**
-     * The losses of a save that has **already happened**, shown read-only when the user taps
-     * *Details* on the snackbar. Empty means the dialog is closed.
+     * The notice whose full list the user asked to see, from *Details* on its snackbar. Null means
+     * the read-only dialog is closed.
      */
-    var lossyDetails by mutableStateOf<List<String>>(emptyList())
+    var noticeDetails by mutableStateOf<ContentNotice?>(null)
 
     /** Full-page (immersive) view: a Hand-tool centre double-tap hides the top bar and side toolbar. */
     var fullPage by mutableStateOf(false)

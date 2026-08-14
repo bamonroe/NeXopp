@@ -130,8 +130,8 @@ fun BoxScope.EditorOverlays(
             onDismiss = { ui.pendingLossySave = null },
         )
     }
-    if (ui.lossyDetails.isNotEmpty()) {
-        LossySaveDetailsDialog(ui.lossyDetails, onDismiss = { ui.lossyDetails = emptyList() })
+    ui.noticeDetails?.let { notice ->
+        ContentNoticeDialog(notice, onDismiss = { ui.noticeDetails = null })
     }
     if (ui.showExport) {
         ExportDialog(

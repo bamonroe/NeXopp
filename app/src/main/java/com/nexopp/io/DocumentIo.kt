@@ -59,6 +59,13 @@ sealed interface LoadedFile {
         val images: Map<String, File> = emptyMap(),
         /** True when some pixmap background named a picture we could not reach. */
         val missingImage: Boolean = false,
+        /**
+         * One ready-to-show line per thing the *conversion into our model* cost — only a `.rnote`
+         * has any, since a `.xopp` is our own model on disk. Empty when nothing was lost. The
+         * lossy-mapping policy in `docs/architecture.md` forbids dropping these silently, so the
+         * caller must show them.
+         */
+        val notices: List<String> = emptyList(),
     ) : LoadedFile
 }
 
@@ -332,11 +339,18 @@ class DocumentIo(
  * There is no PDF background in the format and no `pixmap` background either — a `bitmapimage`
  * becomes an `<image>` element carrying its own bytes — so both side tables stay empty.
  *
+ * What the conversion could **not** carry travels out on [LoadedFile.Doc.notices]; the lossy-mapping
+ * policy in `docs/architecture.md` forbids dropping it, so the caller must show it.
+ *
  * @param input A stream positioned at the start of a `.rnote` file. Not closed.
- * @return The converted document.
+ * @return The converted document, with the conversion report attached.
  */
-internal fun readRnote(input: InputStream): LoadedFile.Doc = LoadedFile.Doc(
-    document = readDocument(RnoteSnapshot.parse(RnoteContainer.open(input).snapshot)).document,
-    pdf = null,
-    format = SaveFormat.RNOTE,
-)
+internal fun readRnote(input: InputStream): LoadedFile.Doc {
+    val imported = readDocument(RnoteSnapshot.parse(RnoteContainer.open(input).snapshot))
+    return LoadedFile.Doc(
+        document = imported.document,
+        pdf = null,
+        format = SaveFormat.RNOTE,
+        notices = imported.skipped,
+    )
+}

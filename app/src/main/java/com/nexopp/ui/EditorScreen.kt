@@ -133,13 +133,14 @@ fun EditorScreen(
      */
     saveWarnings: (SaveFormat) -> List<String> = { emptyList() },
     /**
-     * What a save that has **already happened** lost, or empty. A plain Save of a tab that is
-     * already in a lossy format writes first and reports after, in a snackbar — the user chose that
-     * format once, and a modal on every save would only train them to dismiss it.
+     * What a format crossing that has **already happened** cost, or null: a `.rnote` opened with
+     * content we cannot express, or one saved with content it cannot hold. Both are reports rather
+     * than questions — a plain Save of an already-lossy tab writes first and tells you after,
+     * because the user chose that format once and a modal every time would train them to dismiss it.
      */
-    lossyReport: List<String> = emptyList(),
-    /** [lossyReport] has been shown; clear it so the same save is not reported twice. */
-    onLossyReportShown: () -> Unit = {},
+    notice: ContentNotice? = null,
+    /** [notice] has been shown; clear it so the same one is not reported twice. */
+    onNoticeShown: () -> Unit = {},
     onImportPdf: (ImportPdfMode) -> Unit,
     /**
      * Export confirmed in the Export dialog: the chosen format, the [com.nexopp.format.PageRange]
@@ -196,19 +197,18 @@ fun EditorScreen(
     // Back peels the editor's transient layers off one at a time before it ever exits.
     EditorBackHandler(ui = ui, pane = pane, busy = busy != null, onExit = onExit)
 
-    // A save that lost something: say so once, briefly, with the full list a tap away.
-    LaunchedEffect(lossyReport) {
-        if (lossyReport.isEmpty()) return@LaunchedEffect
-        val lines = lossyReport
+    // An open or a save that lost something: say so once, briefly, with the full list a tap away.
+    LaunchedEffect(notice) {
+        val pending = notice ?: return@LaunchedEffect
         // Consume *after* the snackbar closes, never before: clearing the state is what this
         // effect is keyed on, so an early call cancels the very coroutine that is showing it.
         val result = snackbars.showSnackbar(
-            message = "Some content was not saved",
+            message = pending.message,
             actionLabel = "Details",
             duration = SnackbarDuration.Long,
         )
-        onLossyReportShown()
-        if (result == SnackbarResult.ActionPerformed) ui.lossyDetails = lines
+        onNoticeShown()
+        if (result == SnackbarResult.ActionPerformed) ui.noticeDetails = pending
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

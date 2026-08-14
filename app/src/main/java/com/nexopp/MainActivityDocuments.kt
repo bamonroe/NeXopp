@@ -24,7 +24,14 @@ import com.nexopp.render.SvgExporter
 import com.nexopp.tabs.OpenTab
 import com.nexopp.tabs.TabStore
 import com.nexopp.ui.AppSettings
+import com.nexopp.ui.ContentNotice
 import java.io.File
+
+/** The snackbar line for content an opened file's conversion could not carry into our model. */
+private const val OPEN_NOTICE = "Some content could not be opened"
+
+/** The snackbar line for content the file just written could not hold. */
+private const val SAVE_NOTICE = "Some content was not saved"
 
 // --- document I/O: open, import, save --------------------------------------------------------
 //
@@ -120,6 +127,11 @@ internal fun MainActivity.loadDocument(staged: File, source: Uri) {
             // hand them over before the document, so the first frame already has them.
             surface?.setImageSources(loaded.images)
             surface?.load(loaded.document)
+            // What the conversion into our model could not carry (a `.rnote` only). The
+            // lossy-mapping policy forbids dropping this silently, so it goes straight to the
+            // same snackbar the save side reports through.
+            notice.value =
+                if (loaded.notices.isEmpty()) null else ContentNotice(OPEN_NOTICE, loaded.notices)
             if (loaded.pdf != null) extractPdfTextInBackground(loaded.pdf)
             else if (loaded.missingPdf) toast("Background PDF not found; those pages will be blank")
             else if (loaded.missingImage) toast("Background image not found; those pages will be blank")
@@ -366,7 +378,8 @@ internal fun MainActivity.afterSaved(view: DrawingSurfaceView, uri: Uri) {
     // Hold the grant so the next plain Save can write back here without asking again.
     io.persist(uri)
     // The file is already written, so this is a report, not a question: the snackbar says it once.
-    lossyReport.value = if (reportLossesAfterSave) saveWarningsFor(saveFormat) else emptyList()
+    val lost = if (reportLossesAfterSave) saveWarningsFor(saveFormat) else emptyList()
+    notice.value = if (lost.isEmpty()) null else ContentNotice(SAVE_NOTICE, lost)
     reportLossesAfterSave = false
     // The tab now belongs to the file it was just written to: relabel it and remember where it
     // lives, so the strip shows the real name and a restored session points at the same document.

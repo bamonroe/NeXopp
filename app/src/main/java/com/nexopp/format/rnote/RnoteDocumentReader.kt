@@ -25,10 +25,10 @@ private const val DEFAULT_SLOT = "user_layer 0"
  * A converted `.rnote` file: the document plus what could not cross into it.
  *
  * @property document The imported document, one page per canvas page-height of content.
- * @property skipped One ready-to-show line per unconvertible stroke kind, e.g.
- *   `2 vectorimage strokes could not be converted`. Empty when nothing was lost. The
- *   lossy-mapping policy in `docs/architecture.md` forbids dropping this silently — whoever calls
- *   the reader must surface it.
+ * @property skipped One ready-to-show line per thing the file lost: a line per unconvertible stroke
+ *   kind (`2 vectorimage strokes could not be converted`) and, last, one for the text boxes whose
+ *   ranged styling could not cross. Empty when nothing was lost. The lossy-mapping policy in
+ *   `docs/architecture.md` forbids dropping this silently — whoever calls the reader must surface it.
  */
 data class RnoteImport(val document: Document, val skipped: List<String>)
 
@@ -44,12 +44,16 @@ data class RnoteImport(val document: Document, val skipped: List<String>)
  */
 fun readDocument(snapshot: RnoteSnapshot): RnoteImport {
     val skipped = LinkedHashMap<String, Int>()
+    var lossyText = 0
     val placed = ArrayList<PlacedElement>(snapshot.strokes.size)
     for (stroke in snapshot.strokes) {
         val element = convertStrokeOrNull(stroke)
         if (element == null) {
             skipped[stroke.kind] = (skipped[stroke.kind] ?: 0) + 1
         } else {
+            // A text box that lost its ranged styling still converts — its text is never dropped —
+            // so it is reported beside the skips rather than counted among them.
+            if (stroke.kind == "textstroke" && textStyleIsLossy(stroke)) lossyText++
             placed += PlacedElement(layerSlotName(stroke), element, elementBoundsPx(element))
         }
     }
@@ -58,7 +62,8 @@ fun readDocument(snapshot: RnoteSnapshot): RnoteImport {
     val buckets = fillPages(placed, slots, layout, snapshot.format)
     return RnoteImport(
         document = Document(creator = "NeXopp", pages = buildPages(buckets, slots, layout, snapshot)),
-        skipped = skipped.map { (kind, count) -> report(kind, count) },
+        skipped = skipped.map { (kind, count) -> report(kind, count) } +
+            listOfNotNull(lossyText.takeIf { it > 0 }?.let(::styleReport)),
     )
 }
 
@@ -112,6 +117,15 @@ private fun buildPages(
 /** One line of the conversion report, pluralised. */
 private fun report(kind: String, count: Int): String =
     "$count $kind ${if (count == 1) "stroke" else "strokes"} could not be converted"
+
+/**
+ * The conversion report's text line: boxes whose per-range styling `.xopp` cannot express (mixed
+ * fonts within one box, underline, strikethrough). The words themselves survive, which is why this
+ * says *lost some of their styling* rather than *could not be converted*.
+ */
+private fun styleReport(count: Int): String =
+    if (count == 1) "1 text box lost some of its styling"
+    else "$count text boxes lost some of their styling"
 
 /**
  * An element's bounding box in canvas px — the converters already work in pt, so this is the

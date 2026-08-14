@@ -1,5 +1,6 @@
 package com.nexopp.format.rnote
 
+import com.nexopp.format.json.JsonReader
 import com.nexopp.format.model.Background
 import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.Stroke
@@ -108,6 +109,35 @@ class RnoteDocumentReaderTest {
         assertEquals(
             listOf("1 vectorimage stroke could not be converted"),
             readDocument(withSvg).skipped,
+        )
+    }
+
+    @Test
+    fun `a text box that lost its ranged styling is reported alongside the skips`() {
+        // Ranged bold over half the string: the text crosses, the styling cannot, and `.xopp` has
+        // no way to split the box — so it is reported rather than silently flattened.
+        val body = JsonReader(
+            """
+            {"text":"hello","transform":{"affine":[1,0,0,-0,1,0,0,0,1]},
+             "text_style":{"font_family":"Sans","font_size":16.0,
+              "ranged_text_attributes":[{"range":{"start":0,"end":2},
+               "attribute":{"font_weight":700}}]}}
+            """,
+        ).parse()
+        val source = RnoteSnapshot.parse(
+            javaClass.classLoader!!.getResourceAsStream("fixtures/rnote/plain.rnote")!!
+                .use { RnoteContainer.open(it) }.snapshot,
+        )
+        val withText = source.copy(
+            strokes = source.strokes +
+                RnoteStroke(99, "textstroke", body, 999L, "user_layer", 0),
+        )
+        val imported = readDocument(withText)
+        assertEquals(listOf("1 text box lost some of its styling"), imported.skipped)
+        // The words themselves are never dropped.
+        assertTrue(
+            imported.document.pages.flatMap { p -> p.layers.flatMap { it.elements } }
+                .filterIsInstance<TextElement>().any { it.content == "hello" },
         )
     }
 }

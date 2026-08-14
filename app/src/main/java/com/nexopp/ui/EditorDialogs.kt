@@ -129,18 +129,19 @@ fun LossySaveDialog(
 }
 
 /**
- * The same list, read-only, for a save that has **already** happened — what the snackbar's *Details*
- * action opens. There is nothing to confirm, so the only button closes it.
+ * The same list, read-only, for a crossing that has **already** happened — an open or a save whose
+ * losses the snackbar's *Details* action expands. There is nothing to confirm, so the only button
+ * closes it.
  *
- * @param warnings The losses, one sentence each.
+ * @param notice The summary line (the dialog's title) and the losses behind it.
  * @param onDismiss Close.
  */
 @Composable
-fun LossySaveDetailsDialog(warnings: List<String>, onDismiss: () -> Unit) {
+fun ContentNoticeDialog(notice: ContentNotice, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Some content was not saved") },
-        text = { WarningLines(warnings) },
+        title = { Text(notice.message) },
+        text = { WarningLines(notice.lines) },
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
     )
 }

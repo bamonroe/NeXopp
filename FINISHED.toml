@@ -17,6 +17,30 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "surface-the-rnote-import-conversion-report"
+title = "Surface the .rnote import conversion report"
+description = """
+docs/architecture.md's lossy-mapping policy says the import report is the one thing that must never be dropped silently: "RnoteDocumentReader turns that tally into the ready-to-show RnoteImport.skipped lines, and whoever wires the reader to the UI must surface them". Nothing does. readRnote in app/src/main/java/com/nexopp/io/DocumentIo.kt (~line 333) builds LoadedFile.Doc from readDocument(snapshot).document and throws the .skipped list away, so a file with a vectorimage or a corrupt stroke opens silently short.
+
+Also missing: RnoteConversion.lossyText (textstroke boxes whose ranged styling was flattened) is counted by convertStrokes but readDocument never carries it into RnoteImport at all.
+
+Work:
+1. RnoteDocumentReader.kt: count lossy text alongside skipped in readDocument's loop (textStyleIsLossy(stroke) for a converted textstroke, as convertStrokes does) and add its ready-to-show line to RnoteImport.skipped, e.g. "2 text boxes lost some of their styling".
+2. io/DocumentIo.kt: add a notices: List<String> = emptyList() field to LoadedFile.Doc and fill it from RnoteImport.skipped in readRnote.
+3. Show it the way the export warnings are shown: reuse the snackbar + Details + read-only dialog added for the save path (ui/EditorScreen.kt, ui/EditorOverlays.kt, ui/EditorDialogs.kt). Generalise MainActivity.lossyReport so the same channel carries an open-side notice with its own message ("Some content could not be opened") instead of duplicating the machinery. MainActivityDocuments.loadDocument's LoadedFile.Doc branch is where the open side sets it.
+4. An empty list shows nothing, exactly as on the save side.
+
+Test: extend app/src/test/java/com/nexopp/format/rnote/RnoteDocumentReaderTest.kt for the lossy-text line, and app/src/test/java/com/nexopp/io/RnoteOpenTest.kt to assert readRnote carries the notices through.
+
+Verify: scripts/build.sh, then the emulator pass - open a .rnote containing a vectorimage and screenshot the notice."""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-13
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "show-the-rnote-lossy-save-warnings-in-the-save-flow"
 title = "Show the .rnote lossy-save warnings in the save flow"
 description = """

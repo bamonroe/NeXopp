@@ -513,8 +513,9 @@ all, so importing one would lose it on the next save. A file containing one load
 its content and reports the skipped strokes rather than pretending they were read. The count lives
 in `RnoteConversion.skipped` (kind → how many), filled by `convertStrokes()`; a malformed stroke
 body is counted the same way rather than failing the whole import. `RnoteDocumentReader` turns that
-tally into the ready-to-show `RnoteImport.skipped` lines, and whoever wires the reader to the UI
-**must surface them** — dropping them silently is the one thing this policy forbids.
+tally — plus the text boxes whose ranged styling could not cross — into the ready-to-show
+`RnoteImport.skipped` lines, which `readRnote` hands on as `LoadedFile.Doc.notices` and the open path
+shows in the snackbar. Dropping them silently is the one thing this policy forbids.
 
 **Not preserved verbatim:** unlike the `.xopp` side, there is **no `RawElement` equivalent** for
 unmodelled Rnote payload. `RawElement` is XML-shaped (`name`/`attrs`/`body`) and cannot hold a JSON
@@ -665,6 +666,11 @@ Two rules follow for whoever implements this: the warning list is computed by th
 `exportWarnings` function (its own task) and never by the UI, and an empty list must show nothing at
 all — a "nothing will be lost" dialog is the same training-to-dismiss problem.
 
+**The open side reports the same way.** The lossy policy's other half — `RnoteImport.skipped`, the
+strokes an import could not convert — travels out on `LoadedFile.Doc.notices` and reaches the user
+through the *same* snackbar, with its own line (`Some content could not be opened`). One channel,
+`MainActivity.notice: ContentNotice?`, carries both directions; only the summary line differs.
+
 **How it is wired.** The lines cross the UI boundary as data, never as logic:
 
 - `EditorScreen`/`EditorOverlays` take a **`saveWarnings: (SaveFormat) -> List<String>`** callback.
@@ -674,9 +680,11 @@ all — a "nothing will be lost" dialog is the same training-to-dismiss problem.
 - The Save As confirmation is `EditorUiState.pendingLossySave` (`PendingLossySave`: the lines, the
   chosen format — which is **not** sticky yet, so it can't be read off the tab — and the
   go-ahead closure). `LossySaveDialog` shows it; cancelling drops the closure and writes nothing.
-- The plain-Save report travels the other way: `MainActivity.lossyReport` is set in `afterSaved`
-  and rendered as a Material 3 snackbar by the `Scaffold`'s `snackbarHost`, whose *Details* action
-  opens the same list read-only (`LossySaveDetailsDialog`).
+- The report travels the other way as a `ContentNotice` (a summary line plus the full list):
+  `MainActivity.notice`, set in `afterSaved` for a save and in `loadDocument` for an open, rendered
+  as a Material 3 snackbar by the `Scaffold`'s `snackbarHost`, whose *Details* action opens the list
+  read-only (`ContentNoticeDialog`). **The notice is consumed after `showSnackbar` returns, never
+  before** — the effect is keyed on it, so clearing early cancels the coroutine showing it.
 - **Which of the two fires** is `MainActivity.reportLossesAfterSave`, a one-shot flag: `beginSaveAs`
   clears it (the modal already asked) and `saveActiveTab` sets it. The two paths share one SAF
   launcher, so the completion has no other way to tell them apart.
@@ -1101,7 +1109,8 @@ app/
         RnoteDocumentReader.kt # the assembler over all four: readDocument(snapshot) -> RnoteImport
                              #   (document, skipped), converting + paginating + bucketing strokes
                              #   into pages of identical layer stacks and one shared background;
-                             #   `skipped` is the ready-to-show conversion report
+                             #   `skipped` is the ready-to-show conversion report — the per-kind
+                             #   skips plus the text boxes that lost their ranged styling
         RnoteSnapshotWriter.kt # its export mirror: writeSnapshot(document) -> the engine_snapshot
                              #   object. Walks pages/layers/elements in painters order, shifts each
                              #   onto the canvas by its page offset, encodes it, and builds the
