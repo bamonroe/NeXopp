@@ -61,27 +61,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "rnote-promote-whole-string-ranged-text-attributes-onto-the-text-box"
-title = "rnote: promote whole-string ranged text attributes onto the text box"
-description = """
-Depends on rnote-flatten-ranged-text-attributes-into-disjoint-runs and rnote-map-textstroke-font-weight-and-font-style-into-the-pango-font-description.
-
-In textStrokeToText() in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt, run flattenRuns() over text_style.ranged_text_attributes with the UTF-8 byte length of the text, then for each of font_family, font_size, font_weight, font_style and text_color call uniformAttribute(); when it returns a value, that value OVERRIDES the base text_style value used to build the TextElement. When it returns null, keep the base text_style value and drop the rest. underline and strikethrough are always dropped - the Pango description has no token for them.
-
-This is the "select all, make it bold" case: Rnote records it as a range spanning the whole string rather than a change to the base text_style, so without this the box imports unstyled. The decision that forbids splitting a box into per-run boxes is recorded in docs/architecture.md under "one textstroke stays one <text>" - do not split.
-
-Update the KDoc on textStrokeToText() and the textstroke row of the Rnote mapping table in docs/architecture.md to describe the promotion. Verify with unit tests in app/src/test: a textstroke whose ranged_text_attributes bolds the entire string imports with font "Sans Bold"; one that bolds only the first half imports with the base weight; a whole-string text_color overrides the base colour; a whole-string font_size overrides the base size (still converted px to pt). Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 380
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-report-text-boxes-that-lost-non-uniform-styling"
 title = "rnote: report text boxes that lost non-uniform styling"
 description = """

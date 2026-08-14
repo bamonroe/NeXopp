@@ -168,6 +168,56 @@ class RnoteStrokeConvertTest {
     )!!.font
 
     @Test
+    fun `a whole-string bold range promotes onto the font`() {
+        assertEquals(
+            "Sans Bold",
+            styledFont(""""ranged_text_attributes":[{"range":[0,2],"attribute":{"font_weight":700}}]"""),
+        )
+    }
+
+    @Test
+    fun `a bold range over only part of the string is dropped`() {
+        assertEquals(
+            "Sans",
+            styledFont(
+                """"font_weight":400,""" +
+                    """"ranged_text_attributes":[{"range":[0,1],"attribute":{"font_weight":700}}]""",
+            ),
+        )
+    }
+
+    @Test
+    fun `a whole-string text_color overrides the base colour`() {
+        val text = styledText(
+            """"color":{"r":0,"g":0,"b":0,"a":1},""" +
+                """"ranged_text_attributes":[{"range":[0,2],""" +
+                """"attribute":{"text_color":{"r":1,"g":0,"b":0,"a":1}}}]""",
+        )
+        assertEquals(0xFFFF0000.toInt(), text.color)
+    }
+
+    @Test
+    fun `a whole-string font_size overrides the base size in pt`() {
+        val text = styledText(
+            """"font_size":16,""" +
+                """"ranged_text_attributes":[{"range":[0,2],"attribute":{"font_size":32}}]""",
+        )
+        assertEquals(24.0, text.size, 1e-9)
+    }
+
+    /** Convert a textstroke over the two-byte text "hi" whose `text_style` holds [style]. */
+    private fun styledText(style: String) = textStrokeToText(
+        RnoteStroke(
+            1,
+            "textstroke",
+            JsonReader("""{"text":"hi","text_style":{$style}}""").parse(),
+            1L,
+            "user_layer",
+            0,
+        ),
+    )!!
+
+    @Test
     fun `a textstroke with no text is rejected by name`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
             textStrokeToText(

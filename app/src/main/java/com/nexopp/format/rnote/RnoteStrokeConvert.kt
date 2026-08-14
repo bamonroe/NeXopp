@@ -1,6 +1,7 @@
 package com.nexopp.format.rnote
 
 import com.nexopp.format.FontDescription
+import com.nexopp.format.json.JsonArray
 import com.nexopp.format.json.JsonObject
 import com.nexopp.format.json.JsonValue
 import com.nexopp.format.model.Element
@@ -187,10 +188,16 @@ private fun shapeVertices(tag: String, shape: JsonValue): List<Vertex>? = when (
  *
  * `.xopp` gives a text box a single font, size and colour, so `font_family`, `font_size` and
  * `color` cross over, and `font_weight`/`font_style` fold into the Pango font description as the
- * `Bold` and `Italic` tokens (weight >= 600 is bold, style `italic` is italic). `alignment`,
- * `max_width` and `ranged_text_attributes` are dropped per the lossy-mapping policy in `docs/architecture.md`
- * rather than invented as `.xopp` attributes. The position is the translation of the stroke's
- * affine, in pt.
+ * `Bold` and `Italic` tokens (weight >= 600 is bold, style `italic` is italic).
+ *
+ * A `ranged_text_attributes` entry that spans the *whole* string is the "select all, make it bold"
+ * case — Rnote records it as a range rather than a change to the base `text_style` — so the ranges
+ * are flattened into runs and any of `font_family`, `font_size`, `font_weight`, `font_style` and
+ * `text_color` that is uniform across every run **overrides** the base value. An attribute that
+ * varies is dropped, as are `underline` and `strikethrough` (the Pango description has no token
+ * for them) and `alignment`/`max_width`, per the lossy-mapping policy in `docs/architecture.md`.
+ * One textstroke stays one `<text>`; it is never split into per-run boxes. The position is the
+ * translation of the stroke's affine, in pt.
  *
  * @param stroke A slot from [RnoteSnapshot.strokes].
  * @return The converted text element, or null if [stroke] is not a `textstroke`.
@@ -201,31 +208,54 @@ fun textStrokeToText(stroke: RnoteStroke): TextElement? {
     val content = stroke.body.obj("text")?.str()
         ?: throw IllegalArgumentException("missing textstroke.text")
     val style = stroke.body.obj("text_style")
+    val promoted = PromotedAttributes(style, content)
     val (x, y) = textPosition(stroke.body.obj("transform"))
     return TextElement(
-        font = fontDescription(style).compose(),
-        size = pxToPt(style?.obj("font_size")?.num() ?: DEFAULT_FONT_SIZE_PX),
+        font = fontDescription(style, promoted).compose(),
+        size = pxToPt(promoted["font_size"]?.num() ?: style?.obj("font_size")?.num() ?: DEFAULT_FONT_SIZE_PX),
         x = x,
         y = y,
-        color = style?.obj("color")?.let { rnoteColor(it)?.toXopp() } ?: DEFAULT_COLOR,
+        color = (promoted["text_color"] ?: style?.obj("color"))?.let { rnoteColor(it)?.toXopp() }
+            ?: DEFAULT_COLOR,
         content = content,
         extraAttrs = emptyMap(),
     )
 }
 
 /**
- * Fold a `text_style` object into a [FontDescription].
+ * The whole-string `ranged_text_attributes` of one `textstroke`, ready to override `text_style`.
+ *
+ * Uniformity is decided on the flattened runs (so overlapping and partial ranges are resolved
+ * first); the value handed back is the *last* entry of that kind, which is the one flattening let
+ * win on the bytes it shares.
+ */
+private class PromotedAttributes(style: JsonValue?, content: String) {
+    private val ranged = style?.obj("ranged_text_attributes")
+    private val runs = flattenRuns(ranged, content.toByteArray(Charsets.UTF_8).size)
+
+    /** The uniform JSON value of [kind] across the whole string, or null when it is not uniform. */
+    operator fun get(kind: String): JsonValue? {
+        if (uniformAttribute(runs, kind) == null) return null
+        return (ranged as? JsonArray)?.items?.lastOrNull { it.obj("attribute")?.obj(kind) != null }
+            ?.obj("attribute")?.obj(kind)
+    }
+}
+
+/**
+ * Fold a `text_style` object into a [FontDescription], letting [promoted] whole-string attributes
+ * override the base family, weight and style.
  *
  * Rnote stores a CSS-style `font_weight` (400 regular, 700 bold) and a `font_style` string of
  * `regular` or `italic`; anything absent or unrecognised means unstyled.
  *
  * @param style The stroke's `text_style` object, or null when it has none.
+ * @param promoted The uniform ranged attributes of the same stroke.
  * @return The family plus bold/italic flags, ready for [FontDescription.compose].
  */
-private fun fontDescription(style: JsonValue?) = FontDescription(
-    family = style?.obj("font_family")?.str() ?: DEFAULT_FONT,
-    bold = (style?.obj("font_weight")?.num() ?: 0.0) >= BOLD_WEIGHT,
-    italic = style?.obj("font_style")?.str() == "italic",
+private fun fontDescription(style: JsonValue?, promoted: PromotedAttributes) = FontDescription(
+    family = (promoted["font_family"] ?: style?.obj("font_family"))?.str() ?: DEFAULT_FONT,
+    bold = (promoted["font_weight"] ?: style?.obj("font_weight"))?.num()?.let { it >= BOLD_WEIGHT } ?: false,
+    italic = (promoted["font_style"] ?: style?.obj("font_style"))?.str() == "italic",
 )
 
 /**
