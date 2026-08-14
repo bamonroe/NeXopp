@@ -89,31 +89,6 @@ rebuild = false
 emulator_debug = true
 
 [[task]]
-id = "rnote-json-writer"
-title = "Write a compact JSON emitter beside the JSON reader"
-description = """
-app/src/main/java/com/nexopp/format/json/ has JsonReader.kt (text -> JsonValue) and JsonValue.kt, but NO writer. Add app/src/main/java/com/nexopp/format/json/JsonWriter.kt: a 'fun JsonValue.toJsonString(): String' (plus a builder-friendly 'JsonWriter.write(value: JsonValue): String') that emits the compact, whitespace-free form serde_json writes.
-
-Rules:
-- JsonObject: {"k":v,...} in member (LinkedHashMap) order; JsonArray: [a,b,...]; JsonNull: null; JsonBool: true/false.
-- JsonString: escape \\" \\\\ and the C0 controls (\\b \\f \\n \\r \\t, else \\u00XX). Do NOT escape / or non-ASCII - serde_json emits UTF-8 verbatim.
-- JsonNumber: a Double. Emit a whole number with no fraction as an integer ('3' not '3.0') ONLY where Rnote uses an integer (pixel_width, font_weight, t, version, chrono_counter); otherwise emit the shortest round-tripping decimal. Simplest rule that satisfies both: if the value is finite and equals its own toLong().toDouble() AND abs < 1e15, emit the toLong() form, else emit Double.toString(). Non-finite (NaN/Inf) throws IllegalArgumentException - JSON has no literal for them.
-- Add small JsonObject/JsonArray construction helpers if that keeps the encoders readable (e.g. 'fun jsonObject(vararg pairs: Pair<String, JsonValue>)').
-
-Add app/src/test/java/com/nexopp/format/json/JsonWriterTest.kt: round-trip every fixture-shaped value (nested objects, arrays, escapes, negative and fractional numbers) through JsonReader -> toJsonString -> JsonReader and assert equality; assert the exact compact text for a small literal; assert NaN throws.
-
-Verify: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 300
-created = 2026-08-13
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-encode-brushstroke"
 title = "Encode a Stroke as an rnote brushstroke"
 description = """

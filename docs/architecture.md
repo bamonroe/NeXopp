@@ -703,6 +703,13 @@ The reader stays a **generic JSON tree** (parse → `JsonValue`) rather than a t
 tolerating several Rnote versions means probing for keys, exactly what upstream does with
 `ijson::IValue`.
 
+**The writer is the same tree in reverse** (`JsonWriter.write` / `JsonValue.toJsonString()`), emitting
+the **compact, whitespace-free** text `serde_json` produces. One rule there is load-bearing rather
+than cosmetic: an integral `Double` is written **without a fraction** (`3`, not `3.0`), because Rnote
+types `pixel_width`, `font_weight`, `chrono.t`, `chrono_counter` and the slot `version` as integers
+and its deserialiser will not take a float for them. A non-finite number throws — JSON has no literal
+for it — rather than emitting the `NaN` that upstream would reject.
+
 ### Decision (2026-08-12): one flat `SaveFormat`, extended to `.rnote`
 
 Every save path assumed the file on disk was a `.xopp`. `.rnote` breaks that, and the question was
@@ -1009,9 +1016,13 @@ app/
       xml/                   # XmlPullReader, XmlWriter — the dependency-free XML layer
                              #   malformed entities decode to raw text; truncated input throws
                              #   XmlPullReader.TruncatedXmlException instead of hanging/crashing
-      json/                  # JsonValue, JsonReader — the dependency-free JSON layer (.rnote payload)
-                             #   generic tree, not a schema; depth-capped at 256; bad input throws
-                             #   JsonReader.MalformedJsonException (TruncatedJsonException when cut short)
+      json/                  # JsonValue, JsonReader, JsonWriter — the dependency-free JSON layer
+                             #   (.rnote payload). Generic tree, not a schema; depth-capped at 256;
+                             #   bad input throws JsonReader.MalformedJsonException
+                             #   (TruncatedJsonException when cut short). JsonWriter emits the
+                             #   compact whitespace-free form serde_json writes, spelling an
+                             #   integral Double as an integer so Rnote's int fields deserialise;
+                             #   jsonObject/jsonArray/jsonNumbers build the trees the encoders need
       rnote/                 # the .rnote side of the format layer
         RnoteContainer.kt    #   gunzip + parse the {"version","data":{"engine_snapshot"}} wrapper;
                              #   rejects pre-0.6 versions and names any missing key
