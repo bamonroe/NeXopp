@@ -60,6 +60,13 @@ class JsonWriterTest {
     }
 
     @Test
+    fun `keeps the sign of a negative zero`() {
+        // A .rnote transform.affine's fourth element is -0.0; toLong() alone would drop the sign.
+        assertEquals("[-0,0]", jsonNumbers(-0.0, 0.0).toJsonString())
+        assertTrue(1.0 / parse("-0").num()!! < 0.0)
+    }
+
+    @Test
     fun `escapes only what the grammar requires`() {
         // The solidus and every non-ASCII character go through verbatim, as serde_json writes them.
         val source = "q\" b\\ s/ \b\u000C\n\r\t\u0001 \u00E9\uD83D\uDE00"

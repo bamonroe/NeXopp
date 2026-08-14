@@ -4,6 +4,7 @@ import com.nexopp.audio.ATTR_AUDIO_FILENAME
 import com.nexopp.format.model.Background
 import com.nexopp.format.model.Document
 import com.nexopp.format.model.Element
+import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.Layer
 import com.nexopp.format.model.Page
 import com.nexopp.format.model.RawElement
@@ -55,6 +56,23 @@ private const val TEX_BOX = "1 LaTeX box is saved as a plain image; the LaTeX so
 private fun texBoxes(count: Int) =
     "$count LaTeX boxes are saved as plain images; the LaTeX source is lost."
 
+/**
+ * A picture whose bytes [RawImageCodec.decodeToRaw] cannot turn back into raw pixels — a JPEG, or a
+ * PNG shape the decoder refuses. Rnote stores pixels, not files, so there is nothing to write.
+ */
+private const val UNREADABLE_IMAGE = "1 picture is in a format Rnote cannot store and will not be saved."
+
+/** The many-of form of [UNREADABLE_IMAGE]. */
+private fun unreadableImages(count: Int) =
+    "$count pictures are in a format Rnote cannot store and will not be saved."
+
+/** A `<teximage>` with no usable rendering has nothing to export in place of its source. */
+private const val UNRENDERED_TEX_BOX = "1 LaTeX box has no saved rendering and will not be saved."
+
+/** The many-of form of [UNRENDERED_TEX_BOX]. */
+private fun unrenderedTexBoxes(count: Int) =
+    "$count LaTeX boxes have no saved rendering and will not be saved."
+
 /** The `fn`/`ts` pen-replay anchor has no JSON home. */
 private const val AUDIO_LINKS = "Audio recording links are not saved in .rnote."
 
@@ -83,8 +101,19 @@ fun exportWarnings(document: Document): List<String> = buildList {
 
     val raw = document.elements().count { it is RawElement }
     if (raw == 1) add(RAW_ELEMENT) else if (raw > 1) add(rawElements(raw))
-    val tex = document.elements().count { it is TexImageElement }
-    if (tex == 1) add(TEX_BOX) else if (tex > 1) add(texBoxes(tex))
+
+    // A LaTeX box splits two ways: one that still has a rendering exports as that picture, one
+    // that doesn't is lost outright. Say which, rather than promising an image that won't be there.
+    val tex = document.elements().filterIsInstance<TexImageElement>().partition { it.isEncodable() }
+    if (tex.first.size == 1) add(TEX_BOX) else if (tex.first.size > 1) add(texBoxes(tex.first.size))
+    if (tex.second.size == 1) {
+        add(UNRENDERED_TEX_BOX)
+    } else if (tex.second.size > 1) {
+        add(unrenderedTexBoxes(tex.second.size))
+    }
+
+    val unreadable = document.elements().count { it is ImageElement && !it.isEncodable() }
+    if (unreadable == 1) add(UNREADABLE_IMAGE) else if (unreadable > 1) add(unreadableImages(unreadable))
 
     if (document.elements().any { it.hasAudioLink() }) add(AUDIO_LINKS)
     if (document.layers().any { it.name != null && !isSlotName(it.name) }) add(LAYER_NAMES)
@@ -132,3 +161,14 @@ private fun highlighterSinksBelowInk(page: Page): Boolean {
 
 /** Whether this element is a highlighter stroke — the one thing Rnote's highlighter slot holds. */
 private fun Element.isHighlighter(): Boolean = this is Stroke && tool == Tool.HIGHLIGHTER
+
+/**
+ * Whether the picture-carrying element would actually reach the file. Rnote's `bitmapimage` holds
+ * *raw pixels*, so a picture only crosses if [RawImageCodec] can decode it — asking the encoder's own
+ * decoder is what keeps this warning honest as the decoder's reach changes.
+ */
+private fun Element.isEncodable(): Boolean = when (this) {
+    is ImageElement -> RawImageCodec.decodeToRaw(data) != null
+    is TexImageElement -> data?.let { RawImageCodec.decodeToRaw(it) } != null
+    else -> true
+}

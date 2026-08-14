@@ -17,6 +17,84 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-encode-bitmapimage"
+title = "Encode an ImageElement or TexImageElement as an rnote bitmapimage"
+description = """
+The export mirror of bitmapImageToImage in RnoteStrokeConvert.kt. Add to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeEncode.kt:
+
+'fun imageToBitmapImage(image: ImageElement): JsonValue?' and 'fun texImageToBitmapImage(tex: TexImageElement): JsonValue?', both null when the pixels cannot be decoded (see below). Shape, matching the text-image.rnote fixture exactly:
+
+{"image":{"data":<base64 raw RGBA>,"rectangle":{"cuboid":{"half_extents":[pw/2,ph/2]},"transform":{"affine":[1,0,0,-0,1,0,pw/2,ph/2,1]}},"pixel_width":pw,"pixel_height":ph,"memory_format":"R8g8b8a8Premultiplied"},"rectangle":{"cuboid":{"half_extents":[hx,hy]},"transform":{"affine":[1,0,0,-0,1,0,cx,cy,1]}}}
+
+- The INNER rectangle is in pixel space: half extents pixel_width/2 and pixel_height/2, centred on itself.
+- The OUTER rectangle is the placement in canvas px: cx = ptToPx((left+right)/2), cy = ptToPx((top+bottom)/2), hx = ptToPx((right-left)/2), hy = ptToPx((bottom-top)/2). Reuse affineOf() from the brushstroke/textstroke task.
+- Pixels: RawImageCodec.decodeToRaw(element.data) -> premultiply -> Base64.getEncoder().encodeToString (no line breaks; the reader uses the MIME decoder so either works, but serde writes one line).
+- A TexImageElement encodes its rendered PNG (TexImageElement.data); a null data or an undecodable buffer returns null so the caller can skip and report it. The LaTeX source is lost either way - exportWarnings already says so.
+- Return null rather than throwing: one unreadable image must not sink the save.
+
+Test in RnoteStrokeEncodeTest.kt: build an ImageElement from RawImageCodec.encodePng of a known 2x2 buffer, encode it, feed the result back through bitmapImageToImage and assert the pt box and the pixels survive; assert a TexImageElement with null data encodes to null; assert a JPEG-headered ImageElement encodes to null.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-13
+completed = 2026-08-13
+tags = []
+
+[[task]]
+id = "rnote-encode-textstroke"
+title = "Encode a TextElement as an rnote textstroke"
+description = """
+The export mirror of textStrokeToText in RnoteStrokeConvert.kt. Add 'fun textToTextStroke(text: TextElement): JsonValue' to app/src/main/java/com/nexopp/format/rnote/RnoteStrokeEncode.kt:
+
+{"text":<content>,"transform":{"affine":[1,0,0,-0,1,0,x,y,1]},"text_style":{"font_family":f,"font_size":s,"font_weight":w,"font_style":"regular"|"italic","color":{r,g,b,a},"max_width":null,"alignment":"start","ranged_text_attributes":[]}}
+
+- The affine is COLUMN-MAJOR (nalgebra): translation at indices 6 and 7, and the fixtures write index 3 as -0.0. Add a shared 'fun affineOf(x: Double, y: Double): JsonValue' in RnoteStrokeEncode.kt so the bitmapimage encoder reuses it; x/y are ptToPx(text.x), ptToPx(text.y).
+- font_family / bold / italic come from parsing TextElement.font with com.nexopp.format.FontDescription (the same class the import side uses to compose it) - check its parse entry point and use it rather than re-parsing the Pango string here.
+- font_weight: 700 when bold, else 400. font_style: "italic" when italic, else "regular".
+- font_size = ptToPx(text.size). color = rnoteColorOf(text.color).
+- max_width and alignment are Rnote's defaults (null / "start") and ranged_text_attributes is always empty - a .xopp text box has one uniform style (gap matrix, Text section).
+- TextElement.extraAttrs (the audio fn/ts pair) has no home and is dropped; the save warning already covers it.
+
+Test in RnoteStrokeEncodeTest.kt: encode, feed back through textStrokeToText, assert content, font string, size, x, y and colour survive for plain, bold, italic and bold-italic fonts; assert the affine's translation sits at indices 6 and 7.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-13
+completed = 2026-08-13
+tags = []
+
+[[task]]
+id = "rnote-encode-brushstroke"
+title = "Encode a Stroke as an rnote brushstroke"
+description = """
+The export mirror of brushStrokeToStroke in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt. Add app/src/main/java/com/nexopp/format/rnote/RnoteStrokeEncode.kt with 'fun strokeToBrushStroke(stroke: Stroke): JsonValue' building the JSON documented in docs/architecture.md ('The stroke & pen mapping'):
+
+{"path":{"start":{"pos":[x,y],"pressure":p},"segments":[{"lineto":{"end":{"pos":[x,y],"pressure":p}}},...]},"style":{"smooth":{"stroke_width":w,"stroke_color":{r,g,b,a},"fill_color":null|{r,g,b,a},"pressure_curve":"linear","line_style":s,"line_cap":c}}}
+
+- Geometry: every StrokePoint x/y through ptToPx (RnoteUnits.kt). Points[0] is 'start', the rest are 'lineto' segments in order. Always lineto, never quadbezto/cubbezto (gap matrix: 'always lineto').
+- Pressure: stroke_width = max(point widths) * 4/3 (i.e. ptToPx of the max width); pressure_i = width_i / max. A max of 0 (or an empty point list) writes stroke_width 0 and pressure 1.0 rather than dividing by zero. This is the exact inverse of the import rule.
+- pressure_curve is ALWAYS the string "linear" - upstream's default and the identity, so widths are not re-curved on reopen (gap matrix, load-bearing).
+- stroke_color = rnoteColorOf(stroke.color) (RnoteUnits.kt).
+- fill_color: null when Stroke.fill is null; otherwise the stroke colour at that alpha, i.e. rnoteColorOf((fill shl 24) or (color and 0x00FFFFFF)).
+- line_style: PLAIN->"solid", DOTTED->"dotted", DASHED and DASH_DOT->"dashed_equidistant" (gap matrix).
+- line_cap: capStyle "round" or null -> "rounded"; "butt" and "square" -> "straight" (gap matrix).
+- Tool is NOT encoded here: highlighter-ness lives in the chrono layer slot, which slotFor() in RnoteDocumentWriterGeometry.kt already decides.
+
+Add app/src/test/java/com/nexopp/format/rnote/RnoteStrokeEncodeTest.kt: encode a stroke, feed the result back through brushStrokeToStroke (wrapped in an RnoteStroke), and assert points, colour, fill, lineStyle, capStyle and uniformWidth survive; assert pressure_curve is "linear"; assert a zero-width stroke does not produce NaN.
+
+Verify: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-13
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-decode-png-to-raw"
 title = "Decode encoded image bytes back to a raw RGBA buffer"
 description = """

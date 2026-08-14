@@ -594,10 +594,19 @@ records the verdicts only.
 
 | Feature | `.xopp` | `.rnote` | Import | Export |
 |---|---|---|---|---|
-| bitmap pixels | base64 PNG/JPEG | base64 raw premultiplied RGBA + `memory_format` | **keep** via `RawImageCodec` | **keep** — needs the inverse (encoded → raw RGBA); owned by the writer |
+| bitmap pixels | base64 PNG/JPEG | base64 raw premultiplied RGBA + `memory_format` | **keep** via `RawImageCodec` | **keep** for a PNG (`RawImageCodec.decodeToRaw` → re-premultiply); **report** for anything else — see the JPEG note below |
 | placement | pt bounding box | affine + `cuboid.half_extents` | **approx** — the upright bounding box; rotation/shear are **report**ed | **keep** — an identity affine about the box centre |
 | `vectorimage` (SVG) | nothing can hold it | yes | **refuse** + **report** (see the policy above) | — |
-| `<teximage>` (LaTeX) | source + the rendered PNG | none | n/a | **approx** — export the rendered PNG as a `bitmapimage` so the visual survives, and **report** the lost LaTeX source. Dropping it outright (what `rnote-cli` does) loses more than converting it |
+| `<teximage>` (LaTeX) | source + the rendered PNG | none | n/a | **approx** — export the rendered PNG as a `bitmapimage` so the visual survives, and **report** the lost LaTeX source. Dropping it outright (what `rnote-cli` does) loses more than converting it. A box with **no** rendering (or one we can't decode) has nothing to export and is **report**ed as lost |
+
+**Decision (2026-08-13): the export decodes PNG only; a JPEG is reported, not converted.** Rnote
+stores *raw pixels*, so writing an `<image>` means decoding whatever it embeds. `RawImageCodec` gained
+a hand-rolled PNG decoder (`PngDecode.kt`: chunk walk, inflate, all five scanline filters, 8-bit grey
+/ grey+alpha / RGB / RGBA) under the same constraint as the encoder — **no `android.graphics.Bitmap`**,
+which is a throwing stub in JVM unit tests. A baseline **JPEG** decoder is several times that code for
+a case `.xopp` allows but NeXopp never authors, so `decodeToRaw` returns null for one and the writer
+skips the picture and warns. Interlaced, 16-bit and palette PNGs take the same path. That keeps the
+one rule the lossy policy actually cares about: nothing is dropped silently.
 
 **Whole-document.**
 
@@ -1059,9 +1068,10 @@ app/
         RnoteExportWarnings.kt # exportWarnings(document) -> one plain sentence per **report** row
                              #   of the feature-gap matrix above that actually applies (mixed page
                              #   sizes/backgrounds, pdf+pixmap backgrounds, eraser strokes, raw
-                             #   elements, LaTeX boxes, audio links, layer names, highlighter
-                             #   z-order); pure, empty list = show nothing. The save flow displays
-                             #   it: modal on Save As, snackbar on a plain Save
+                             #   elements, LaTeX boxes rendered and un-rendered, pictures the PNG
+                             #   decoder can't read, audio links, layer names, highlighter z-order);
+                             #   pure, empty list = show nothing. The save flow displays it: modal
+                             #   on Save As, snackbar on a plain Save
         RnoteLayerStack.kt   #   the canvas->layers rule above, on slot names alone:
                              #   layerSlotName() (stroke -> "user_layer n"/"highlighter"/...),
                              #   layerOrder() (fixed upstream z-order, highlighter below the pen
@@ -1070,8 +1080,17 @@ app/
                              #   (document, skipped), converting + paginating + bucketing strokes
                              #   into pages of identical layer stacks and one shared background;
                              #   `skipped` is the ready-to-show conversion report
-        RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un-premultiply
-                             #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap)
+        RnoteStrokeEncode.kt #   the export mirror of RnoteStrokeConvert: Stroke -> brushstroke
+                             #   (lineto path, stroke_width x pressure factored back out,
+                             #   pressure_curve always "linear"), TextElement -> textstroke,
+                             #   Image/TexImage -> bitmapimage; affineOf() builds the column-major
+                             #   translation matrix. Null = "cannot be written", never a throw
+        RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un/premultiply
+                             #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap) and
+                             #   decodeToRaw() the other way; a JPEG returns null and is reported
+        PngDecode.kt         #   the PNG reader behind decodeToRaw: chunk walk, inflate, all five
+                             #   scanline filters, 8-bit grey/grey+alpha/RGB/RGBA -> RGBA8; null
+                             #   (never a throw) for interlaced, 16-bit, palette or truncated
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
                              #   ARGB int, translation out of a 9-element transform.affine
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)

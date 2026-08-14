@@ -99,7 +99,13 @@ object JsonWriter {
     private fun writeNumber(value: Double, out: StringBuilder) {
         require(value.isFinite()) { "JSON has no literal for $value" }
         val integral = value == Math.floor(value) && Math.abs(value) < MAX_EXACT_INTEGER
-        out.append(if (integral) value.toLong().toString() else value.toString())
+        when {
+            // Negative zero is integral, but `toLong()` would drop its sign — and a `.rnote`
+            // affine's fourth element is exactly that.
+            integral && value == 0.0 && 1.0 / value < 0.0 -> out.append("-0")
+            integral -> out.append(value.toLong().toString())
+            else -> out.append(value.toString())
+        }
     }
 }
 

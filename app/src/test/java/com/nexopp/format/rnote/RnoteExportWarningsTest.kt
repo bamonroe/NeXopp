@@ -4,6 +4,7 @@ import com.nexopp.format.Xopp
 import com.nexopp.format.model.Background
 import com.nexopp.format.model.Document
 import com.nexopp.format.model.Element
+import com.nexopp.format.model.ImageElement
 import com.nexopp.format.model.Layer
 import com.nexopp.format.model.Page
 import com.nexopp.format.model.RawElement
@@ -156,6 +157,39 @@ class RnoteExportWarningsTest {
     }
 
     @Test
+    fun `a picture Rnote cannot store is reported, and a PNG is not`() {
+        // Rnote holds raw pixels, so only what RawImageCodec can decode actually crosses.
+        val png = ImageElement(0.0, 0.0, 10.0, 10.0, pngPixel())
+        assertEquals(emptyList<String>(), exportWarnings(documentOf(png)))
+
+        val jpeg = ImageElement(0.0, 0.0, 10.0, 10.0, jpegBytes())
+        assertEquals(
+            listOf("1 picture is in a format Rnote cannot store and will not be saved."),
+            exportWarnings(documentOf(jpeg)),
+        )
+        assertEquals(
+            listOf("2 pictures are in a format Rnote cannot store and will not be saved."),
+            exportWarnings(documentOf(jpeg, png, jpeg)),
+        )
+    }
+
+    @Test
+    fun `a LaTeX box with no rendering is reported as lost, not as an image`() {
+        val unrendered = texImage().copy(data = null)
+        assertEquals(
+            listOf("1 LaTeX box has no saved rendering and will not be saved."),
+            exportWarnings(documentOf(unrendered)),
+        )
+        assertEquals(
+            listOf(
+                "1 LaTeX box is saved as a plain image; the LaTeX source is lost.",
+                "2 LaTeX boxes have no saved rendering and will not be saved.",
+            ),
+            exportWarnings(documentOf(texImage(), unrendered, unrendered)),
+        )
+    }
+
+    @Test
     fun `an audio link on a stroke or a text box is reported`() {
         val audioStroke = stroke(Tool.PEN).copy(extraAttrs = mapOf("fn" to "rec.wav", "ts" to "1200"))
         val audioText = text().copy(extraAttrs = mapOf("fn" to "rec.wav", "ts" to "0"))
@@ -226,6 +260,7 @@ class RnoteExportWarningsTest {
         content = "hello",
     )
 
+    /** A LaTeX box the desktop already rendered, so it exports as that picture. */
     private fun texImage() = TexImageElement(
         left = 0.0,
         top = 0.0,
@@ -233,5 +268,12 @@ class RnoteExportWarningsTest {
         bottom = 10.0,
         latex = "x^2",
         color = 0xFF000000.toInt(),
+        data = pngPixel(),
     )
+
+    /** A 1x1 opaque PNG — the smallest picture `RawImageCodec` will decode back to raw pixels. */
+    private fun pngPixel() = RawImageCodec.encodePng(ByteArray(4) { 0xFF.toByte() }, 1, 1)
+
+    /** A JPEG's opening marker: nothing in the format layer decodes it, so it cannot be exported. */
+    private fun jpegBytes() = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
 }
