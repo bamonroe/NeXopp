@@ -530,10 +530,16 @@ private fun rnoteColor(color: JsonValue): RnoteColor? {
     )
 }
 
-/** Rnote's `line_style` name → our [LineStyle]; anything unrecognised draws solid. */
+/**
+ * Rnote's `line_style` name → our [LineStyle].
+ *
+ * Upstream (`rnote-compose`, `style::smooth::LineStyle`) writes exactly five names: `solid`,
+ * `dotted`, `dashed_narrow`, `dashed_equidistant` and `dashed_wide`. `.xopp` has one dash pattern,
+ * so all three `dashed_*` widths collapse onto [LineStyle.DASHED]; `solid`, an absent value and any
+ * name a newer Rnote adds draw [LineStyle.PLAIN].
+ */
 private fun lineStyleOf(name: String?): LineStyle = when (name) {
-    "dashed" -> LineStyle.DASHED
     "dotted" -> LineStyle.DOTTED
-    "dashed_dotted", "dashdot" -> LineStyle.DASH_DOT
+    "dashed_narrow", "dashed_equidistant", "dashed_wide" -> LineStyle.DASHED
     else -> LineStyle.PLAIN
 }

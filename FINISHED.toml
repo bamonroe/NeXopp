@@ -17,6 +17,27 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "rnote-line-style-names-do-not-match-upstream-so-no-dashed-stroke-imports"
+title = "rnote: line_style names do not match upstream, so no dashed stroke imports"
+description = """
+lineStyleOf() at the bottom of app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt matches the names "dashed", "dotted" and "dashed_dotted"/"dashdot". Upstream Rnote v0.14.2 (crates/rnote-compose/src/style/smooth/smoothoptions.rs, enum LineStyle) writes exactly five names: solid, dotted, dashed_narrow, dashed_equidistant, dashed_wide. There is no "dashed" and no "dashed_dotted", so today every dashed .rnote stroke silently imports as LineStyle.PLAIN.
+
+Fix lineStyleOf to the mapping recorded in docs/architecture.md, section 'The complete .xopp <-> .rnote feature-gap matrix', row 'line pattern':
+- "dotted" -> LineStyle.DOTTED
+- "dashed_narrow", "dashed_equidistant", "dashed_wide" -> LineStyle.DASHED
+- "solid", null, anything else -> LineStyle.PLAIN
+
+Keep the KDoc accurate: it must name the five upstream values rather than say 'anything unrecognised draws solid' alone. Do NOT keep the old "dashed"/"dashed_dotted" aliases — they were never written by Rnote and pretending otherwise hides the next rename.
+
+Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: build a brushstroke body by hand (as the shapestroke tests already do) with style.smooth.line_style set to each of the five names in turn and assert the resulting Stroke.lineStyle is PLAIN, DOTTED, DASHED, DASHED, DASHED respectively. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-12
+completed = 2026-08-13
+tags = []
+
+[[task]]
 id = "rnote-report-text-boxes-that-lost-non-uniform-styling"
 title = "rnote: report text boxes that lost non-uniform styling"
 description = """

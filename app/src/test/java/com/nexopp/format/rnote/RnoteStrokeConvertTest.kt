@@ -95,7 +95,7 @@ class RnoteStrokeConvertTest {
             parseStroke(
                 """
                 {"path":{"start":{"pos":[0.0,0.0],"pressure":1.0}},
-                 "style":{"smooth":{"line_style":"dashed",
+                 "style":{"smooth":{"line_style":"dashed_equidistant",
                    "fill_color":{"r":1.0,"g":1.0,"b":1.0,"a":0.5}}}}
                 """.trimIndent(),
             ),
@@ -166,6 +166,25 @@ class RnoteStrokeConvertTest {
             0,
         ),
     )!!.font
+
+    @Test
+    fun `each upstream line_style name maps onto our pattern`() {
+        assertEquals(LineStyle.PLAIN, lineStyled("solid"))
+        assertEquals(LineStyle.DOTTED, lineStyled("dotted"))
+        assertEquals(LineStyle.DASHED, lineStyled("dashed_narrow"))
+        assertEquals(LineStyle.DASHED, lineStyled("dashed_equidistant"))
+        assertEquals(LineStyle.DASHED, lineStyled("dashed_wide"))
+        // A name Rnote never wrote is not quietly honoured — it draws plain.
+        assertEquals(LineStyle.PLAIN, lineStyled("dashed"))
+    }
+
+    /** The [LineStyle] of a hand-built brushstroke whose `style.smooth.line_style` is [name]. */
+    private fun lineStyled(name: String) = brushStrokeToStroke(
+        parseStroke(
+            """{"path":{"start":{"pos":[0.0,0.0],"pressure":1.0}},""" +
+                """"style":{"smooth":{"line_style":"$name"}}}""",
+        ),
+    )!!.lineStyle
 
     @Test
     fun `a whole-string bold range promotes onto the font`() {
