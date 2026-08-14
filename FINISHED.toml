@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "support-rnote-file-format"
+title = "Support rnote file format"
+description = "Support reading and saving Rnote (.rnote) files alongside .xopp, so notes taken in NeXopp can round-trip with Rnote on the desktop. Scope out over several rounds: the .rnote container/serialization format, how its stroke/pen model maps to the internal document model, layers/pages/backgrounds equivalence, lossy-mapping policy, and save/save-as filename+extension handling in the file picker. Spawn scope items for investigation and task items where the work is already clear."
+status = "finished"
+level = "epic"
+category = "feature"
+created = 2026-08-11
+completed = 2026-08-13
+tags = ["rnote", "format", "interop"]
+
+[[task]]
 id = "surface-the-rnote-import-conversion-report"
 title = "Surface the .rnote import conversion report"
 description = """
