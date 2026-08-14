@@ -603,12 +603,14 @@ records the verdicts only.
 
 **Decision (2026-08-13): the export decodes PNG only; a JPEG is reported, not converted.** Rnote
 stores *raw pixels*, so writing an `<image>` means decoding whatever it embeds. `RawImageCodec` gained
-a hand-rolled PNG decoder (`PngDecode.kt`: chunk walk, inflate, all five scanline filters, 8-bit grey
-/ grey+alpha / RGB / RGBA) under the same constraint as the encoder — **no `android.graphics.Bitmap`**,
-which is a throwing stub in JVM unit tests. A baseline **JPEG** decoder is several times that code for
-a case `.xopp` allows but NeXopp never authors, so `decodeToRaw` returns null for one and the writer
-skips the picture and warns. Interlaced, 16-bit and palette PNGs take the same path. That keeps the
-one rule the lossy policy actually cares about: nothing is dropped silently.
+a hand-rolled PNG decoder (`PngDecode.kt`: chunk walk, inflate, all five scanline filters, then bit
+depths 1/2/4/8/16 across grey, RGB, palette + `tRNS`, grey+alpha and RGBA) under the same constraint
+as the encoder — **no `android.graphics.Bitmap`**, which is a throwing stub in JVM unit tests. That
+breadth is not gold-plating: `text-image.xopp`'s own `<image>` is a **1-bit palette** PNG, so a
+narrower reading would have dropped the format layer's own sample. A baseline **JPEG** decoder is
+several times that code for a case `.xopp` allows but NeXopp never authors, so `decodeToRaw` returns
+null for one and the writer skips the picture and warns; **Adam7 interlaced** PNGs take the same path.
+That keeps the one rule the lossy policy actually cares about: nothing is dropped silently.
 
 **Whole-document.**
 
@@ -1100,8 +1102,9 @@ app/
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap) and
                              #   decodeToRaw() the other way; a JPEG returns null and is reported
         PngDecode.kt         #   the PNG reader behind decodeToRaw: chunk walk, inflate, all five
-                             #   scanline filters, 8-bit grey/grey+alpha/RGB/RGBA -> RGBA8; null
-                             #   (never a throw) for interlaced, 16-bit, palette or truncated
+                             #   scanline filters, then depths 1/2/4/8/16 across grey, RGB,
+                             #   palette+tRNS, grey+alpha and RGBA -> RGBA8; null (never a throw)
+                             #   for an interlaced or truncated file
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
                              #   ARGB int, translation out of a 9-element transform.affine
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)

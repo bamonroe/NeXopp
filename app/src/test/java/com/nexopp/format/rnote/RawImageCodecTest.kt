@@ -143,9 +143,41 @@ class RawImageCodecTest {
     }
 
     @Test
+    fun `a palette image resolves its indices and tRNS alpha`() {
+        // The project's own text-image fixture embeds a 1-bit palette PNG, so this is the shape a
+        // real `<image>` actually arrives in — not an exotic one.
+        val palette = byteArrayOf(0xFF.toByte(), 0, 0, 0, 0, 0xFF.toByte())
+        // One row of two 1-bit indices, MSB first: index 0 then index 1, padded to a byte.
+        val png = pngWithSamples(byteArrayOf(0b0100_0000), 2, 1, colorType = 3, depth = 1) {
+            mapOf("PLTE" to palette, "tRNS" to byteArrayOf(0x80.toByte()))
+        }
+        assertArrayEquals(
+            byteArrayOf(0xFF.toByte(), 0, 0, 0x80.toByte(), 0, 0, 0xFF.toByte(), 0xFF.toByte()),
+            RawImageCodec.decodePng(png)!!.rgba,
+        )
+    }
+
+    @Test
+    fun `sub-byte and 16-bit greyscale scale onto the full range`() {
+        // 1-bit: 0 is black and 1 is white, not 0x01.
+        val bilevel = RawImageCodec.decodePng(
+            pngWithSamples(byteArrayOf(0b0100_0000), 2, 1, colorType = 0, depth = 1),
+        )!!
+        assertEquals(0, bilevel.rgba[0].toInt() and 0xFF)
+        assertEquals(0xFF, bilevel.rgba[4].toInt() and 0xFF)
+
+        // 16-bit keeps the high byte; everything above this layer is 8-bit RGBA.
+        val deep = RawImageCodec.decodePng(
+            pngWithSamples(byteArrayOf(0x40, 0x99.toByte()), 1, 1, colorType = 0, depth = 16),
+        )!!
+        assertEquals(0x40, deep.rgba[0].toInt() and 0xFF)
+        assertEquals(0xFF, deep.rgba[3].toInt() and 0xFF)
+    }
+
+    @Test
     fun `anything we cannot decode is null rather than an exception`() {
         val png = RawImageCodec.encodePng(redSquare(), 2, 2)
-        // A JPEG, a truncated file, an empty buffer, an interlaced image and a palette image.
+        // A JPEG, a truncated file, an empty buffer, an interlaced image and a palette with no PLTE.
         assertNull(RawImageCodec.decodeToRaw(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())))
         assertNull(RawImageCodec.decodePng(png.copyOfRange(0, png.size / 2)))
         assertNull(RawImageCodec.decodePng(ByteArray(0)))
@@ -190,29 +222,48 @@ class RawImageCodecTest {
         return assemble(raw, width, height, colorType = 6)
     }
 
-    /** A PNG of already-unfiltered [samples] under [colorType], for the channel-expansion cases. */
-    private fun pngWithSamples(samples: ByteArray, width: Int, height: Int, colorType: Int): ByteArray {
+    /**
+     * A PNG of already-unfiltered [samples] under [colorType] and [depth], for the
+     * channel-expansion, bit-depth and palette cases. [extra] supplies any chunks the colour type
+     * needs (`PLTE`, `tRNS`), written between IHDR and IDAT as the spec requires.
+     */
+    private fun pngWithSamples(
+        samples: ByteArray,
+        width: Int,
+        height: Int,
+        colorType: Int,
+        depth: Int = 8,
+        extra: () -> Map<String, ByteArray> = { emptyMap() },
+    ): ByteArray {
         val channels = intArrayOf(1, 0, 3, 1, 2, 0, 4)[colorType]
-        val stride = width * channels
+        val stride = (width * channels * depth + 7) / 8
         val raw = ByteArray(height * (stride + 1))
         for (row in 0 until height) {
             samples.copyInto(raw, row * (stride + 1) + 1, row * stride, (row + 1) * stride)
         }
-        return assemble(raw, width, height, colorType)
+        return assemble(raw, width, height, colorType, depth, extra())
     }
 
-    /** Wrap already-filtered scanlines as a PNG file: signature, IHDR, one IDAT, IEND. */
-    private fun assemble(raw: ByteArray, width: Int, height: Int, colorType: Int): ByteArray {
+    /** Wrap already-filtered scanlines as a PNG file: signature, IHDR, any extras, one IDAT, IEND. */
+    private fun assemble(
+        raw: ByteArray,
+        width: Int,
+        height: Int,
+        colorType: Int,
+        depth: Int = 8,
+        extra: Map<String, ByteArray> = emptyMap(),
+    ): ByteArray {
         val out = ByteArrayOutputStream()
         out.write(RawImageCodec.PNG_SIGNATURE)
         val ihdr = ByteArrayOutputStream()
         for (value in listOf(width, height)) {
             for (shift in listOf(24, 16, 8, 0)) ihdr.write((value ushr shift) and 0xFF)
         }
-        ihdr.write(8)
+        ihdr.write(depth)
         ihdr.write(colorType)
         for (i in 0 until 3) ihdr.write(0)
         writeChunk(out, "IHDR", ihdr.toByteArray())
+        for ((type, body) in extra) writeChunk(out, type, body)
         val deflater = Deflater()
         deflater.setInput(raw)
         deflater.finish()
