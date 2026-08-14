@@ -680,8 +680,10 @@ more than one value across the text keeps the base `text_style` value and the re
 Combined with mapping the box-level `font_weight`/`font_style` through `FontDescription.compose()`,
 that captures everything `.xopp` can actually hold, with no shaping and no round-trip hazard.
 
-Boxes that lost non-uniform styling are **counted, not silent** — they go into the conversion report
-alongside `RnoteConversion.skipped`, per the "must surface that map" rule above.
+Boxes that lost non-uniform styling are **counted, not silent** — `RnoteConversion.lossyText` holds
+how many `textstroke`s arrived with their ranged styling flattened away (the runs disagreed, or the
+box carried `underline`/`strikethrough`), reported alongside `RnoteConversion.skipped` per the "must
+surface that map" rule above. Their text is still kept, so they are not counted as skipped.
 
 ### Decision (2026-08-12): a hand-rolled JSON layer, no new dependency
 

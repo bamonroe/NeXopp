@@ -206,16 +206,44 @@ class RnoteStrokeConvertTest {
     }
 
     /** Convert a textstroke over the two-byte text "hi" whose `text_style` holds [style]. */
-    private fun styledText(style: String) = textStrokeToText(
-        RnoteStroke(
-            1,
-            "textstroke",
-            JsonReader("""{"text":"hi","text_style":{$style}}""").parse(),
-            1L,
-            "user_layer",
-            0,
-        ),
-    )!!
+    private fun styledText(style: String) = textStrokeToText(styledStroke(style))!!
+
+    /** A textstroke over the two-byte text "hi" whose `text_style` holds [style]. */
+    private fun styledStroke(style: String) = RnoteStroke(
+        1,
+        "textstroke",
+        JsonReader("""{"text":"hi","text_style":{$style}}""").parse(),
+        1L,
+        "user_layer",
+        0,
+    )
+
+    @Test
+    fun `a partially styled textstroke is counted as lossy, not skipped`() {
+        val converted = convertStrokes(
+            listOf(styledStroke(""""ranged_text_attributes":[{"range":[0,1],"attribute":{"font_weight":700}}]""")),
+        )
+        assertEquals(1, converted.elements.size)
+        assertTrue(converted.skipped.isEmpty())
+        assertEquals(1, converted.lossyText)
+    }
+
+    @Test
+    fun `an underline range is lossy even when it spans the whole string`() {
+        val converted = convertStrokes(
+            listOf(styledStroke(""""ranged_text_attributes":[{"range":[0,2],"attribute":{"underline":true}}]""")),
+        )
+        assertEquals(1, converted.lossyText)
+    }
+
+    @Test
+    fun `a uniformly styled textstroke loses nothing`() {
+        val converted = convertStrokes(
+            listOf(styledStroke(""""ranged_text_attributes":[{"range":[0,2],"attribute":{"font_weight":700}}]""")),
+        )
+        assertEquals("Sans Bold", (converted.elements.single() as TextElement).font)
+        assertEquals(0, converted.lossyText)
+    }
 
     @Test
     fun `a textstroke with no text is rejected by name`() {

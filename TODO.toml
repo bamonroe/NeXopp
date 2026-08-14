@@ -61,27 +61,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "rnote-report-text-boxes-that-lost-non-uniform-styling"
-title = "rnote: report text boxes that lost non-uniform styling"
-description = """
-Depends on rnote-promote-whole-string-ranged-text-attributes-onto-the-text-box.
-
-The lossy-mapping policy in docs/architecture.md forbids dropping content silently. Extend the conversion report so a text box whose ranged_text_attributes could not be promoted (the runs disagreed, or the box carried underline/strikethrough) is counted rather than lost.
-
-In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt, add a field to data class RnoteConversion (line ~54) - val lossyText: Int, the number of textstrokes whose styling was flattened away - and fill it in convertStrokes() (line ~66) from a signal returned by textStrokeToText(). Keep textStrokeToText()s public return a TextElement? by adding a separate internal helper that returns the element plus the flag, so existing call sites and tests keep working. Default the new field to 0 so it stays a source-compatible addition.
-
-Update the KDoc on RnoteConversion and the same "must surface that map" paragraph in docs/architecture.md to name the new field. Verify with unit tests in app/src/test: converting a stroke list with one partially-bolded textstroke gives lossyText == 1 and skipped empty; a uniformly styled one gives lossyText == 0. Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 390
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-line-style-names-do-not-match-upstream-so-no-dashed-stroke-imports"
 title = "rnote: line_style names do not match upstream, so no dashed stroke imports"
 description = """

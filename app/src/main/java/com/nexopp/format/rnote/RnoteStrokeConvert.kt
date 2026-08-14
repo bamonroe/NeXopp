@@ -48,6 +48,9 @@ private const val BOLD_WEIGHT = 600.0
 /** The font size Rnote writes by default, in px — 12 pt once converted. */
 private const val DEFAULT_FONT_SIZE_PX = 16.0
 
+/** The ranged text attribute kinds a whole-string range can override the base `text_style` with. */
+private val PROMOTABLE = setOf("font_family", "font_size", "font_weight", "font_style", "text_color")
+
 /**
  * The result of walking a whole `.rnote` stroke list: what converted, and what did not.
  *
@@ -55,8 +58,16 @@ private const val DEFAULT_FONT_SIZE_PX = 16.0
  * @property skipped How many strokes each unconvertible kind cost, keyed by [RnoteStroke.kind].
  *   The reader hands this to the UI so the user is told what the file lost — never drop it
  *   silently (see `docs/architecture.md`, "the `.rnote` lossy-mapping policy").
+ * @property lossyText How many `textstroke`s arrived with their `ranged_text_attributes` flattened
+ *   away — the runs disagreed, or the box carried `underline`/`strikethrough`, which `.xopp` cannot
+ *   express. The text itself is kept; only the styling is lost, so these are reported beside
+ *   [skipped] rather than counted in it.
  */
-data class RnoteConversion(val elements: List<Element>, val skipped: Map<String, Int>)
+data class RnoteConversion(
+    val elements: List<Element>,
+    val skipped: Map<String, Int>,
+    val lossyText: Int = 0,
+)
 
 /**
  * Convert every stroke of a snapshot, skipping and counting the ones nothing here can express.
@@ -66,21 +77,38 @@ data class RnoteConversion(val elements: List<Element>, val skipped: Map<String,
  * under their own kind rather than throwing or arriving as a fabricated element — one corrupt
  * stroke must not sink the rest of the file.
  *
+ * A `textstroke` whose ranged styling could not be promoted still converts — its text is never
+ * dropped — but is tallied in [RnoteConversion.lossyText] so the UI can say what it cost.
+ *
  * @param strokes [RnoteSnapshot.strokes], already in ascending z order.
- * @return The elements in that same order, plus the per-kind tally of what was skipped.
+ * @return The elements in that same order, plus the per-kind tally of what was skipped and how
+ *   many text boxes lost their styling.
  */
 fun convertStrokes(strokes: List<RnoteStroke>): RnoteConversion {
     val elements = ArrayList<Element>(strokes.size)
     val skipped = LinkedHashMap<String, Int>()
+    var lossyText = 0
     for (stroke in strokes) {
         val element = convertStrokeOrNull(stroke)
         if (element == null) {
             skipped[stroke.kind] = (skipped[stroke.kind] ?: 0) + 1
         } else {
             elements += element
+            if (stroke.kind == "textstroke" && textStyleIsLossy(stroke)) lossyText++
         }
     }
-    return RnoteConversion(elements, skipped)
+    return RnoteConversion(elements, skipped, lossyText)
+}
+
+/**
+ * Whether one `textstroke`'s ranged styling was flattened away rather than promoted.
+ *
+ * Only meaningful for a stroke [textStrokeToText] converted; a stroke with no ranged attributes is
+ * never lossy.
+ */
+internal fun textStyleIsLossy(stroke: RnoteStroke): Boolean {
+    val content = stroke.body.obj("text")?.str() ?: return false
+    return PromotedAttributes(stroke.body.obj("text_style"), content).lossy
 }
 
 /**
@@ -232,6 +260,15 @@ fun textStrokeToText(stroke: RnoteStroke): TextElement? {
 private class PromotedAttributes(style: JsonValue?, content: String) {
     private val ranged = style?.obj("ranged_text_attributes")
     private val runs = flattenRuns(ranged, content.toByteArray(Charsets.UTF_8).size)
+
+    /**
+     * Whether any ranged attribute was lost: a kind `.xopp` has no home for at all
+     * (`underline`, `strikethrough`, or anything a newer Rnote adds), or a promotable kind whose
+     * value varies along the string.
+     */
+    val lossy: Boolean = (ranged as? JsonArray)?.items.orEmpty()
+        .mapNotNull { (it.obj("attribute") as? JsonObject)?.members?.keys?.firstOrNull() }
+        .any { it !in PROMOTABLE || uniformAttribute(runs, it) == null }
 
     /** The uniform JSON value of [kind] across the whole string, or null when it is not uniform. */
     operator fun get(kind: String): JsonValue? {
