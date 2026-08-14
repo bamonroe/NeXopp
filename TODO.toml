@@ -89,36 +89,6 @@ rebuild = false
 emulator_debug = true
 
 [[task]]
-id = "rnote-snapshot-assembler"
-title = "Assemble the engine_snapshot JSON from a Document"
-description = """
-The export mirror of readDocument in RnoteDocumentReader.kt. Add app/src/main/java/com/nexopp/format/rnote/RnoteSnapshotWriter.kt with 'fun writeSnapshot(document: Document): JsonValue' producing the engine_snapshot object:
-
-{"document":{"config":{"format":{...},"background":{...},"layout":"fixed_size"},"x":0,"y":0,"width":W,"height":H},"stroke_components":[...],"chrono_components":[...],"chrono_counter":N}
-
-- format from canvasFormat(document) (RnoteDocumentWriterGeometry.kt), written as {width,height,dpi,orientation}. background from toRnoteBackground(document.pages.first().background) (RnoteBackgroundMapper.kt), written as {color,pattern,pattern_size:[w,h],pattern_color}; an empty document uses a white 'none' background. layout is ALWAYS the string "fixed_size" (gap matrix).
-- x/y/width/height from canvasExtent(document) - x and y are 0, width/height the box extent.
-- Walk pages in order, layers bottom-first, elements in order. For each element: its slot comes from slotFor(element, layer, layerIndex) and its canvas position from pageOriginsPx(document)[pageIndex] - translate the element DOWN by that offset (in pt) before encoding, the inverse of the reader's page-local translate.
-- Encode each element with the RnoteStrokeEncode entry points: Stroke -> brushstroke, TextElement -> textstroke, ImageElement/TexImageElement -> bitmapimage. A Stroke with tool == ERASER, a RawElement, and any element whose encoder returns null are SKIPPED (exportWarnings already reports all three).
-- stroke_components is [{"value":null,"version":0}] followed by one {"value":{"<tag>":<body>},"version":1} per encoded element; slot 0 is always null (slotmap index 0).
-- chrono_components is the parallel array: [{"value":null,"version":0}] then {"value":{"t":i,"layer":L},"version":1} where t counts from 1 in painters order and L is {"user_layer":n} for the user_layer slot or the bare string "highlighter"/"image"/"document" otherwise.
-- chrono_counter = max(t) + 1, i.e. the element count + 1.
-- Do NOT write camera or snap_positions (gap matrix: omit).
-
-Add app/src/test/java/com/nexopp/format/rnote/RnoteSnapshotWriterTest.kt: build a two-page document with a pen stroke, a highlighter stroke and a text box; write the snapshot; parse it back with RnoteSnapshot.parse and assert the stroke count, the slot 0 null, the layer slots, ascending t, chrono_counter, layout "fixed_size" and that page 2's stroke sits one page height down the canvas.
-
-Verify: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 325
-created = 2026-08-13
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-container-writer"
 title = "Write the .rnote container: version wrapper plus gzip"
 description = """

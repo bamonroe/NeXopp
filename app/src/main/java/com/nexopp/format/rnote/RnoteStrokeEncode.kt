@@ -213,8 +213,14 @@ private fun rectangleJson(cx: Double, cy: Double, hx: Double, hy: Double): JsonV
 fun affineOf(x: Double, y: Double): JsonValue =
     jsonNumbers(1.0, 0.0, 0.0, -0.0, 1.0, 0.0, x, y, 1.0)
 
-/** A four-channel Rnote colour object. */
-private fun colorJson(color: RnoteColor): JsonValue = jsonObject(
+/**
+ * A four-channel Rnote colour object, the shape every `stroke_color`, `fill_color`, `text_style.color`
+ * and background colour takes.
+ *
+ * @param color The colour to write.
+ * @return The `{r,g,b,a}` object.
+ */
+fun colorJson(color: RnoteColor): JsonValue = jsonObject(
     "r" to JsonNumber(color.r),
     "g" to JsonNumber(color.g),
     "b" to JsonNumber(color.b),

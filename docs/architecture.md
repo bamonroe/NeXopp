@@ -1034,7 +1034,9 @@ app/
                              #   jsonObject/jsonArray/jsonNumbers build the trees the encoders need
       rnote/                 # the .rnote side of the format layer
         RnoteContainer.kt    #   gunzip + parse the {"version","data":{"engine_snapshot"}} wrapper;
-                             #   rejects pre-0.6 versions and names any missing key
+                             #   rejects pre-0.6 versions and names any missing key. writeJson()/
+                             #   write() are the mirror, stamping WRITE_VERSION ("0.14.2", the
+                             #   release the mapping was measured against) and gzipping
         RnoteSnapshot.kt     #   engine_snapshot -> intermediate model (format, background, layout,
                              #   canvas extent, chrono-ordered strokes with their bodies raw);
                              #   tolerates the 0.6-0.12 flat document shape, not yet a Document
@@ -1080,6 +1082,13 @@ app/
                              #   (document, skipped), converting + paginating + bucketing strokes
                              #   into pages of identical layer stacks and one shared background;
                              #   `skipped` is the ready-to-show conversion report
+        RnoteSnapshotWriter.kt # its export mirror: writeSnapshot(document) -> the engine_snapshot
+                             #   object. Walks pages/layers/elements in painters order, shifts each
+                             #   onto the canvas by its page offset, encodes it, and builds the
+                             #   parallel stroke_components/chrono_components slot arrays (index 0
+                             #   null, t from 1, chrono_counter = count + 1). Eraser strokes, raw
+                             #   elements and undecodable pictures are skipped — and warned about
+        RnoteDocumentWriter.kt # the one entry point the save path calls: writeRnote(document, out)
         RnoteStrokeEncode.kt #   the export mirror of RnoteStrokeConvert: Stroke -> brushstroke
                              #   (lineto path, stroke_width x pressure factored back out,
                              #   pressure_curve always "linear"), TextElement -> textstroke,
