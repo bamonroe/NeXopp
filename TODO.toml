@@ -61,33 +61,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "rnote-flatten-quadbezto-and-cubbezto-brushstroke-segments"
-title = "rnote: flatten quadbezto and cubbezto brushstroke segments"
-description = """
-pathVertices() in app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt takes each path segment's "end" whatever the segment's tag is. Upstream Rnote v0.14.2 (crates/rnote-compose/src/penpath/segment.rs, enum Segment) writes three kinds: lineto {end}, quadbezto {cp, end}, cubbezto {cp1, cp2, end}. Taking only "end" on a curved segment corner-cuts the curve — the stroke arrives visibly straightened. See docs/architecture.md, gap matrix row 'curved path segments'.
-
-Change pathVertices to flatten curves instead. The shape flattener in the same file already samples beziers for shapestroke — reuse those helpers rather than writing a second sampler:
-- "lineto" -> the end vertex alone (unchanged).
-- "quadbezto" -> sample the quadratic from the PREVIOUS vertex through cp to end, excluding the start point (it is already in the list) and including end.
-- "cubbezto" -> the same for the cubic through cp1 and cp2.
-- any other tag -> fall back to "end" if present, else skip the segment.
-
-Note the segments carry pressure: in Rnote an Element is {pos, pressure} and only the segment END is a full Element — cp/cp1/cp2 are bare [x, y] arrays with no pressure. Give every interpolated point the END segment's pressure so widths stay monotonic along the segment; do not invent a curve.
-
-Sample counts: reuse the existing BEZIER_SAMPLES constant the shapestroke path uses (24) so there is one number, not two.
-
-Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: hand-build a brushstroke whose path is start [0,0] plus one cubbezto with cp1 [0,100], cp2 [100,100], end [100,0], and assert the resulting Stroke has more than 2 points, starts at (0,0) pt and ends at (100,0) pt (converted by pxToPt), and that some middle point has y well away from 0 — i.e. the curve is no longer a straight line. Also assert a pure-lineto path is unchanged in point count against fixtures/rnote/plain.rnote. Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 410
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "rnote-flatten-an-arrow-shapestroke-into-a-stroke"
 title = "rnote: flatten an arrow shapestroke into a Stroke"
 description = """

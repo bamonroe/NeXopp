@@ -138,10 +138,11 @@ private fun convertStroke(stroke: RnoteStroke): Element? = when (stroke.kind) {
 /**
  * Convert one `brushstroke` into a [Stroke].
  *
- * Rnote's pressure polyline is 1:1 with our vertex list: `path.start` followed by the `end` of
- * each segment, with each vertex's width being `stroke_width × pressure` in px. A stroke on the
- * `highlighter` layer becomes [Tool.HIGHLIGHTER]; Rnote has no eraser, so nothing maps to
- * [Tool.ERASER].
+ * Rnote's pressure polyline becomes our vertex list: `path.start` followed by each segment, with
+ * each vertex's width being `stroke_width × pressure` in px. A `lineto` contributes its `end`
+ * alone; a `quadbezto`/`cubbezto` is flattened to [BEZIER_SAMPLES] points so the curve is not
+ * corner-cut into a straight line. A stroke on the `highlighter` layer becomes [Tool.HIGHLIGHTER];
+ * Rnote has no eraser, so nothing maps to [Tool.ERASER].
  *
  * @param stroke A slot from [RnoteSnapshot.strokes].
  * @return The converted stroke, or null if [stroke] is not a `brushstroke`.
@@ -152,12 +153,8 @@ fun brushStrokeToStroke(stroke: RnoteStroke): Stroke? {
     val pressures = ArrayList<Double>()
     val points = ArrayList<StrokePoint>()
     for (vertex in pathVertices(stroke.body.obj("path"))) {
-        val pos = vertex.obj("pos")?.arr() ?: continue
-        val x = pos.getOrNull(0)?.num() ?: continue
-        val y = pos.getOrNull(1)?.num() ?: continue
-        val pressure = vertex.obj("pressure")?.num() ?: 1.0
-        pressures += pressure
-        points += StrokePoint(pxToPt(x), pxToPt(y), pxToPt(style.widthPx * pressure))
+        pressures += vertex.pressure
+        points += StrokePoint(pxToPt(vertex.x), pxToPt(vertex.y), pxToPt(style.widthPx * vertex.pressure))
     }
     return style.toStroke(
         stroke,
@@ -366,21 +363,54 @@ private fun textPosition(transform: JsonValue?): Pair<Double, Double> {
     return pxToPt(x) to pxToPt(y)
 }
 
+/** One sampled point of a `path`, in px, with the pressure that sets its width. */
+private class PathVertex(val x: Double, val y: Double, val pressure: Double)
+
 /**
- * The vertices of a `path` in draw order: `start`, then each segment's `end`.
+ * The vertices of a `path` in draw order: `start`, then the points each segment adds.
  *
- * Every fixture tags its segments `lineto`, but the tag is Rnote's segment *kind* (a curve would
- * use another), so we read the single tag's value whatever it is called and take its `end`. A
- * segment with no `end` is skipped rather than treated as a break in the stroke.
+ * Upstream writes three segment kinds — `lineto {end}`, `quadbezto {cp, end}` and
+ * `cubbezto {cp1, cp2, end}` — so a curved segment is flattened through the same [bezierSamples]
+ * the shape flattener uses rather than collapsing to its `end`, which would straighten the stroke.
+ * Only `end` is a full `{pos, pressure}` element; the control points are bare `[x, y]`, so every
+ * interpolated point takes the segment end's pressure rather than a fabricated curve of its own. An
+ * unknown tag falls back to its `end`, and a segment with nothing usable is skipped rather than
+ * treated as a break in the stroke.
  */
-private fun pathVertices(path: JsonValue?): List<JsonValue> {
+private fun pathVertices(path: JsonValue?): List<PathVertex> {
     if (path == null) return emptyList()
-    val vertices = ArrayList<JsonValue>()
-    path.obj("start")?.let { vertices += it }
+    val vertices = ArrayList<PathVertex>()
+    path.obj("start")?.let { pathVertexAt(it) }?.let { vertices += it }
     for (segment in path.obj("segments")?.arr().orEmpty()) {
-        singleTagValue(segment)?.obj("end")?.let { vertices += it }
+        val (tag, body) = singleTag(segment) ?: continue
+        val end = pathVertexAt(body.obj("end")) ?: continue
+        val controls = when (tag) {
+            "quadbezto" -> listOf(body.obj("cp"))
+            "cubbezto" -> listOf(body.obj("cp1"), body.obj("cp2"))
+            else -> emptyList()
+        }
+        val from = vertices.lastOrNull()
+        if (controls.isEmpty() || from == null) {
+            vertices += end
+            continue
+        }
+        val curve = bezierSamples(
+            listOf(from.x to from.y) + controls.map { vertexAt(it) } + listOf(end.x to end.y),
+        )
+        if (curve == null) {
+            vertices += end
+        } else {
+            // Drop the sampled start: it is the previous vertex, already in the list.
+            curve.drop(1).forEach { (x, y) -> vertices += PathVertex(x, y, end.pressure) }
+        }
     }
     return vertices
+}
+
+/** A `{pos: [x, y], pressure}` element, or null when it is missing or malformed. */
+private fun pathVertexAt(element: JsonValue?): PathVertex? {
+    val (x, y) = vertexAt(element?.obj("pos")) ?: return null
+    return PathVertex(x, y, element?.obj("pressure")?.num() ?: 1.0)
 }
 
 /** A point in Rnote px, before [pxToPt]. */

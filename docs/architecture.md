@@ -564,7 +564,7 @@ only the verdicts.
 | Feature | `.xopp` | `.rnote` | Import | Export |
 |---|---|---|---|---|
 | point geometry | pt polyline in the element body | `path.start` + segment `end`s, px | **keep** (÷ `4/3`) | **keep** |
-| curved path segments | — | `lineto` \| `quadbezto` \| `cubbezto` | **approx** — flatten the curve *(task)*; today only the segment `end` is taken, which corner-cuts it | always `lineto` |
+| curved path segments | — | `lineto` \| `quadbezto` \| `cubbezto` | **approx** — a `quadbezto`/`cubbezto` is flattened to 24 samples (the same `BEZIER_SAMPLES` the shape flattener uses), each carrying the segment end's pressure since only `end` has one | always `lineto` |
 | per-point pressure | the `width` list's tail | `stroke_width` × per-point `pressure` | **keep** | **keep** |
 | nominal pen width | the `width` list's head | — | n/a | **drop** — a pen setting, not rendered |
 | `pressure_curve` | — | `const`\|`linear`\|`sqrt`\|`cbrt`\|`pow2`\|`pow3` | **drop** — already baked into the widths we read | write `linear`: it is upstream's default *and* the identity, so our widths are not re-curved |

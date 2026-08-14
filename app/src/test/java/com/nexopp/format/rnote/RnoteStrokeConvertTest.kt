@@ -469,4 +469,49 @@ class RnoteStrokeConvertTest {
         assertEquals(2, stroke.points.size)
         assertEquals(6.0, stroke.points[1].x, 1e-9)
     }
+
+    @Test
+    fun `a cubbezto segment is flattened rather than corner-cut`() {
+        val stroke = brushStrokeToStroke(
+            parseStroke(
+                """
+                {"path":{"start":{"pos":[0.0,0.0],"pressure":1.0},
+                  "segments":[{"cubbezto":{"cp1":[0.0,100.0],"cp2":[100.0,100.0],
+                    "end":{"pos":[100.0,0.0],"pressure":1.0}}}]},
+                 "style":{"smooth":{"stroke_width":2.0}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertTrue(stroke.points.size > 2)
+        assertEquals(0.0, stroke.points.first().x, 1e-9)
+        assertEquals(0.0, stroke.points.first().y, 1e-9)
+        assertEquals(pxToPt(100.0), stroke.points.last().x, 1e-9)
+        assertEquals(0.0, stroke.points.last().y, 1e-9)
+        // The curve bulges: the midpoint sits well below the straight line between the endpoints.
+        assertTrue(stroke.points.maxOf { it.y } > pxToPt(50.0))
+    }
+
+    @Test
+    fun `a quadbezto segment takes the segment end's pressure throughout`() {
+        val stroke = brushStrokeToStroke(
+            parseStroke(
+                """
+                {"path":{"start":{"pos":[0.0,0.0],"pressure":1.0},
+                  "segments":[{"quadbezto":{"cp":[50.0,100.0],
+                    "end":{"pos":[100.0,0.0],"pressure":0.5}}}]},
+                 "style":{"smooth":{"stroke_width":4.0}}}
+                """.trimIndent(),
+            ),
+        )!!
+        assertTrue(stroke.points.size > 2)
+        assertEquals(pxToPt(4.0), stroke.points.first().width, 1e-9)
+        stroke.points.drop(1).forEach { assertEquals(pxToPt(2.0), it.width, 1e-9) }
+    }
+
+    @Test
+    fun `a pure lineto path keeps one point per segment`() {
+        val plain = strokes("plain").first { it.kind == "brushstroke" }
+        val segments = plain.body.obj("path")?.obj("segments")?.arr()?.size ?: 0
+        assertEquals(segments + 1, brushStrokeToStroke(plain)!!.points.size)
+    }
 }
