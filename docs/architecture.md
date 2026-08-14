@@ -573,7 +573,7 @@ only the verdicts.
 | pen vs. highlighter | `tool` | the layer slot | **keep** | **keep** |
 | `tool="eraser"` | in the format | no eraser stroke exists | n/a | **report** — note NeXopp never *authors* one (its eraser removes strokes); they only ever arrive from a file |
 | line pattern | `plain`\|`dash`\|`dashdot`\|`dot` | `solid`\|`dotted`\|`dashed_narrow`\|`dashed_equidistant`\|`dashed_wide` | **approx** *(task)* — `solid→plain`, `dotted→dot`, all three `dashed_*→dash` | **approx** — `plain→solid`, `dot→dotted`, `dash`/`dashdot`→`dashed_equidistant` |
-| cap style | `capStyle`: `round`\|`butt`\|`square` | `line_cap`: `rounded`\|`straight` | **approx** *(task)* — `rounded→round`, `straight→butt` | **approx** — `round→rounded`, `butt`/`square`→`straight` |
+| cap style | `capStyle`: `round`\|`butt`\|`square` | `line_cap`: `rounded`\|`straight` | **approx** — `rounded→round`, `straight→butt`, absent → `round` | **approx** — `round→rounded`, `butt`/`square`→`straight` |
 | brush style variant | — | `smooth` \| `rough` \| `textured` | **approx** — width/colour/fill are read from whichever tag is present; the sketchy and grainy renderings are lost | always `smooth` |
 | rough/textured options | — | `seed`, `density`, `distribution`, `fill_style`, `hachure_angle`, … | **drop** — renderer-only | — |
 | parametric shapes | polyline only | `line`, `rect`, `ellipse`, `quadbez`, `cubbez`, `polyline`, `polygon`, `arrow` | **approx** — flattened to a polyline; an `arrow` becomes its shaft plus a two-barb head, retraced through the tip so it stays one stroke | always a polyline brushstroke |

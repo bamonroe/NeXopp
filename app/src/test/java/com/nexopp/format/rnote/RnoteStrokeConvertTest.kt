@@ -64,7 +64,8 @@ class RnoteStrokeConvertTest {
         assertEquals(0x80FFFF00.toInt(), stroke.color)
         assertEquals(LineStyle.PLAIN, stroke.lineStyle)
         assertNull(stroke.fill)
-        assertNull(stroke.capStyle)
+        // The fixture's pen writes line_cap "straight".
+        assertEquals("butt", stroke.capStyle)
     }
 
     @Test
@@ -87,6 +88,21 @@ class RnoteStrokeConvertTest {
         )!!
         assertEquals(3.0, stroke.points[0].width, 1e-9)
         assertEquals(0xFF0000FF.toInt(), stroke.color)
+    }
+
+    @Test
+    fun `line_cap maps onto the xopp capStyle and defaults to round`() {
+        fun capOf(cap: String) = brushStrokeToStroke(
+            parseStroke(
+                """
+                {"path":{"start":{"pos":[0.0,0.0],"pressure":1.0}},
+                 "style":{"smooth":{$cap}}}
+                """.trimIndent(),
+            ),
+        )!!.capStyle
+        assertEquals("round", capOf(""""line_cap":"rounded""""))
+        assertEquals("butt", capOf(""""line_cap":"straight""""))
+        assertEquals("round", capOf(""""stroke_width":2.0"""))
     }
 
     @Test

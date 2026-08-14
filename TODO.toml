@@ -61,27 +61,6 @@ rebuild = false
 emulator_debug = false
 
 [[task]]
-id = "rnote-map-line-cap-onto-the-xopp-capstyle"
-title = "rnote: map line_cap onto the xopp capStyle"
-description = """
-The .rnote import drops the smooth style's line_cap, but .xopp has a capStyle attribute (round | butt | square, see docs/architecture.md '<stroke>') and the two are partly mappable. Upstream Rnote v0.14.2 (crates/rnote-compose/src/style/smooth/smoothoptions.rs, enum LineCap) has exactly two values: "rounded" and "straight". See docs/architecture.md, gap matrix row 'cap style'.
-
-Stroke.capStyle in app/src/main/java/com/nexopp/format/model/Element.kt (line 54) is a String? holding the on-disk word.
-
-In app/src/main/java/com/nexopp/format/rnote/RnoteStrokeConvert.kt add a private capStyleOf(name: String?): String? alongside the existing lineStyleOf: "rounded" -> "round", "straight" -> "butt", null or anything else -> "round" (Rnote's own default is rounded). Read it in strokeStyle() as style?.obj("line_cap")?.str(), carry it as a new field on the StrokeStyle holder, and set it in toStroke() so brushStrokeToStroke and shapeStrokeToStroke both get it — exactly how widthPx, color, lineStyle and fill are already shared.
-
-Verify in app/src/test/java/com/nexopp/format/rnote/RnoteStrokeConvertTest.kt: hand-built brushstroke bodies with style.smooth.line_cap set to "rounded", to "straight", and absent give Stroke.capStyle == "round", "butt" and "round" respectively. Run scripts/build.sh testDebugUnitTest."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 430
-created = 2026-08-12
-tags = []
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "show-the-rnote-lossy-save-warnings-in-the-save-flow"
 title = "Show the .rnote lossy-save warnings in the save flow"
 description = """

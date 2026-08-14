@@ -530,13 +530,14 @@ private class StrokeStyle(
     val widthPx: Double,
     val color: Int,
     val lineStyle: LineStyle,
+    val capStyle: String,
     val fill: Int?,
 ) {
     /** Finish a [Stroke] from already-converted [points], taking the tool from the source layer. */
     fun toStroke(source: RnoteStroke, points: List<StrokePoint>, uniformWidth: Boolean): Stroke = Stroke(
         tool = if (source.layer == "highlighter") Tool.HIGHLIGHTER else Tool.PEN,
         color = color,
-        capStyle = null,
+        capStyle = capStyle,
         points = points,
         uniformWidth = uniformWidth,
         lineStyle = lineStyle,
@@ -552,6 +553,7 @@ private fun strokeStyle(body: JsonValue?): StrokeStyle {
         widthPx = style?.obj("stroke_width")?.num() ?: DEFAULT_STROKE_WIDTH_PX,
         color = strokeColor(style),
         lineStyle = lineStyleOf(style?.obj("line_style")?.str()),
+        capStyle = capStyleOf(style?.obj("line_cap")?.str()),
         fill = fillAlpha(style?.obj("fill_color")),
     )
 }
@@ -606,4 +608,16 @@ private fun lineStyleOf(name: String?): LineStyle = when (name) {
     "dotted" -> LineStyle.DOTTED
     "dashed_narrow", "dashed_equidistant", "dashed_wide" -> LineStyle.DASHED
     else -> LineStyle.PLAIN
+}
+
+/**
+ * Rnote's `line_cap` name → the `.xopp` `capStyle` word.
+ *
+ * Upstream (`rnote-compose`, `style::smooth::LineCap`) has exactly two values: `rounded` maps onto
+ * `round` and `straight` onto `butt`. `.xopp`'s third word, `square`, has no Rnote source. An
+ * absent value — and any name a newer Rnote adds — takes Rnote's own default, `round`.
+ */
+private fun capStyleOf(name: String?): String = when (name) {
+    "straight" -> "butt"
+    else -> "round"
 }
