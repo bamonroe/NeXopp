@@ -20,3 +20,76 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "register-xopp-and-rnote-as-open-with-file-types"
+title = "Register .xopp and .rnote as open-with file types"
+description = """
+NeXopp cannot be launched by tapping a .xopp or .rnote file in a file manager: app/src/main/AndroidManifest.xml registers VIEW/EDIT intent filters for PDF, text/markdown and images, but not for our own two formats. Everything behind the intent already works — MainActivity.takeIncoming/openIncoming route any handed-over URI to openDocument, and DocumentIo.read sniffs the container by its leading bytes (FileKind.sniff), so no format-detection or loader change is needed. This is a manifest-only change plus docs.
+
+Add two new <intent-filter> blocks to the <activity> in app/src/main/AndroidManifest.xml, modelled line-for-line on the existing PDF pair:
+1. A content:// filter with action VIEW and EDIT, categories DEFAULT and BROWSABLE, and <data> entries for scheme content with mimeType application/gzip and application/x-gzip. Both .xopp and .rnote are gzip containers, so these are the only MIME types a provider realistically reports for them. Deliberately do NOT register application/octet-stream: that would make NeXopp offer itself for every unknown binary file on the device. Put that reasoning in an XML comment above the block, the way the existing filters explain their content/file split.
+2. A file:// extension-fallback filter, copied from the existing .pdf fallback block (scheme file, host *, mimeType */*), with four pathPattern entries: .*\\\\.xopp, .*\\\\.XOPP, .*\\\\.rnote, .*\\\\.RNOTE. Note pathPattern needs the doubled backslash in XML, exactly as the .pdf/.txt patterns already do.
+
+Document it: add a sentence to README.md next to the existing description of opening PDFs and text files from other apps, saying NeXopp now appears in the open-with sheet for .xopp and .rnote files too.
+
+Verify: scripts/build.sh, then on the emulator push a fixture and run 'adb shell am start -a android.intent.action.VIEW -d file:///sdcard/Download/backgrounds.xopp' and confirm the document opens in a new tab with no logcat exception. Repeat with a .rnote file."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 10
+created = 2026-08-15
+tags = ["intent", "android", "manifest"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "decode-adam7-interlaced-pngs-in-pngdecode"
+title = "Decode Adam7-interlaced PNGs in PngDecode"
+description = """
+app/src/main/java/com/nexopp/format/rnote/PngDecode.kt decodes every non-interlaced PNG (bit depths 1/2/4/8/16 across grey, RGB, palette+tRNS, grey+alpha and RGBA) but returns null for an Adam7-interlaced one, which is the single shape left undecoded. A .xopp holding an interlaced PNG <image> therefore cannot be written to .rnote — the picture is dropped and only reported in exportWarnings. Close that gap.
+
+Adam7 splits the image into seven passes; each pass is an independently filtered sub-image with its own width, height and stride, and the passes are concatenated in the IDAT stream with no separator. The existing per-scanline filter loop already does the right thing for one sub-image, so the work is to extract that loop into a private helper taking (width, height, bytesPerPixel, source offset) and returning the unfiltered bytes, then call it seven times and scatter each pass's pixels into the full-size output.
+
+Concretely, in PngDecode.kt:
+- Add the Adam7 tables as private constants: starting column {0,4,0,2,0,1,0}, starting row {0,0,4,0,2,0,1}, column stride {8,8,4,4,2,2,1}, row stride {8,8,8,4,4,2,2}.
+- For pass p, subWidth = ceil((width - startCol[p]) / colStride[p]) and subHeight = ceil((height - startRow[p]) / rowStride[p]); skip any pass whose subWidth or subHeight is zero (it contributes no bytes at all, not even filter bytes).
+- Unfilter each pass with the existing logic, then for sub-pixel (sx, sy) write to output pixel (startCol[p] + sx * colStride[p], startRow[p] + sy * rowStride[p]).
+- Interlaced images still go through the same bit-depth and colour-type sample expansion; only the scanline geometry changes.
+- Keep the existing contract: return null rather than throwing on any truncated or malformed input.
+
+Update the KDoc at the top of the file and on the decode function — both currently say interlacing is the one shape left out. Update the .rnote feature-gap matrix in docs/architecture.md, which lists interlaced PNGs as an export gap, and drop the matching line from README.md if it names them.
+
+Add tests to the PngDecode test file: encode a small known image both interlaced and non-interlaced with an external tool, check into the test fixtures, and assert both decode to identical pixels. Also assert a truncated interlaced file still returns null. Verify with scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 20
+created = 2026-08-15
+tags = ["rnote", "png", "writer"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "carry-jpeg-images-through-the-rnote-writer"
+title = "Carry JPEG images through the .rnote writer"
+description = """
+A .xopp <image> holding JPEG bytes cannot be exported to .rnote. RawImageCodec.decodeToRaw is PNG-only by design (it just delegates to decodePng), so RnoteSnapshotWriter skips the picture and exportWarnings reports it as dropped. This is the last image-fidelity gap in the save path, but the right fix is not obvious yet, so scope it before writing code.
+
+Investigate and decide between at least these approaches, then add the atomic task(s):
+1. Hand-roll a baseline JPEG decoder alongside PngDecode.kt, matching the existing dependency-free, pure-JVM, returns-null-never-throws style. Faithful to how the rest of the format layer is built and fully unit-testable, but it is a large chunk of code (huffman, dequantise, IDCT, upsample) and progressive JPEGs would still be out.
+2. Use android.graphics.BitmapFactory at runtime to get pixels, keeping the hand-rolled path for tests. Far less code, but the format layer deliberately avoids android.graphics because Bitmap is a throwing stub under JVM unit tests — so this needs an injection seam and would leave the JPEG path untested in the normal loop.
+3. Check whether Rnote's bitmapimage stroke can carry the original encoded bytes rather than re-encoded raw pixels. Read what rnote 0.14.2 actually accepts in the image_data / format fields; if it takes JPEG directly, the whole decode step disappears and this becomes a small passthrough change. Validate any guess against rnote-cli test, the way the writer was validated originally.
+
+Deliverable of this scope item: a written decision recorded in docs/architecture.md (the .rnote section owns it) plus the concrete follow-up task(s) added here. Close this item once its children exist."""
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 30
+created = 2026-08-15
+tags = ["rnote", "writer", "images"]
+rebuild = true
+emulator_debug = false
