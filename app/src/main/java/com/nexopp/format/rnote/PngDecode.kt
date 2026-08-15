@@ -23,6 +23,9 @@ internal object PngDecode {
     /** Bytes of chunk framing that are not payload: the length, the type and the CRC. */
     private const val CHUNK_OVERHEAD = 12
 
+    /** The largest packed-sample buffer a header may claim — 256 MiB, far past any real `<image>`. */
+    private const val MAX_IMAGE_BYTES = 256L * 1024 * 1024
+
     /** Samples per pixel by PNG colour type, indexed by the type byte; -1 marks one that cannot exist. */
     private val CHANNELS = intArrayOf(1, -1, 3, 1, 2, -1, 4)
 
@@ -97,6 +100,12 @@ internal object PngDecode {
         val width = readInt(body, 0)
         val height = readInt(body, 4)
         if (width <= 0 || height <= 0) return null
+        // Gate the claimed size before any allocation sized from it: a hostile IHDR near
+        // Int.MAX_VALUE overflows height * stride into a negative or absurd array size, and either
+        // would escape decode() as a throw instead of the null the .rnote writer relies on. Done
+        // here so the interlaced and non-interlaced paths share the one check.
+        val bytes = (width.toLong() * channels * depth + 7) / 8 * height
+        if (bytes > MAX_IMAGE_BYTES) return null
         return Header(width, height, depth, colorType, channels, interlace == 1)
     }
 

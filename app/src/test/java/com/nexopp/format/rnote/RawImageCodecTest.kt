@@ -237,6 +237,14 @@ class RawImageCodecTest {
         assertNull(RawImageCodec.decodePng(pngWithSamples(byteArrayOf(0), 1, 1, 3)))
     }
 
+    @Test
+    fun `a header claiming an absurd size is null before anything is allocated`() {
+        // 0x40000000 squared overflows height * stride; the gate must catch it in readHeader
+        // rather than let a NegativeArraySizeException or OutOfMemoryError escape decode().
+        val huge = assemble(ByteArray(0), 0x40000000, 0x40000000, colorType = 6)
+        assertNull(RawImageCodec.decodePng(huge))
+    }
+
     /** A checked-in PNG from `app/src/test/resources/fixtures/png/`. */
     private fun fixture(name: String): ByteArray =
         javaClass.classLoader!!.getResourceAsStream("fixtures/png/$name").use {
