@@ -113,6 +113,24 @@ class RnoteDocumentWriterTest {
     }
 
     @Test
+    fun `a jpeg-backed picture crosses the writer and comes back as pixels`() {
+        // The `<image>` embeds a baseline JPEG; the writer decodes it to a bitmapimage, and it
+        // comes back out of the file as the PNG our reader re-encodes — same picture, new coat.
+        val jpeg = javaClass.classLoader!!.getResourceAsStream("fixtures/jpeg/yuv444.jpg").use {
+            it?.readBytes() ?: error("missing fixture fixtures/jpeg/yuv444.jpg")
+        }
+        val back = roundTrip(
+            Document(
+                pages = listOf(page(Layer(listOf(ImageElement(10.0, 10.0, 30.0, 23.0, jpeg)), "image"))),
+            ),
+        )
+        val image = back.pages[0].layers.flatMap { it.elements }.filterIsInstance<ImageElement>().single()
+        val pixels = RawImageCodec.decodePng(image.data)!!
+        assertEquals(20, pixels.width)
+        assertEquals(13, pixels.height)
+    }
+
+    @Test
     fun `the page background crosses as its ruling style`() {
         val back = roundTrip(
             Document(pages = listOf(page(Layer(listOf(stroke(Tool.PEN, 0xFF000000.toInt(), 20.0)))))),

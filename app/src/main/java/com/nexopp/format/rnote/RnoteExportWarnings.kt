@@ -57,8 +57,9 @@ private fun texBoxes(count: Int) =
     "$count LaTeX boxes are saved as plain images; the LaTeX source is lost."
 
 /**
- * A picture whose bytes [RawImageCodec.decodeToRaw] cannot turn back into raw pixels — a JPEG, or a
- * PNG shape the decoder refuses. Rnote stores pixels, not files, so there is nothing to write.
+ * A picture whose bytes [RawImageCodec.decodeToRaw] cannot turn back into raw pixels — a
+ * progressive JPEG, or a PNG shape the decoder refuses. Rnote stores pixels, not files, so there is
+ * nothing to write.
  */
 private const val UNREADABLE_IMAGE = "1 picture is in a format Rnote cannot store and will not be saved."
 

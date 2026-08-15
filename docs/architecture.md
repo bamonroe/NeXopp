@@ -626,7 +626,7 @@ records the verdicts only.
 
 | Feature | `.xopp` | `.rnote` | Import | Export |
 |---|---|---|---|---|
-| bitmap pixels | base64 PNG/JPEG | base64 raw premultiplied RGBA + `memory_format` | **keep** via `RawImageCodec` | **keep** for a PNG (`RawImageCodec.decodeToRaw` → re-premultiply); **report** for anything else — see the JPEG note below |
+| bitmap pixels | base64 PNG/JPEG | base64 raw premultiplied RGBA + `memory_format` | **keep** via `RawImageCodec` | **keep** for a PNG or baseline JPEG (`RawImageCodec.decodeToRaw` → re-premultiply); **report** for anything else, progressive JPEG included — see the JPEG decisions below |
 | placement | pt bounding box | affine + `cuboid.half_extents` | **approx** — the upright bounding box; rotation/shear are **report**ed | **keep** — an identity affine about the box centre |
 | `vectorimage` (SVG) | nothing can hold it | yes | **refuse** + **report** (see the policy above) | — |
 | `<teximage>` (LaTeX) | source + the rendered PNG | none | n/a | **approx** — export the rendered PNG as a `bitmapimage` so the visual survives, and **report** the lost LaTeX source. Dropping it outright (what `rnote-cli` does) loses more than converting it. A box with **no** rendering (or one we can't decode) has nothing to export and is **report**ed as lost |
@@ -640,10 +640,27 @@ in JVM unit tests. That breadth is not gold-plating: `text-image.xopp`'s own `<i
 palette** PNG, so a narrower reading would have dropped the format layer's own sample. **Adam7**
 (2026-08-15) deinterlaces each of the seven passes as its own filtered sub-image and scatters the
 pixels back onto the full grid, checked against an ImageMagick-written interlaced/plain fixture pair
-in `app/src/test/resources/fixtures/png/`. A baseline **JPEG** decoder is several times that code for
-a case `.xopp` allows but NeXopp never authors, so `decodeToRaw` returns null for one and the writer
-skips the picture and warns. That keeps the one rule the lossy policy actually cares about: nothing
-is dropped silently.
+in `app/src/test/resources/fixtures/png/`. A baseline **JPEG** decoder looked like several times that
+code for a case `.xopp` allows but NeXopp never authors, so `decodeToRaw` at first returned null for
+one and the writer skipped the picture and warned. **Superseded for baseline JPEGs by the 2026-08-15
+decision below**; the rule it protected — nothing is dropped silently — carries over unchanged.
+
+**Decision (2026-08-15): close the JPEG gap with a hand-rolled baseline decoder (`JpegDecode.kt`).**
+Scoping `carry-jpeg-images-through-the-rnote-writer` killed the two shortcuts. A *passthrough* of the
+original JPEG bytes is impossible: Rnote's `bitmapimage.image.data` is a raw premultiplied-RGBA pixel
+buffer, never an encoded file — the `rnote-cli`-generated fixtures are ground truth for that.
+`android.graphics.BitmapFactory` at runtime would need an injection seam and would leave the JPEG
+path invisible to JVM unit tests, breaking the format layer's no-`android.graphics` constraint. So
+the remaining option is the honest one: a dependency-free **baseline sequential** JPEG decoder
+(DHT/DQT/SOF0/SOS marker walk, Huffman entropy decode, restart markers, dequantise, IDCT,
+4:4:4/4:2:2/4:2:0 chroma upsampling by replication, YCbCr→RGB) beside `PngDecode.kt`, same
+contract — pure JVM, returns null rather than throws. `decodeToRaw` sniffs the first bytes and
+routes a JPEG SOI to it, so the writer and `RnoteExportWarnings.isEncodable` picked the support up
+with no changes of their own. It is checked against ImageMagick/`cjpeg`-written fixtures in
+`app/src/test/resources/fixtures/jpeg/`, compared to libjpeg's own pixel dumps within a ±2 rounding
+tolerance. **Progressive** JPEG (SOF2) stays out: it returns null and rides the existing
+skip-and-warn path, which this decision supersedes only for baseline images. The matrix row above
+flipped from **report** to **keep** when the decoder landed (2026-08-15).
 
 **Whole-document.**
 
@@ -1166,11 +1183,14 @@ app/
                              #   translation matrix. Null = "cannot be written", never a throw
         RawImageCodec.kt     #   raw pixels <-> PNG for bitmapimage: base64 decode, un/premultiply
                              #   alpha, minimal RGBA8 PNG writer (Deflater/CRC32, no Bitmap) and
-                             #   decodeToRaw() the other way; a JPEG returns null and is reported
+                             #   decodeToRaw() the other way, sniffing PNG vs JPEG from the bytes
         PngDecode.kt         #   the PNG reader behind decodeToRaw: chunk walk, inflate, all five
                              #   scanline filters, then depths 1/2/4/8/16 across grey, RGB,
                              #   palette+tRNS, grey+alpha and RGBA -> RGBA8, Adam7 interlaced or
                              #   not; null (never a throw) for a truncated or malformed file
+        JpegDecode.kt        #   the baseline-JPEG reader behind decodeToRaw: Huffman + restart
+                             #   markers, IDCT, 4:4:4/4:2:2/4:2:0 upsampling, YCbCr->RGB; null
+                             #   (never a throw) for progressive/12-bit/CMYK or a malformed file
         RnoteUnits.kt        #   shared converter primitives: px<->pt (96/72 dpi), RnoteColor <->
                              #   ARGB int, translation out of a 9-element transform.affine
       FontDescription.kt     # Pango-style font description <-> family + bold/italic (pure)

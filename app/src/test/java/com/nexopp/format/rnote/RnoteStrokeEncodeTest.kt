@@ -155,7 +155,7 @@ class RnoteStrokeEncodeTest {
     }
 
     private companion object {
-        /** A JPEG's SOI + APP0 marker: decodable by no code here, so it must encode to null. */
+        /** A JPEG's SOI + APP0 marker and nothing more — truncated, so it must encode to null. */
         val JPEG_HEADER = byteArrayOf(
             0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte(), 0x00, 0x10,
         )

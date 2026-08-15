@@ -141,18 +141,18 @@ object RawImageCodec {
 
     /**
      * Decode whatever an `<image>` element carries into raw pixels, ready to be written as a
-     * `bitmapimage`.
-     *
-     * **PNG only.** A `.xopp` may embed a JPEG, and there is deliberately no JPEG decoder here: a
-     * baseline decoder is far more code than the rest of this file, and `android.graphics` is off
-     * limits for the reason in the class doc. A JPEG therefore returns null and the writer skips and
-     * reports that image rather than shipping a wrong one — see the Images row of the feature-gap
-     * matrix in `docs/architecture.md`.
+     * `bitmapimage`, sniffing the format from the first bytes: the PNG signature goes to
+     * [PngDecode], a JPEG SOI (`0xFF 0xD8`) to [JpegDecode] (baseline only — a progressive JPEG
+     * decodes to null, and the writer skips and reports it; see the Images row of the feature-gap
+     * matrix in `docs/architecture.md`).
      *
      * @param data The encoded bytes from the element.
      * @return The pixels, or null when nothing here can decode them.
      */
-    fun decodeToRaw(data: ByteArray): RawImage? = decodePng(data)
+    fun decodeToRaw(data: ByteArray): RawImage? = when {
+        data.size >= 2 && data[0] == 0xFF.toByte() && data[1] == 0xD8.toByte() -> JpegDecode.decode(data)
+        else -> decodePng(data)
+    }
 
     /** The 13-byte `IHDR` body: size, 8-bit depth, colour type 6 (RGBA), no interlace. */
     private fun ihdr(width: Int, height: Int): ByteArray {

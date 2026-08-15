@@ -220,7 +220,7 @@ class RawImageCodecTest {
     fun `anything we cannot decode is null rather than an exception`() {
         val png = RawImageCodec.encodePng(redSquare(), 2, 2)
         val interlaced = fixture("adam7-interlaced.png")
-        // A JPEG, a truncated file, an empty buffer, a truncated interlaced file, an interlaced
+        // A truncated JPEG, a truncated file, an empty buffer, a truncated interlaced file, an interlaced
         // header over a stream that runs out mid-pass, an undefined interlace method, and a palette
         // with no PLTE. The mid-pass case flips the plain twin's IHDR byte: seven passes need 487
         // bytes of scanline where the plain layout wrote 477, so the last pass has nothing to read.
@@ -236,6 +236,22 @@ class RawImageCodecTest {
         assertNull(RawImageCodec.decodePng(png.also { it[RawImageCodec.PNG_SIGNATURE.size + 8 + 12] = 2 }))
         assertNull(RawImageCodec.decodePng(pngWithSamples(byteArrayOf(0), 1, 1, 3)))
     }
+
+    @Test
+    fun `a baseline jpeg now decodes but a progressive one still reports as unreadable`() {
+        // decodeToRaw sniffs the SOI and hands a JPEG to JpegDecode; RnoteExportWarnings'
+        // isEncodable is exactly this call, so a null here is what "reports" means.
+        val image = RawImageCodec.decodeToRaw(jpegFixture("yuv444.jpg"))!!
+        assertEquals(20, image.width)
+        assertEquals(13, image.height)
+        assertNull(RawImageCodec.decodeToRaw(jpegFixture("progressive.jpg")))
+    }
+
+    /** A checked-in JPEG from `app/src/test/resources/fixtures/jpeg/`. */
+    private fun jpegFixture(name: String): ByteArray =
+        javaClass.classLoader!!.getResourceAsStream("fixtures/jpeg/$name").use {
+            it?.readBytes() ?: error("missing fixture fixtures/jpeg/$name")
+        }
 
     @Test
     fun `a header claiming an absurd size is null before anything is allocated`() {
