@@ -22,29 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "register-xopp-and-rnote-as-open-with-file-types"
-title = "Register .xopp and .rnote as open-with file types"
-description = """
-NeXopp cannot be launched by tapping a .xopp or .rnote file in a file manager: app/src/main/AndroidManifest.xml registers VIEW/EDIT intent filters for PDF, text/markdown and images, but not for our own two formats. Everything behind the intent already works — MainActivity.takeIncoming/openIncoming route any handed-over URI to openDocument, and DocumentIo.read sniffs the container by its leading bytes (FileKind.sniff), so no format-detection or loader change is needed. This is a manifest-only change plus docs.
-
-Add two new <intent-filter> blocks to the <activity> in app/src/main/AndroidManifest.xml, modelled line-for-line on the existing PDF pair:
-1. A content:// filter with action VIEW and EDIT, categories DEFAULT and BROWSABLE, and <data> entries for scheme content with mimeType application/gzip and application/x-gzip. Both .xopp and .rnote are gzip containers, so these are the only MIME types a provider realistically reports for them. Deliberately do NOT register application/octet-stream: that would make NeXopp offer itself for every unknown binary file on the device. Put that reasoning in an XML comment above the block, the way the existing filters explain their content/file split.
-2. A file:// extension-fallback filter, copied from the existing .pdf fallback block (scheme file, host *, mimeType */*), with four pathPattern entries: .*\\\\.xopp, .*\\\\.XOPP, .*\\\\.rnote, .*\\\\.RNOTE. Note pathPattern needs the doubled backslash in XML, exactly as the .pdf/.txt patterns already do.
-
-Document it: add a sentence to README.md next to the existing description of opening PDFs and text files from other apps, saying NeXopp now appears in the open-with sheet for .xopp and .rnote files too.
-
-Verify: scripts/build.sh, then on the emulator push a fixture and run 'adb shell am start -a android.intent.action.VIEW -d file:///sdcard/Download/backgrounds.xopp' and confirm the document opens in a new tab with no logcat exception. Repeat with a .rnote file."""
-status = "active"
-level = "task"
-category = "feature"
-urgency = "normal"
-order = 10
-created = 2026-08-15
-tags = ["intent", "android", "manifest"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "decode-adam7-interlaced-pngs-in-pngdecode"
 title = "Decode Adam7-interlaced PNGs in PngDecode"
 description = """
