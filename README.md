@@ -79,6 +79,10 @@ authoritative flow; don't invent another one.
   If the referenced PDF can't be found (e.g. a desktop path that doesn't exist on the device, or a
   folder NeXopp wasn't given access to), those pages open blank and a notice is shown — the
   reference itself is kept, so saving the file doesn't throw the background away.
+- **Open a `.xopp` or `.rnote` from another app** — NeXopp registers as a handler for its own two
+  formats as well, so tapping a `.xopp` or `.rnote` in a file manager (or attached to a mail)
+  offers **NeXopp** in the **Open with** sheet and opens the document straight into a new tab,
+  exactly as the menu's **Open** would.
 - **Open a PDF from another app** — NeXopp registers as a **PDF handler**, so it shows up in the
   **Open with** / **Share** sheet of file managers, browsers, and mail clients. Tap a PDF there,
   pick **NeXopp**, and it opens straight into a **new tab** as a fresh annotatable document over the

@@ -23,6 +23,44 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Offer the app as a handler for our own two formats. Both .xopp and .rnote are
+                 gzip containers, so application/gzip (and its legacy x-gzip spelling) is what a
+                 provider realistically reports for them; DocumentIo sniffs the real kind from the
+                 leading bytes once it's handed over. application/octet-stream is deliberately NOT
+                 registered — it would offer NeXopp for every unknown binary file on the device. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="application/gzip" />
+                <data android:scheme="content" android:mimeType="application/x-gzip" />
+            </intent-filter>
+
+            <!-- Fallback for senders that hand over a file:// URI with no (or a generic)
+                 MIME type — match on the .xopp/.rnote extension instead. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.xopp" />
+                <data android:pathPattern=".*\\..*\\.xopp" />
+                <data android:pathPattern=".*\\..*\\..*\\.xopp" />
+                <data android:pathPattern=".*\\.XOPP" />
+                <data android:pathPattern=".*\\..*\\.XOPP" />
+                <data android:pathPattern=".*\\..*\\..*\\.XOPP" />
+                <data android:pathPattern=".*\\.rnote" />
+                <data android:pathPattern=".*\\..*\\.rnote" />
+                <data android:pathPattern=".*\\..*\\..*\\.rnote" />
+                <data android:pathPattern=".*\\.RNOTE" />
+                <data android:pathPattern=".*\\..*\\.RNOTE" />
+                <data android:pathPattern=".*\\..*\\..*\\.RNOTE" />
+            </intent-filter>
+
             <!-- Offer the app as a PDF handler: open/annotate a PDF handed over by a file
                  manager, browser, or mail client. Content and file URIs are covered
                  separately because a provider-backed content:// URI carries its MIME type
