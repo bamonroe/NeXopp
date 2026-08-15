@@ -175,15 +175,108 @@ class RawImageCodecTest {
     }
 
     @Test
+    fun `an interlaced png decodes to the same pixels as its plain twin`() {
+        // Both fixtures were written by ImageMagick, not by our encoder, so the seven-pass geometry
+        // is checked against a real PNG writer. See the fixtures' README for how they were made.
+        val plain = RawImageCodec.decodePng(fixture("adam7-plain.png"))!!
+        val interlaced = RawImageCodec.decodePng(fixture("adam7-interlaced.png"))!!
+        assertEquals(0, interlaceMethod(fixture("adam7-plain.png")))
+        assertEquals(1, interlaceMethod(fixture("adam7-interlaced.png")))
+        assertEquals(13, interlaced.width)
+        assertEquals(9, interlaced.height)
+        assertArrayEquals(plain.rgba, interlaced.rgba)
+        // And they are the picture the README says, not merely equal to each other: every pixel is a
+        // function of its position, so a scatter that shifted a pass would show up here too.
+        for (y in 0 until 9) {
+            for (x in 0 until 13) {
+                val at = (y * 13 + x) * 4
+                val expected = intArrayOf(x * 17, y * 23, x * 7 + y * 13, 255 - (x * 3 + y * 5) % 128)
+                for (channel in 0 until 4) {
+                    assertEquals(
+                        "pixel $x,$y channel $channel",
+                        expected[channel] % 256,
+                        interlaced.rgba[at + channel].toInt() and 0xFF,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a sub-byte interlaced image lands each pass in the right pixels`() {
+        // ImageMagick will not write a 1-bit Adam7 PNG, so this one is built here — the bit-packed
+        // scatter is the half of interlacing the byte-aligned fixtures cannot reach.
+        val lit = { x: Int, y: Int -> (x * 3 + y * 5) % 2 }
+        val image = RawImageCodec.decodePng(interlacedBilevel(11, 7, lit))!!
+        for (y in 0 until 7) {
+            for (x in 0 until 11) {
+                val grey = image.rgba[(y * 11 + x) * 4].toInt() and 0xFF
+                assertEquals("pixel $x,$y", if (lit(x, y) == 1) 0xFF else 0, grey)
+            }
+        }
+    }
+
+    @Test
     fun `anything we cannot decode is null rather than an exception`() {
         val png = RawImageCodec.encodePng(redSquare(), 2, 2)
-        // A JPEG, a truncated file, an empty buffer, an interlaced image and a palette with no PLTE.
+        val interlaced = fixture("adam7-interlaced.png")
+        // A JPEG, a truncated file, an empty buffer, a truncated interlaced file, an interlaced
+        // header over a stream that runs out mid-pass, an undefined interlace method, and a palette
+        // with no PLTE. The mid-pass case flips the plain twin's IHDR byte: seven passes need 487
+        // bytes of scanline where the plain layout wrote 477, so the last pass has nothing to read.
         assertNull(RawImageCodec.decodeToRaw(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())))
         assertNull(RawImageCodec.decodePng(png.copyOfRange(0, png.size / 2)))
         assertNull(RawImageCodec.decodePng(ByteArray(0)))
-        assertNull(RawImageCodec.decodePng(png.also { it[RawImageCodec.PNG_SIGNATURE.size + 8 + 12] = 1 }))
+        assertNull(RawImageCodec.decodePng(interlaced.copyOfRange(0, interlaced.size - 40)))
+        assertNull(
+            RawImageCodec.decodePng(
+                fixture("adam7-plain.png").also { it[RawImageCodec.PNG_SIGNATURE.size + 8 + 12] = 1 },
+            ),
+        )
+        assertNull(RawImageCodec.decodePng(png.also { it[RawImageCodec.PNG_SIGNATURE.size + 8 + 12] = 2 }))
         assertNull(RawImageCodec.decodePng(pngWithSamples(byteArrayOf(0), 1, 1, 3)))
     }
+
+    /** A checked-in PNG from `app/src/test/resources/fixtures/png/`. */
+    private fun fixture(name: String): ByteArray =
+        javaClass.classLoader!!.getResourceAsStream("fixtures/png/$name").use {
+            it?.readBytes() ?: error("missing fixture fixtures/png/$name")
+        }
+
+    /** The `IHDR` interlace method byte: 0 for none, 1 for Adam7. */
+    private fun interlaceMethod(png: ByteArray): Int = chunkBody(png, "IHDR")[12].toInt()
+
+    /**
+     * A 1-bit greyscale Adam7 PNG of [lit], written pass by pass the way the spec lays them out:
+     * seven independently filtered sub-images, concatenated with no separator, each row padded to a
+     * byte. A pass with no rows or columns contributes nothing at all.
+     */
+    private fun interlacedBilevel(width: Int, height: Int, lit: (Int, Int) -> Int): ByteArray {
+        val columnStart = intArrayOf(0, 4, 0, 2, 0, 1, 0)
+        val rowStart = intArrayOf(0, 0, 4, 0, 2, 0, 1)
+        val columnStep = intArrayOf(8, 8, 4, 4, 2, 2, 1)
+        val rowStep = intArrayOf(8, 8, 8, 4, 4, 2, 2)
+        val raw = ByteArrayOutputStream()
+        for (pass in 0 until 7) {
+            val columns = extent(width, columnStart[pass], columnStep[pass])
+            val rows = extent(height, rowStart[pass], rowStep[pass])
+            if (columns == 0 || rows == 0) continue
+            for (y in 0 until rows) {
+                val line = ByteArray((columns + 7) / 8)
+                for (x in 0 until columns) {
+                    val on = lit(columnStart[pass] + x * columnStep[pass], rowStart[pass] + y * rowStep[pass])
+                    if (on == 1) line[x / 8] = (line[x / 8].toInt() or (0x80 ushr (x % 8))).toByte()
+                }
+                raw.write(0) // filter type 0
+                raw.write(line)
+            }
+        }
+        return assemble(raw.toByteArray(), width, height, colorType = 0, depth = 1, interlace = 1)
+    }
+
+    /** How many pixels one Adam7 pass covers along a [total]-long side. */
+    private fun extent(total: Int, start: Int, step: Int): Int =
+        if (start >= total) 0 else (total - start + step - 1) / step
 
     @Test
     fun `premultiplying is the inverse of unpremultiplying within a rounding step`() {
@@ -252,6 +345,7 @@ class RawImageCodecTest {
         colorType: Int,
         depth: Int = 8,
         extra: Map<String, ByteArray> = emptyMap(),
+        interlace: Int = 0,
     ): ByteArray {
         val out = ByteArrayOutputStream()
         out.write(RawImageCodec.PNG_SIGNATURE)
@@ -261,7 +355,9 @@ class RawImageCodecTest {
         }
         ihdr.write(depth)
         ihdr.write(colorType)
-        for (i in 0 until 3) ihdr.write(0)
+        ihdr.write(0) // compression method
+        ihdr.write(0) // filter method
+        ihdr.write(interlace)
         writeChunk(out, "IHDR", ihdr.toByteArray())
         for ((type, body) in extra) writeChunk(out, type, body)
         val deflater = Deflater()

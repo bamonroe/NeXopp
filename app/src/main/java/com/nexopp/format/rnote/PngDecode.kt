@@ -11,12 +11,12 @@ import java.util.zip.Inflater
  * JVM unit tests (`scripts/build.sh testDebugUnitTest`), so decoding through the platform would
  * leave the `.rnote` writer untestable in the loop we actually run. Only `java.util.zip` is used.
  *
- * It covers every **non-interlaced** PNG: bit depths 1/2/4/8/16 across grey, RGB, palette,
- * grey+alpha and RGBA, with `tRNS` transparency. That breadth is not gold-plating — the fixture
- * `<image>` this project has carried since day one is a *1-bit palette* PNG, so the narrow reading
- * would have dropped the format layer's own sample. Adam7 interlacing is the one shape left out; it
- * is rare, several times this much code, and takes the same **null, never a throw** path as a
- * truncated file, so an unreadable picture is skipped and reported rather than sinking a save.
+ * It covers every PNG the spec allows: bit depths 1/2/4/8/16 across grey, RGB, palette, grey+alpha
+ * and RGBA, with `tRNS` transparency, **interlaced or not**. That breadth is not gold-plating — the
+ * fixture `<image>` this project has carried since day one is a *1-bit palette* PNG, so the narrow
+ * reading would have dropped the format layer's own sample. A file that is truncated or malformed
+ * takes the **null, never a throw** path, so an unreadable picture is skipped and reported rather
+ * than sinking a save.
  */
 internal object PngDecode {
 
@@ -28,6 +28,12 @@ internal object PngDecode {
 
     /** Colour type 3: each sample is an index into the `PLTE` chunk rather than a colour. */
     private const val PALETTE = 3
+
+    /** Adam7's seven passes, as the column and row each starts at and the step between its pixels. */
+    private val PASS_COLUMN_START = intArrayOf(0, 4, 0, 2, 0, 1, 0)
+    private val PASS_ROW_START = intArrayOf(0, 0, 4, 0, 2, 0, 1)
+    private val PASS_COLUMN_STEP = intArrayOf(8, 8, 4, 4, 2, 2, 1)
+    private val PASS_ROW_STEP = intArrayOf(8, 8, 8, 4, 4, 2, 2)
 
     /**
      * Decode a PNG into a straight-alpha RGBA8 buffer.
@@ -52,12 +58,16 @@ internal object PngDecode {
         val depth: Int,
         val colorType: Int,
         val channels: Int,
+        val interlaced: Boolean,
     ) {
         /** Bits per pixel — [channels] samples of [depth] bits each. */
         val bitsPerPixel = channels * depth
 
         /** One row's payload in bytes, rounded up: a sub-byte row is padded to a byte boundary. */
-        val stride = (width * bitsPerPixel + 7) / 8
+        val stride = strideOf(width)
+
+        /** The same rounding for a sub-image of [pixels] columns, which each Adam7 pass needs. */
+        fun strideOf(pixels: Int) = (pixels * bitsPerPixel + 7) / 8
 
         /** The filter's "previous pixel" distance, in bytes, never less than one (spec §9.2). */
         val filterBpp = maxOf(1, bitsPerPixel / 8)
@@ -69,15 +79,16 @@ internal object PngDecode {
             RawImageCodec.PNG_SIGNATURE.indices.all { png[it] == RawImageCodec.PNG_SIGNATURE[it] }
 
     /**
-     * Read IHDR, which the spec requires to be the first chunk. Null for a bit depth or colour type
-     * that cannot exist, and for any **interlaced** image, which is the one shape left undecoded.
+     * Read IHDR, which the spec requires to be the first chunk. Null for a bit depth, colour type or
+     * interlace method that cannot exist — the spec defines only 0 (none) and 1 (Adam7).
      */
     private fun readHeader(png: ByteArray): Header? {
         val body = firstChunk(png, "IHDR") ?: return null
         if (body.size < 13) return null
         val depth = body[8].toInt() and 0xFF
         val colorType = body[9].toInt() and 0xFF
-        if (body[12].toInt() != 0) return null
+        val interlace = body[12].toInt()
+        if (interlace != 0 && interlace != 1) return null
         if (depth !in intArrayOf(1, 2, 4, 8, 16)) return null
         val channels = CHANNELS.getOrElse(colorType) { -1 }
         if (channels < 0) return null
@@ -86,7 +97,7 @@ internal object PngDecode {
         val width = readInt(body, 0)
         val height = readInt(body, 4)
         if (width <= 0 || height <= 0) return null
-        return Header(width, height, depth, colorType, channels)
+        return Header(width, height, depth, colorType, channels, interlace == 1)
     }
 
     /** The body of the first chunk of [type], or null when the file has none (or is truncated). */
@@ -144,25 +155,38 @@ internal object PngDecode {
     }
 
     /**
-     * Undo the per-scanline filter each row carries, leaving raw packed samples.
+     * Undo the per-scanline filter each row carries, leaving `height × stride` raw packed samples in
+     * the plain top-to-bottom layout [expand] reads — deinterlacing an Adam7 file on the way.
+     *
+     * @return the samples, or null when the inflated stream is short or names a filter type that
+     *   doesn't exist.
+     */
+    private fun unfilter(data: ByteArray, header: Header): ByteArray? =
+        if (header.interlaced) deinterlace(data, header)
+        else unfilterRows(data, 0, header.stride, header.height, header.filterBpp)
+
+    /**
+     * Undo the filters of one sub-image: [height] rows of [stride] payload bytes each, every row
+     * prefixed by its filter type, starting at [from] in the inflated stream.
      *
      * All five filter types are implemented because libpng picks per row and any of them can appear
      * in a file the user imported; our own encoder only ever writes type 0.
-     *
-     * @return `height × stride` bytes, or null when the inflated stream is short or names a filter
-     *   type that doesn't exist.
      */
-    private fun unfilter(data: ByteArray, header: Header): ByteArray? {
-        val stride = header.stride
-        val bpp = header.filterBpp
-        if (data.size < header.height * (stride + 1)) return null
-        val out = ByteArray(header.height * stride)
-        for (row in 0 until header.height) {
-            val filter = data[row * (stride + 1)].toInt() and 0xFF
-            val from = row * (stride + 1) + 1
+    private fun unfilterRows(
+        data: ByteArray,
+        from: Int,
+        stride: Int,
+        height: Int,
+        bpp: Int,
+    ): ByteArray? {
+        if (data.size - from < height * (stride + 1)) return null
+        val out = ByteArray(height * stride)
+        for (row in 0 until height) {
+            val filter = data[from + row * (stride + 1)].toInt() and 0xFF
+            val source = from + row * (stride + 1) + 1
             val to = row * stride
             for (i in 0 until stride) {
-                val raw = data[from + i].toInt() and 0xFF
+                val raw = data[source + i].toInt() and 0xFF
                 val left = if (i >= bpp) out[to + i - bpp].toInt() and 0xFF else 0
                 val up = if (row > 0) out[to + i - stride].toInt() and 0xFF else 0
                 val upLeft =
@@ -179,6 +203,65 @@ internal object PngDecode {
             }
         }
         return out
+    }
+
+    /**
+     * Reassemble an Adam7 image. The seven passes are independently filtered sub-images concatenated
+     * in the `IDAT` stream with no separator, so each is unfiltered in turn and its pixels scattered
+     * back onto the full-size grid. A pass with no rows or no columns contributes nothing at all —
+     * not even filter bytes — so it must be skipped rather than read as an empty sub-image.
+     */
+    private fun deinterlace(data: ByteArray, header: Header): ByteArray? {
+        val out = ByteArray(header.height * header.stride)
+        var at = 0
+        for (pass in 0 until 7) {
+            val columns = passExtent(header.width, PASS_COLUMN_START[pass], PASS_COLUMN_STEP[pass])
+            val rows = passExtent(header.height, PASS_ROW_START[pass], PASS_ROW_STEP[pass])
+            if (columns == 0 || rows == 0) continue
+            val stride = header.strideOf(columns)
+            val sub = unfilterRows(data, at, stride, rows, header.filterBpp) ?: return null
+            at += rows * (stride + 1)
+            for (y in 0 until rows) {
+                val row = PASS_ROW_START[pass] + y * PASS_ROW_STEP[pass]
+                for (x in 0 until columns) {
+                    val column = PASS_COLUMN_START[pass] + x * PASS_COLUMN_STEP[pass]
+                    copyPixel(sub, y * stride, x, out, row * header.stride, column, header)
+                }
+            }
+        }
+        return out
+    }
+
+    /** How many pixels a pass covers along one axis of a [total]-long side, possibly none. */
+    private fun passExtent(total: Int, start: Int, step: Int): Int =
+        if (start >= total) 0 else (total - start + step - 1) / step
+
+    /** Move one pixel — every channel of it — from a pass's sub-image onto the full-size grid. */
+    private fun copyPixel(
+        from: ByteArray,
+        fromRow: Int,
+        fromPixel: Int,
+        to: ByteArray,
+        toRow: Int,
+        toPixel: Int,
+        header: Header,
+    ) {
+        if (header.depth >= 8) {
+            val bytes = header.bitsPerPixel / 8
+            System.arraycopy(from, fromRow + fromPixel * bytes, to, toRow + toPixel * bytes, bytes)
+        } else {
+            // Sub-byte depths are greyscale or palette only, so a pixel is exactly one sample.
+            writeSample(to, toRow, toPixel, header.depth, sample(from, fromRow, fromPixel, header.depth))
+        }
+    }
+
+    /** Pack one sub-byte sample into a row, the inverse of [sample]'s most-significant-first read. */
+    private fun writeSample(row: ByteArray, offset: Int, index: Int, depth: Int, value: Int) {
+        val perByte = 8 / depth
+        val at = offset + index / perByte
+        val shift = 8 - depth * (index % perByte + 1)
+        val mask = ((1 shl depth) - 1) shl shift
+        row[at] = (((row[at].toInt() and 0xFF) and mask.inv()) or ((value shl shift) and mask)).toByte()
     }
 
     /**

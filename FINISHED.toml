@@ -17,6 +17,31 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "decode-adam7-interlaced-pngs-in-pngdecode"
+title = "Decode Adam7-interlaced PNGs in PngDecode"
+description = """
+app/src/main/java/com/nexopp/format/rnote/PngDecode.kt decodes every non-interlaced PNG (bit depths 1/2/4/8/16 across grey, RGB, palette+tRNS, grey+alpha and RGBA) but returns null for an Adam7-interlaced one, which is the single shape left undecoded. A .xopp holding an interlaced PNG <image> therefore cannot be written to .rnote — the picture is dropped and only reported in exportWarnings. Close that gap.
+
+Adam7 splits the image into seven passes; each pass is an independently filtered sub-image with its own width, height and stride, and the passes are concatenated in the IDAT stream with no separator. The existing per-scanline filter loop already does the right thing for one sub-image, so the work is to extract that loop into a private helper taking (width, height, bytesPerPixel, source offset) and returning the unfiltered bytes, then call it seven times and scatter each pass's pixels into the full-size output.
+
+Concretely, in PngDecode.kt:
+- Add the Adam7 tables as private constants: starting column {0,4,0,2,0,1,0}, starting row {0,0,4,0,2,0,1}, column stride {8,8,4,4,2,2,1}, row stride {8,8,8,4,4,2,2}.
+- For pass p, subWidth = ceil((width - startCol[p]) / colStride[p]) and subHeight = ceil((height - startRow[p]) / rowStride[p]); skip any pass whose subWidth or subHeight is zero (it contributes no bytes at all, not even filter bytes).
+- Unfilter each pass with the existing logic, then for sub-pixel (sx, sy) write to output pixel (startCol[p] + sx * colStride[p], startRow[p] + sy * rowStride[p]).
+- Interlaced images still go through the same bit-depth and colour-type sample expansion; only the scanline geometry changes.
+- Keep the existing contract: return null rather than throwing on any truncated or malformed input.
+
+Update the KDoc at the top of the file and on the decode function — both currently say interlacing is the one shape left out. Update the .rnote feature-gap matrix in docs/architecture.md, which lists interlaced PNGs as an export gap, and drop the matching line from README.md if it names them.
+
+Add tests to the PngDecode test file: encode a small known image both interlaced and non-interlaced with an external tool, check into the test fixtures, and assert both decode to identical pixels. Also assert a truncated interlaced file still returns null. Verify with scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-15
+completed = 2026-08-15
+tags = ["rnote", "png", "writer"]
+
+[[task]]
 id = "register-xopp-and-rnote-as-open-with-file-types"
 title = "Register .xopp and .rnote as open-with file types"
 description = """

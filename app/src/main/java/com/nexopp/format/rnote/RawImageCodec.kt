@@ -135,8 +135,7 @@ object RawImageCodec {
      * [PngDecode].
      *
      * @param png The whole file's bytes.
-     * @return The pixels, or null when this is not a PNG shape we decode (16-bit, interlaced,
-     *   palette, truncated).
+     * @return The pixels, or null when the bytes are not a PNG at all, or are truncated or malformed.
      */
     fun decodePng(png: ByteArray): RawImage? = PngDecode.decode(png)
 
