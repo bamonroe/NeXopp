@@ -70,3 +70,22 @@ created = 2026-08-15
 tags = ["rnote", "writer", "images"]
 rebuild = true
 emulator_debug = false
+
+[[task]]
+id = "reject-absurd-png-dimensions-in-pngdecode-before-allocating"
+title = "Reject absurd PNG dimensions in PngDecode before allocating"
+description = """
+PngDecode.readHeader accepts any positive width/height from IHDR, so a malformed or hostile .xopp can claim a size whose row buffer overflows Int arithmetic: Header.stride is (width * bitsPerPixel + 7) / 8, and unfilterRows/deinterlace then allocate height * stride bytes. A width near Int.MAX_VALUE makes that product overflow to a negative size (NegativeArraySizeException) or a huge one (OutOfMemoryError), either of which escapes decode() as a throw. That breaks the contract the .rnote writer leans on — decodeToRaw returns null for anything it cannot read, never throws, so the picture is skipped and reported instead of sinking the save.
+
+In app/src/main/java/com/nexopp/format/rnote/PngDecode.kt, in readHeader, after the width/height read, return null when the image cannot fit: compute the full-size byte count as a Long ((width.toLong() * bitsPerPixel + 7) / 8 * height) and reject anything over a sane ceiling (say 256 MiB of samples), alongside the existing width <= 0 / height <= 0 check. Keep it in readHeader so both the interlaced and non-interlaced paths are covered by one gate.
+
+Verify in RawImageCodecTest: hand-build a PNG whose IHDR claims 0x40000000 x 0x40000000 (the existing assemble() helper takes width/height directly) and assert RawImageCodec.decodePng returns null rather than throwing. Run scripts/build.sh testDebugUnitTest."""
+status = "active"
+level = "task"
+category = "bug"
+urgency = "low"
+order = 40
+created = 2026-08-15
+tags = []
+rebuild = true
+emulator_debug = false
