@@ -17,6 +17,25 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "carry-jpeg-images-through-the-rnote-writer"
+title = "Carry JPEG images through the .rnote writer"
+description = """
+A .xopp <image> holding JPEG bytes cannot be exported to .rnote. RawImageCodec.decodeToRaw is PNG-only by design (it just delegates to decodePng), so RnoteSnapshotWriter skips the picture and exportWarnings reports it as dropped. This is the last image-fidelity gap in the save path, but the right fix is not obvious yet, so scope it before writing code.
+
+Investigate and decide between at least these approaches, then add the atomic task(s):
+1. Hand-roll a baseline JPEG decoder alongside PngDecode.kt, matching the existing dependency-free, pure-JVM, returns-null-never-throws style. Faithful to how the rest of the format layer is built and fully unit-testable, but it is a large chunk of code (huffman, dequantise, IDCT, upsample) and progressive JPEGs would still be out.
+2. Use android.graphics.BitmapFactory at runtime to get pixels, keeping the hand-rolled path for tests. Far less code, but the format layer deliberately avoids android.graphics because Bitmap is a throwing stub under JVM unit tests — so this needs an injection seam and would leave the JPEG path untested in the normal loop.
+3. Check whether Rnote's bitmapimage stroke can carry the original encoded bytes rather than re-encoded raw pixels. Read what rnote 0.14.2 actually accepts in the image_data / format fields; if it takes JPEG directly, the whole decode step disappears and this becomes a small passthrough change. Validate any guess against rnote-cli test, the way the writer was validated originally.
+
+Deliverable of this scope item: a written decision recorded in docs/architecture.md (the .rnote section owns it) plus the concrete follow-up task(s) added here. Close this item once its children exist."""
+status = "finished"
+level = "scope"
+category = "feature"
+created = 2026-08-15
+completed = 2026-08-15
+tags = ["rnote", "writer", "images"]
+
+[[task]]
 id = "decode-adam7-interlaced-pngs-in-pngdecode"
 title = "Decode Adam7-interlaced PNGs in PngDecode"
 description = """
