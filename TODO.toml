@@ -20,3 +20,80 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "defer-the-fixed-interval-autosave-until-the-pen-stroke-finishes"
+title = "Defer the fixed-interval autosave until the pen stroke finishes"
+description = "The fixed-interval autosave (the one that fires regardless of last activity) must not fire mid-stroke. If the pen is down and a stroke is in progress when the interval elapses, mark the save as pending and defer it until the stroke completes (pointer up / stroke committed), then run it immediately. Touch app/src/main/java/com/nexopp/io/AutoSaveTimer.kt and AutoSavePolicy.kt to add a pending-save flag plus a 'stroke in progress' input, and wire the canvas stroke begin/end in MainActivity.kt (or the canvas view that owns MotionEvent handling) to set and clear that flag, flushing any pending save on stroke end. Verify with a unit test in app/src/test/java/com/nexopp/io/AutoSavePolicyTest.kt: interval elapses while a stroke is active -> no save; stroke ends -> exactly one save fires. Update README.md and docs/architecture.md in the same commit."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 20
+created = 2026-08-17
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag"
+title = "Run the autosave encode+write off the UI thread behind a non-blocking saving flag"
+description = """
+Today an autosave freezes drawing twice over: MainActivityDocuments.kt saveDocument() calls io.encode(...) inline on the UI thread, and the following inBackground("Saving …") sets MainActivity.busy, which EditorScreen.kt:255 renders as a full-screen blocking TransferOverlay. Split the two paths.
+
+1. In MainActivity.kt (near 'internal var busy' at line 164) add 'internal val autoSaving = mutableStateOf(false)'.
+2. In MainActivity.kt add a sibling of inBackground() (line 400) named inBackgroundQuiet(work, done): identical Thread + runOnUiThread plumbing but it sets autoSaving.value = true instead of busy.value = label, and clears it in the runOnUiThread block before calling done.
+3. In MainActivityDocuments.kt refactor saveDocument(uri) into saveDocument(uri, quiet: Boolean = false). When quiet is true, do BOTH the io.encode(...) call and the io.stageOut(...) call inside inBackgroundQuiet on the worker thread (encode currently runs inline at line 364 and is the expensive part), then hop back to the UI thread for staged.delete(), the failure toast, and afterSaved(view, uri). When quiet is false keep today's exact behaviour (inline encode + inBackground blocking overlay). Capture 'view' and the document snapshot before leaving the UI thread; call view.toDocument(), view.pdfSourceFile() and view.imageSources() on the UI thread and pass the results into the worker.
+4. In autoSaveNow() (MainActivityDocuments.kt:426) call saveDocument(target, quiet = true), and add '|| autoSaving.value' to the early-return guard at line 427 so two autosaves never overlap.
+5. On a quiet save failure show no toast — autosave stays silent (AutoSaveTimer's RETRY_BACKOFF_MS already throttles retries). Leave the toast for the explicit-save path.
+
+Verify: scripts/build.sh, then on the emulator draw continuously through an autosave and confirm no overlay appears and strokes never stutter. Update docs/architecture.md's data-path section and the README autosave paragraph in the same commit."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "high"
+order = 30
+created = 2026-08-17
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "show-a-fading-top-bar-spinner-while-an-autosave-is-in-flight"
+title = "Show a fading top-bar spinner while an autosave is in flight"
+description = """
+Depends on the autoSaving flag added by run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag.
+
+1. In app/src/main/java/com/nexopp/ui/EditorRegions.kt add a 'saving: Boolean = false' parameter to EditorTopBar (signature at line 73) and render, as the FIRST item in the actions row before SearchControls(pane), an AnimatedVisibility(visible = saving, enter = fadeIn(), exit = fadeOut()) wrapping a CircularProgressIndicator with Modifier.size(18.dp), strokeWidth = 2.dp, and Modifier.semantics { contentDescription = "Saving" } (or wrap in a Box with that semantics).
+2. In app/src/main/java/com/nexopp/ui/EditorScreen.kt add a matching 'saving: Boolean = false' parameter next to the existing 'busy: String? = null' (line 166) and pass it through to EditorTopBar.
+3. In MainActivity.kt where EditorScreen is invoked (around line 305, beside 'busy = busy.value') pass 'saving = autoSaving.value'.
+
+Do not touch the blocking TransferOverlay path — the spinner is only for quiet autosaves.
+
+Verify: scripts/build.sh, then on the emulator trigger an autosave and screenshot the top bar to confirm the spinner appears and fades out. Update docs/architecture.md's editor-chrome section and README.md in the same commit."""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "high"
+order = 40
+created = 2026-08-17
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "unit-test-the-autosave-saving-state-transitions"
+title = "Unit-test the autosave saving-state transitions"
+description = """
+Add app/src/test/java/com/nexopp/io/ (or the existing autosave test file — check for AutoSavePolicyTest.kt first and extend it) JVM tests covering the quiet-autosave state machine added by run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag. MainActivity is not unit-testable, so first extract the guard logic from autoSaveNow() into a pure function in the io package, e.g. 'fun canAutoSave(hasSurface: Boolean, blocking: Boolean, alreadySaving: Boolean, hasWritableTarget: Boolean): Boolean' returning true only when hasSurface && !blocking && !alreadySaving && hasWritableTarget, and have autoSaveNow() call it.
+
+Tests to write: each of the four false inputs individually blocks the save; all-true allows it. Also assert AutoSavePolicy's existing behaviour is untouched. Run with scripts/build.sh testDebugUnitTest. Update docs/architecture.md's 'What the unit tests cover' section in the same commit."""
+status = "active"
+level = "task"
+category = "test"
+urgency = "normal"
+order = 50
+created = 2026-08-17
+tags = []
+rebuild = false
+emulator_debug = false
