@@ -675,6 +675,9 @@ authoritative flow; don't invent another one.
     edits are still held in the tab session, and it saves when you pick a home for it by hand.
     Autosaves also stay quiet about anything the format dropped; you'll still see that report the
     next time you save deliberately.
+  - An autosave **doesn't interrupt you**. The whole write happens in the background, so unlike the
+    menu's **Save** there's no full-screen "Saving…" panel — you can keep drawing straight through it. If a background save fails it stays
+    silent and simply tries again later.
 
   Under **Storage** — two budgets that bound what opening documents costs on disk and in memory:
   - **Text import limit** — the largest plain-text file that may be typeset into a document

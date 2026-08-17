@@ -1036,6 +1036,16 @@ lift is what fires it. The idle timer can't reach this case — an in-progress s
 back. Autosaves also suppress the format-loss report
 (`reportLossesAfterSave = false`); the same lines still appear on a deliberate save.
 
+**An autosave never blocks the canvas.** `autoSaveNow` calls `saveDocument(target, quiet = true)`,
+which takes the document snapshot on the UI thread (`toDocument`, `pdfSourceFile`, `imageSources` —
+the canvas owns those) and then runs **both** the encode and the write on a worker via
+`MainActivity.inBackgroundQuiet`. That sibling of `inBackground` raises `autoSaving` instead of
+`busy`, so the editor shows a small non-blocking spinner rather than the full-screen
+`TransferOverlay`, and drawing continues over the top of the write. A quiet save that fails shows
+**no toast** — the retry floor above already handles it. The explicit-save path is unchanged:
+inline encode, blocking overlay, toast on failure. `autoSaveNow` also returns early while
+`autoSaving` is true, so two autosaves can't overlap.
+
 ### Split view: the same thing, twice
 
 Split view is modelled as **panes**, not as a second mode. An `EditorPane` (`panes/EditorPane.kt`)

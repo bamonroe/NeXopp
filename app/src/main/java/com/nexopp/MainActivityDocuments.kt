@@ -357,8 +357,28 @@ internal fun MainActivity.insertPickedImage(uri: Uri) = runCatching {
  * - [SaveFormat.XOPP_ZIP] — a ZIP package with the PDF embedded (`domain="attach"`, `bg.pdf`).
  * - [SaveFormat.RNOTE] — gzip JSON in Rnote's own format, with no PDF background of any kind.
  */
-internal fun MainActivity.saveDocument(uri: Uri) {
+internal fun MainActivity.saveDocument(uri: Uri, quiet: Boolean = false) {
     val view = surface ?: return
+    if (quiet) {
+        // The autosave path. Read the document on the UI thread (the canvas owns it), then do both
+        // the encode — the expensive half — and the write on the worker, behind the non-blocking
+        // spinner, so a stroke in progress never stalls.
+        val document = view.toDocument()
+        val pdf = view.pdfSourceFile()
+        val images = view.imageSources()
+        inBackgroundQuiet({
+            val staged = io.encode(document, pdf, saveFormat, uri, images)
+            try {
+                io.stageOut(staged, uri)
+            } finally {
+                staged.delete()
+            }
+        }) { result ->
+            // An autosave stays silent on failure: AutoSaveTimer already backs off and retries.
+            result.onSuccess { afterSaved(view, uri) }
+        }
+        return
+    }
     // Encode locally first, then push the finished bytes across in one pass: on a slow or flaky
     // remote share, serialising straight down the wire risks leaving a half-written .xopp behind.
     val staged = runCatching {
@@ -424,10 +444,10 @@ internal fun MainActivity.saveActiveTab() {
  * the moment they save deliberately.
  */
 internal fun MainActivity.autoSaveNow() {
-    if (surface == null || busy.value != null) return
+    if (surface == null || busy.value != null || autoSaving.value) return
     val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable) ?: return
     reportLossesAfterSave = false
-    saveDocument(target)
+    saveDocument(target, quiet = true)
 }
 
 /** True when the open document references any recording at all. */

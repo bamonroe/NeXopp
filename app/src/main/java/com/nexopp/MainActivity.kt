@@ -164,6 +164,12 @@ class MainActivity : ComponentActivity() {
     internal var busy = mutableStateOf<String?>(null)
 
     /**
+     * Whether an autosave is writing right now. Unlike [busy] this blocks nothing: the editor shows
+     * it as a small fading spinner, and drawing carries on over the top of the write.
+     */
+    internal val autoSaving = mutableStateOf(false)
+
+    /**
      * What the format crossing that just happened could not carry, or null: strokes a `.rnote` open
      * could not convert, or content the save just written could not hold. On the save side it is set
      * only by a **plain** Save — a Save As has already shown the same lines in its confirmation
@@ -409,6 +415,21 @@ class MainActivity : ComponentActivity() {
         }.start()
     }
 
+    /**
+     * The quiet sibling of [inBackground]: same worker-thread plumbing, but it raises [autoSaving]
+     * instead of [busy], so nothing blocks the canvas while the write runs. This is the autosave
+     * path — a save the user didn't ask for must never interrupt the stroke they are drawing.
+     */
+    internal fun <T> inBackgroundQuiet(work: () -> T, done: (Result<T>) -> Unit) {
+        autoSaving.value = true
+        Thread {
+            val result = runCatching(work)
+            runOnUiThread {
+                autoSaving.value = false
+                done(result)
+            }
+        }.start()
+    }
 
     /** Cache both panes' open tabs on the way to the background — the app may not come back. */
     override fun onPause() {
