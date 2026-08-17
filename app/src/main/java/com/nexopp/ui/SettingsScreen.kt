@@ -48,6 +48,8 @@ enum class SettingsSection(val title: String, val summary: String) {
     NAVIGATION("Navigation", "Momentum scrolling and panning sensitivity."),
     /** Appearance: theme mode and page counter position. */
     APPEARANCE("Appearance", "Theme, and where the page counter sits on the canvas."),
+    /** Autosave: the inactivity timer and the fixed-interval timer. */
+    AUTOSAVE("Autosave", "Save after a pause in the writing, and every so often regardless."),
     /** Storage: text import limit and PDF cache budget. */
     STORAGE("Storage", "How big a text file may be imported, and how much cache to keep."),
     /** About: version, licence, source, and support links. */
@@ -89,6 +91,7 @@ fun SettingsScreen(
                 SettingsSection.PALETTE -> PaletteSection(settings, onChange)
                 SettingsSection.NAVIGATION -> NavigationSection(settings, onChange)
                 SettingsSection.APPEARANCE -> AppearanceSection(settings, onChange)
+                SettingsSection.AUTOSAVE -> AutoSaveSection(settings, onChange)
                 SettingsSection.STORAGE -> StorageSection(settings, onChange)
                 SettingsSection.ABOUT -> AboutSection()
             }

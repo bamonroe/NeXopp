@@ -144,6 +144,10 @@ internal fun MainActivity.showTab(tab: OpenTab, p: EditorPane = pane) {
     view.setPdfSource(pdf?.let(PdfPageCache::shared))
     view.setPdfTextIndex(null) // cleared until extraction below finishes
     view.load(tab.document)
+    // A different document is on the canvas now: the outgoing tab's dirty state and interval
+    // baseline don't describe it, and inheriting them would autosave this one for someone else's
+    // edits. (Only for the focused pane — the timer follows whichever document the menus act on.)
+    if (p === pane) autoSave.reset()
     if (tab.page > 0) view.goToPage(tab.page)
     if (pdf != null) extractPdfTextInBackground(pdf, view)
 }

@@ -504,7 +504,7 @@ authoritative flow; don't invent another one.
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
 - **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Palette**, **Editor**,
-  **Toolbar**, **Navigation**, **Appearance**, **Storage** and **About**. Tap a section to open it as its own page; back returns to the list, and back from
+  **Toolbar**, **Navigation**, **Appearance**, **Autosave**, **Storage** and **About**. Tap a section to open it as its own page; back returns to the list, and back from
   the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
   - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and never actuate a
     tool at all — pen, highlighter, eraser, text and selection all become stylus-only
@@ -656,6 +656,23 @@ authoritative flow; don't invent another one.
   - **Page counter position** — two drop-downs placing the always-visible "page X of Y" badge:
     **Vertical** (Top / Center / **Bottom**) and **Horizontal** (Left / Center / **Right**). The
     default is the bottom-right corner.
+
+  Under **Autosave** — two independent timers that save the open document for you. **Both are off
+  by default**: an autosave writes over your real `.xopp`, so you switch it on deliberately. Turn on
+  either, or both — whichever comes due first does the save, and the other simply starts counting
+  again from it. Neither ever fires on a document that hasn't changed since its last save.
+  - **Save after inactivity** — (**Off** / 5 / 15 / 30 seconds / 1 / 5 minutes) save once you've
+    stopped drawing for this long. Every new stroke restarts the countdown, so this is the "you put
+    the pen down" save, and it never interrupts you mid-sentence.
+  - **Save every** — (**Off** / 1 / 2 / 5 / 10 / 15 minutes) save on this interval even while you
+    keep drawing. It's the cap on how much work a crash can cost during a long unbroken session,
+    which the inactivity timer alone would never reach.
+  - An autosave writes **straight back to the file the tab came from**, exactly as the menu's
+    **Save** does, in the same sticky format. A tab with **no file yet** (a new document, or one
+    started from a PDF or image) is skipped rather than being interrupted with a file picker — its
+    edits are still held in the tab session, and it saves when you pick a home for it by hand.
+    Autosaves also stay quiet about anything the format dropped; you'll still see that report the
+    next time you save deliberately.
 
   Under **Storage** — two budgets that bound what opening documents costs on disk and in memory:
   - **Text import limit** — the largest plain-text file that may be typeset into a document

@@ -377,6 +377,8 @@ internal fun MainActivity.saveDocument(uri: Uri) {
 internal fun MainActivity.afterSaved(view: DrawingSurfaceView, uri: Uri) {
     // Hold the grant so the next plain Save can write back here without asking again.
     io.persist(uri)
+    // The document is clean again: stand both autosave timers down and restart the interval.
+    autoSave.noteSaved()
     // The file is already written, so this is a report, not a question: the snackbar says it once.
     val lost = if (reportLossesAfterSave) saveWarningsFor(saveFormat) else emptyList()
     notice.value = if (lost.isEmpty()) null else ContentNotice(SAVE_NOTICE, lost)
@@ -408,6 +410,24 @@ internal fun MainActivity.saveActiveTab() {
     reportLossesAfterSave = true
     val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable)
     if (target != null) saveDocument(target) else saveLauncher.launch(pendingSaveName)
+}
+
+/**
+ * An autosave has come due (see [com.nexopp.io.AutoSaveTimer]): write the active tab back to the
+ * file it came from.
+ *
+ * A timer must never throw a file picker at someone mid-sentence, so unlike [saveActiveTab] this
+ * does nothing at all for a tab with no writable target — a scratch document that has never been
+ * saved keeps living in the tab session until the user picks a home for it by hand. It also stays
+ * quiet about losses: a plain Save reports what the format dropped, but a background save the user
+ * didn't ask for repeating that every interval would be nagging, and the same lines still appear
+ * the moment they save deliberately.
+ */
+internal fun MainActivity.autoSaveNow() {
+    if (surface == null || busy.value != null) return
+    val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable) ?: return
+    reportLossesAfterSave = false
+    saveDocument(target)
 }
 
 /** True when the open document references any recording at all. */

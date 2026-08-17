@@ -19,6 +19,8 @@ import com.nexopp.format.DEFAULT_EXPORT_DPI
 import com.nexopp.format.ExportFormat
 import com.nexopp.format.PageRange
 import com.nexopp.format.SaveFormat
+import com.nexopp.io.AutoSavePolicy
+import com.nexopp.io.AutoSaveTimer
 import com.nexopp.io.DocumentIo
 import com.nexopp.io.IncomingDocument
 import com.nexopp.io.UriStaging
@@ -113,6 +115,12 @@ class MainActivity : ComponentActivity() {
 
     /** Persists [AppSettings]; also the home of the nominated audio folder grant. */
     internal val settingsStore: SettingsStore by lazy { SettingsStore(this) }
+
+    /**
+     * The two user-configured autosave timers (see [AutoSavePolicy]). Fed edits by the canvas and
+     * saves by [afterSaved]; when it fires, [autoSaveNow] decides whether the save can happen at all.
+     */
+    internal val autoSave: AutoSaveTimer by lazy { AutoSaveTimer(onDue = { autoSaveNow() }) }
 
     /**
      * The folder sidecar `.wav` files are kept in — a persisted `OpenDocumentTree` grant, normally
@@ -285,7 +293,11 @@ class MainActivity : ComponentActivity() {
         takeIncoming(intent)
         setContent {
             // Settings live above the theme so the Appearance choice re-colours the whole app.
-            var settings by remember { mutableStateOf(store.load().also { applyStorageLimits(it) }) }
+            var settings by remember {
+                mutableStateOf(
+                    store.load().also { applyStorageLimits(it); autoSave.configure(it.autoSavePolicy) },
+                )
+            }
             XoppTheme(darkTheme = settings.themeMode.isDark(), dynamicColor = settings.dynamicColor) {
                 EditorScreen(
                     onOpen = { openLauncher.launch(arrayOf("*/*")) },
@@ -312,14 +324,22 @@ class MainActivity : ComponentActivity() {
                     onSurfaceCreated = { index, view ->
                         val p = panes[index]
                         p.surface = view
-                        view.onDocumentEdited = { doc -> mirrors.propagate(p, doc) }
+                        view.onDocumentEdited = { doc ->
+                            mirrors.propagate(p, doc)
+                            autoSave.noteEdit()
+                        }
                         attachAudio(view)
                         // Restore is asynchronous now, so a file handed to us by another app is opened
                         // once the session is back — otherwise it would be shoved aside by the restore.
                         restoreTabs(p) { openIncoming() }
                     },
                     settings = settings,
-                    onSettingsChange = { settings = it; store.save(it); applyStorageLimits(it) },
+                    onSettingsChange = {
+                        settings = it
+                        store.save(it)
+                        applyStorageLimits(it)
+                        autoSave.configure(it.autoSavePolicy)
+                    },
                     audio = audioUiState(),
                     tabs = panes.map(::tabsUiState),
                     splitView = splitView.value,
@@ -392,13 +412,23 @@ class MainActivity : ComponentActivity() {
     /** Cache both panes' open tabs on the way to the background — the app may not come back. */
     override fun onPause() {
         super.onPause()
+        // The snapshot below already preserves the edits, and firing a file write as the app leaves
+        // the foreground only races the process death it is meant to survive.
+        autoSave.cancel()
         // The write itself runs on the pane's writer thread; we wait briefly for it here because the
         // process can be killed once we are in the background, and a lost snapshot is lost edits.
         panes.forEach { snapshotActiveTab(it); it.persist() }
         panes.forEach { it.awaitPersist(PERSIST_WAIT_MS) }
     }
 
+    /** Pick the autosave timers back up, since [onPause] dropped the pending one. */
+    override fun onResume() {
+        super.onResume()
+        autoSave.arm()
+    }
+
     override fun onDestroy() {
+        autoSave.cancel()
         audio.release()
         super.onDestroy()
     }

@@ -991,6 +991,45 @@ Consequences worth knowing:
   rasterises on **one** shared worker — a thread per tab put every open document in memory at once and
   was an out-of-memory kill on a session of large files.
 
+### Autosave (`io/AutoSavePolicy.kt`, `io/AutoSaveTimer.kt`)
+
+Autosave writes the user's **real file**, which is what separates it from the session cache above:
+the cache is a restart snapshot keyed by tab id and never stands in for saving, whereas an autosave
+is an ordinary `saveDocument` on the same sticky `SaveFormat` a manual Save would use.
+
+Two timers run at once, both configured in **Settings → Autosave** and **both off by default** —
+writing over someone's document without being asked is opt-in:
+
+- **idle** (`autoSaveIdleSeconds`) — fires that long after the *last edit*, so a pause in the
+  writing commits it. Every edit pushes the deadline back.
+- **interval** (`autoSaveIntervalSeconds`) — fires that long after the *last save*, regardless of
+  whether the pen ever stops. It bounds worst-case loss in a long continuous session, which the idle
+  timer alone never would.
+
+The split is deliberate: **`AutoSavePolicy` is the whole decision and is pure** — given
+`lastEditMs`/`lastSaveMs` it returns when a write is next owed (or null), so the behaviour is
+unit-tested on a fabricated timeline with no clock and no Looper. `AutoSaveTimer` is only the
+`Handler`: it holds those two timestamps, re-arms a single pending callback on every state change
+(a burst of strokes costs one message, not one per stroke), and calls back when the policy says so.
+
+Wiring, all in `MainActivity`:
+
+| Signal | Source | Effect |
+|---|---|---|
+| edit | `DrawingSurfaceView.onDocumentEdited` | `noteEdit()` — restart the idle countdown |
+| save landed | `afterSaved` | `noteSaved()` — clean, and the interval starts over |
+| settings changed | `onSettingsChange` | `configure(policy)` |
+| tab painted | `showTab` (focused pane only) | `reset()` — a different document, so don't inherit dirt |
+| background / foreground | `onPause` / `onResume` | `cancel()` / `arm()` |
+
+Three rules keep it from being a nuisance. A save is **only ever due when the document is dirty**,
+so identical bytes are never rewritten on a loop. `autoSaveNow` **skips a tab with no writable
+target** rather than throwing a SAF picker at someone mid-sentence — a scratch document keeps living
+in the tab session until its owner gives it a home. And a failing save (a lapsed grant, a full disk)
+is retried on a **one-minute floor** in `AutoSaveTimer`, since the document stays dirty and the
+policy would otherwise say "due" on every re-arm. Autosaves also suppress the format-loss report
+(`reportLossesAfterSave = false`); the same lines still appear on a deliberate save.
+
 ### Split view: the same thing, twice
 
 Split view is modelled as **panes**, not as a second mode. An `EditorPane` (`panes/EditorPane.kt`)
@@ -1218,6 +1257,8 @@ app/
       DocumentReferences.kt  # resolves a document's PDF/pixmap background references on import
                              #   (absolute, content://, relative, attached) and relativises them on
                              #   save, so a copied file keeps its backgrounds
+      AutoSavePolicy.kt      # when the two autosave timers say a dirty document is owed a write (pure, testable)
+      AutoSaveTimer.kt       # the Handler that ticks that policy: fed edits and saves, calls back when one is due
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
       EditorPane.kt          # one pane: canvas + tab session + save format + its own TabStore
@@ -1400,6 +1441,7 @@ app/
       ToolbarSection.kt      # settings page: rail edge, item order/visibility, pen width slots
       NavigationSection.kt   # settings page: momentum, pan sensitivity, page columns, counters
       AppearanceSection.kt   # settings page: theme mode, dynamic colour, chrome
+      AutoSaveSection.kt     # settings page: the inactivity and fixed-interval autosave timers
       StorageSection.kt      # settings page: the import and cache byte budgets
       SettingsWidgets.kt     # the controls every section shares: SwitchRow, OptionGroup, DropdownRow,
                              #   the sliders, and the drag-to-reorder row math (dragTargetIndex, pure)
@@ -1531,7 +1573,10 @@ asserting schema coverage, and `XmlEqualityRoundTripTest`, which checks that the
 still matches the desktop-written source byte-for-byte once normalized. The `render/` tests
 cover the pure geometry — page layout, gridlines, page ops, eraser hit-testing, text layout,
 LaTeX geometry and undo/redo history — and the `audio/` tests cover fn/ts mapping and WAV
-framing. All of it runs on the JVM with no device attached.
+framing. The `io/` tests cover the storage-access logic that has no device in it: the save-name
+mapping, incoming-intent URI selection, the two stores' liveness sweeps, text import, and
+`AutoSavePolicyTest`, which drives both autosave timers over a fabricated timeline (dirty vs clean,
+which timer wins, and the overdue case). All of it runs on the JVM with no device attached.
 
 **The `udiff.xopp` self-skip rule.** `RealFileRoundTripTest` round-trips a real
 desktop-generated `udiff.xopp` end to end, read from the **repo root** (the builder mounts the
@@ -2348,9 +2393,10 @@ page-number bubble beside it. A rounded grip "peninsula" bulges out of the thumb
 visual — the whole band already catches touches) so there's an obvious finger-sized target to grab. It is a pure navigation affordance — no `.xopp` state, so nothing
 round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`, which is an **index of sections** (`SettingsSection` —
-Stylus, Editor, Toolbar, Palette, Navigation, Appearance, Storage): each row opens that section as its own page, with back returning to the
+Stylus, Editor, Toolbar, Palette, Navigation, Appearance, Autosave, Storage): each row opens that section as its own page, with back returning to the
 index and back from the index leaving settings. Each section body is its own file (`StylusSection.kt`,
-`EditorSection.kt`, `ToolbarSection.kt`, `NavigationSection.kt`, `AppearanceSection.kt`, `StorageSection.kt`),
+`EditorSection.kt`, `ToolbarSection.kt`, `NavigationSection.kt`, `AppearanceSection.kt`,
+`AutoSaveSection.kt`, `StorageSection.kt`),
 over the controls they share in `SettingsWidgets.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives beside its pop-up (`ToolbarColorPopup.kt` / `ToolbarSizePopup.kt`); the user-configurable pen widths and the editable custom colour are
 persisted in `AppSettings`/`SettingsStore`, and the arbitrary-colour HSV/hex picker is in

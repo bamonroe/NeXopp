@@ -1,6 +1,7 @@
 package com.nexopp.ui
 
 import android.content.Context
+import com.nexopp.io.AutoSavePolicy
 import com.nexopp.render.BarrelAction
 import com.nexopp.render.BarrelDoubleAction
 import com.nexopp.render.GuideKind
@@ -121,6 +122,8 @@ enum class ThemeMode(val label: String) {
  * @property presets The user's saved tool snapshots, in display order.
  * @property textImportLimitMb Largest plain-text file (MiB) that may be typeset into a background PDF.
  * @property pdfCacheLimitMb How much (MiB) the generated/background PDF cache may keep.
+ * @property autoSaveIdleSeconds Seconds of no editing after which the document saves itself (0 = off).
+ * @property autoSaveIntervalSeconds Seconds between autosaves while editing continuously (0 = off).
  */
 data class AppSettings(
     /** When false, fingers only pan/zoom — never draw (palm-safe for stylus users). */
@@ -222,7 +225,21 @@ data class AppSettings(
      * oldest-first once the folder exceeds this; a dropped generated PDF simply regenerates.
      */
     val pdfCacheLimitMb: Int = DEFAULT_PDF_CACHE_LIMIT_MB,
+    /**
+     * Seconds of no editing after which the open document writes itself back (0 = off). Every stroke
+     * restarts the countdown, so this is the "you put the pen down" save.
+     */
+    val autoSaveIdleSeconds: Int = 0,
+    /**
+     * Seconds between autosaves while editing continuously (0 = off) — the cap on how much work an
+     * unlucky crash can cost, which the idle timer alone never bounds.
+     */
+    val autoSaveIntervalSeconds: Int = 0,
 ) {
+    /** The two autosave timers as the one value [com.nexopp.io.AutoSaveTimer] is driven by. */
+    val autoSavePolicy: AutoSavePolicy
+        get() = AutoSavePolicy(autoSaveIdleSeconds, autoSaveIntervalSeconds)
+
     /** [textImportLimitMb] in bytes — what [com.nexopp.io.DocumentIo] actually enforces. */
     val textImportLimitBytes: Long get() = textImportLimitMb.toLong() * BYTES_PER_MB
 
@@ -356,6 +373,11 @@ class SettingsStore(context: Context) {
             presets = decodeToolPresets(prefs.getString(KEY_PRESETS, null)),
             textImportLimitMb = prefs.getInt(KEY_TEXT_IMPORT_LIMIT, d.textImportLimitMb).coerceAtLeast(1),
             pdfCacheLimitMb = prefs.getInt(KEY_PDF_CACHE_LIMIT, d.pdfCacheLimitMb).coerceAtLeast(1),
+            // Negative would mean "overdue the moment you draw"; clamp to 0, which reads as off.
+            autoSaveIdleSeconds =
+                prefs.getInt(KEY_AUTOSAVE_IDLE, d.autoSaveIdleSeconds).coerceAtLeast(0),
+            autoSaveIntervalSeconds =
+                prefs.getInt(KEY_AUTOSAVE_INTERVAL, d.autoSaveIntervalSeconds).coerceAtLeast(0),
         ).withPalettes(loadPaletteSet()).sanitized()
     }
 
@@ -412,6 +434,8 @@ class SettingsStore(context: Context) {
         e.putString(KEY_PRESETS, encodeToolPresets(s.presets))
         e.putInt(KEY_TEXT_IMPORT_LIMIT, s.textImportLimitMb)
         e.putInt(KEY_PDF_CACHE_LIMIT, s.pdfCacheLimitMb)
+        e.putInt(KEY_AUTOSAVE_IDLE, s.autoSaveIdleSeconds)
+        e.putInt(KEY_AUTOSAVE_INTERVAL, s.autoSaveIntervalSeconds)
         e.apply()
     }
 
@@ -458,6 +482,8 @@ class SettingsStore(context: Context) {
         const val KEY_PRESETS = "tool_presets"
         const val KEY_TEXT_IMPORT_LIMIT = "text_import_limit_mb"
         const val KEY_PDF_CACHE_LIMIT = "pdf_cache_limit_mb"
+        const val KEY_AUTOSAVE_IDLE = "autosave_idle_seconds"
+        const val KEY_AUTOSAVE_INTERVAL = "autosave_interval_seconds"
 
         /**
          * Parse the comma-separated ARGB list written by [save], dropping unparsable entries so a

@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-autosave-timer-configuration"
+title = "Add autosave timer configuration"
+description = "Add settings for two autosave timers: one that triggers after X seconds of inactivity, and another that autosaves every Y seconds. Configure both in the app settings."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-17
+completed = 2026-08-17
+tags = []
+
+[[task]]
 id = "jpeg-wire-rawimagecodec"
 title = "Wire JPEG decoding into RawImageCodec and flip the docs"
 description = "Depends on jpeg-decode-baseline. In RawImageCodec.decodeToRaw (app/src/main/java/com/nexopp/format/rnote/RawImageCodec.kt), sniff the first bytes: PNG signature -> PngDecode as today; JPEG SOI (0xFF 0xD8) -> JpegDecode.decode; anything else or a null decode -> null as today, so RnoteSnapshotWriter and RnoteExportWarnings.isEncodable pick JPEG support up automatically with no changes of their own. Add a RawImageCodecTest case proving a fixture JPEG now encodes (and a progressive one still reports as unreadable via isEncodable). Update docs/architecture.md: flip the bitmap-pixels row of the Images feature-gap matrix from report-for-JPEG to keep (baseline; progressive still reports), and adjust the 2026-08-13 JPEG note to point at the 2026-08-15 decision. Update README.md if it mentions the JPEG limitation. Regenerate nothing; validate one exported .rnote containing a JPEG-backed image with rnote-cli test per docs/tools.md. Verify with scripts/build.sh testDebugUnitTest."
