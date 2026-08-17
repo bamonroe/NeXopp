@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "defer-the-fixed-interval-autosave-until-the-pen-stroke-finishes"
+title = "Defer the fixed-interval autosave until the pen stroke finishes"
+description = "The fixed-interval autosave (the one that fires regardless of last activity) must not fire mid-stroke. If the pen is down and a stroke is in progress when the interval elapses, mark the save as pending and defer it until the stroke completes (pointer up / stroke committed), then run it immediately. Touch app/src/main/java/com/nexopp/io/AutoSaveTimer.kt and AutoSavePolicy.kt to add a pending-save flag plus a 'stroke in progress' input, and wire the canvas stroke begin/end in MainActivity.kt (or the canvas view that owns MotionEvent handling) to set and clear that flag, flushing any pending save on stroke end. Verify with a unit test in app/src/test/java/com/nexopp/io/AutoSavePolicyTest.kt: interval elapses while a stroke is active -> no save; stroke ends -> exactly one save fires. Update README.md and docs/architecture.md in the same commit."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-17
+completed = 2026-08-17
+tags = []
+
+[[task]]
 id = "autosave-off-the-ui-thread-with-a-top-bar-saving-spinner"
 title = "Autosave off the UI thread with a top-bar saving spinner"
 description = "Autosave must never block or interrupt drawing: run the save work on a background coroutine (Dispatchers.IO) rather than the UI thread, and surface progress as a small circular progress indicator in the top app bar that appears only while a save is in flight and fades out when it completes. Investigate the current autosave path (app/src/main/java/com/nexopp/io/AutoSaveTimer.kt, AutoSavePolicy.kt, and the save call sites in MainActivity.kt / MainActivityDocuments.kt / MainActivityTabs.kt) plus the top-bar composable in app/src/main/java/com/nexopp/ui/, then add the atomic tasks: (1) move the save off the main thread with a saving state flag, (2) render the spinner in the top bar bound to that flag, (3) unit-test the state transitions, (4) update README.md and docs/architecture.md."

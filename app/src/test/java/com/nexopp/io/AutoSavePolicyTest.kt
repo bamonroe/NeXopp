@@ -104,4 +104,34 @@ class AutoSavePolicyTest {
         assertEquals(0, AutoSavePolicy.IDLE_CHOICES.first())
         assertEquals(0, AutoSavePolicy.INTERVAL_CHOICES.first())
     }
+
+    @Test
+    fun `an interval save that comes due mid-stroke fires once, when the stroke ends`() {
+        val policy = AutoSavePolicy(intervalSeconds = 60)
+        val gate = AutoSaveGate()
+        var saves = 0
+        val fire = { if (gate.request()) saves++ }
+
+        gate.setStrokeInProgress(true)
+        // The interval elapses with the pen still down: due, but held.
+        assertEquals(0L, policy.delayUntilDue(nowMs = 61_000, lastEditMs = 10_000, lastSaveMs = 0))
+        fire()
+        assertEquals(0, saves)
+        assertTrue(gate.isPending)
+
+        // Pen lifts: exactly one save runs, and the gate is clear again.
+        assertTrue(gate.setStrokeInProgress(false))
+        saves++
+        assertEquals(1, saves)
+        assertFalse(gate.isPending)
+        assertFalse(gate.setStrokeInProgress(false))
+        assertEquals(1, saves)
+    }
+
+    @Test
+    fun `a save that comes due with no stroke in progress runs straight away`() {
+        val gate = AutoSaveGate()
+        assertTrue(gate.request())
+        assertFalse(gate.isPending)
+    }
 }

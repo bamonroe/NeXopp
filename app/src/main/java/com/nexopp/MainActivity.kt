@@ -328,6 +328,7 @@ class MainActivity : ComponentActivity() {
                             mirrors.propagate(p, doc)
                             autoSave.noteEdit()
                         }
+                        view.onStrokeActiveChanged = { active -> autoSave.setStrokeInProgress(active) }
                         attachAudio(view)
                         // Restore is asynchronous now, so a file handed to us by another app is opened
                         // once the session is back — otherwise it would be shoved aside by the restore.

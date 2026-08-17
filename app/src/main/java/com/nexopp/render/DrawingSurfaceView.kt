@@ -281,6 +281,21 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * same document (the split's other pane) can be handed it — see [applyMirroredDocument].
      */
     var onDocumentEdited: ((Document) -> Unit)? = null
+    /**
+     * Notified when a draw/erase gesture starts (`true`) and ends (`false`), so the editor can hold
+     * an autosave that comes due mid-stroke — see [com.nexopp.io.AutoSaveGate].
+     */
+    var onStrokeActiveChanged: ((Boolean) -> Unit)? = null
+
+    /** Whether a draw/erase gesture is currently live, so [onStrokeActiveChanged] fires on changes only. */
+    private var strokeActive = false
+
+    /** Report a draw/erase gesture starting or ending, ignoring repeats. */
+    internal fun noteStrokeActive(active: Boolean) {
+        if (active == strokeActive) return
+        strokeActive = active
+        onStrokeActiveChanged?.invoke(active)
+    }
     /** Notified with the current zoom factor whenever it changes, so the chrome can show the level. */
     var onZoomChanged: ((Float) -> Unit)? = null
     /** Notified with the page-overview column count whenever it changes. */

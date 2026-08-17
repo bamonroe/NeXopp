@@ -1021,13 +1021,19 @@ Wiring, all in `MainActivity`:
 | settings changed | `onSettingsChange` | `configure(policy)` |
 | tab painted | `showTab` (focused pane only) | `reset()` — a different document, so don't inherit dirt |
 | background / foreground | `onPause` / `onResume` | `cancel()` / `arm()` |
+| stroke start / end | `DrawingSurfaceView.onStrokeActiveChanged` | `setStrokeInProgress(active)` — hold a mid-stroke save, release it on lift |
 
 Three rules keep it from being a nuisance. A save is **only ever due when the document is dirty**,
 so identical bytes are never rewritten on a loop. `autoSaveNow` **skips a tab with no writable
 target** rather than throwing a SAF picker at someone mid-sentence — a scratch document keeps living
 in the tab session until its owner gives it a home. And a failing save (a lapsed grant, a full disk)
 is retried on a **one-minute floor** in `AutoSaveTimer`, since the document stays dirty and the
-policy would otherwise say "due" on every re-arm. Autosaves also suppress the format-loss report
+policy would otherwise say "due" on every re-arm. The interval timer is also **gated on the pen**:
+`AutoSaveGate` (in `AutoSavePolicy.kt`, pure and unit-tested alongside the policy) holds a save that
+comes due while a draw/erase gesture is live and releases it exactly once when the gesture ends, so
+no write sees a half-drawn document; while a save is held the timer stops re-arming, since the pen
+lift is what fires it. The idle timer can't reach this case — an in-progress stroke keeps pushing it
+back. Autosaves also suppress the format-loss report
 (`reportLossesAfterSave = false`); the same lines still appear on a deliberate save.
 
 ### Split view: the same thing, twice
@@ -1257,7 +1263,7 @@ app/
       DocumentReferences.kt  # resolves a document's PDF/pixmap background references on import
                              #   (absolute, content://, relative, attached) and relativises them on
                              #   save, so a copied file keeps its backgrounds
-      AutoSavePolicy.kt      # when the two autosave timers say a dirty document is owed a write (pure, testable)
+      AutoSavePolicy.kt      # when the two autosave timers say a dirty document is owed a write, plus the mid-stroke gate (pure, testable)
       AutoSaveTimer.kt       # the Handler that ticks that policy: fed edits and saves, calls back when one is due
       DocumentIo.kt          # document I/O policy: staging + PDF stores + read/encode/merge
     panes/                   # split view: one or two editing panes, each with its own tabs
@@ -1576,7 +1582,8 @@ LaTeX geometry and undo/redo history — and the `audio/` tests cover fn/ts mapp
 framing. The `io/` tests cover the storage-access logic that has no device in it: the save-name
 mapping, incoming-intent URI selection, the two stores' liveness sweeps, text import, and
 `AutoSavePolicyTest`, which drives both autosave timers over a fabricated timeline (dirty vs clean,
-which timer wins, and the overdue case). All of it runs on the JVM with no device attached.
+which timer wins, and the overdue case) and the `AutoSaveGate` mid-stroke hold (due while the pen is
+down fires nothing; the lift fires exactly one save). All of it runs on the JVM with no device attached.
 
 **The `udiff.xopp` self-skip rule.** `RealFileRoundTripTest` round-trips a real
 desktop-generated `udiff.xopp` end to end, read from the **repo root** (the builder mounts the

@@ -75,3 +75,51 @@ data class AutoSavePolicy(
         }
     }
 }
+
+/**
+ * The "not mid-stroke" half of the autosave decision, kept pure so it can be unit-tested next to
+ * [AutoSavePolicy] rather than through a Handler.
+ *
+ * The interval timer fires on wall-clock, so it will happily come due with the pen still down. A
+ * save that lands mid-stroke writes a half-drawn document and (once the write moves off the UI
+ * thread) competes with the very stroke being drawn, so instead the gate holds the request as
+ * **pending** and releases it the moment the stroke ends.
+ *
+ * The idle timer can't hit this case — an in-progress stroke keeps re-arming it — so in practice
+ * this only ever defers the fixed-interval save.
+ */
+class AutoSaveGate {
+    /** True while a draw/erase gesture is on the canvas. */
+    var strokeInProgress: Boolean = false
+        private set
+
+    /** True when a save came due mid-stroke and is waiting for the pen to lift. */
+    var isPending: Boolean = false
+        private set
+
+    /**
+     * A save has come due. Returns true if it should run now; false if it was held as [isPending]
+     * because a stroke is in progress — the next [setStrokeInProgress] `false` releases it.
+     */
+    fun request(): Boolean {
+        if (strokeInProgress) {
+            isPending = true
+            return false
+        }
+        isPending = false
+        return true
+    }
+
+    /**
+     * Record the canvas gesture state. Returns true when the pen just lifted on a save that was
+     * held — the caller should run it immediately, which is what "defer until the stroke finishes"
+     * means. Repeated calls with the same state are no-ops, so exactly one save is released.
+     */
+    fun setStrokeInProgress(active: Boolean): Boolean {
+        if (active == strokeInProgress) return false
+        strokeInProgress = active
+        if (active || !isPending) return false
+        isPending = false
+        return true
+    }
+}

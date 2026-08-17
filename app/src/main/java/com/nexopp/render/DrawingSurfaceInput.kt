@@ -118,6 +118,9 @@ internal fun DrawingSurfaceView.beginPointer(event: MotionEvent, pointerIndex: I
     val intent = InputClassifier.classify(kind, barrelPressed(event), activeTool(), inputSettings)
     stylusOwner = (kind == PointerKind.STYLUS || kind == PointerKind.ERASER_TIP) &&
         (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE)
+    // An autosave that comes due mid-stroke waits for this gesture to end rather than writing a
+    // half-drawn document; only the ink-laying intents count as "a stroke in progress".
+    if (intent == GestureIntent.DRAW || intent == GestureIntent.ERASE) noteStrokeActive(true)
     when (intent) {
         GestureIntent.ERASE -> startErase(event, pointerIndex)
         GestureIntent.PLACE -> beginPlace(event, pointerIndex)
@@ -188,6 +191,7 @@ internal fun DrawingSurfaceView.cancelGesture() {
     backgroundSelecting = false; gestures.reset(); gestureStartDoc = null
     textSelecting = false; vspace.reset()
     gesturePointerId = -1; stylusOwner = false
+    noteStrokeActive(false)
 }
 
 /**
@@ -315,6 +319,8 @@ internal fun DrawingSurfaceView.endGesture() {
     finishGesture()
     gesturePointerId = -1
     stylusOwner = false
+    // The document is whole again: release any autosave held for the end of this stroke.
+    noteStrokeActive(false)
     if (wasScrolling) momentum.launch(panSensitivity)
 }
 

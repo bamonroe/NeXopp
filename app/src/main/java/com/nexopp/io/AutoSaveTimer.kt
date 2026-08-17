@@ -37,11 +37,28 @@ class AutoSaveTimer(
     /** When [onDue] last fired, so a save that keeps failing retries on a floor, not in a spin. */
     private var lastFireMs: Long = 0L
 
+    /** Holds a save that comes due mid-stroke until the pen lifts. */
+    private val gate = AutoSaveGate()
+
     private val tick = Runnable {
-        lastFireMs = now()
-        onDue()
+        if (gate.request()) fire()
         // Re-arm regardless of what the save did: on success [noteSaved] has already reset the
         // baseline and this schedules nothing, and on failure the backoff floor below applies.
+        schedule()
+    }
+
+    private fun fire() {
+        lastFireMs = now()
+        onDue()
+    }
+
+    /**
+     * Tell the timer whether a draw/erase gesture is on the canvas. An autosave that comes due
+     * while the pen is down is held and runs the instant the stroke ends, so a save never lands on
+     * a half-drawn document.
+     */
+    fun setStrokeInProgress(active: Boolean) {
+        if (gate.setStrokeInProgress(active)) fire()
         schedule()
     }
 
@@ -88,6 +105,9 @@ class AutoSaveTimer(
     /** Cancel the pending callback and post a new one, if the policy says a save is owed at all. */
     private fun schedule() {
         handler.removeCallbacks(tick)
+        // A save already held for the end of the stroke needs no timer: the pen lift releases it.
+        // Re-arming here would instead spin on an always-overdue policy for the length of the stroke.
+        if (gate.isPending) return
         if (!policy.isEnabled) return
         val at = now()
         val due = policy.delayUntilDue(at, lastEditMs, lastSaveMs) ?: return

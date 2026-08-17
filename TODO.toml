@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "defer-the-fixed-interval-autosave-until-the-pen-stroke-finishes"
-title = "Defer the fixed-interval autosave until the pen stroke finishes"
-description = "The fixed-interval autosave (the one that fires regardless of last activity) must not fire mid-stroke. If the pen is down and a stroke is in progress when the interval elapses, mark the save as pending and defer it until the stroke completes (pointer up / stroke committed), then run it immediately. Touch app/src/main/java/com/nexopp/io/AutoSaveTimer.kt and AutoSavePolicy.kt to add a pending-save flag plus a 'stroke in progress' input, and wire the canvas stroke begin/end in MainActivity.kt (or the canvas view that owns MotionEvent handling) to set and clear that flag, flushing any pending save on stroke end. Verify with a unit test in app/src/test/java/com/nexopp/io/AutoSavePolicyTest.kt: interval elapses while a stroke is active -> no save; stroke ends -> exactly one save fires. Update README.md and docs/architecture.md in the same commit."
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 20
-created = 2026-08-17
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag"
 title = "Run the autosave encode+write off the UI thread behind a non-blocking saving flag"
 description = """

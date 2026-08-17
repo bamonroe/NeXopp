@@ -666,7 +666,9 @@ authoritative flow; don't invent another one.
     the pen down" save, and it never interrupts you mid-sentence.
   - **Save every** — (**Off** / 1 / 2 / 5 / 10 / 15 minutes) save on this interval even while you
     keep drawing. It's the cap on how much work a crash can cost during a long unbroken session,
-    which the inactivity timer alone would never reach.
+    which the inactivity timer alone would never reach. If it comes due with the pen still down it
+    **waits for that stroke to finish** and saves the moment you lift, so a save never lands on a
+    half-drawn line.
   - An autosave writes **straight back to the file the tab came from**, exactly as the menu's
     **Save** does, in the same sticky format. A tab with **no file yet** (a new document, or one
     started from a PDF or image) is skipped rather than being interrupted with a file picker — its
