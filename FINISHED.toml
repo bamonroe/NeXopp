@@ -17,6 +17,20 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "unit-test-the-autosave-saving-state-transitions"
+title = "Unit-test the autosave saving-state transitions"
+description = """
+Add app/src/test/java/com/nexopp/io/ (or the existing autosave test file — check for AutoSavePolicyTest.kt first and extend it) JVM tests covering the quiet-autosave state machine added by run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag. MainActivity is not unit-testable, so first extract the guard logic from autoSaveNow() into a pure function in the io package, e.g. 'fun canAutoSave(hasSurface: Boolean, blocking: Boolean, alreadySaving: Boolean, hasWritableTarget: Boolean): Boolean' returning true only when hasSurface && !blocking && !alreadySaving && hasWritableTarget, and have autoSaveNow() call it.
+
+Tests to write: each of the four false inputs individually blocks the save; all-true allows it. Also assert AutoSavePolicy's existing behaviour is untouched. Run with scripts/build.sh testDebugUnitTest. Update docs/architecture.md's 'What the unit tests cover' section in the same commit."""
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-17
+completed = 2026-08-17
+tags = []
+
+[[task]]
 id = "show-a-fading-top-bar-spinner-while-an-autosave-is-in-flight"
 title = "Show a fading top-bar spinner while an autosave is in flight"
 description = """

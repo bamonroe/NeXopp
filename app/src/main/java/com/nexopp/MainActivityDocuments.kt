@@ -11,6 +11,7 @@ import com.nexopp.format.rnote.exportWarnings
 import com.nexopp.io.LoadedFile
 import com.nexopp.io.StorageLimits
 import com.nexopp.io.UriStaging
+import com.nexopp.io.canAutoSave
 import com.nexopp.io.saveNameFor
 import com.nexopp.render.DrawingSurfaceView
 import com.nexopp.render.ImageImport
@@ -444,10 +445,18 @@ internal fun MainActivity.saveActiveTab() {
  * the moment they save deliberately.
  */
 internal fun MainActivity.autoSaveNow() {
-    if (surface == null || busy.value != null || autoSaving.value) return
-    val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable) ?: return
+    val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable)
+    if (!canAutoSave(
+            hasSurface = surface != null,
+            blocking = busy.value != null,
+            alreadySaving = autoSaving.value,
+            hasWritableTarget = target != null,
+        )
+    ) {
+        return
+    }
     reportLossesAfterSave = false
-    saveDocument(target, quiet = true)
+    saveDocument(target!!, quiet = true)
 }
 
 /** True when the open document references any recording at all. */

@@ -134,4 +134,64 @@ class AutoSavePolicyTest {
         assertTrue(gate.request())
         assertFalse(gate.isPending)
     }
+
+    @Test
+    fun `an autosave runs only when every condition allows it`() {
+        assertTrue(
+            canAutoSave(
+                hasSurface = true,
+                blocking = false,
+                alreadySaving = false,
+                hasWritableTarget = true,
+            )
+        )
+    }
+
+    @Test
+    fun `no canvas blocks the autosave`() {
+        assertFalse(
+            canAutoSave(
+                hasSurface = false,
+                blocking = false,
+                alreadySaving = false,
+                hasWritableTarget = true,
+            )
+        )
+    }
+
+    @Test
+    fun `a blocking operation blocks the autosave`() {
+        assertFalse(
+            canAutoSave(
+                hasSurface = true,
+                blocking = true,
+                alreadySaving = false,
+                hasWritableTarget = true,
+            )
+        )
+    }
+
+    @Test
+    fun `a save already in flight blocks the autosave`() {
+        assertFalse(
+            canAutoSave(
+                hasSurface = true,
+                blocking = false,
+                alreadySaving = true,
+                hasWritableTarget = true,
+            )
+        )
+    }
+
+    @Test
+    fun `a scratch document with no writable target blocks the autosave`() {
+        assertFalse(
+            canAutoSave(
+                hasSurface = true,
+                blocking = false,
+                alreadySaving = false,
+                hasWritableTarget = false,
+            )
+        )
+    }
 }

@@ -77,6 +77,24 @@ data class AutoSavePolicy(
 }
 
 /**
+ * Whether a due autosave may actually run, kept pure so the guard can be unit-tested away from
+ * `MainActivity` (which can't be). All four conditions must hold:
+ *
+ * @param hasSurface There is a canvas to read a document from at all.
+ * @param blocking A blocking/busy operation (open, export, a modal save) owns the document already.
+ * @param alreadySaving A quiet autosave from a previous tick is still encoding or writing.
+ * @param hasWritableTarget The tab came from a file we can write back to — a never-saved scratch
+ *   document has none, and a timer must never throw a file picker at someone mid-sentence.
+ * @return True only when all four allow the save.
+ */
+fun canAutoSave(
+    hasSurface: Boolean,
+    blocking: Boolean,
+    alreadySaving: Boolean,
+    hasWritableTarget: Boolean,
+): Boolean = hasSurface && !blocking && !alreadySaving && hasWritableTarget
+
+/**
  * The "not mid-stroke" half of the autosave decision, kept pure so it can be unit-tested next to
  * [AutoSavePolicy] rather than through a Handler.
  *

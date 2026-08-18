@@ -1036,6 +1036,11 @@ lift is what fires it. The idle timer can't reach this case — an in-progress s
 back. Autosaves also suppress the format-loss report
 (`reportLossesAfterSave = false`); the same lines still appear on a deliberate save.
 
+The four conditions `autoSaveNow` checks before writing at all — a canvas exists, nothing blocking
+owns the document, no earlier quiet save is still in flight, and the tab has a writable target — live
+in the pure `canAutoSave(...)` in `AutoSavePolicy.kt`, so the guard is unit-testable even though
+`MainActivity` isn't.
+
 **An autosave never blocks the canvas.** `autoSaveNow` calls `saveDocument(target, quiet = true)`,
 which takes the document snapshot on the UI thread (`toDocument`, `pdfSourceFile`, `imageSources` —
 the canvas owns those) and then runs **both** the encode and the write on a worker via
@@ -1593,7 +1598,8 @@ framing. The `io/` tests cover the storage-access logic that has no device in it
 mapping, incoming-intent URI selection, the two stores' liveness sweeps, text import, and
 `AutoSavePolicyTest`, which drives both autosave timers over a fabricated timeline (dirty vs clean,
 which timer wins, and the overdue case) and the `AutoSaveGate` mid-stroke hold (due while the pen is
-down fires nothing; the lift fires exactly one save). All of it runs on the JVM with no device attached.
+down fires nothing; the lift fires exactly one save) and the `canAutoSave` guard (each of the four
+conditions blocks the save on its own; all four together allow it). All of it runs on the JVM with no device attached.
 
 **The `udiff.xopp` self-skip rule.** `RealFileRoundTripTest` round-trips a real
 desktop-generated `udiff.xopp` end to end, read from the **repo root** (the builder mounts the
