@@ -164,6 +164,8 @@ fun EditorScreen(
     onActivePane: (Int) -> Unit = {},
     /** A document transfer in flight (label shown), or null. Remote files can take a while. */
     busy: String? = null,
+    /** A quiet autosave is in flight: the top bar shows a small spinner, the canvas stays live. */
+    saving: Boolean = false,
     /** Back was pressed with nothing left to dismiss: leave the app. */
     onExit: () -> Unit = {},
     /** The top app bar content; defaults to [EditorTopBar]. */
@@ -177,6 +179,7 @@ fun EditorScreen(
             onSave = onSave,
             splitView = splitView,
             onToggleSplitView = onToggleSplitView,
+            saving = saving,
         )
     },
     /** The rail/toolbar content; defaults to [EditorToolbar]. */

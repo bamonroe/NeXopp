@@ -1,5 +1,8 @@
 package com.nexopp.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.border
@@ -27,6 +30,7 @@ import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VerticalSplit
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,11 +83,18 @@ fun EditorTopBar(
     onSave: () -> Unit,
     splitView: Boolean,
     onToggleSplitView: () -> Unit,
+    /** A quiet autosave is in flight: show a small spinner that fades in and back out. */
+    saving: Boolean = false,
 ) {
     TopAppBar(
         title = {},
         modifier = Modifier.height(40.dp),
         actions = {
+            AnimatedVisibility(visible = saving, enter = fadeIn(), exit = fadeOut()) {
+                Box(modifier = Modifier.semantics { contentDescription = "Saving" }) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                }
+            }
             SearchControls(pane)
             IconButton(onClick = { pane.surface?.undo() }, enabled = pane.canUndo) {
                 Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")

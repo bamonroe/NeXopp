@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "show-a-fading-top-bar-spinner-while-an-autosave-is-in-flight"
+title = "Show a fading top-bar spinner while an autosave is in flight"
+description = """
+Depends on the autoSaving flag added by run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag.
+
+1. In app/src/main/java/com/nexopp/ui/EditorRegions.kt add a 'saving: Boolean = false' parameter to EditorTopBar (signature at line 73) and render, as the FIRST item in the actions row before SearchControls(pane), an AnimatedVisibility(visible = saving, enter = fadeIn(), exit = fadeOut()) wrapping a CircularProgressIndicator with Modifier.size(18.dp), strokeWidth = 2.dp, and Modifier.semantics { contentDescription = "Saving" } (or wrap in a Box with that semantics).
+2. In app/src/main/java/com/nexopp/ui/EditorScreen.kt add a matching 'saving: Boolean = false' parameter next to the existing 'busy: String? = null' (line 166) and pass it through to EditorTopBar.
+3. In MainActivity.kt where EditorScreen is invoked (around line 305, beside 'busy = busy.value') pass 'saving = autoSaving.value'.
+
+Do not touch the blocking TransferOverlay path — the spinner is only for quiet autosaves.
+
+Verify: scripts/build.sh, then on the emulator trigger an autosave and screenshot the top bar to confirm the spinner appears and fades out. Update docs/architecture.md's editor-chrome section and README.md in the same commit."""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-17
+completed = 2026-08-17
+tags = []
+
+[[task]]
 id = "run-the-autosave-encode-write-off-the-ui-thread-behind-a-non-blocking-saving-flag"
 title = "Run the autosave encode+write off the UI thread behind a non-blocking saving flag"
 description = """

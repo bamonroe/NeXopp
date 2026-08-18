@@ -2369,7 +2369,10 @@ it doesn't affect round-trip (matching how desktop selects a PDF background's te
 
 ## The editor chrome (`ui/`)
 
-`EditorScreen` is the one editor screen (a `Row`): a top bar with undo/redo
+`EditorScreen` is the one editor screen (a `Row`): a top bar with a **quiet-autosave spinner**
+(`EditorTopBar(saving = …)` — an 18 dp `CircularProgressIndicator` in an `AnimatedVisibility`
+fade, first in the actions row, fed from `MainActivity.autoSaving`; the blocking `TransferOverlay`
+path is untouched), undo/redo
 icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export…, Save,
 and Settings; a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
 Pages; and the canvas filling the rest. Each rail button owns its own `DropdownMenu`, so the pop-up
