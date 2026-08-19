@@ -975,6 +975,13 @@ Consequences worth knowing:
   process is most likely to be killed, and for a **never-saved** document the snapshot is the *only*
   copy — an in-place write killed halfway used to leave a truncated file that `hydrate` couldn't
   parse, losing the whole document.
+- **A snapshot that can't be read is never written over.** When `TabStore.hydrate` fails to parse a
+  snapshot it moves the file aside to `<id>.xopp.corrupt` and returns the tab with
+  `OpenTab.loadFailed = true` (a per-run flag, not persisted in `TabIndex`). Both writers then skip
+  that tab — `TabStore.save` and `snapshotActiveTab` — so the blank placeholder on the canvas can't
+  reach the disk, and `MainActivity.show` toasts that the tab couldn't be restored instead of
+  passing a blank page off as the document. A transient read error costs one tab's session until it
+  is recovered by hand, not the document.
 - **Nothing is parsed or written on the main thread.** Gzip XML over a whole document takes long
   enough to trip Android's ANR watchdog, so the session is restored **lazily and off-thread**:
   `TabStore.load` reads only the small index and returns every tab as a placeholder

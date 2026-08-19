@@ -40,7 +40,10 @@ class TabStore(private val dir: File) {
         for (tab in session.tabs) {
             // An unhydrated tab's `document` is a placeholder, never its content — its snapshot on
             // disk is already the truth, so leave it alone rather than blanking it.
-            if (!tab.hydrated) continue
+            // Same for a tab whose snapshot we failed to read: its document is a blank placeholder
+            // and the real bytes are set aside as `.corrupt`, so writing it out would only make the
+            // loss permanent.
+            if (!tab.hydrated || tab.loadFailed) continue
             atomically(snapshotFile(tab.id)) { out -> Xopp.save(tab.document, out) }
         }
         atomically(indexFile()) { out -> out.write(TabIndex.encode(session).toByteArray()) }
@@ -100,13 +103,18 @@ class TabStore(private val dir: File) {
      * Parse [tab]'s snapshot and return the tab holding its real document. An already-hydrated tab is
      * returned untouched, and an unreadable snapshot leaves the tab as it was (a blank placeholder)
      * but marks it hydrated, so the damage is one empty tab rather than a re-read on every switch.
+     *
+     * An unreadable snapshot is also marked [OpenTab.loadFailed] and its file moved aside to
+     * `<id>.xopp.corrupt`: the blank placeholder must never reach the disk in its place, and the
+     * bytes we couldn't parse are the only copy of that document, so they are kept for recovery.
      */
     fun hydrate(tab: OpenTab): OpenTab {
         if (tab.hydrated) return tab
-        val doc = runCatching {
-            snapshotFile(tab.id).takeIf(File::isFile)?.inputStream()?.use(Xopp::open)
-        }.getOrNull()
-        return if (doc == null) tab.copy(hydrated = true) else tab.copy(document = doc, hydrated = true)
+        val file = snapshotFile(tab.id)
+        val doc = runCatching { file.takeIf(File::isFile)?.inputStream()?.use(Xopp::open) }.getOrNull()
+        if (doc != null) return tab.copy(document = doc, hydrated = true)
+        if (file.isFile) file.renameTo(File(dir, "${file.name}$CORRUPT_SUFFIX"))
+        return tab.copy(hydrated = true, loadFailed = true)
     }
 
     /** Throw the whole cached session away (used when the user closes the last tab). */
@@ -125,6 +133,8 @@ class TabStore(private val dir: File) {
         private const val SNAPSHOT_SUFFIX = ".xopp"
         /** Suffix for the half-written sibling every save fills before renaming it into place. */
         private const val TEMP_SUFFIX = ".tmp"
+        /** Suffix a snapshot gets when it could not be parsed, so its bytes survive for recovery. */
+        const val CORRUPT_SUFFIX = ".corrupt"
 
         /**
          * A fresh tab id. Time-based and counter-salted so ids stay unique within a run and across

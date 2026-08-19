@@ -150,6 +150,27 @@ class TabStoreTest {
         assertNotEquals(111.0, hydrated.document.pages.firstOrNull()?.width ?: 0.0)
     }
 
+    /**
+     * The read failure must not become a write failure: an unparseable snapshot is set aside as
+     * `.corrupt` and the tab is flagged, so the next save leaves it alone instead of stamping the
+     * blank placeholder over the only copy of that document.
+     */
+    @Test fun aFailedHydrateKeepsTheBytesAndBlocksTheNextSave() {
+        val dir = tmp.newFolder()
+        val store = TabStore(dir)
+        store.save(TabSession(listOf(OpenTab("t1", "a", doc(111.0))), 0))
+        java.io.File(dir, "t1.xopp").writeText(" truncated")
+
+        val hydrated = store.hydrate(store.load()!!.tabs[0])
+        assertEquals(true, hydrated.loadFailed)
+        assertEquals(" truncated", java.io.File(dir, "t1.xopp.corrupt").readText())
+
+        store.save(TabSession(listOf(hydrated), 0))
+
+        assertEquals(" truncated", java.io.File(dir, "t1.xopp.corrupt").readText())
+        assertEquals(false, java.io.File(dir, "t1.xopp").exists())
+    }
+
     @Test fun noSessionOnDiskLoadsAsNull() {
         assertNull(TabStore(tmp.newFolder()).load())
     }

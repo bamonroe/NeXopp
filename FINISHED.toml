@@ -17,6 +17,25 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "never-let-a-failed-snapshot-read-blank-a-tab-s-stored-document"
+title = "Never let a failed snapshot read blank a tab's stored document"
+description = """
+TabStore.hydrate (app/src/main/java/com/nexopp/tabs/TabStore.kt) returns 'tab.copy(hydrated = true)' holding the placeholder blankDocument() when the snapshot file is missing or unparseable. Once that tab is marked hydrated, MainActivity.showTab puts the blank on the canvas and the next snapshotActiveTab()+persist() writes the blank straight over the (possibly recoverable) file, turning a transient read error into permanent loss.
+
+Fix: add a field to OpenTab (e.g. 'val loadFailed: Boolean = false', defaulting false and NOT persisted in TabIndex) that hydrate() sets when the snapshot could not be read. Then:
+- In TabStore.save, skip writing a snapshot for any tab with loadFailed = true, the same way it already skips '!tab.hydrated' - never overwrite a file we failed to read.
+- In MainActivityTabs.snapshotActiveTab (app/src/main/java/com/nexopp/MainActivityTabs.kt:97), return early for a tab with loadFailed = true, alongside the existing '!hydrated' guard.
+- Rename the unreadable file to '<id>.xopp.corrupt' in hydrate() so the bytes survive for recovery instead of being clobbered, and toast/log once so the user knows a tab failed to restore rather than silently seeing a blank page.
+
+Test: in app/src/test/java/com/nexopp/tabs/TabStoreTest.kt, write a corrupt snapshot, hydrate it, assert loadFailed is true and that a subsequent save() leaves the .corrupt file and does not write a blank snapshot for that id. Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-19
+completed = 2026-08-19
+tags = ["tabs", "data-loss"]
+
+[[task]]
 id = "write-tab-snapshots-and-session-index-atomically-temp-file-rename"
 title = "Write tab snapshots and session.index atomically (temp file + rename)"
 description = """

@@ -41,6 +41,14 @@ data class OpenTab(
      * [TabStore.save] never overwrites an unhydrated tab's snapshot with its placeholder.
      */
     val hydrated: Boolean = true,
+    /**
+     * True when [TabStore.hydrate] could not read this tab's snapshot, so [document] is a blank
+     * stand-in for content that is *not* gone from disk — the unreadable bytes are kept aside as
+     * `<id>.xopp.corrupt`. Never persisted in [TabIndex]: it describes this run's failed read, not
+     * the tab. While it is set, nothing writes a snapshot for this tab, so a transient read error
+     * can't be turned into permanent loss by the next save writing the blank over the file.
+     */
+    val loadFailed: Boolean = false,
 )
 
 /** The whole set of open tabs plus which one is showing — what survives an app restart. */

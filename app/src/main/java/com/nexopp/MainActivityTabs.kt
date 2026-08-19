@@ -102,6 +102,9 @@ internal fun MainActivity.snapshotActiveTab(p: EditorPane = pane) {
     // A tab still being parsed in the background hasn't reached the canvas yet, so what is on it
     // belongs to the tab before it — copying that in would overwrite the pending document.
     if (p.tabs.active?.hydrated == false) return
+    // Likewise for a tab whose snapshot we failed to read: the canvas shows a blank placeholder, and
+    // copying it into the record would hand the next persist() a blank to write over the tab's file.
+    if (p.tabs.active?.loadFailed == true) return
     p.tabs.updateActive {
         it.copy(
             document = view.toDocument(),
@@ -129,6 +132,9 @@ internal fun MainActivity.show(tab: OpenTab, p: EditorPane = pane) {
             if (p.tabs.active?.id != full.id) return@runOnUiThread
             p.tabs.updateActive { if (it.id == full.id) full else it }
             showTab(full, p)
+            // Say so rather than letting a blank page pass for the restored document — the bytes are
+            // still on disk as `<id>.xopp.corrupt` and nothing will overwrite them.
+            if (full.loadFailed) toast("Couldn't restore \"${full.title}\" — its saved copy is kept for recovery")
             tabsTick.value++
         }
     }.start()

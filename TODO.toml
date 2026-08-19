@@ -22,28 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "never-let-a-failed-snapshot-read-blank-a-tab-s-stored-document"
-title = "Never let a failed snapshot read blank a tab's stored document"
-description = """
-TabStore.hydrate (app/src/main/java/com/nexopp/tabs/TabStore.kt) returns 'tab.copy(hydrated = true)' holding the placeholder blankDocument() when the snapshot file is missing or unparseable. Once that tab is marked hydrated, MainActivity.showTab puts the blank on the canvas and the next snapshotActiveTab()+persist() writes the blank straight over the (possibly recoverable) file, turning a transient read error into permanent loss.
-
-Fix: add a field to OpenTab (e.g. 'val loadFailed: Boolean = false', defaulting false and NOT persisted in TabIndex) that hydrate() sets when the snapshot could not be read. Then:
-- In TabStore.save, skip writing a snapshot for any tab with loadFailed = true, the same way it already skips '!tab.hydrated' - never overwrite a file we failed to read.
-- In MainActivityTabs.snapshotActiveTab (app/src/main/java/com/nexopp/MainActivityTabs.kt:97), return early for a tab with loadFailed = true, alongside the existing '!hydrated' guard.
-- Rename the unreadable file to '<id>.xopp.corrupt' in hydrate() so the bytes survive for recovery instead of being clobbered, and toast/log once so the user knows a tab failed to restore rather than silently seeing a blank page.
-
-Test: in app/src/test/java/com/nexopp/tabs/TabStoreTest.kt, write a corrupt snapshot, hydrate it, assert loadFailed is true and that a subsequent save() leaves the .corrupt file and does not write a blank snapshot for that id. Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "bug"
-urgency = "critical"
-order = 30
-created = 2026-08-19
-tags = ["tabs", "data-loss"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "autosave-tick-refreshes-the-tab-snapshot-for-a-never-saved-document"
 title = "Autosave tick refreshes the tab snapshot for a never-saved document"
 description = """
