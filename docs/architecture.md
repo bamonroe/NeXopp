@@ -1039,9 +1039,13 @@ Wiring, all in `MainActivity`:
 | stroke start / end | `DrawingSurfaceView.onStrokeActiveChanged` | `setStrokeInProgress(active)` — hold a mid-stroke save, release it on lift |
 
 Three rules keep it from being a nuisance. A save is **only ever due when the document is dirty**,
-so identical bytes are never rewritten on a loop. `autoSaveNow` **skips a tab with no writable
-target** rather than throwing a SAF picker at someone mid-sentence — a scratch document keeps living
-in the tab session until its owner gives it a home. And a failing save (a lapsed grant, a full disk)
+so identical bytes are never rewritten on a loop. `autoSaveNow` **never throws a SAF picker** at
+someone mid-sentence: for a tab with no writable target it instead does
+`snapshotActiveTab(); persistTabs(); autoSave.noteSaved()` — a silent refresh of that tab's session
+snapshot (no spinner, `autoSaving` stays false), which is a scratch document's only durable copy, so
+a kill between tab events no longer costs every stroke since the last one. Counting it as a save is
+what stops the idle timer re-firing on the retry floor forever. The document still reaches a real
+file only when its owner gives it a home. And a failing save (a lapsed grant, a full disk)
 is retried on a **one-minute floor** in `AutoSaveTimer`, since the document stays dirty and the
 policy would otherwise say "due" on every re-arm. The interval timer is also **gated on the pen**:
 `AutoSaveGate` (in `AutoSavePolicy.kt`, pure and unit-tested alongside the policy) holds a save that
@@ -1051,10 +1055,12 @@ lift is what fires it. The idle timer can't reach this case — an in-progress s
 back. Autosaves also suppress the format-loss report
 (`reportLossesAfterSave = false`); the same lines still appear on a deliberate save.
 
-The four conditions `autoSaveNow` checks before writing at all — a canvas exists, nothing blocking
-owns the document, no earlier quiet save is still in flight, and the tab has a writable target — live
-in the pure `canAutoSave(...)` in `AutoSavePolicy.kt`, so the guard is unit-testable even though
-`MainActivity` isn't.
+The four conditions `autoSaveNow` checks before doing anything at all — a canvas exists, nothing
+blocking owns the document, no earlier quiet save is still in flight, and the tab has a writable
+target — live in the pure `canAutoSave(...)` in `AutoSavePolicy.kt`, so the guard is unit-testable
+even though `MainActivity` isn't. Only the fourth is per-destination: a snapshot-only tick passes
+`hasWritableTarget = true` and branches on the real target itself, since refreshing the session copy
+needs no file the user chose.
 
 **An autosave never blocks the canvas.** `autoSaveNow` calls `saveDocument(target, quiet = true)`,
 which takes the document snapshot on the UI thread (`toDocument`, `pdfSourceFile`, `imageSources` —

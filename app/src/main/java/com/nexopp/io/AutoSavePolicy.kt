@@ -84,7 +84,9 @@ data class AutoSavePolicy(
  * @param blocking A blocking/busy operation (open, export, a modal save) owns the document already.
  * @param alreadySaving A quiet autosave from a previous tick is still encoding or writing.
  * @param hasWritableTarget The tab came from a file we can write back to — a never-saved scratch
- *   document has none, and a timer must never throw a file picker at someone mid-sentence.
+ *   document has none, and a timer must never throw a file picker at someone mid-sentence. Callers
+ *   that only mean to refresh the tab's session snapshot (which needs no file the user chose) pass
+ *   `true` here and branch on the target themselves; see `MainActivity.autoSaveNow`.
  * @return True only when all four allow the save.
  */
 fun canAutoSave(

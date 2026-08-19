@@ -438,11 +438,16 @@ internal fun MainActivity.saveActiveTab() {
  * file it came from.
  *
  * A timer must never throw a file picker at someone mid-sentence, so unlike [saveActiveTab] this
- * does nothing at all for a tab with no writable target — a scratch document that has never been
- * saved keeps living in the tab session until the user picks a home for it by hand. It also stays
- * quiet about losses: a plain Save reports what the format dropped, but a background save the user
- * didn't ask for repeating that every interval would be nagging, and the same lines still appear
- * the moment they save deliberately.
+ * never writes a file the user didn't choose. For a tab with no writable target — a scratch
+ * document that has never been saved — it instead refreshes that tab's **session snapshot** under
+ * `filesDir/tabs`, which is the scratch document's only durable copy. Without that, a crash or
+ * low-memory kill between tab events loses every stroke since the last one. It is a silent cache
+ * refresh: no picker, no toast, and no spinner ([autoSaving] stays false, since nothing is being
+ * written to a file the user can see).
+ *
+ * It also stays quiet about losses: a plain Save reports what the format dropped, but a background
+ * save the user didn't ask for repeating that every interval would be nagging, and the same lines
+ * still appear the moment they save deliberately.
  */
 internal fun MainActivity.autoSaveNow() {
     val target = tabs.active?.uri?.let(Uri::parse)?.takeIf(io::isWritable)
@@ -450,13 +455,23 @@ internal fun MainActivity.autoSaveNow() {
             hasSurface = surface != null,
             blocking = busy.value != null,
             alreadySaving = autoSaving.value,
-            hasWritableTarget = target != null,
+            hasWritableTarget = true,
         )
     ) {
         return
     }
+    if (target == null) {
+        // Nowhere to write, but the session copy is worth keeping current. `persist()` queues the
+        // gzip write on the pane's writer thread, so the main thread only pays for `toDocument()`.
+        snapshotActiveTab()
+        persistTabs()
+        // Count it as a save so the idle timer stands down and the interval timer re-baselines,
+        // instead of the document staying dirty forever and re-firing on the retry-backoff floor.
+        autoSave.noteSaved()
+        return
+    }
     reportLossesAfterSave = false
-    saveDocument(target!!, quiet = true)
+    saveDocument(target, quiet = true)
 }
 
 /** True when the open document references any recording at all. */

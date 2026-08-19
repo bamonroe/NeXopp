@@ -194,4 +194,27 @@ class AutoSavePolicyTest {
             )
         )
     }
+
+    @Test
+    fun `a scratch document still allows a snapshot-only tick`() {
+        // `autoSaveNow` splits the guard: with no file to write it asks the same question with
+        // `hasWritableTarget = true`, because refreshing the tab's session snapshot needs no
+        // user-chosen destination. The other three conditions must still all hold.
+        assertTrue(
+            canAutoSave(
+                hasSurface = true,
+                blocking = false,
+                alreadySaving = false,
+                hasWritableTarget = true,
+            )
+        )
+        assertFalse(
+            canAutoSave(
+                hasSurface = false,
+                blocking = false,
+                alreadySaving = false,
+                hasWritableTarget = true,
+            )
+        )
+    }
 }

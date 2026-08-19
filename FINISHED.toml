@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "autosave-tick-refreshes-the-tab-snapshot-for-a-never-saved-document"
+title = "Autosave tick refreshes the tab snapshot for a never-saved document"
+description = """
+Today an autosave tick on an Untitled tab does nothing at all: MainActivity.autoSaveNow (app/src/main/java/com/nexopp/MainActivityDocuments.kt:447) resolves 'target = tabs.active?.uri ... takeIf(io::isWritable)' and returns via canAutoSave(hasWritableTarget = false). That is correct for the user's real file (a timer must not open a file picker), but it means a scratch document's ONLY durable copy - its tab snapshot under filesDir/tabs - is refreshed just at tab events and onPause. A crash or low-memory kill between those points loses every stroke since the last one.
+
+Fix: in autoSaveNow, when every other condition of canAutoSave holds but hasWritableTarget is false, fall through to 'snapshotActiveTab(); persistTabs()' instead of returning - a cheap, silent cache refresh with no picker, no toast, and no spinner (do NOT set autoSaving.value, since there is no user-visible file write). Keep the existing early return when hasSurface is false, blocking is true, or alreadySaving is true. Note that persist() already queues the gzip write onto the pane's writer thread, so the main thread only pays for view.toDocument().
+
+Also make AutoSaveTimer treat this as a save: call autoSave.noteSaved() after the snapshot so the idle timer stands down and the interval timer re-baselines, instead of the document staying permanently dirty and re-firing on the 60s RETRY_BACKOFF_MS floor.
+
+Docs: update the autosave section of README.md and docs/architecture.md to state that with autosave on, an unsaved Untitled document has its session snapshot refreshed on every tick (it still never writes a file the user did not choose). Extend the KDoc on canAutoSave in app/src/main/java/com/nexopp/io/AutoSavePolicy.kt accordingly.
+
+Test: add a case to app/src/test/java/com/nexopp/io/AutoSavePolicyTest.kt covering the guard split (no writable target still counts as a snapshot-worthy tick). Verify with: scripts/build.sh"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-19
+completed = 2026-08-19
+tags = ["autosave", "data-loss"]
+
+[[task]]
 id = "never-let-a-failed-snapshot-read-blank-a-tab-s-stored-document"
 title = "Never let a failed snapshot read blank a tab's stored document"
 description = """

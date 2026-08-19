@@ -671,8 +671,10 @@ authoritative flow; don't invent another one.
     half-drawn line.
   - An autosave writes **straight back to the file the tab came from**, exactly as the menu's
     **Save** does, in the same sticky format. A tab with **no file yet** (a new document, or one
-    started from a PDF or image) is skipped rather than being interrupted with a file picker — its
-    edits are still held in the tab session, and it saves when you pick a home for it by hand.
+    started from a PDF or image) is never interrupted with a file picker — instead each tick
+    **refreshes its session copy**, so an unsaved scratch document survives a crash or a
+    low-memory kill with at most one tick's worth of work at risk. It still saves to a real file
+    only when you pick a home for it by hand.
     Autosaves also stay quiet about anything the format dropped; you'll still see that report the
     next time you save deliberately.
   - An autosave **doesn't interrupt you**. The whole write happens in the background, so unlike the
