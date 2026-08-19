@@ -22,24 +22,90 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "data-loss-an-unsaved-untitled-document-lost-a-whole-page-of-work"
-title = "Data loss: an unsaved Untitled document lost a whole page of work"
+id = "write-tab-snapshots-and-session-index-atomically-temp-file-rename"
+title = "Write tab snapshots and session.index atomically (temp file + rename)"
 description = """
-Reported live: a never-saved 'Untitled' tab (no file on disk anywhere) lost an entire page of drawing while the app was in use. Autosave is the prime suspect, but a first static pass did NOT find the bug in the autosave path itself: AutoSaveTimer fires onDue -> MainActivity.autoSaveNow (MainActivityDocuments.kt:447), which computes 'target = tabs.active?.uri ... takeIf(io::isWritable)' and returns early via canAutoSave(hasWritableTarget=false) for a scratch tab, and no autosave code clears a document. So investigate the wider untitled/session path and confirm the mechanism before fixing.
+TabStore.save (app/src/main/java/com/nexopp/tabs/TabStore.kt) writes every file in place: 'snapshotFile(tab.id).outputStream().use { Xopp.save(tab.document, it) }' and 'indexFile().writeText(TabIndex.encode(session))'. A process kill mid-write (exactly the onPause-into-background case that MainActivity.PERSIST_WAIT_MS = 2000ms may not outlast) leaves a truncated <id>.xopp; TabStore.hydrate then fails to parse it and hands back a blank document. For a never-saved Untitled tab the snapshot is the ONLY copy, so the work is gone.
 
-Candidate mechanisms to check:
-1. Blank-over-good snapshot. TabStore.hydrate (tabs/TabStore.kt) returns 'tab.copy(hydrated = true)' with the placeholder blankDocument() when a snapshot is missing/unreadable; a later snapshotActiveTab() + persist() then writes that blank back over session.index/<id>.xopp, destroying the real content permanently.
-2. Untitled work is only persisted at tab events and onPause (MainActivity.kt:443 'panes.forEach { snapshotActiveTab(it); it.persist() }'). Check what happens on process death, low-memory kill, or a config change where onPause's write is skipped or races the canvas.
-3. snapshotActiveTab (MainActivityTabs.kt:97) returns early when 'p.tabs.active?.hydrated == false' - verify no window exists where the live untitled tab is considered unhydrated and its edits are silently dropped.
-4. showTab / show() replacing the canvas (view.load(tab.document)) with a placeholder document for the still-showing tab.
-5. Split view / toggleSplitView and closeTab (which opens blankTab() when the last tab closes) overwriting the active pane's records.
+Fix: in TabStore.save, write each snapshot to File(dir, "$id.xopp.tmp") and, only after the stream closes successfully, replace the real file via delete()+renameTo() (File.renameTo is atomic within the same directory). Do the same for session.index (write session.index.tmp then rename). On a failed write, delete the temp file and leave the previous good file untouched. Make sure the stale-file sweep at the top of save() also deletes leftover *.tmp files, and that the 'file !in live' check does not delete a temp file mid-write.
 
-Deliverables for this scope: reproduce on the emulator (draw on a fresh Untitled tab with autosave idle+interval enabled, let both timers tick, background/foreground the app), identify the exact code path that loses the document, then add atomic task-level items for the fix plus a regression unit test. Since the autosave guard looks correct, also consider whether autosave should offer a safety net for untitled documents (e.g. always refresh the tab snapshot on tick even when there is no writable target) rather than doing nothing at all."""
+Test: extend app/src/test/java/com/nexopp/tabs/TabStoreTest.kt with a case that (a) saves a session, (b) truncates the snapshot file to a few bytes to simulate a killed write, (c) asserts load()+hydrate() behaviour, and a case asserting no .tmp files remain after a successful save. Verify with: scripts/build.sh testDebugUnitTest"""
 status = "active"
-level = "scope"
+level = "task"
 category = "bug"
 urgency = "critical"
-order = 10
+order = 20
+created = 2026-08-19
+tags = ["tabs", "data-loss"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "never-let-a-failed-snapshot-read-blank-a-tab-s-stored-document"
+title = "Never let a failed snapshot read blank a tab's stored document"
+description = """
+TabStore.hydrate (app/src/main/java/com/nexopp/tabs/TabStore.kt) returns 'tab.copy(hydrated = true)' holding the placeholder blankDocument() when the snapshot file is missing or unparseable. Once that tab is marked hydrated, MainActivity.showTab puts the blank on the canvas and the next snapshotActiveTab()+persist() writes the blank straight over the (possibly recoverable) file, turning a transient read error into permanent loss.
+
+Fix: add a field to OpenTab (e.g. 'val loadFailed: Boolean = false', defaulting false and NOT persisted in TabIndex) that hydrate() sets when the snapshot could not be read. Then:
+- In TabStore.save, skip writing a snapshot for any tab with loadFailed = true, the same way it already skips '!tab.hydrated' - never overwrite a file we failed to read.
+- In MainActivityTabs.snapshotActiveTab (app/src/main/java/com/nexopp/MainActivityTabs.kt:97), return early for a tab with loadFailed = true, alongside the existing '!hydrated' guard.
+- Rename the unreadable file to '<id>.xopp.corrupt' in hydrate() so the bytes survive for recovery instead of being clobbered, and toast/log once so the user knows a tab failed to restore rather than silently seeing a blank page.
+
+Test: in app/src/test/java/com/nexopp/tabs/TabStoreTest.kt, write a corrupt snapshot, hydrate it, assert loadFailed is true and that a subsequent save() leaves the .corrupt file and does not write a blank snapshot for that id. Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "bug"
+urgency = "critical"
+order = 30
+created = 2026-08-19
+tags = ["tabs", "data-loss"]
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "autosave-tick-refreshes-the-tab-snapshot-for-a-never-saved-document"
+title = "Autosave tick refreshes the tab snapshot for a never-saved document"
+description = """
+Today an autosave tick on an Untitled tab does nothing at all: MainActivity.autoSaveNow (app/src/main/java/com/nexopp/MainActivityDocuments.kt:447) resolves 'target = tabs.active?.uri ... takeIf(io::isWritable)' and returns via canAutoSave(hasWritableTarget = false). That is correct for the user's real file (a timer must not open a file picker), but it means a scratch document's ONLY durable copy - its tab snapshot under filesDir/tabs - is refreshed just at tab events and onPause. A crash or low-memory kill between those points loses every stroke since the last one.
+
+Fix: in autoSaveNow, when every other condition of canAutoSave holds but hasWritableTarget is false, fall through to 'snapshotActiveTab(); persistTabs()' instead of returning - a cheap, silent cache refresh with no picker, no toast, and no spinner (do NOT set autoSaving.value, since there is no user-visible file write). Keep the existing early return when hasSurface is false, blocking is true, or alreadySaving is true. Note that persist() already queues the gzip write onto the pane's writer thread, so the main thread only pays for view.toDocument().
+
+Also make AutoSaveTimer treat this as a save: call autoSave.noteSaved() after the snapshot so the idle timer stands down and the interval timer re-baselines, instead of the document staying permanently dirty and re-firing on the 60s RETRY_BACKOFF_MS floor.
+
+Docs: update the autosave section of README.md and docs/architecture.md to state that with autosave on, an unsaved Untitled document has its session snapshot refreshed on every tick (it still never writes a file the user did not choose). Extend the KDoc on canAutoSave in app/src/main/java/com/nexopp/io/AutoSavePolicy.kt accordingly.
+
+Test: add a case to app/src/test/java/com/nexopp/io/AutoSavePolicyTest.kt covering the guard split (no writable target still counts as a snapshot-worthy tick). Verify with: scripts/build.sh"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "high"
+order = 40
+created = 2026-08-19
+tags = ["autosave", "data-loss"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "emulator-pass-confirm-an-unsaved-untitled-document-survives-a-kill"
+title = "Emulator pass: confirm an unsaved Untitled document survives a kill"
+description = """
+End-to-end verification of the untitled data-loss fixes, on the /data/android emulator (see docs/tools.md). Run AFTER the three fix tasks land.
+
+Steps:
+1. scripts/build.sh, install the debug APK on the emulator.
+2. Turn both autosave timers on in Settings (idle 5s, interval 60s).
+3. On a fresh Untitled tab (never saved anywhere), draw several strokes across a page with simulated stylus input. Take a screenshot of the drawn page.
+4. Wait past the idle timer, then kill the process outright with 'adb shell am force-stop com.nexopp' - do NOT background it cleanly first, so onPause's snapshot is skipped.
+5. Relaunch and screenshot: the Untitled tab must come back with every stroke from step 3.
+6. Repeat with the process killed DURING a snapshot write (kill immediately after a stroke) to exercise the atomic temp-file+rename path; the tab must come back with either the previous or the newest content, never blank.
+7. Check adb logcat for exceptions from TabStore over the whole run.
+
+Record the outcome in the task before closing it. This is the regression gate for the whole untitled-data-loss scope."""
+status = "active"
+level = "task"
+category = "test"
+urgency = "high"
+order = 50
 created = 2026-08-19
 tags = ["autosave", "tabs", "data-loss"]
 rebuild = true

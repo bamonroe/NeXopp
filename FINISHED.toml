@@ -17,6 +17,27 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "data-loss-an-unsaved-untitled-document-lost-a-whole-page-of-work"
+title = "Data loss: an unsaved Untitled document lost a whole page of work"
+description = """
+Reported live: a never-saved 'Untitled' tab (no file on disk anywhere) lost an entire page of drawing while the app was in use. Autosave is the prime suspect, but a first static pass did NOT find the bug in the autosave path itself: AutoSaveTimer fires onDue -> MainActivity.autoSaveNow (MainActivityDocuments.kt:447), which computes 'target = tabs.active?.uri ... takeIf(io::isWritable)' and returns early via canAutoSave(hasWritableTarget=false) for a scratch tab, and no autosave code clears a document. So investigate the wider untitled/session path and confirm the mechanism before fixing.
+
+Candidate mechanisms to check:
+1. Blank-over-good snapshot. TabStore.hydrate (tabs/TabStore.kt) returns 'tab.copy(hydrated = true)' with the placeholder blankDocument() when a snapshot is missing/unreadable; a later snapshotActiveTab() + persist() then writes that blank back over session.index/<id>.xopp, destroying the real content permanently.
+2. Untitled work is only persisted at tab events and onPause (MainActivity.kt:443 'panes.forEach { snapshotActiveTab(it); it.persist() }'). Check what happens on process death, low-memory kill, or a config change where onPause's write is skipped or races the canvas.
+3. snapshotActiveTab (MainActivityTabs.kt:97) returns early when 'p.tabs.active?.hydrated == false' - verify no window exists where the live untitled tab is considered unhydrated and its edits are silently dropped.
+4. showTab / show() replacing the canvas (view.load(tab.document)) with a placeholder document for the still-showing tab.
+5. Split view / toggleSplitView and closeTab (which opens blankTab() when the last tab closes) overwriting the active pane's records.
+
+Deliverables for this scope: reproduce on the emulator (draw on a fresh Untitled tab with autosave idle+interval enabled, let both timers tick, background/foreground the app), identify the exact code path that loses the document, then add atomic task-level items for the fix plus a regression unit test. Since the autosave guard looks correct, also consider whether autosave should offer a safety net for untitled documents (e.g. always refresh the tab snapshot on tick even when there is no writable target) rather than doing nothing at all."""
+status = "finished"
+level = "scope"
+category = "bug"
+created = 2026-08-19
+completed = 2026-08-19
+tags = ["autosave", "tabs", "data-loss"]
+
+[[task]]
 id = "unit-test-the-autosave-saving-state-transitions"
 title = "Unit-test the autosave saving-state transitions"
 description = """
