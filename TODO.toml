@@ -22,25 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "write-tab-snapshots-and-session-index-atomically-temp-file-rename"
-title = "Write tab snapshots and session.index atomically (temp file + rename)"
-description = """
-TabStore.save (app/src/main/java/com/nexopp/tabs/TabStore.kt) writes every file in place: 'snapshotFile(tab.id).outputStream().use { Xopp.save(tab.document, it) }' and 'indexFile().writeText(TabIndex.encode(session))'. A process kill mid-write (exactly the onPause-into-background case that MainActivity.PERSIST_WAIT_MS = 2000ms may not outlast) leaves a truncated <id>.xopp; TabStore.hydrate then fails to parse it and hands back a blank document. For a never-saved Untitled tab the snapshot is the ONLY copy, so the work is gone.
-
-Fix: in TabStore.save, write each snapshot to File(dir, "$id.xopp.tmp") and, only after the stream closes successfully, replace the real file via delete()+renameTo() (File.renameTo is atomic within the same directory). Do the same for session.index (write session.index.tmp then rename). On a failed write, delete the temp file and leave the previous good file untouched. Make sure the stale-file sweep at the top of save() also deletes leftover *.tmp files, and that the 'file !in live' check does not delete a temp file mid-write.
-
-Test: extend app/src/test/java/com/nexopp/tabs/TabStoreTest.kt with a case that (a) saves a session, (b) truncates the snapshot file to a few bytes to simulate a killed write, (c) asserts load()+hydrate() behaviour, and a case asserting no .tmp files remain after a successful save. Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "bug"
-urgency = "critical"
-order = 20
-created = 2026-08-19
-tags = ["tabs", "data-loss"]
-rebuild = false
-emulator_debug = false
-
-[[task]]
 id = "never-let-a-failed-snapshot-read-blank-a-tab-s-stored-document"
 title = "Never let a failed snapshot read blank a tab's stored document"
 description = """

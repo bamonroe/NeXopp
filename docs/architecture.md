@@ -967,6 +967,14 @@ Consequences worth knowing:
   `onPause`. On launch it is read back, so the app reopens on the same tabs with the same unsaved
   edits. It is a restart cache keyed by tab id — the user's own file (the tab's `uri`) is still the
   only thing the desktop ever sees, and a snapshot never stands in for saving.
+- **Every session file is written atomically.** `TabStore.save` fills a `<name>.tmp` sibling and
+  renames it over the real file only once the bytes are all down, so a reader sees the previous
+  complete file or the new one and never a half-written one; a failed write leaves the previous file
+  untouched, and leftover `.tmp` debris is swept on the next save. The window this closes is real:
+  the cache is written exactly when the app is going to the background, which is exactly when the
+  process is most likely to be killed, and for a **never-saved** document the snapshot is the *only*
+  copy — an in-place write killed halfway used to leave a truncated file that `hydrate` couldn't
+  parse, losing the whole document.
 - **Nothing is parsed or written on the main thread.** Gzip XML over a whole document takes long
   enough to trip Android's ANR watchdog, so the session is restored **lazily and off-thread**:
   `TabStore.load` reads only the small index and returns every tab as a placeholder

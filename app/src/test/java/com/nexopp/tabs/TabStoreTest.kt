@@ -113,6 +113,43 @@ class TabStoreTest {
         assertEquals(tab, TabStore(tmp.newFolder()).hydrate(tab))
     }
 
+    /**
+     * The data-loss shape: a save killed halfway used to leave a truncated snapshot behind, and for
+     * a never-saved Untitled tab that file is the only copy of the work. Writing through a temp
+     * file means the real snapshot is only ever the previous complete one or the new complete one.
+     */
+    @Test fun aSaveLeavesNoHalfWrittenFilesBehind() {
+        val dir = tmp.newFolder()
+        val store = TabStore(dir)
+        store.save(TabSession(listOf(OpenTab("t1", "a", doc(111.0))), 0))
+
+        assertEquals(emptyList<String>(), dir.list()!!.filter { it.endsWith(".tmp") })
+    }
+
+    /** Debris from a write that never finished is swept, and the good snapshot beside it survives. */
+    @Test fun aLeftoverTempFileIsSweptWithoutTouchingTheRealSnapshot() {
+        val dir = tmp.newFolder()
+        val store = TabStore(dir)
+        store.save(TabSession(listOf(OpenTab("t1", "a", doc(111.0))), 0))
+        java.io.File(dir, "t1.xopp.tmp").writeText("half a doc")
+
+        store.save(store.load()!!)
+
+        assertEquals(false, java.io.File(dir, "t1.xopp.tmp").exists())
+        assertEquals(111.0, store.hydrate(store.load()!!.tabs[0]).document.pages[0].width, 0.0)
+    }
+
+    /** A truncated snapshot (the pre-fix failure) must not read back as a silently blank document. */
+    @Test fun aTruncatedSnapshotDoesNotHydrateAsAnEmptyDocument() {
+        val dir = tmp.newFolder()
+        val store = TabStore(dir)
+        store.save(TabSession(listOf(OpenTab("t1", "a", doc(111.0))), 0))
+        java.io.File(dir, "t1.xopp").writeText(" truncated")
+
+        val hydrated = store.hydrate(store.load()!!.tabs[0])
+        assertNotEquals(111.0, hydrated.document.pages.firstOrNull()?.width ?: 0.0)
+    }
+
     @Test fun noSessionOnDiskLoadsAsNull() {
         assertNull(TabStore(tmp.newFolder()).load())
     }

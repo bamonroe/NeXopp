@@ -21,21 +21,50 @@ class TabStore(private val dir: File) {
     /**
      * Write [session] out, replacing whatever was there. Snapshots for tabs that are no longer open
      * are deleted, so a long-lived install doesn't accumulate the documents of closed tabs.
+     *
+     * Every file is written **atomically** — to a `.tmp` sibling that only replaces the real one
+     * once the bytes are all down. This session cache is the *only* copy of a never-saved document,
+     * and the moment it is written (going to the background) is the moment the process is most
+     * likely to be killed; an in-place write killed halfway leaves a truncated snapshot that
+     * [hydrate] can't parse, which is a whole document's worth of unsaved work gone.
      */
     fun save(session: TabSession) = runCatching {
         dir.mkdirs()
         val live = session.tabs.map { snapshotFile(it.id) }.toSet()
         dir.listFiles()?.forEach { file ->
-            if (file.name.endsWith(SNAPSHOT_SUFFIX) && file !in live) file.delete()
+            // Leftover temp files (from a write that was killed) are swept too: the real file they
+            // would have replaced is still intact, so they are pure debris.
+            val stale = file.name.endsWith(SNAPSHOT_SUFFIX) && file !in live
+            if (stale || file.name.endsWith(TEMP_SUFFIX)) file.delete()
         }
         for (tab in session.tabs) {
             // An unhydrated tab's `document` is a placeholder, never its content — its snapshot on
             // disk is already the truth, so leave it alone rather than blanking it.
             if (!tab.hydrated) continue
-            snapshotFile(tab.id).outputStream().use { Xopp.save(tab.document, it) }
+            atomically(snapshotFile(tab.id)) { out -> Xopp.save(tab.document, out) }
         }
-        indexFile().writeText(TabIndex.encode(session))
+        atomically(indexFile()) { out -> out.write(TabIndex.encode(session).toByteArray()) }
     }.isSuccess
+
+    /**
+     * Write [target] by filling a `.tmp` sibling and renaming it over the top, so a reader (or the
+     * next launch) sees either the previous file or the complete new one, never a half-written one.
+     *
+     * A failed write leaves the temp file behind and the previous [target] untouched, then rethrows
+     * — losing this save is recoverable, replacing a good snapshot with a broken one is not.
+     */
+    private fun atomically(target: File, write: (java.io.OutputStream) -> Unit) {
+        val temp = File(target.parentFile, "${target.name}$TEMP_SUFFIX")
+        temp.outputStream().use(write)
+        // renameTo is atomic within a directory, but won't clobber an existing file on every
+        // filesystem, so the old one goes first. The window between the two is why the temp file is
+        // the one holding the good bytes by this point.
+        target.delete()
+        if (!temp.renameTo(target)) {
+            temp.delete()
+            error("could not replace ${target.name}")
+        }
+    }
 
     /**
      * Read the session back **lazily**: this only reads the small index, so every tab comes back as an
@@ -94,6 +123,8 @@ class TabStore(private val dir: File) {
         private const val INDEX_NAME = "session.index"
         /** Suffix for tab snapshot files — each tab's document is saved as `<id>.xopp`. */
         private const val SNAPSHOT_SUFFIX = ".xopp"
+        /** Suffix for the half-written sibling every save fills before renaming it into place. */
+        private const val TEMP_SUFFIX = ".tmp"
 
         /**
          * A fresh tab id. Time-based and counter-salted so ids stay unique within a run and across
