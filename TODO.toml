@@ -46,3 +46,31 @@ created = 2026-08-19
 tags = ["autosave", "tabs", "data-loss"]
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "preserve-viewport-anchor-when-the-window-resizes-or-split-view-toggles"
+title = "Preserve viewport anchor when the window resizes or split view toggles"
+description = "When the app window is resized (rotation, multi-window, keyboard) or split view is toggled, the canvas keeps its scroll/zoom in raw view coordinates, so the visible page location jumps. Fix: on a canvas size change, capture the document-space point at the centre of the old viewport before the resize, then after re-laying out restore scroll/zoom so that same document point stays at the centre of the new viewport. The anchor must survive both shrinking and growing, and must hold across a split-view toggle in both panes. Verify by scrolling to a known spot mid-document, toggling split view, and confirming the same page content stays under the same relative screen position."
+status = "active"
+level = "scope"
+category = "bug"
+urgency = "normal"
+order = 60
+created = 2026-08-22
+tags = ["canvas", "viewport", "split-view"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "add-a-reload-button-next-to-undo-that-discards-unsaved-edits-and-re-reads-the-file"
+title = "Add a reload button next to undo that discards unsaved edits and re-reads the file"
+description = "Add a refresh/reload icon button in the editor toolbar immediately next to the undo button. Tapping it opens a confirmation dialog titled/worded 'Discard unsaved edits and reload document?' with Cancel and Discard & Reload actions. Confirming re-reads the document from its current save location (the same path/URI the document would save to), replaces the in-memory document with the freshly parsed one, resets the undo/redo history and dirty flag, and re-renders the canvas. If the document has no save location yet (untitled), the button should be disabled or the dialog should explain there is nothing to reload from. Document the button in README.md and the editor-chrome section of docs/architecture.md in the same commit."
+status = "active"
+level = "scope"
+category = "feature"
+urgency = "normal"
+order = 70
+created = 2026-08-22
+tags = ["ui", "toolbar"]
+rebuild = true
+emulator_debug = true
