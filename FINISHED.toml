@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-view-toggle-resets-the-canvas-zoom-but-leaves-the-zoom-indicator-stale"
+title = "Split-view toggle resets the canvas zoom but leaves the zoom indicator stale"
+description = "Observed on the emulator (Android 14, portrait) while verifying the viewport anchor. Steps: open document.xopp, set zoom to 244% via the zoom popup, then menu > Split view. The pane re-renders the page at roughly fit-to-width (~100%) while the zoom readout in the bottom-left still says 244%. Toggling split view off returns to a single pane still drawn at ~100% with the readout stuck at 244% - so the rendered scale and ViewportState's zoom disagree after the toggle. Rotation does NOT show this (portrait > landscape > portrait keeps position and scale, no logcat exceptions), so the fault is in the split-view toggle path (MainActivity.toggleSplitView, MainActivityTabs.kt) recreating the surface rather than in ViewportState.setBounds. Investigate how the DrawingSurfaceView/ViewportState is (re)created per pane on toggle and add atomic tasks to keep zoom consistent across the toggle."
+status = "finished"
+level = "scope"
+category = "bug"
+created = 2026-08-22
+completed = 2026-08-22
+tags = []
+
+[[task]]
 id = "verify-the-viewport-anchor-on-the-emulator-across-split-view-toggle-and-rotation"
 title = "Verify the viewport anchor on the emulator across split-view toggle and rotation"
 description = """

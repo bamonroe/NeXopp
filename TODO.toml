@@ -83,20 +83,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "split-view-toggle-resets-the-canvas-zoom-but-leaves-the-zoom-indicator-stale"
-title = "Split-view toggle resets the canvas zoom but leaves the zoom indicator stale"
-description = "Observed on the emulator (Android 14, portrait) while verifying the viewport anchor. Steps: open document.xopp, set zoom to 244% via the zoom popup, then menu > Split view. The pane re-renders the page at roughly fit-to-width (~100%) while the zoom readout in the bottom-left still says 244%. Toggling split view off returns to a single pane still drawn at ~100% with the readout stuck at 244% - so the rendered scale and ViewportState's zoom disagree after the toggle. Rotation does NOT show this (portrait > landscape > portrait keeps position and scale, no logcat exceptions), so the fault is in the split-view toggle path (MainActivity.toggleSplitView, MainActivityTabs.kt) recreating the surface rather than in ViewportState.setBounds. Investigate how the DrawingSurfaceView/ViewportState is (re)created per pane on toggle and add atomic tasks to keep zoom consistent across the toggle."
-status = "active"
-level = "scope"
-category = "bug"
-urgency = "high"
-order = 130
-created = 2026-08-22
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "undone-stroke-reappears-after-toggling-split-view"
 title = "Undone stroke reappears after toggling split view"
 description = "Observed on the emulator while verifying the viewport anchor. Steps: open document.xopp, draw a stroke, press undo (stroke disappears, redo becomes enabled), then menu > Split view. The undone stroke is back on the page. It stays after toggling split view off. This suggests the split-view toggle rebuilds the pane from a stale document snapshot rather than the tab's live in-memory document/undo state. Investigate the toggle path (MainActivity.toggleSplitView in MainActivityTabs.kt) and how each pane obtains its document, then add atomic tasks to fix."
@@ -105,6 +91,69 @@ level = "scope"
 category = "bug"
 urgency = "high"
 order = 140
+created = 2026-08-22
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "keep-the-pane-canvases-alive-across-the-split-view-toggle-movablecontentof"
+title = "Keep the pane canvases alive across the split-view toggle (movableContentOf)"
+description = """
+Root cause of the stale-zoom bug (and of the undo-history loss in the sibling bug): in app/src/main/java/com/nexopp/ui/EditorScreen.kt, EditorBody's 'canvas' lambda calls paneAt(0, canvasModifier) directly when splitView is false, but paneAt(0, it) inside SplitLayout's 'first' slot when it is true. Those are two different composition positions, so toggling split view disposes pane 0's EditorPaneView subtree and its AndroidView-hosted DrawingSurfaceView, then builds a brand-new one (factory in EditorRegions.kt:462). The new surface starts with a fresh ViewportState at zoom 1.0 and reloads the tab fit-to-width, while the surviving PaneState still holds the old zoom.
+
+Fix: in EditorBody (EditorScreen.kt, around lines 299-325), wrap the pane content in remembered movable content so the same DrawingSurfaceView instance is MOVED between the single-pane and SplitLayout slots instead of being recreated. Concretely: replace the 'val paneAt: @Composable (Int, Modifier) -> Unit' lambda with two values built by 'remember { movableContentOf<Modifier> { m -> EditorPaneView(index = 0, ...) } }' and the same for index = 1 (import androidx.compose.runtime.movableContentOf). Keep every argument passed to EditorPaneView identical to today; only the hosting changes. Use them as first = { pane0(it) } / second = { pane1(it) } in the SplitLayout branch and pane0(canvasModifier) in the single-pane branch.
+
+Verify: scripts/build.sh (unit tests + debug APK) must pass. Then on the emulator, open a document, zoom to ~244%%, toggle split view on and off, and confirm the left pane keeps its zoom and its rendered scale, and that MainActivity.onSurfaceCreated is not re-entered for pane 0 (no second 'restoreTabs' pass) - add a temporary logcat line if needed, but do not leave it in.
+
+Docs: if this changes the described behaviour, update the split-view paragraph in docs/architecture.md (Data path) in the same commit."""
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 150
+created = 2026-08-22
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "seed-the-pane-readouts-from-the-live-surface-in-bindto"
+title = "Seed the pane readouts from the live surface in bindTo"
+description = """
+Defence in depth for the stale zoom readout: DrawingSurfaceView.bindTo(state) in app/src/main/java/com/nexopp/ui/EditorRegions.kt (line ~375) installs onZoomChanged/onHistoryChanged/onPageCountChanged/onCurrentPageChanged/onScrollChanged callbacks but only seeds state.layers, state.backgroundStyle and state.pageSize with the surface's current values. So whenever a surface is created or rebound, PaneState keeps whatever zoom/undo/page numbers it had from the previous surface until the user next changes them.
+
+Fix: in bindTo, right after installing the callbacks, push the surface's current values into the state the same way the three existing seed lines do: state.zoom = zoom, state.canUndo/state.canRedo from the surface's current history flags, state.pageCount from the current page count, state.currentPage from the current page, and state.selectedPages/state.copiedPages from their current values. Use the existing public accessors on DrawingSurfaceView (e.g. 'zoom', the page-count and current-page getters used by the callbacks); do not add new state to the view. Keep bindTo under ~100 lines - extract a private 'seedFrom(state)' helper in the same file if it grows.
+
+Also make the surface re-emit zoom after a document load so a fit-to-width load updates the readout: check where a load sets the initial zoom in DrawingSurfaceView and invoke onZoomChanged there if it does not already (setZoom at DrawingSurfaceView.kt:804 only fires on a change from the current value).
+
+Verify: scripts/build.sh must pass. If a JVM-testable seam exists (a PaneState-only test under app/src/test/java/com/nexopp/panes), add a small test that binding a surface with a known zoom updates PaneState.zoom; otherwise state in the commit message that it is covered by the emulator task."""
+status = "active"
+level = "task"
+category = "bug"
+urgency = "high"
+order = 160
+created = 2026-08-22
+tags = []
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "verify-zoom-survives-the-split-view-toggle-on-the-emulator"
+title = "Verify zoom survives the split-view toggle on the emulator"
+description = """
+Regression check for the two split-view zoom fixes, run on the /data/android emulator harness (see docs/tools.md). Build and install the debug APK, then:
+1. Open document.xopp, set zoom to 244%% via the zoom popup.
+2. Menu > Split view. Confirm the left pane still renders at 244%% and the bottom-left readout still says 244%% (before the fix it re-rendered at ~fit-to-width while the readout stayed 244%%).
+3. Toggle split view off. Confirm the single pane is still at 244%% with a matching readout.
+4. Repeat with zoom set below 100%% (e.g. 50%%) and check both directions again.
+5. Also check the scroll position and current-page readout are unchanged across both toggles, and that adb logcat shows no exceptions.
+Take screenshots at each step. If any step still fails, file the residual behaviour as a new bug task rather than widening this one."""
+status = "active"
+level = "task"
+category = "test"
+urgency = "high"
+order = 170
 created = 2026-08-22
 tags = []
 rebuild = true
