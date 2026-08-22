@@ -10,7 +10,8 @@ package com.nexopp.render
  * The class is pure: it knows the view size and the content extent only because the host pushes
  * them in with [setBounds] after every relayout. Zoom changes need a relayout in the middle (the
  * stacked layout's px scale with the zoom), so [zoomTo] and [zoomAbout] take that as a callback and
- * re-clamp against the *new* extent afterwards.
+ * re-clamp against the *new* extent afterwards. A [setBounds] that changes the *view size* (rotation,
+ * multi-window, split view) re-anchors the document point at the viewport centre rather than clamping.
  */
 internal class ViewportState {
 
@@ -33,17 +34,33 @@ internal class ViewportState {
 
     /**
      * Adopt the current view size and content extent, then clamp the offsets into the new range.
+     *
+     * When the *view size* changes (rotation, multi-window, a split-view toggle) the document point
+     * at the centre of the viewport is re-anchored instead, so the reader stays where they were.
+     * A content-only change (same view size) just clamps.
      * @param viewWidth View width in pixels.
      * @param viewHeight View height in pixels.
      * @param contentWidthPx Content width in pixels (after zoom).
      * @param contentHeightPx Content height in pixels (after zoom).
      */
     fun setBounds(viewWidth: Float, viewHeight: Float, contentWidthPx: Float, contentHeightPx: Float) {
+        val resized = (viewWidth != this.viewWidth || viewHeight != this.viewHeight) &&
+            this.viewWidth > 0f && this.viewHeight > 0f &&
+            this.contentWidthPx > 0f && this.contentHeightPx > 0f
+        // Zoom-invariant centre fractions from the OLD state, exactly as zoomAbout does.
+        val xFrac = if (resized) (scrollX + this.viewWidth / 2f) / this.contentWidthPx else 0f
+        val yFrac = if (resized) (scrollY + this.viewHeight / 2f) / this.contentHeightPx else 0f
         this.viewWidth = viewWidth
         this.viewHeight = viewHeight
         this.contentWidthPx = contentWidthPx
         this.contentHeightPx = contentHeightPx
-        clamp()
+        if (resized) restoreCentre(xFrac, yFrac) else clamp()
+    }
+
+    /** Put the document point at [xFrac]/[yFrac] of the content back under the viewport centre. */
+    private fun restoreCentre(xFrac: Float, yFrac: Float) {
+        scrollX = (xFrac * contentWidthPx - viewWidth / 2f).coerceIn(0f, maxScrollX())
+        scrollY = (yFrac * contentHeightPx - viewHeight / 2f).coerceIn(0f, maxScrollY())
     }
 
     /** Maximum horizontal scroll in pixels (contentWidthPx - viewWidth, minimum 0). */

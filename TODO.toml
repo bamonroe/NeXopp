@@ -22,27 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "anchor-the-viewport-centre-across-view-size-changes-in-viewportstate-setbounds"
-title = "Anchor the viewport centre across view-size changes in ViewportState.setBounds"
-description = """
-In app/src/main/java/com/nexopp/render/ViewportState.kt, make setBounds(viewWidth, viewHeight, contentWidthPx, contentHeightPx) preserve the document point at the centre of the viewport when the VIEW SIZE changes (rotation, multi-window, split-view toggle), instead of only calling clamp().
-
-Implementation: at the top of setBounds, detect whether viewWidth/viewHeight differ from the stored ones AND the previous viewWidth/viewHeight and contentWidthPx/contentHeightPx are all > 0. If so, compute zoom-invariant centre fractions from the OLD state exactly as zoomAbout does: xFrac = (scrollX + oldViewWidth/2) / oldContentWidthPx, yFrac = (scrollY + oldViewHeight/2) / oldContentHeightPx. Then store the new fields, and set scrollX = (xFrac * contentWidthPx - viewWidth/2).coerceIn(0f, maxScrollX()) and scrollY likewise with maxScrollY(). When the view size is unchanged, keep the current behaviour: store the fields and call clamp(). Keep the function under ~30 lines; extract a private helper (e.g. restoreCentre(xFrac, yFrac)) if needed.
-
-Update the KDoc on setBounds and the class header to say that a view-size change re-anchors the centre.
-
-Tests: add cases to app/src/test/java/com/nexopp/render/ViewportStateTest.kt — (a) shrinking the view height keeps the same document centre fraction; (b) growing the view width keeps the same document centre fraction; (c) a content-only change (same view size) still just clamps, matching the existing 'setBounds pulls a stale offset back into range' test; (d) at scrollY=0 with content shorter than the view, nothing goes negative. Verify with: scripts/build.sh testDebugUnitTest"""
-status = "active"
-level = "task"
-category = "bug"
-urgency = "normal"
-order = 80
-created = 2026-08-22
-tags = ["viewport", "canvas"]
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "verify-the-viewport-anchor-on-the-emulator-across-split-view-toggle-and-rotation"
 title = "Verify the viewport anchor on the emulator across split-view toggle and rotation"
 description = """

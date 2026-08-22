@@ -1329,7 +1329,8 @@ app/
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
-      ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested)
+      ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested);
+                             # a view-size change (rotation, split view) re-anchors the viewport centre
       MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
       PageOverview.kt        # the overview grid's view state: edit mode, selection, clipboard, lift
       PageCommands.kt        # the page/layer edit commands and the two undoable commit pipelines

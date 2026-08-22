@@ -49,6 +49,27 @@ class ViewportStateTest {
         assertEquals(50f, v.scrollY, 0f)
     }
 
+    @Test fun `shrinking the view height keeps the document centre`() {
+        val v = viewport() // view 100x100, content 200x400
+        v.scrollToY(100f) // centre at y=150 -> frac 0.375
+        v.setBounds(100f, 60f, 200f, 400f)
+        assertEquals(0.375f, (v.scrollY + 30f) / 400f, 1e-4f)
+    }
+
+    @Test fun `growing the view width keeps the document centre`() {
+        val v = ViewportState().apply { setBounds(100f, 100f, 400f, 400f) }
+        v.scrollBy(100f, 0f) // centre at x=150 -> frac 0.375
+        v.setBounds(160f, 100f, 400f, 400f)
+        assertEquals(0.375f, (v.scrollX + 80f) / 400f, 1e-4f)
+    }
+
+    @Test fun `a view-size change never scrolls negative when content is shorter than the view`() {
+        val v = viewport()
+        v.setBounds(100f, 200f, 200f, 150f)
+        assertEquals(0f, v.scrollY, 0f)
+        assertEquals(0f, v.scrollX, 0f)
+    }
+
     /** Relayout the way the stacked layout does: extents scale with the zoom. */
     private fun ViewportState.relayoutTo(w: Float, h: Float): () -> Unit =
         { setBoundsKeepingOffsets(w * zoom, h * zoom) }
