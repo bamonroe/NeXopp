@@ -22,32 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "emulator-pass-confirm-an-unsaved-untitled-document-survives-a-kill"
-title = "Emulator pass: confirm an unsaved Untitled document survives a kill"
-description = """
-End-to-end verification of the untitled data-loss fixes, on the /data/android emulator (see docs/tools.md). Run AFTER the three fix tasks land.
-
-Steps:
-1. scripts/build.sh, install the debug APK on the emulator.
-2. Turn both autosave timers on in Settings (idle 5s, interval 60s).
-3. On a fresh Untitled tab (never saved anywhere), draw several strokes across a page with simulated stylus input. Take a screenshot of the drawn page.
-4. Wait past the idle timer, then kill the process outright with 'adb shell am force-stop com.nexopp' - do NOT background it cleanly first, so onPause's snapshot is skipped.
-5. Relaunch and screenshot: the Untitled tab must come back with every stroke from step 3.
-6. Repeat with the process killed DURING a snapshot write (kill immediately after a stroke) to exercise the atomic temp-file+rename path; the tab must come back with either the previous or the newest content, never blank.
-7. Check adb logcat for exceptions from TabStore over the whole run.
-
-Record the outcome in the task before closing it. This is the regression gate for the whole untitled-data-loss scope."""
-status = "active"
-level = "task"
-category = "test"
-urgency = "high"
-order = 50
-created = 2026-08-19
-tags = ["autosave", "tabs", "data-loss"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "preserve-viewport-anchor-when-the-window-resizes-or-split-view-toggles"
 title = "Preserve viewport anchor when the window resizes or split view toggles"
 description = "When the app window is resized (rotation, multi-window, keyboard) or split view is toggled, the canvas keeps its scroll/zoom in raw view coordinates, so the visible page location jumps. Fix: on a canvas size change, capture the document-space point at the centre of the old viewport before the resize, then after re-laying out restore scroll/zoom so that same document point stays at the centre of the new viewport. The anchor must survive both shrinking and growing, and must hold across a split-view toggle in both panes. Verify by scrolling to a known spot mid-document, toggling split view, and confirming the same page content stays under the same relative screen position."

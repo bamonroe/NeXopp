@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "emulator-pass-confirm-an-unsaved-untitled-document-survives-a-kill"
+title = "Emulator pass: confirm an unsaved Untitled document survives a kill"
+description = "VERIFIED 2026-08-22 on the /data/android emulator (Android 14, app-debug 465). Autosave idle=5s, interval=60s. Fresh Untitled tab (never saved), 4 strokes drawn; 'adb shell am force-stop com.nexopp' with no clean pause; relaunch restored every stroke pixel-identically. Repeated 7 more kill/relaunch cycles with the kill timed at/around the 5s idle-snapshot write (delays 4.9-5.3s) to race the temp-file+rename path: the snapshot file grew monotonically (397 -> 472 -> 499 -> 517 -> 534 bytes), never truncated, no leftover .tmp files, and the tab always came back with either the previous or the newest content - never blank. adb logcat over the whole run: no TabStore errors, no FATAL, no app-process exceptions (only WindowManager's expected dispatchAppVisibility warnings from force-stop). Regression gate for the untitled-data-loss scope: PASS."
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-19
+completed = 2026-08-22
+tags = ["autosave", "tabs", "data-loss"]
+
+[[task]]
 id = "autosave-tick-refreshes-the-tab-snapshot-for-a-never-saved-document"
 title = "Autosave tick refreshes the tab snapshot for a never-saved document"
 description = """
