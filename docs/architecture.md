@@ -1093,10 +1093,19 @@ The design decisions worth keeping:
   a canvas pushes up through its callbacks; `EditorUiState` keeps one per pane and `EditorScreen`
   hands the active one to each region. Each surface's callbacks write into *its own* `PaneState`, so
   a background pane stays current instead of scribbling over the focused one.
-- **Turning split view off doesn't destroy the pane.** Its canvas is disposed, so when it comes back
-  `restoreTabs` finds a non-empty session and re-loads the showing tab onto the *replacement*
-  surface. (Undo history is per surface, so it does not survive that round trip — same rule as a tab
-  switch.)
+- **Toggling split view moves the left canvas, it doesn't rebuild it.** Single-pane and the first
+  slot of `SplitLayout` are two different composition positions, so hosting a pane in a plain
+  lambda would dispose its `DrawingSurfaceView` on every toggle and build a fresh one — at zoom
+  1.0, with an empty undo history — while the surviving `PaneState` still advertised the old zoom.
+  `EditorBody` therefore holds each pane in `remember { movableContentOf<Modifier> { … } }` (its
+  arguments read through a single `rememberUpdatedState` so the remembered lambdas don't capture
+  stale ones), and Compose *moves* that subtree between the two slots: same view, same viewport,
+  same history. Reparenting a `SurfaceView` does tear down and re-create the underlying buffer
+  queue, which is harmless — the view redraws itself from the state it kept.
+- **Turning split view off doesn't destroy pane 1.** It has no slot to be moved to, so its canvas
+  *is* disposed; when it comes back `restoreTabs` finds a non-empty session and re-loads the
+  showing tab onto the *replacement* surface. (Undo history is per surface, so pane 1's does not
+  survive that round trip — same rule as a tab switch.)
 - **A document can be open in both panes as two live views.** Tabs carry an `OpenTab.docKey`; the
   mirror action copies a tab keeping that key, so "same key" means "same document". Every edit
   reaches the other views through `panes/MirrorSync.kt`: `DrawingSurfaceView.doc` is a property whose

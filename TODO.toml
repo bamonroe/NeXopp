@@ -83,27 +83,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "keep-the-pane-canvases-alive-across-the-split-view-toggle-movablecontentof"
-title = "Keep the pane canvases alive across the split-view toggle (movableContentOf)"
-description = """
-Root cause of the stale-zoom bug (and of the undo-history loss in the sibling bug): in app/src/main/java/com/nexopp/ui/EditorScreen.kt, EditorBody's 'canvas' lambda calls paneAt(0, canvasModifier) directly when splitView is false, but paneAt(0, it) inside SplitLayout's 'first' slot when it is true. Those are two different composition positions, so toggling split view disposes pane 0's EditorPaneView subtree and its AndroidView-hosted DrawingSurfaceView, then builds a brand-new one (factory in EditorRegions.kt:462). The new surface starts with a fresh ViewportState at zoom 1.0 and reloads the tab fit-to-width, while the surviving PaneState still holds the old zoom.
-
-Fix: in EditorBody (EditorScreen.kt, around lines 299-325), wrap the pane content in remembered movable content so the same DrawingSurfaceView instance is MOVED between the single-pane and SplitLayout slots instead of being recreated. Concretely: replace the 'val paneAt: @Composable (Int, Modifier) -> Unit' lambda with two values built by 'remember { movableContentOf<Modifier> { m -> EditorPaneView(index = 0, ...) } }' and the same for index = 1 (import androidx.compose.runtime.movableContentOf). Keep every argument passed to EditorPaneView identical to today; only the hosting changes. Use them as first = { pane0(it) } / second = { pane1(it) } in the SplitLayout branch and pane0(canvasModifier) in the single-pane branch.
-
-Verify: scripts/build.sh (unit tests + debug APK) must pass. Then on the emulator, open a document, zoom to ~244%%, toggle split view on and off, and confirm the left pane keeps its zoom and its rendered scale, and that MainActivity.onSurfaceCreated is not re-entered for pane 0 (no second 'restoreTabs' pass) - add a temporary logcat line if needed, but do not leave it in.
-
-Docs: if this changes the described behaviour, update the split-view paragraph in docs/architecture.md (Data path) in the same commit."""
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 150
-created = 2026-08-22
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "seed-the-pane-readouts-from-the-live-surface-in-bindto"
 title = "Seed the pane readouts from the live surface in bindTo"
 description = """

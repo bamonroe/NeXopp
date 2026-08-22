@@ -15,7 +15,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import com.nexopp.format.ExportFormat
@@ -296,18 +298,32 @@ private fun EditorBody(
             paneChrome(ui, pane, settings, onSettingsChange, audio)
         }
     }
-    val paneAt: @Composable (Int, Modifier) -> Unit = { index, paneModifier ->
-        EditorPaneView(
-            index = index,
-            ui = ui,
-            settings = settings,
-            onSettingsChange = onSettingsChange,
-            tabs = tabs,
-            onActivePane = onActivePane,
-            onSurfaceCreated = onSurfaceCreated,
-            onPickImage = onPickImage,
-            modifier = paneModifier,
-        )
+    // A pane hosts an AndroidView-backed DrawingSurfaceView, and that view owns the pane's live
+    // viewport (zoom, scroll) and undo history. Single-pane and split view put the pane in two
+    // different composition positions, so a plain lambda would dispose the surface and build a
+    // fresh one — at zoom 1.0, with an empty history — every time the split toggles. Movable
+    // content moves the *same* subtree between the two slots instead. The arguments are read
+    // through rememberUpdatedState so the remembered lambdas still see the latest values.
+    val latest = rememberUpdatedState(
+        PaneArgs(ui, settings, onSettingsChange, tabs, onActivePane, onSurfaceCreated, onPickImage),
+    )
+    val panes = remember {
+        List(2) { index ->
+            movableContentOf<Modifier> { paneModifier ->
+                val args = latest.value
+                EditorPaneView(
+                    index = index,
+                    ui = args.ui,
+                    settings = args.settings,
+                    onSettingsChange = args.onSettingsChange,
+                    tabs = args.tabs,
+                    onActivePane = args.onActivePane,
+                    onSurfaceCreated = args.onSurfaceCreated,
+                    onPickImage = args.onPickImage,
+                    modifier = paneModifier,
+                )
+            }
+        }
     }
     /** The drawing area: one pane, or both with a draggable bar between them. */
     val canvas: @Composable (Modifier) -> Unit = { canvasModifier ->
@@ -316,11 +332,11 @@ private fun EditorBody(
                 fraction = ui.splitFraction,
                 onFraction = { ui.splitFraction = it },
                 modifier = canvasModifier,
-                first = { paneAt(0, it) },
-                second = { paneAt(1, it) },
+                first = { panes[0](it) },
+                second = { panes[1](it) },
             )
         } else {
-            paneAt(0, canvasModifier)
+            panes[0](canvasModifier)
         }
     }
     when (settings.toolbarPosition) {
@@ -338,3 +354,18 @@ private fun EditorBody(
         }
     }
 }
+
+/**
+ * Everything [EditorPaneView] needs, bundled so the movable pane content in [EditorBody] can read
+ * one [rememberUpdatedState] rather than capturing seven stale parameters at the composition that
+ * first built it.
+ */
+private data class PaneArgs(
+    val ui: EditorUiState,
+    val settings: AppSettings,
+    val onSettingsChange: (AppSettings) -> Unit,
+    val tabs: List<TabsUiState>,
+    val onActivePane: (Int) -> Unit,
+    val onSurfaceCreated: (Int, DrawingSurfaceView) -> Unit,
+    val onPickImage: (Placement) -> Unit,
+)
