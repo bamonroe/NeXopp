@@ -17,6 +17,22 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "verify-the-viewport-anchor-on-the-emulator-across-split-view-toggle-and-rotation"
+title = "Verify the viewport anchor on the emulator across split-view toggle and rotation"
+description = """
+Depends on [anchor-the-viewport-centre-across-view-size-changes-in-viewportstate-setbounds]. Build and install the APK on the /data/android emulator (see docs/tools.md), open a multi-page document, and confirm the anchor fix holds at runtime.
+
+Steps: (1) scroll to a recognisable spot mid-document and screenshot; (2) toggle split view (MainActivity.toggleSplitView, MainActivityTabs.kt:303) and screenshot both panes — the same page content should stay near the same relative screen position in each pane; (3) toggle split view off and screenshot again; (4) rotate the emulator (adb shell settings put system user_rotation 1 / 0) and screenshot. Check adb logcat for exceptions during each resize.
+
+If a pane still jumps, the surface's relayout path is the suspect: relayout() in app/src/main/java/com/nexopp/render/DrawingSurfacePaint.kt:19 reads the View's width/height and funnels into viewport.setBounds, and surfaceChanged in DrawingSurfaceView.kt:1231 is the only size hook. Fix there and re-verify. Record the outcome in docs/architecture.md under the rendering/editing section if behaviour notes change."""
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-22
+completed = 2026-08-22
+tags = ["viewport", "emulator"]
+
+[[task]]
 id = "anchor-the-viewport-centre-across-view-size-changes-in-viewportstate-setbounds"
 title = "Anchor the viewport centre across view-size changes in ViewportState.setBounds"
 description = """

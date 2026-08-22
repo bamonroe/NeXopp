@@ -22,25 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "verify-the-viewport-anchor-on-the-emulator-across-split-view-toggle-and-rotation"
-title = "Verify the viewport anchor on the emulator across split-view toggle and rotation"
-description = """
-Depends on [anchor-the-viewport-centre-across-view-size-changes-in-viewportstate-setbounds]. Build and install the APK on the /data/android emulator (see docs/tools.md), open a multi-page document, and confirm the anchor fix holds at runtime.
-
-Steps: (1) scroll to a recognisable spot mid-document and screenshot; (2) toggle split view (MainActivity.toggleSplitView, MainActivityTabs.kt:303) and screenshot both panes — the same page content should stay near the same relative screen position in each pane; (3) toggle split view off and screenshot again; (4) rotate the emulator (adb shell settings put system user_rotation 1 / 0) and screenshot. Check adb logcat for exceptions during each resize.
-
-If a pane still jumps, the surface's relayout path is the suspect: relayout() in app/src/main/java/com/nexopp/render/DrawingSurfacePaint.kt:19 reads the View's width/height and funnels into viewport.setBounds, and surfaceChanged in DrawingSurfaceView.kt:1231 is the only size hook. Fix there and re-verify. Record the outcome in docs/architecture.md under the rendering/editing section if behaviour notes change."""
-status = "active"
-level = "task"
-category = "test"
-urgency = "normal"
-order = 90
-created = 2026-08-22
-tags = ["viewport", "emulator"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "add-mainactivity-reloadactivetab-that-re-reads-the-active-tab-from-its-uri"
 title = "Add MainActivity.reloadActiveTab() that re-reads the active tab from its URI"
 description = """
@@ -98,5 +79,33 @@ urgency = "normal"
 order = 120
 created = 2026-08-22
 tags = ["reload", "emulator"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "split-view-toggle-resets-the-canvas-zoom-but-leaves-the-zoom-indicator-stale"
+title = "Split-view toggle resets the canvas zoom but leaves the zoom indicator stale"
+description = "Observed on the emulator (Android 14, portrait) while verifying the viewport anchor. Steps: open document.xopp, set zoom to 244% via the zoom popup, then menu > Split view. The pane re-renders the page at roughly fit-to-width (~100%) while the zoom readout in the bottom-left still says 244%. Toggling split view off returns to a single pane still drawn at ~100% with the readout stuck at 244% - so the rendered scale and ViewportState's zoom disagree after the toggle. Rotation does NOT show this (portrait > landscape > portrait keeps position and scale, no logcat exceptions), so the fault is in the split-view toggle path (MainActivity.toggleSplitView, MainActivityTabs.kt) recreating the surface rather than in ViewportState.setBounds. Investigate how the DrawingSurfaceView/ViewportState is (re)created per pane on toggle and add atomic tasks to keep zoom consistent across the toggle."
+status = "active"
+level = "scope"
+category = "bug"
+urgency = "high"
+order = 130
+created = 2026-08-22
+tags = []
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "undone-stroke-reappears-after-toggling-split-view"
+title = "Undone stroke reappears after toggling split view"
+description = "Observed on the emulator while verifying the viewport anchor. Steps: open document.xopp, draw a stroke, press undo (stroke disappears, redo becomes enabled), then menu > Split view. The undone stroke is back on the page. It stays after toggling split view off. This suggests the split-view toggle rebuilds the pane from a stale document snapshot rather than the tab's live in-memory document/undo state. Investigate the toggle path (MainActivity.toggleSplitView in MainActivityTabs.kt) and how each pane obtains its document, then add atomic tasks to fix."
+status = "active"
+level = "scope"
+category = "bug"
+urgency = "high"
+order = 140
+created = 2026-08-22
+tags = []
 rebuild = true
 emulator_debug = true
