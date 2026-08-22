@@ -22,20 +22,6 @@ documentation_is_part_of_the_task = "Every task that writes code also writes its
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
 
 [[task]]
-id = "add-a-reload-button-next-to-undo-that-discards-unsaved-edits-and-re-reads-the-file"
-title = "Add a reload button next to undo that discards unsaved edits and re-reads the file"
-description = "Add a refresh/reload icon button in the editor toolbar immediately next to the undo button. Tapping it opens a confirmation dialog titled/worded 'Discard unsaved edits and reload document?' with Cancel and Discard & Reload actions. Confirming re-reads the document from its current save location (the same path/URI the document would save to), replaces the in-memory document with the freshly parsed one, resets the undo/redo history and dirty flag, and re-renders the canvas. If the document has no save location yet (untitled), the button should be disabled or the dialog should explain there is nothing to reload from. Document the button in README.md and the editor-chrome section of docs/architecture.md in the same commit."
-status = "active"
-level = "scope"
-category = "feature"
-urgency = "normal"
-order = 70
-created = 2026-08-22
-tags = ["ui", "toolbar"]
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "anchor-the-viewport-centre-across-view-size-changes-in-viewportstate-setbounds"
 title = "Anchor the viewport centre across view-size changes in ViewportState.setBounds"
 description = """
@@ -72,5 +58,66 @@ urgency = "normal"
 order = 90
 created = 2026-08-22
 tags = ["viewport", "emulator"]
+rebuild = true
+emulator_debug = true
+
+[[task]]
+id = "add-mainactivity-reloadactivetab-that-re-reads-the-active-tab-from-its-uri"
+title = "Add MainActivity.reloadActiveTab() that re-reads the active tab from its URI"
+description = """
+In app/src/main/java/com/nexopp/MainActivityDocuments.kt add 'internal fun MainActivity.reloadActiveTab()'. It re-reads the active tab's document from disk, discarding unsaved edits.
+
+Behaviour: read 'tabs.active?.uri' (OpenTab.uri, app/src/main/java/com/nexopp/tabs/OpenTab.kt:22); if it is null, return without doing anything (the button is disabled in that case — see the sibling toolbar task). Otherwise parse it with Uri.parse and follow the same shape as openDocument(uri) at line 49 / loadDocument(staged, source) at line 91, but WITHOUT opening a new tab: stage the bytes off the UI thread with inBackground { io.stageIn(uri, "reload") } and then call the existing loadDocument(staged, uri) so the parsed document is installed into the current pane. loadDocument already calls surface.load(...), which clears the undo history (DrawingSurfaceView.kt:575) and re-renders.
+
+After a successful load, clear the dirty flag by calling autoSave.reset() (the same call showTab makes at MainActivityTabs.kt:154). On a read/stage failure, do NOT close the tab (unlike openDocument) — leave the in-memory document untouched and surface the existing failure notice path used by openDocument.
+
+Keep the function under ~40 lines; extract a private helper if it grows. Add KDoc explaining that reload is destructive to unsaved edits. Verify with: scripts/build.sh testDebugUnitTest"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 100
+created = 2026-08-22
+tags = ["reload", "io"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "add-the-reload-toolbar-button-and-its-discard-confirmation-dialog"
+title = "Add the reload toolbar button and its discard-confirmation dialog"
+description = """
+Depends on [add-mainactivity-reloadactivetab-that-re-reads-the-active-tab-from-its-uri]. Put a reload button in the editor top bar next to undo, gated by a confirmation dialog.
+
+1. State: add 'var showReloadConfirm by mutableStateOf(false)' to app/src/main/java/com/nexopp/ui/EditorUiState.kt alongside showSettings (line 84) / showSaveAs (86).
+2. Button: in EditorTopBar in app/src/main/java/com/nexopp/ui/EditorRegions.kt, immediately BEFORE the undo IconButton (~line 99), add an IconButton with Icons.Filled.Refresh, contentDescription "Reload from file", onClick = { ui.showReloadConfirm = true }, and enabled = whether the active tab has a save location (thread the boolean in as a new EditorTopBar parameter, e.g. 'canReload: Boolean', computed at the call site in ui/EditorScreen.kt from tabs.active?.uri != null). A never-saved Untitled document therefore shows the button greyed out.
+3. Dialog: host it where the other editor dialogs are hosted (ui/EditorScreen.kt, near the Settings dialog at ~line 248) using the existing ConfirmDialog from app/src/main/java/com/nexopp/ui/Dialogs.kt:82 — title/text 'Discard unsaved edits and reload document?', confirmLabel 'Discard & Reload', onConfirm = { ui.showReloadConfirm = false; activity.reloadActiveTab() }, onDismiss = { ui.showReloadConfirm = false }. Follow the call-site pattern in ui/PaletteResetControls.kt:35.
+4. Make sure the back button dismisses it: add the flag to app/src/main/java/com/nexopp/ui/EditorBackHandler.kt like the other dialog flags.
+5. Docs in the SAME commit: describe the reload button in README.md, and add it to the editor-chrome section of docs/architecture.md (docs/architecture.md#the-editor-chrome-ui).
+
+Verify with: scripts/build.sh"""
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 110
+created = 2026-08-22
+tags = ["reload", "ui"]
+rebuild = true
+emulator_debug = false
+
+[[task]]
+id = "verify-the-reload-button-on-the-emulator"
+title = "Verify the reload button on the emulator"
+description = """
+Depends on the two reload tasks. Build and install on the /data/android emulator (docs/tools.md) and exercise the reload button.
+
+Steps: (1) open a saved .xopp document, draw a new stroke, tap the reload button, confirm 'Discard & Reload' — the new stroke must vanish, the document must show the on-disk content, and undo must be greyed out afterwards; (2) tap reload and press Cancel — nothing changes; (3) on a fresh Untitled document, confirm the reload button is greyed out; (4) after a reload, draw and save to check the save path still points at the original file (no 'Save as' prompt); (5) check adb logcat for exceptions throughout. Screenshot each state."""
+status = "active"
+level = "task"
+category = "test"
+urgency = "normal"
+order = 120
+created = 2026-08-22
+tags = ["reload", "emulator"]
 rebuild = true
 emulator_debug = true
