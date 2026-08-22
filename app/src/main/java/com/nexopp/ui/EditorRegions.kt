@@ -378,9 +378,6 @@ private fun DrawingSurfaceView.bindTo(state: PaneState) {
         state.backgroundStyle = visiblePageBackgroundStyle()
         state.pageSize = visiblePageSize()
     }
-    state.layers = visibleLayers()
-    state.backgroundStyle = visiblePageBackgroundStyle()
-    state.pageSize = visiblePageSize()
     onHistoryChanged = { u, r -> state.canUndo = u; state.canRedo = r }
     onZoomChanged = { z -> state.zoom = z }
     onPageCountChanged = { n -> state.pageCount = n }
@@ -398,6 +395,26 @@ private fun DrawingSurfaceView.bindTo(state: PaneState) {
     onBackgroundRegionChanged = { r -> state.hasBackgroundRegion = r }
     onSplineChanged = { n -> state.splineNodes = n }
     onSearchChanged = { s -> state.searchCurrent = s.current; state.searchTotal = s.total }
+    seedFrom(state)
+}
+
+/**
+ * Copies the surface's *current* values into [state], so a freshly created or rebound surface doesn't
+ * leave the pane showing readouts inherited from the surface it replaced. The callbacks installed by
+ * [bindTo] only fire on a change, so without this seed a pane keeps a stale zoom/undo/page number
+ * until the user next changes it — which is exactly what the split-view toggle used to do.
+ */
+private fun DrawingSurfaceView.seedFrom(state: PaneState) {
+    state.layers = visibleLayers()
+    state.backgroundStyle = visiblePageBackgroundStyle()
+    state.pageSize = visiblePageSize()
+    state.zoom = zoom
+    state.canUndo = history.canUndo
+    state.canRedo = history.canRedo
+    state.pageCount = doc.pages.size
+    state.currentPage = currentPageIndex()
+    state.selectedPages = selectedPageCount()
+    state.copiedPages = copiedPageCount()
 }
 
 /**

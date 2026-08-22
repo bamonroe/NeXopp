@@ -83,27 +83,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "seed-the-pane-readouts-from-the-live-surface-in-bindto"
-title = "Seed the pane readouts from the live surface in bindTo"
-description = """
-Defence in depth for the stale zoom readout: DrawingSurfaceView.bindTo(state) in app/src/main/java/com/nexopp/ui/EditorRegions.kt (line ~375) installs onZoomChanged/onHistoryChanged/onPageCountChanged/onCurrentPageChanged/onScrollChanged callbacks but only seeds state.layers, state.backgroundStyle and state.pageSize with the surface's current values. So whenever a surface is created or rebound, PaneState keeps whatever zoom/undo/page numbers it had from the previous surface until the user next changes them.
-
-Fix: in bindTo, right after installing the callbacks, push the surface's current values into the state the same way the three existing seed lines do: state.zoom = zoom, state.canUndo/state.canRedo from the surface's current history flags, state.pageCount from the current page count, state.currentPage from the current page, and state.selectedPages/state.copiedPages from their current values. Use the existing public accessors on DrawingSurfaceView (e.g. 'zoom', the page-count and current-page getters used by the callbacks); do not add new state to the view. Keep bindTo under ~100 lines - extract a private 'seedFrom(state)' helper in the same file if it grows.
-
-Also make the surface re-emit zoom after a document load so a fit-to-width load updates the readout: check where a load sets the initial zoom in DrawingSurfaceView and invoke onZoomChanged there if it does not already (setZoom at DrawingSurfaceView.kt:804 only fires on a change from the current value).
-
-Verify: scripts/build.sh must pass. If a JVM-testable seam exists (a PaneState-only test under app/src/test/java/com/nexopp/panes), add a small test that binding a surface with a known zoom updates PaneState.zoom; otherwise state in the commit message that it is covered by the emulator task."""
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 160
-created = 2026-08-22
-tags = []
-rebuild = true
-emulator_debug = false
-
-[[task]]
 id = "verify-zoom-survives-the-split-view-toggle-on-the-emulator"
 title = "Verify zoom survives the split-view toggle on the emulator"
 description = """

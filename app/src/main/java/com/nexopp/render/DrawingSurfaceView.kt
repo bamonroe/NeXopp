@@ -579,6 +579,9 @@ class DrawingSurfaceView @JvmOverloads constructor(
         relayout()
         render()
         onLayersChanged?.invoke()
+        // Re-announce the zoom even though a load doesn't change it: the chrome may have been bound
+        // to a different surface (or none) when the level was last set, so its readout can be stale.
+        onZoomChanged?.invoke(zoom)
     }
 
     /**

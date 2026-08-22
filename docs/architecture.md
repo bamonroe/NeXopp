@@ -1092,7 +1092,11 @@ The design decisions worth keeping:
 - **A pane's Compose mirror is per pane too.** `ui/PaneState.kt` holds the zoom/page/layer/undo state
   a canvas pushes up through its callbacks; `EditorUiState` keeps one per pane and `EditorScreen`
   hands the active one to each region. Each surface's callbacks write into *its own* `PaneState`, so
-  a background pane stays current instead of scribbling over the focused one.
+  a background pane stays current instead of scribbling over the focused one. Those callbacks only
+  fire on a *change*, so `bindTo` finishes by seeding the pane from the surface's current values
+  (`seedFrom` in `ui/EditorRegions.kt`: zoom, undo/redo, page count and index, page selection and
+  clipboard, layers, background, page size). Without it a rebound surface would leave the chrome
+  showing the previous surface's readouts until the user next touched them.
 - **Toggling split view moves the left canvas, it doesn't rebuild it.** Single-pane and the first
   slot of `SplitLayout` are two different composition positions, so hosting a pane in a plain
   lambda would dispose its `DrawingSurfaceView` on every toggle and build a fresh one — at zoom
