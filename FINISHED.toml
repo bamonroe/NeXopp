@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "undone-stroke-reappears-after-toggling-split-view"
+title = "Undone stroke reappears after toggling split view"
+description = "Observed on the emulator while verifying the viewport anchor. Steps: open document.xopp, draw a stroke, press undo (stroke disappears, redo becomes enabled), then menu > Split view. The undone stroke is back on the page. It stays after toggling split view off. This suggests the split-view toggle rebuilds the pane from a stale document snapshot rather than the tab's live in-memory document/undo state. Investigate the toggle path (MainActivity.toggleSplitView in MainActivityTabs.kt) and how each pane obtains its document, then add atomic tasks to fix."
+status = "finished"
+level = "scope"
+category = "bug"
+created = 2026-08-22
+completed = 2026-08-22
+tags = []
+
+[[task]]
 id = "split-view-toggle-resets-the-canvas-zoom-but-leaves-the-zoom-indicator-stale"
 title = "Split-view toggle resets the canvas zoom but leaves the zoom indicator stale"
 description = "Observed on the emulator (Android 14, portrait) while verifying the viewport anchor. Steps: open document.xopp, set zoom to 244% via the zoom popup, then menu > Split view. The pane re-renders the page at roughly fit-to-width (~100%) while the zoom readout in the bottom-left still says 244%. Toggling split view off returns to a single pane still drawn at ~100% with the readout stuck at 244% - so the rendered scale and ViewportState's zoom disagree after the toggle. Rotation does NOT show this (portrait > landscape > portrait keeps position and scale, no logcat exceptions), so the fault is in the split-view toggle path (MainActivity.toggleSplitView, MainActivityTabs.kt) recreating the surface rather than in ViewportState.setBounds. Investigate how the DrawingSurfaceView/ViewportState is (re)created per pane on toggle and add atomic tasks to keep zoom consistent across the toggle."
