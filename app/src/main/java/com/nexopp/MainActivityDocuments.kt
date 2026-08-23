@@ -73,6 +73,36 @@ internal fun MainActivity.openDocument(uri: Uri) {
 }
 
 /**
+ * Re-read the active tab's document from its own file, **discarding every unsaved edit** in it.
+ *
+ * This is destructive by design — it is the "throw my changes away and show me what's on disk"
+ * button, so the caller is responsible for confirming with the user first. The reloaded document
+ * replaces the one on the canvas through [loadDocument], which goes through `surface.load(…)` and
+ * therefore drops the undo history along with the edits.
+ *
+ * Unlike [openDocument] this reuses the current tab (no new tab is pushed), and a failed read
+ * leaves that tab exactly as it was: the in-memory document stays on the canvas rather than the
+ * tab being taken down. A tab with no file behind it (`uri == null`) has nothing to re-read, so
+ * this does nothing — the toolbar disables the button in that case.
+ */
+internal fun MainActivity.reloadActiveTab() {
+    val uri = tabs.active?.uri?.let(Uri::parse) ?: return
+    inBackground("Reloading ${displayName(uri)}…", { io.stageIn(uri, "reload") }) { result ->
+        // Staging names are unique per read, so the copy is swept once it has been parsed.
+        result.mapCatching { staged -> try { loadDocument(staged, uri) } finally { staged.delete() } }
+            .onSuccess {
+                // The canvas now matches the file: stand the dirty flag and the interval baseline
+                // down, exactly as showTab does when a different document lands on the canvas.
+                autoSave.reset()
+                snapshotActiveTab()
+                tabsTick.value++
+                persistTabs()
+            }
+            .onFailure { toast("Open failed: ${it.message}") }
+    }
+}
+
+/**
  * Push the Storage preferences down into [io], which enforces them (refusing an oversized text
  * import, and trimming the PDF cache on the next prune). Called on load and on every edit, since
  * [DocumentIo] outlives any one settings value.

@@ -17,6 +17,24 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-mainactivity-reloadactivetab-that-re-reads-the-active-tab-from-its-uri"
+title = "Add MainActivity.reloadActiveTab() that re-reads the active tab from its URI"
+description = """
+In app/src/main/java/com/nexopp/MainActivityDocuments.kt add 'internal fun MainActivity.reloadActiveTab()'. It re-reads the active tab's document from disk, discarding unsaved edits.
+
+Behaviour: read 'tabs.active?.uri' (OpenTab.uri, app/src/main/java/com/nexopp/tabs/OpenTab.kt:22); if it is null, return without doing anything (the button is disabled in that case — see the sibling toolbar task). Otherwise parse it with Uri.parse and follow the same shape as openDocument(uri) at line 49 / loadDocument(staged, source) at line 91, but WITHOUT opening a new tab: stage the bytes off the UI thread with inBackground { io.stageIn(uri, "reload") } and then call the existing loadDocument(staged, uri) so the parsed document is installed into the current pane. loadDocument already calls surface.load(...), which clears the undo history (DrawingSurfaceView.kt:575) and re-renders.
+
+After a successful load, clear the dirty flag by calling autoSave.reset() (the same call showTab makes at MainActivityTabs.kt:154). On a read/stage failure, do NOT close the tab (unlike openDocument) — leave the in-memory document untouched and surface the existing failure notice path used by openDocument.
+
+Keep the function under ~40 lines; extract a private helper if it grows. Add KDoc explaining that reload is destructive to unsaved edits. Verify with: scripts/build.sh testDebugUnitTest"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-22
+completed = 2026-08-23
+tags = ["reload", "io"]
+
+[[task]]
 id = "verify-undo-survives-the-split-view-toggle-on-the-emulator"
 title = "Verify undo survives the split-view toggle on the emulator"
 description = """

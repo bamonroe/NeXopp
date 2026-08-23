@@ -941,6 +941,14 @@ Save writes back to the tab's own `OpenTab.uri` (`MainActivity.saveActiveTab`) i
 a location, and a restored tab can still reach its file after a restart. The `CreateDocument` path
 takes the same grant after a successful Save As.
 
+**Reload** (`MainActivity.reloadActiveTab`) re-runs the read half against the active tab's own
+`OpenTab.uri` and drops whatever is on the canvas: same stage-on-a-worker → `loadDocument` steps as
+an open, but into the **current** tab rather than a new one, so unsaved edits and the undo history
+both go (`surface.load` clears it). It clears the dirty flag with `autoSave.reset()` afterwards,
+like a tab switch does. Because it destroys work, the call itself is unguarded and the caller must
+confirm first; a tab with no `uri` has nothing to re-read and the call is a no-op. A failed read
+reports and leaves the in-memory document alone — unlike a failed open, nothing is taken down.
+
 Reading and writing are **streaming and symmetric**: the parser builds the model element by
 element; the serializer walks the model in document order and re-emits it, carrying through any
 preserved-but-unrendered attributes so the file round-trips.
