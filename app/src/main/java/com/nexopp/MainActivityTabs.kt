@@ -296,16 +296,18 @@ internal fun MainActivity.prunePdfCache() {
 }
 
 /**
- * Turn split view on or off. Leaving it snapshots the right-hand pane and hands focus back to the
- * left one, so a menu action never targets a canvas that is no longer on screen. The pane's tabs
- * are kept (and stay on disk), so turning split view back on brings the same documents back.
+ * Turn split view on or off. Both directions snapshot every pane first: a canvas rebuilt by the
+ * toggle reloads its tab's stored document, so an edit that only exists on the live surface — an
+ * undo, say — would otherwise be lost and the pre-edit page would come back. Persisting at the
+ * same moment also keeps the on-disk session current across the toggle. Leaving split view then
+ * hands focus back to the left pane, so a menu action never targets a canvas that is no longer on
+ * screen. The pane's tabs are kept (and stay on disk), so turning split view back on brings the
+ * same documents back.
  */
 internal fun MainActivity.toggleSplitView() {
     val on = !splitView.value
-    if (!on) {
-        panes.forEach { snapshotActiveTab(it); it.persist() }
-        activePane.value = 0
-    }
+    panes.forEach { snapshotActiveTab(it); it.persist() }
+    if (!on) activePane.value = 0
     splitView.value = on
 }
 

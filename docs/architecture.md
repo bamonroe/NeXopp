@@ -1110,6 +1110,13 @@ The design decisions worth keeping:
   *is* disposed; when it comes back `restoreTabs` finds a non-empty session and re-loads the
   showing tab onto the *replacement* surface. (Undo history is per surface, so pane 1's does not
   survive that round trip — same rule as a tab switch.)
+- **The toggle snapshots every pane in *both* directions.** `toggleSplitView` runs
+  `snapshotActiveTab` + `persist` over all panes before it flips the flag, on the way in as well as
+  on the way out. Any canvas the toggle does rebuild reloads its tab's stored `document`, so an edit
+  that lives only on the surface — an undo, which rewrites the live document without touching the
+  record — would otherwise be dropped and the pre-undo page would reappear. With the
+  `movableContentOf` rule above, pane 0 isn't rebuilt at all and this is defence in depth; it also
+  leaves the on-disk session current at the moment of the toggle.
 - **A document can be open in both panes as two live views.** Tabs carry an `OpenTab.docKey`; the
   mirror action copies a tab keeping that key, so "same key" means "same document". Every edit
   reaches the other views through `panes/MirrorSync.kt`: `DrawingSurfaceView.doc` is a property whose
