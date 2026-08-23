@@ -83,29 +83,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "snapshot-both-panes-before-turning-split-view-on"
-title = "Snapshot both panes before turning split view on"
-description = """
-Half of the undone-stroke-reappears bug: MainActivity.toggleSplitView() in app/src/main/java/com/nexopp/MainActivityTabs.kt (line ~303) only calls snapshotActiveTab/persist on the way *out* of split view, never on the way in. Turning split view on recreates pane 0's DrawingSurfaceView (see the movableContentOf task), and the new surface reloads the active tab's stored OpenTab.document via restoreTabs -> show -> showTab. That record was last written by the previous snapshotActiveTab, so any edit made since - notably an undo, which only changes the live surface - is not in it and the pre-undo page comes back.
-
-Fix: in toggleSplitView, snapshot before flipping the flag in BOTH directions. Restructure the function so 'panes.forEach { snapshotActiveTab(it); it.persist() }' runs first, unconditionally, and only the 'activePane.value = 0' reset stays inside the '!on' branch. Keep the function tiny and update its KDoc to say the snapshot happens either way and why (a rebuilt canvas must reload the live document, not the last-saved one).
-
-Note this is defence in depth, not the root cause: with the movableContentOf fix in place the surface is not rebuilt at all. Both are wanted - the snapshot also keeps the on-disk session current at the moment of the toggle.
-
-Verify: scripts/build.sh (unit tests + debug APK) must pass. If MainActivityTabs has a JVM-testable seam, add a test that toggling split view on updates the active tab's document; otherwise say in the commit message that it is covered by the emulator task.
-
-Docs: if this changes described behaviour, update the split-view paragraph in docs/architecture.md (Data path) in the same commit."""
-status = "active"
-level = "task"
-category = "bug"
-urgency = "high"
-order = 180
-created = 2026-08-22
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "verify-undo-survives-the-split-view-toggle-on-the-emulator"
 title = "Verify undo survives the split-view toggle on the emulator"
 description = """
