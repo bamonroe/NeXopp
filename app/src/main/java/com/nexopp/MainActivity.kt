@@ -350,6 +350,10 @@ class MainActivity : ComponentActivity() {
                     },
                     audio = audioUiState(),
                     tabs = panes.map(::tabsUiState),
+                    // A tab with no file behind it has nothing to re-read; tabsUiState above reads
+                    // tabsTick, so this is re-evaluated whenever a session changes.
+                    canReload = panes[activePane.value].tabs.active?.uri != null,
+                    onReload = { reloadActiveTab() },
                     splitView = splitView.value,
                     onToggleSplitView = ::toggleSplitView,
                     activePane = activePane.value,

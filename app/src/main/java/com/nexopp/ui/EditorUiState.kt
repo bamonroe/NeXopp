@@ -84,6 +84,8 @@ class EditorUiState(tool: EditorTool, color: Int, width: Float) {
     var showSettings by mutableStateOf(false)
     /** Whether the Save As dialog is showing. */
     var showSaveAs by mutableStateOf(false)
+    /** Whether the "discard my edits and re-read the file" confirmation is showing. */
+    var showReloadConfirm by mutableStateOf(false)
     /** Whether the Import PDF dialog is showing. */
     var showImportPdf by mutableStateOf(false)
     /** Whether the Export dialog is showing. */

@@ -2428,9 +2428,19 @@ it doesn't affect round-trip (matching how desktop selects a PDF background's te
 `EditorScreen` is the one editor screen (a `Row`): a top bar with a **quiet-autosave spinner**
 (`EditorTopBar(saving = …)` — an 18 dp `CircularProgressIndicator` in an `AnimatedVisibility`
 fade, first in the actions row, fed from `MainActivity.autoSaving`; the blocking `TransferOverlay`
-path is untouched), undo/redo
+path is untouched), a **reload** button, undo/redo
 icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export…, Save,
-and Settings; a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
+and Settings. The reload button (`Icons.Filled.Refresh`, immediately before undo) is the chrome half
+of `MainActivity.reloadActiveTab()`: it never reloads anything itself, it only raises
+`EditorUiState.showReloadConfirm`, and the `ConfirmDialog` that flag drives in `EditorOverlays` calls
+the host's `onReload` on *Discard & Reload*. The gate is not decoration — the reload discards the
+tab's unsaved edits **and** its undo history, so it is deliberately two taps deep. `canReload`
+(threaded `MainActivity` → `EditorScreen` → `EditorTopBar`, computed as `tabs.active?.uri != null`
+inside the same composition that reads `tabsTick`, so it re-evaluates with the session) greys the
+button out on a never-saved tab, which has no file to re-read. The dialog lives in `EditorOverlays`
+with the other flag-driven dialogs, not in the back handler: `AlertDialog` dismisses itself through
+`onDismissRequest`, and `EditorBackHandler` deliberately leaves dialogs alone so one press doesn't
+eat two states. Then a **left vertical rail `SideToolbar`** with five buttons — Tool, Colour, Size, Zoom,
 Pages; and the canvas filling the rest. Each rail button owns its own `DropdownMenu`, so the pop-up
 is anchored to that button (opening to the right of the rail) rather than filling the screen. The
 rail's head is **one slot per tool group** (`ToolGroups.kt`): `TOOL_GROUPS` partitions every

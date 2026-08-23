@@ -170,6 +170,13 @@ fun EditorScreen(
     saving: Boolean = false,
     /** Back was pressed with nothing left to dismiss: leave the app. */
     onExit: () -> Unit = {},
+    /** The active tab has a file behind it, so the reload button is live rather than greyed out. */
+    canReload: Boolean = false,
+    /**
+     * Reload confirmed: re-read the active tab from its file, throwing its unsaved edits away. The
+     * screen only ever calls this after the confirmation dialog says yes.
+     */
+    onReload: () -> Unit = {},
     /** The top app bar content; defaults to [EditorTopBar]. */
     topBar: @Composable (EditorUiState, PaneState, TabsUiState) -> Unit = { ui, pane, tabs ->
         EditorTopBar(
@@ -182,6 +189,7 @@ fun EditorScreen(
             splitView = splitView,
             onToggleSplitView = onToggleSplitView,
             saving = saving,
+            canReload = canReload,
         )
     },
     /** The rail/toolbar content; defaults to [EditorToolbar]. */
@@ -269,6 +277,7 @@ fun EditorScreen(
             saveWarnings = saveWarnings,
             onImportPdf = onImportPdf,
             onExport = onExport,
+            onReload = onReload,
         )
     }
 }

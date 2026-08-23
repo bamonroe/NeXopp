@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "add-the-reload-toolbar-button-and-its-discard-confirmation-dialog"
+title = "Add the reload toolbar button and its discard-confirmation dialog"
+description = """
+Depends on [add-mainactivity-reloadactivetab-that-re-reads-the-active-tab-from-its-uri]. Put a reload button in the editor top bar next to undo, gated by a confirmation dialog.
+
+1. State: add 'var showReloadConfirm by mutableStateOf(false)' to app/src/main/java/com/nexopp/ui/EditorUiState.kt alongside showSettings (line 84) / showSaveAs (86).
+2. Button: in EditorTopBar in app/src/main/java/com/nexopp/ui/EditorRegions.kt, immediately BEFORE the undo IconButton (~line 99), add an IconButton with Icons.Filled.Refresh, contentDescription "Reload from file", onClick = { ui.showReloadConfirm = true }, and enabled = whether the active tab has a save location (thread the boolean in as a new EditorTopBar parameter, e.g. 'canReload: Boolean', computed at the call site in ui/EditorScreen.kt from tabs.active?.uri != null). A never-saved Untitled document therefore shows the button greyed out.
+3. Dialog: host it where the other editor dialogs are hosted (ui/EditorScreen.kt, near the Settings dialog at ~line 248) using the existing ConfirmDialog from app/src/main/java/com/nexopp/ui/Dialogs.kt:82 — title/text 'Discard unsaved edits and reload document?', confirmLabel 'Discard & Reload', onConfirm = { ui.showReloadConfirm = false; activity.reloadActiveTab() }, onDismiss = { ui.showReloadConfirm = false }. Follow the call-site pattern in ui/PaletteResetControls.kt:35.
+4. Make sure the back button dismisses it: add the flag to app/src/main/java/com/nexopp/ui/EditorBackHandler.kt like the other dialog flags.
+5. Docs in the SAME commit: describe the reload button in README.md, and add it to the editor-chrome section of docs/architecture.md (docs/architecture.md#the-editor-chrome-ui).
+
+Verify with: scripts/build.sh"""
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-08-22
+completed = 2026-08-23
+tags = ["reload", "ui"]
+
+[[task]]
 id = "add-mainactivity-reloadactivetab-that-re-reads-the-active-tab-from-its-uri"
 title = "Add MainActivity.reloadActiveTab() that re-reads the active tab from its URI"
 description = """

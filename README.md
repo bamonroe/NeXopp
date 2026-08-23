@@ -415,6 +415,13 @@ authoritative flow; don't invent another one.
   erasing, and adding/editing text/image/LaTeX are all undoable). They enable and disable as history
   allows; opening a file starts fresh history. History is **200 edits deep** — past that the oldest
   step is dropped, so the most recent edits always stay undoable without the stack growing forever.
+- **Reload from file** — the circular-arrow button in the top bar (left of the undo arrow) throws the
+  tab's **unsaved edits** away and re-reads the document from its file, so you can get back to what's
+  on disk — handy after editing the same file on the desktop. It always asks first (*Discard &
+  Reload*), and the undo history goes with the edits, so there's no undoing it. Only the tab you're
+  looking at is reloaded; the other tabs are untouched. The button is greyed out on a never-saved
+  **Untitled** document, which has no file to re-read, and a failed read leaves the tab exactly as it
+  was rather than emptying it.
 - **Scroll** — drag with **two fingers** to move around the page stack, or pick the **Hand** tool
   from the Tool pop-up to pan with **one finger** (handy on a stylus). A quick **one-finger flick**
   keeps the pages **gliding** with momentum and coasts to a stop — the faster the flick, the much

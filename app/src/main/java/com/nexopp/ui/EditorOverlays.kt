@@ -56,6 +56,8 @@ fun BoxScope.EditorOverlays(
     onImportPdf: (ImportPdfMode) -> Unit,
     /** Export confirmed: the chosen format, [com.nexopp.format.PageRange] spec, DPI and file stem. */
     onExport: (ExportFormat, String, Int, String) -> Unit,
+    /** Reload confirmed: re-read the active tab from its file, discarding its unsaved edits. */
+    onReload: () -> Unit = {},
 ) {
     val surface = pane.surface
     val palette = rememberColorPaletteState(settings, onSettingsChange)
@@ -102,6 +104,17 @@ fun BoxScope.EditorOverlays(
             merging = surface?.hasPdfBackground() == true,
             onConfirm = { mode -> ui.showImportPdf = false; onImportPdf(mode) },
             onDismiss = { ui.showImportPdf = false },
+        )
+    }
+    if (ui.showReloadConfirm) {
+        // The reload throws unsaved edits and the undo history away, so it is never one tap deep.
+        ConfirmDialog(
+            title = "Discard unsaved edits and reload document?",
+            text = "This tab is re-read from its file. Every unsaved edit in it is thrown away, " +
+                "along with its undo history.",
+            confirmLabel = "Discard & Reload",
+            onConfirm = { ui.showReloadConfirm = false; onReload() },
+            onDismiss = { ui.showReloadConfirm = false },
         )
     }
     if (ui.showSaveAs) {

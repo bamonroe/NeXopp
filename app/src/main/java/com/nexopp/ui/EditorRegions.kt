@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SaveAs
 import androidx.compose.material.icons.filled.Search
@@ -68,9 +69,9 @@ import com.nexopp.render.SearchStatus
 import com.nexopp.ui.theme.rememberCanvasChromeColors
 
 /**
- * The editor's top bar: undo/redo for the active pane, the tab overview, then the overflow menu. No
- * title and a compact height — the bar is just the action row, so it eats as little of the drawing
- * area as possible.
+ * The editor's top bar: reload, undo/redo for the active pane, the tab overview, then the overflow
+ * menu. No title and a compact height — the bar is just the action row, so it eats as little of the
+ * drawing area as possible.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +86,11 @@ fun EditorTopBar(
     onToggleSplitView: () -> Unit,
     /** A quiet autosave is in flight: show a small spinner that fades in and back out. */
     saving: Boolean = false,
+    /**
+     * The active tab has a file behind it, so there is something to re-read. A never-saved Untitled
+     * document has nothing on disk and shows the reload button greyed out.
+     */
+    canReload: Boolean = false,
 ) {
     TopAppBar(
         title = {},
@@ -96,6 +102,10 @@ fun EditorTopBar(
                 }
             }
             SearchControls(pane)
+            // Destructive, so it only raises the confirmation — the reload itself is the host's.
+            IconButton(onClick = { ui.showReloadConfirm = true }, enabled = canReload) {
+                Icon(Icons.Filled.Refresh, contentDescription = "Reload from file")
+            }
             IconButton(onClick = { pane.surface?.undo() }, enabled = pane.canUndo) {
                 Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
             }
