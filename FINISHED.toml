@@ -17,6 +17,27 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "split-view-toggle-drifts-the-vertical-scroll-by-64px-when-zoomed-in"
+title = "Split-view toggle drifts the vertical scroll by ~64px when zoomed in"
+description = """
+Residual found while verifying the split-view zoom fixes on the emulator (2026-08-23, APK v474). Zoom itself is now correct in both directions, but a split-view on->off round trip shifts the document vertically by ~64 device px when the pane is scrolled.
+
+Repro (emulator, document.xopp):
+1. Set zoom to 244% (zoom popup: reset, then 4x zoom-in), pick the hand tool, pan down so the page is scrolled (not at the top).
+2. Menu > Split view, then Menu > Close split view.
+3. The rendered scale is unchanged, but the content sits ~64 px lower than before the round trip.
+
+Measured: the vertical stroke spanned y=874..2203 before and y=937..2267 after (length 1329 vs 1330 px, so zoom is identical; offset +63/+64 px). At 51% zoom the page fits the viewport with no scroll range and the position is pixel-identical, so the drift only shows when there is scroll to lose.
+
+Cause to investigate: with the pane narrowed, the content height (~1471 px at 244%) is shorter than the viewport, so scrollY is clamped to 0 in the split state (correct); restoring the anchor on the way back out lands ~64 px off. Look at the viewport anchor save/restore around MainActivityTabs.toggleSplitView() and ViewportState.setBounds()/relayout() in DrawingSurfacePaint.kt:19."""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-08-23
+completed = 2026-08-23
+tags = []
+
+[[task]]
 id = "add-the-reload-toolbar-button-and-its-discard-confirmation-dialog"
 title = "Add the reload toolbar button and its discard-confirmation dialog"
 description = """

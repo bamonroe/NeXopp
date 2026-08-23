@@ -1114,6 +1114,15 @@ The design decisions worth keeping:
   stale ones), and Compose *moves* that subtree between the two slots: same view, same viewport,
   same history. Reparenting a `SurfaceView` does tear down and re-create the underlying buffer
   queue, which is harmless — the view redraws itself from the state it kept.
+- **The scroll position survives a pane too small to hold it.** Halving a pane's width halves the
+  fit-to-width layout with it, so a zoomed-in document that was scrolled can end up *shorter* than
+  the viewport in split view — there is nothing to scroll, the re-anchored centre is clamped to 0,
+  and widening the pane again would restore that clamped position instead of the original one (the
+  ~64px drift this rule exists to stop). `ViewportState` therefore keeps the wanted centre as a
+  **pending anchor** whenever a restore is clamped, and retries it on the next `setBounds` — so the
+  on→off round trip lands exactly where it started, however many relayouts happen in between. Any
+  real scroll (a pan, a page jump, a zoom) writes `scrollX`/`scrollY` and drops the anchor, because
+  the reader has chosen a new place to be.
 - **Turning split view off doesn't destroy pane 1.** It has no slot to be moved to, so its canvas
   *is* disposed; when it comes back `restoreTabs` finds a non-empty session and re-loads the
   showing tab onto the *replacement* surface. (Undo history is per surface, so pane 1's does not
@@ -1358,7 +1367,8 @@ app/
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
       ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested);
-                             # a view-size change (rotation, split view) re-anchors the viewport centre
+                             # a view-size change (rotation, split view) re-anchors the viewport centre,
+                             # keeping it pending while a viewport too small to hold it clamps it away
       MomentumDriver.kt      # the fling loop: velocity tracking, release seed, per-frame glide
       PageOverview.kt        # the overview grid's view state: edit mode, selection, clipboard, lift
       PageCommands.kt        # the page/layer edit commands and the two undoable commit pipelines

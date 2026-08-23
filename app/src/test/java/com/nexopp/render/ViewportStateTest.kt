@@ -70,6 +70,41 @@ class ViewportStateTest {
         assertEquals(0f, v.scrollX, 0f)
     }
 
+    /** A viewport of 100×100 over content of 200×180 — 80px of vertical scroll to lose. */
+    private fun shortViewport() = ViewportState().apply { setBounds(100f, 100f, 200f, 180f) }
+
+    @Test fun `a round trip through a viewport too small to hold the position restores it`() {
+        val v = shortViewport()
+        v.scrollToY(80f)
+        // Split view halves the pane: the fit-to-width layout halves with it, leaving content that
+        // is shorter than the viewport, so there is nowhere to scroll and the offset is clamped away.
+        v.setBounds(50f, 100f, 100f, 90f)
+        assertEquals(0f, v.scrollY, 0f)
+        v.setBounds(100f, 100f, 200f, 180f)
+        assertEquals(80f, v.scrollY, 1e-3f)
+    }
+
+    @Test fun `a relayout while the position is pending keeps it pending`() {
+        val v = shortViewport()
+        v.scrollToY(80f)
+        v.setBounds(50f, 100f, 100f, 90f) // clamped away
+        v.setBounds(50f, 100f, 100f, 95f) // a stroke grew the page; same view size
+        assertEquals(0f, v.scrollY, 0f)
+        v.setBounds(100f, 100f, 200f, 180f)
+        assertEquals(80f, v.scrollY, 1e-3f)
+    }
+
+    @Test fun `scrolling inside the small viewport gives up the pending position`() {
+        val v = viewport() // view 100x100, content 200x400
+        v.scrollToY(300f) // pinned at the bottom, so the halved extent can't hold the centre either
+        v.setBounds(50f, 100f, 100f, 200f)
+        assertEquals(100f, v.scrollY, 0f) // clamped to the new bottom, position still owed
+        v.scrollToY(10f) // the reader picks a new place; the old one is no longer owed
+        v.setBounds(100f, 100f, 200f, 400f)
+        // Centre of the small viewport (10 + 50 of 200) re-anchored into the full extent.
+        assertEquals(0.3f, (v.scrollY + 50f) / 400f, 1e-4f)
+    }
+
     /** Relayout the way the stacked layout does: extents scale with the zoom. */
     private fun ViewportState.relayoutTo(w: Float, h: Float): () -> Unit =
         { setBoundsKeepingOffsets(w * zoom, h * zoom) }
