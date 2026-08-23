@@ -17,6 +17,20 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "verify-the-reload-button-on-the-emulator"
+title = "Verify the reload button on the emulator"
+description = """
+Depends on the two reload tasks. Build and install on the /data/android emulator (docs/tools.md) and exercise the reload button.
+
+Steps: (1) open a saved .xopp document, draw a new stroke, tap the reload button, confirm 'Discard & Reload' — the new stroke must vanish, the document must show the on-disk content, and undo must be greyed out afterwards; (2) tap reload and press Cancel — nothing changes; (3) on a fresh Untitled document, confirm the reload button is greyed out; (4) after a reload, draw and save to check the save path still points at the original file (no 'Save as' prompt); (5) check adb logcat for exceptions throughout. Screenshot each state."""
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-22
+completed = 2026-08-23
+tags = ["reload", "emulator"]
+
+[[task]]
 id = "split-view-toggle-drifts-the-vertical-scroll-by-64px-when-zoomed-in"
 title = "Split-view toggle drifts the vertical scroll by ~64px when zoomed in"
 description = """

@@ -20,20 +20,3 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
-
-[[task]]
-id = "verify-the-reload-button-on-the-emulator"
-title = "Verify the reload button on the emulator"
-description = """
-Depends on the two reload tasks. Build and install on the /data/android emulator (docs/tools.md) and exercise the reload button.
-
-Steps: (1) open a saved .xopp document, draw a new stroke, tap the reload button, confirm 'Discard & Reload' — the new stroke must vanish, the document must show the on-disk content, and undo must be greyed out afterwards; (2) tap reload and press Cancel — nothing changes; (3) on a fresh Untitled document, confirm the reload button is greyed out; (4) after a reload, draw and save to check the save path still points at the original file (no 'Save as' prompt); (5) check adb logcat for exceptions throughout. Screenshot each state."""
-status = "active"
-level = "task"
-category = "test"
-urgency = "normal"
-order = 120
-created = 2026-08-22
-tags = ["reload", "emulator"]
-rebuild = true
-emulator_debug = true
