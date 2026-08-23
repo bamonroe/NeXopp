@@ -17,6 +17,29 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "verify-undo-survives-the-split-view-toggle-on-the-emulator"
+title = "Verify undo survives the split-view toggle on the emulator"
+description = """
+Regression check for the undone-stroke-reappears bug, run on the /data/android emulator harness (see docs/tools.md), after the movableContentOf task and the toggleSplitView snapshot task landed.
+
+VERIFIED 2026-08-23 on the emulator (Android 14, portrait, debug APK versionCode 477, document.xopp):
+1. Drew a stroke - undo became enabled, redo disabled.
+2. Undo - stroke disappeared, undo disabled, redo enabled.
+3. Menu > Split view - left pane still showed the page WITHOUT the undone stroke; undo/redo enablement unchanged across the toggle (redo still available, so the history survived).
+4. Redo (in split view) - the stroke came back exactly once, undo enabled / redo disabled.
+5. Split view off - page matched the split-on content exactly, nothing reappeared.
+6. Two undos in a row: two strokes drawn, both undone, then split view on - both stayed gone and undo/redo enablement was unchanged. Stroke drawn WHILE split view was on then undone before toggling off - stayed gone after the toggle, and a later redo brought it back exactly once at full-pane scale.
+7. adb logcat: no com.nexopp exceptions or crashes; only benign "BufferQueueProducer ... disconnect: not connected" lines from SurfaceView teardown on toggle.
+
+No residual undo/redo misbehaviour found, so nothing new filed from this run (the unrelated zoom-drift residue is already tracked separately)."""
+status = "finished"
+level = "task"
+category = "test"
+created = 2026-08-22
+completed = 2026-08-23
+tags = []
+
+[[task]]
 id = "snapshot-both-panes-before-turning-split-view-on"
 title = "Snapshot both panes before turning split view on"
 description = """

@@ -83,29 +83,6 @@ rebuild = true
 emulator_debug = true
 
 [[task]]
-id = "verify-undo-survives-the-split-view-toggle-on-the-emulator"
-title = "Verify undo survives the split-view toggle on the emulator"
-description = """
-Regression check for the undone-stroke-reappears bug, run on the /data/android emulator harness (see docs/tools.md). Run it after the movableContentOf task and the toggleSplitView snapshot task have landed. Build and install the debug APK, then:
-1. Open document.xopp and draw a stroke.
-2. Press undo. Confirm the stroke disappears and redo becomes enabled.
-3. Menu > Split view. Confirm the left pane still shows the page WITHOUT the undone stroke, and that undo/redo enablement in the toolbar is unchanged (redo still available, i.e. the history survived the toggle).
-4. Press redo. Confirm the stroke comes back exactly once (not twice).
-5. Toggle split view off. Confirm the page still matches what was on screen and no stroke reappears.
-6. Repeat with two undos in a row, and with a stroke drawn while split view is on then undone before toggling it off.
-7. Check adb logcat for exceptions and take screenshots at each step.
-If any step still fails, file the residual behaviour as a new bug task rather than widening this one."""
-status = "active"
-level = "task"
-category = "test"
-urgency = "high"
-order = 190
-created = 2026-08-22
-tags = []
-rebuild = true
-emulator_debug = true
-
-[[task]]
 id = "split-view-toggle-drifts-the-vertical-scroll-by-64px-when-zoomed-in"
 title = "Split-view toggle drifts the vertical scroll by ~64px when zoomed in"
 description = """
