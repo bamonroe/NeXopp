@@ -20,3 +20,17 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "offer-save-as-when-the-save-target-refuses-the-write"
+title = "Offer Save As when the save target refuses the write"
+description = "When saveDocument's stageOut fails (MainActivityDocuments.kt:422) the app only toasts 'Save failed: <reason>'. The document is still in memory and still dirty, so nothing is lost, but the user has to find Save As themselves. Make the failure actionable: replace the toast with a snackbar/dialog carrying a 'Save As…' action that calls saveAs (the same path the Save As menu item uses, saveLauncher.launch(pendingSaveName)), so a target that has gone read-only or lost its grant can be re-pointed in one tap. Verify on the emulator against AwkwardProvider's read-only path (app/src/androidTest), which is the case that produces this failure."
+status = "active"
+level = "task"
+category = "feature"
+urgency = "normal"
+order = 10
+created = 2026-09-02
+tags = []
+rebuild = true
+emulator_debug = true
