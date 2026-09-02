@@ -36,7 +36,7 @@ internal fun DrawingSurfaceView.startStroke(event: MotionEvent, pointerIndex: In
         )
         shapeStartX = sx
         shapeStartY = sy
-        shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
+        shapeWidthPt = shapeWidth()
         current = ArrayList(listOf(StrokePoint(shapeStartX, shapeStartY, shapeWidthPt)))
     } else {
         // Decimate against this page's real px/pt, so a stroke drawn zoomed out or in a
@@ -87,7 +87,7 @@ internal fun DrawingSurfaceView.splineDown(event: MotionEvent, pointerIndex: Int
         gestureStartDoc = doc
     }
     gesturePointerId = event.getPointerId(pointerIndex)
-    if (splineNodes.isEmpty()) shapeWidthPt = widthForPressure(event.getPressure(pointerIndex))
+    if (splineNodes.isEmpty()) shapeWidthPt = shapeWidth()
     splineAnchorX = box.toPtX(x, scrollX)
     splineAnchorY = box.toPtY(y, scrollY)
     splineNodes += SplineNode(splineAnchorX, splineAnchorY)
@@ -269,14 +269,25 @@ internal fun DrawingSurfaceView.addSamples(event: MotionEvent, pointerIndex: Int
 
 /**
  * The stroke width one sample of the current tool draws at, in pt. A highlighter lays down a
- * broad, constant-width band and ignores pressure; every other tool tapers with pressure. Shapes
- * and splines call this once per gesture so they match a pen stroke drawn at the same size.
+ * broad, constant-width band and ignores pressure; every other tool tapers with pressure.
  */
 internal fun DrawingSurfaceView.widthForPressure(pressure: Float): Double = if (tool == Tool.HIGHLIGHTER) {
     (baseWidthPt * DrawingSurfaceDefaults.HIGHLIGHTER_WIDTH_FACTOR).toDouble()
 } else {
     val p = if (pressure <= 0f) 1f else pressure
     (baseWidthPt * PressureCurve.factor(p, pressureGamma)).toDouble()
+}
+
+/**
+ * The constant width a shape or spline gesture draws at, in pt: the tool's nominal width, with no
+ * pressure attenuation. Sampling pressure here would read the touch-down instant — the lightest
+ * moment of the gesture — and leave every shape around half the weight of a pen stroke drawn at
+ * the same size. Desktop Xournal++ likewise draws its shape tools at the nominal pen width.
+ */
+internal fun DrawingSurfaceView.shapeWidth(): Double = if (tool == Tool.HIGHLIGHTER) {
+    (baseWidthPt * DrawingSurfaceDefaults.HIGHLIGHTER_WIDTH_FACTOR).toDouble()
+} else {
+    baseWidthPt.toDouble()
 }
 
 internal fun DrawingSurfaceView.point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {
