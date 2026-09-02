@@ -40,6 +40,17 @@ Gradle wrapper (pinned to Gradle 8.9); the toolchain supplies JDK 21 + the Andro
   - Direct equivalent: `/data/android/build.sh /home/bam/git/personal/nexopp <tasks…>`.
 - **Outputs:** debug APK at `app/build/outputs/apk/debug/app-debug.apk`; unit-test reports at
   `app/build/reports/tests/testDebugUnitTest/`.
+- **Versioning & publishing:** `versionCode` is **not** the project's own value — the toolchain
+  overrides it with `git rev-list --count HEAD`, the commit count at build time
+  (`BAM_VERSION_CODE`; `/data/android/build.sh`). Every successful run then publishes the APK in
+  `app/build/outputs/` to the BAM store and syncs it into the F-Droid repo, keyed by that number.
+  Two consequences, both of which have bitten:
+  - **Commit first, then build.** Building before you commit stamps the *previous* commit count, so
+    the run silently overwrites the same release slot and F-Droid offers no update (it only
+    upgrades when `versionCode` goes **up**).
+  - **A test-only run still publishes.** `scripts/build.sh testDebugUnitTest` doesn't assemble, but
+    the publish step still ships whatever stale APK is sitting in `app/build/outputs/` — possibly
+    weeks old and missing your change. Use the default `scripts/build.sh` whenever the APK matters.
 - **Gotchas:**
   - The builder mounts the project's **parent** dir as `/workspace` and runs `./gradlew` in the
     project subdir, so sibling files resolve; it keeps a **per-project Gradle cache** at

@@ -205,6 +205,11 @@ told, and never let work pile up uncommitted.
   one; it keeps history bisectable and easy to revert (`git revert <sha>`).
 - Write a concise **imperative** subject that says *why*, not just *what*
   (`fix: input bar behind nav bar`, `feat: read-last command`).
+- **Commit *before* the build that publishes.** The APK's `versionCode` is the git commit count at
+  build time, so building first stamps the old number and the release silently overwrites itself
+  instead of becoming an update. Order is: change → commit → `scripts/build.sh`. Details and the
+  matching "a test-only run still publishes a stale APK" trap live in
+  [`docs/tools.md`](docs/tools.md#android-build).
 - **Commit before risky or large changes**, so there's always a clean point to return to.
   It's fine to commit work-in-progress on a branch; prefer a branch for anything speculative
   so the main branch stays runnable.
