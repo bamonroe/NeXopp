@@ -920,6 +920,40 @@ steps) so the activity is left with intent plumbing — and run off the UI threa
 - **Write** — the document is serialised locally *first* and only then pushed out in one pass, so a
   link that drops mid-encode can't leave a truncated `.xopp` on the far end.
 
+#### Opening the write descriptor: why not just `openOutputStream(uri, "wt")`
+
+Every write goes out through `UriStaging.writeTo`, and the mode dance inside it is load-bearing.
+`"wt"` (write + truncate) is what a save wants, but a `DocumentsProvider` is free to answer it
+however it likes, and the cloud/network ones do:
+
+| The provider… | `openOutputStream` says | What used to happen |
+|---|---|---|
+| honours `"wt"` | a stream | fine |
+| refuses `"t"` (no truncation support) | throws | the save failed outright |
+| ignores the mode and returns a **read-only** descriptor | a stream | **`Save failed: write failed: EBADF (Bad file descriptor)`** |
+
+The third row is the trap: `EBADF` is the errno for *this fd is not open for that*, so nothing is
+detectably wrong until the first `write(2)` — the open succeeds, a spinner runs, and the save dies
+partway with an errno the user can do nothing with.
+
+So `writeTo` opens a `ParcelFileDescriptor` instead of a stream and **checks it before writing a
+byte**: `Os.fcntlInt(fd, F_GETFL)` must come back `O_WRONLY` or `O_RDWR`. `"wt"` is tried first,
+then plain `"w"`; the first genuinely writable descriptor wins, and when it came from `"w"` the
+write does its own `Os.ftruncate` at the end, or a shrinking document would keep a tail of the
+previous, longer one. A descriptor that refuses `F_GETFL` gets the benefit of the doubt — better to
+attempt the write than to refuse a provider that would have worked. If no mode yields a writable
+descriptor the save is refused up front, naming each mode's refusal, and whatever is already on
+disk is left untouched.
+
+The stream handed to the caller (`UriStaging.Sink`) counts bytes and deliberately **does not close**
+what's underneath: the `ParcelFileDescriptor` is the sole owner of that fd, so a caller that wraps
+the sink in a `Writer` or `GZIPOutputStream` and closes it can't double-close an fd number the
+process may have already re-opened for something else.
+
+Both provider failure modes are reproduced on the emulator by `AwkwardProvider`, a deliberately
+misbehaving `ContentProvider` in `app/src/androidTest`, and asserted by `UriStagingTest` — the
+emulator's own providers are all well-behaved, so nothing else would catch a regression here.
+
 Every staging file is allocated by `io/ScratchDir.kt` under a name **no other transfer reuses**, and
 deleted by its caller once read. Since transfers run on worker threads, two of them overlap easily;
 the fixed `open.tmp` this replaced meant a second, slower download overwrote the first document's
@@ -1330,6 +1364,8 @@ app/
                              #   isMultiFile picks the SAF picker — CreateDocument (PDF) vs OpenDocumentTree
     io/                      # storage access that isn't format work
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
+                             #   writes vet the descriptor before using it: a provider that answers
+                             #   "wt" with a read-only fd used to fail the save with a bare EBADF
       ScratchDir.kt          # unique-per-call file names (staging and both stores), so overlapping writes can't collide
       StoreFiles.kt          # the sweep both stores share: drop unreferenced files, then trim oldest-first to a byte budget
       IncomingDocument.kt    # picks the document URI out of an incoming view/edit intent (pure, testable)
@@ -1540,6 +1576,14 @@ app/
   src/test/java/com/nexopp/render/                         # JVM unit tests for layout/grid/LaTeX geometry
   src/test/java/com/nexopp/audio/                          # JVM unit tests for fn/ts mapping + WAV framing
   src/androidTest/java/com/nexopp/                         # on-device smoke test (load/draw/save/reopen)
+  src/androidTest/java/com/nexopp/io/AwkwardProvider.java  # a deliberately misbehaving ContentProvider:
+                                                           #   the read-only / no-truncate descriptors real
+                                                           #   cloud providers hand back, which the emulator's
+                                                           #   own well-behaved providers can't reproduce.
+                                                           #   Java, not Kotlin: a test-package provider is
+                                                           #   hosted in its own process, which loads only the
+                                                           #   test dex — no app APK, so no Kotlin stdlib
+  src/androidTest/AndroidManifest.xml                      # registers it (exported: the app process writes to it)
 ```
 
 The **`format/` package is the heart** and is deliberately free of Android dependencies so the

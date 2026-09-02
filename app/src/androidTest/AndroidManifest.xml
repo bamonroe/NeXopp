@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The instrumented tests' own manifest. It exists for one thing: registering
+  `AwkwardProvider`, the misbehaving content provider `UriStagingTest` saves against to reproduce
+  the "write failed: EBADF" save failure that well-behaved providers never show.
+
+  It is exported because the resolver doing the writing lives in the app process (com.nexopp),
+  while the provider belongs to the test package (com.nexopp.test) — a different package.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <provider
+            android:name="com.nexopp.io.AwkwardProvider"
+            android:authorities="com.nexopp.test.awkward"
+            android:exported="true" />
+    </application>
+
+</manifest>

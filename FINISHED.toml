@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "save-fails-with-ebadf-when-the-provider-hands-back-a-non-writable-descriptor"
+title = "Save fails with EBADF when the provider hands back a non-writable descriptor"
+description = "Saving to some content providers fails with 'Save failed: write failed: EBADF (Bad file descriptor)'. UriStaging.stageOut opened the target with ContentResolver.openOutputStream(uri, \"wt\"); a provider that ignores the mode and returns a read-only descriptor makes that open succeed and the first write(2) fail with EBADF, and a provider that refuses the 't' (truncate) half fails the save outright. Fix: writeTo now opens a ParcelFileDescriptor, checks it is really writable with Os.fcntlInt(F_GETFL) before writing, tries \"wt\" then \"w\", ftruncates itself when it fell back to \"w\", and refuses up front with a message naming each mode's refusal. Reproduced on the emulator by AwkwardProvider (app/src/androidTest) and asserted by UriStagingTest."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-02
+completed = 2026-09-02
+tags = []
+
+[[task]]
 id = "don-t-relativise-a-pdf-background-reference-against-opaque-saf-document-ids"
 title = "Don't relativise a PDF background reference against opaque SAF document ids"
 description = """

@@ -3,7 +3,13 @@ package com.nexopp.io
 import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
+import android.os.ParcelFileDescriptor
+import android.system.Os
+import android.system.OsConstants
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStream
 
 /**
  * Moves document bytes between a `content://` URI and a local **staging file**.
@@ -34,11 +40,8 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
     }
 
     /** Push a finished local [file] out to [uri], truncating whatever was there. */
-    fun stageOut(file: File, uri: Uri) {
-        resolver.openOutputStream(uri, "wt").use { output ->
-            requireNotNull(output) { "could not write $uri" }
-            file.inputStream().use { it.copyTo(output) }
-        }
+    fun stageOut(file: File, uri: Uri) = writeTo(uri) { output ->
+        file.inputStream().use { it.copyTo(output) }
     }
 
     /**
@@ -52,14 +55,98 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
         }
 
     /**
-     * Write to [uri] by letting [writer] populate the stream. The stream is opened with `"wt"`
-     * (write + truncate) and closed here.
+     * Write to [uri] by letting [writer] populate the stream. The descriptor is opened, checked and
+     * closed here; [writer] must not close what it is handed (and needn't — see [Sink]).
+     *
+     * The mode dance in [openForWrite] is the whole point: `"wt"` is what we want, but a provider
+     * that doesn't implement truncation answers it with a read-only descriptor (or refuses it
+     * outright), and `ContentResolver.openOutputStream` reports neither — it hands back a stream
+     * whose *first write* dies with `write failed: EBADF (Bad file descriptor)`, halfway through a
+     * save the user thought was working. So the descriptor is vetted before a byte is written, the
+     * plain `"w"` mode is tried when `"wt"` doesn't yield a writable one, and we do the truncation
+     * ourselves in that case.
      */
-    fun writeTo(uri: Uri, writer: (java.io.OutputStream) -> Unit) {
-        resolver.openOutputStream(uri, "wt").use { output ->
-            requireNotNull(output) { "could not write $uri" }
-            writer(output)
+    fun writeTo(uri: Uri, writer: (OutputStream) -> Unit) {
+        val handle = openForWrite(uri)
+        handle.descriptor.use { pfd ->
+            val sink = Sink(FileOutputStream(pfd.fileDescriptor))
+            writer(sink)
+            sink.flush()
+            // "w" without "t" leaves whatever the old, longer file had past our last byte; trim it,
+            // or a shrinking document keeps a tail of stale bytes and reopens as garbage.
+            if (!handle.truncated) truncate(pfd, sink.count)
         }
+    }
+
+    /** A descriptor we have checked is really open for writing, and whether it arrived truncated. */
+    private class Handle(val descriptor: ParcelFileDescriptor, val truncated: Boolean)
+
+    /**
+     * Open [uri] for writing: `"wt"` first, then plain `"w"`, taking the first descriptor that is
+     * genuinely writable. Throws with every mode's refusal in the message rather than leaving the
+     * EBADF to surface later from somewhere with no context.
+     */
+    private fun openForWrite(uri: Uri): Handle {
+        val refusals = mutableListOf<String>()
+        for (mode in WRITE_MODES) {
+            val pfd = try {
+                resolver.openFileDescriptor(uri, mode)
+            } catch (e: Exception) {
+                refusals += "$mode: ${e.javaClass.simpleName}: ${e.message}"
+                continue
+            }
+            if (pfd == null) {
+                refusals += "$mode: the provider returned no descriptor"
+                continue
+            }
+            if (isWritable(pfd)) return Handle(pfd, truncated = mode.contains('t'))
+            runCatching { pfd.close() }
+            refusals += "$mode: the provider returned a read-only descriptor"
+        }
+        throw IOException("$uri could not be opened for writing (${refusals.joinToString("; ")})")
+    }
+
+    /**
+     * True when [pfd] is actually open for writing. A descriptor that isn't fails every `write(2)`
+     * with `EBADF`, which is the errno for "this fd is not open for that", not for "the file is
+     * broken" — so asking the fd up front turns a mid-save crash into a refusal we can report.
+     * A descriptor that won't answer `F_GETFL` gets the benefit of the doubt: better to try the
+     * write than to refuse a provider that would have worked.
+     */
+    private fun isWritable(pfd: ParcelFileDescriptor): Boolean = runCatching {
+        val access = Os.fcntlInt(pfd.fileDescriptor, OsConstants.F_GETFL, 0) and OsConstants.O_ACCMODE
+        access == OsConstants.O_WRONLY || access == OsConstants.O_RDWR
+    }.getOrDefault(true)
+
+    /** Cut [pfd] down to [length]. A pipe or proxy descriptor can't seek, and needs no trimming. */
+    private fun truncate(pfd: ParcelFileDescriptor, length: Long) {
+        runCatching { Os.ftruncate(pfd.fileDescriptor, length) }
+    }
+
+    /**
+     * Counts what went through, and — deliberately — does **not** close the stream underneath.
+     * The [ParcelFileDescriptor] is the single owner of that fd: closing it here as well would be a
+     * double close, and a second close of an fd number the process has since re-opened for something
+     * else takes down an unrelated file. Callers that wrap the sink in a `Writer`/`GZIPOutputStream`
+     * and close it therefore stay safe.
+     */
+    private class Sink(private val out: OutputStream) : OutputStream() {
+        var count: Long = 0L
+            private set
+
+        override fun write(b: Int) {
+            out.write(b)
+            count++
+        }
+
+        override fun write(b: ByteArray, off: Int, len: Int) {
+            out.write(b, off, len)
+            count += len
+        }
+
+        override fun flush() = out.flush()
+
+        override fun close() = out.flush()
     }
 
     /**
@@ -87,6 +174,9 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
         resolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
 
     companion object {
+        /** Write + truncate first, then plain write for a provider that can't do the truncating half. */
+        private val WRITE_MODES = listOf("wt", "w")
+
         /** Copy [stream] (closed here) into a fresh file in [dir] and return it. Shared by [ImageStore] and [DocumentIo]. */
         fun copyIn(dir: File, stream: java.io.InputStream): File {
             val scratch = ScratchDir(dir)
