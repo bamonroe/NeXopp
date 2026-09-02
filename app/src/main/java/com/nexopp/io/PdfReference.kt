@@ -74,10 +74,23 @@ object PdfReference {
         if (root.isEmpty()) path else "$root:$path"
 
     /**
+     * True when [docId] actually describes a location — a `:` volume root, or a `/` in its path half —
+     * rather than being an opaque handle the provider hands out (Dropbox gives a bare UUID). Only a
+     * path-shaped id can be relativised: two opaque ids sitting "in the same folder" is a fiction, and
+     * treating one as a sibling filename writes an unresolvable reference into the `.xopp`.
+     */
+    fun isPathShaped(docId: String): Boolean {
+        val (root, path) = splitDocumentId(docId)
+        return root.isNotEmpty() || path.contains('/')
+    }
+
+    /**
      * [relativeReference] over two SAF document ids: the PDF's id relative to the document's id, or
-     * null when they don't share a volume root or the PDF isn't below the document's folder.
+     * null when either id is opaque, they don't share a volume root, or the PDF isn't below the
+     * document's folder.
      */
     fun relativeDocumentId(xoppDocId: String, pdfDocId: String): String? {
+        if (!isPathShaped(xoppDocId) || !isPathShaped(pdfDocId)) return null
         val (xoppRoot, xoppPath) = splitDocumentId(xoppDocId)
         val (pdfRoot, pdfPath) = splitDocumentId(pdfDocId)
         if (xoppRoot != pdfRoot) return null
@@ -86,9 +99,12 @@ object PdfReference {
 
     /**
      * [resolveRelative] over a SAF document id: the id of the sibling [ref] names, relative to the
-     * `.xopp` at [xoppDocId]. Null when the reference climbs out of the volume.
+     * `.xopp` at [xoppDocId]. Null when [xoppDocId] is opaque — there is no folder to resolve against,
+     * so a fabricated id would only mask the bad reference — or when the reference climbs out of the
+     * volume.
      */
     fun resolveRelativeDocumentId(xoppDocId: String, ref: String): String? {
+        if (!isPathShaped(xoppDocId)) return null
         val (root, path) = splitDocumentId(xoppDocId)
         val resolved = resolveRelative(path, ref) ?: return null
         return joinDocumentId(root, resolved)

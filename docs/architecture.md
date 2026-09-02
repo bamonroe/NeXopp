@@ -2538,10 +2538,17 @@ opened) handles four shapes, in order:
 
 The last two need a folder, which `openSibling` derives from the source URI: a `file://` URI
 relativises on the filesystem, a `content://` one on its SAF document id via
-`DocumentsContract.buildDocumentUriUsingTree`/`buildDocumentUri`. Providers with **opaque** ids
-(Downloads' `msf:1234`) have no path to relativise, so resolution returns null and the pages come up
-blank with the existing "Background PDF not found" note — the reference itself is still written back
-untouched on save, so nothing is silently dropped.
+`DocumentsContract.buildDocumentUriUsingTree`/`buildDocumentUri`. Providers with **opaque** ids have
+no path to relativise, so resolution returns null and the pages come up blank with the existing
+"Background PDF not found" note — the reference itself is still written back untouched on save, so
+nothing is silently dropped.
+
+**What counts as opaque** is `PdfReference.isPathShaped`, and both directions are gated on it: an id
+is path-shaped only if it has a `:` volume root (`primary:notes.xopp`) or a `/` in its path half
+(`Docs/notes.xopp`). Dropbox hands out a bare UUID (`a504fa52-9f52-…`) with neither, and Downloads'
+`msf:1234` has a root but never a matching one. Without the predicate a bare UUID looked like a
+filename at a volume root, so a save relativised the PDF's id down to *its* UUID and wrote
+`filename="<uuid>"` — a name no reader can find, on the tablet or in desktop Xournal++.
 
 **Writing** (`DocumentIo.portableReference`, applied on every `XOPP_GZIP` save) rewrites the
 reference to be relative to the save destination whenever the PDF sits in the same folder — matching

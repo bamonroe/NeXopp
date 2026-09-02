@@ -17,6 +17,26 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "don-t-relativise-a-pdf-background-reference-against-opaque-saf-document-ids"
+title = "Don't relativise a PDF background reference against opaque SAF document ids"
+description = """
+Saving a PDF-backed document to a provider whose SAF document ids are opaque (Dropbox: a bare UUID like 'a504fa52-9f52-4a7f-9e93-52c6f81a3be7', no ':' root and no '/' separators) writes that UUID into the .xopp as filename="<uuid>" under domain="absolute". Because PdfReference.isRelative() sees no scheme and no leading slash, every reader then treats it as a relative sibling name and looks for a file literally called '<uuid>' next to the .xopp. Nothing is there, so the background loads blank on another device and in desktop Xournal++ too. Confirmed on a real file saved from the tablet into Dropbox.
+
+Cause: PdfReference.relativeReference(xoppPath, pdfPath) in app/src/main/java/com/nexopp/io/PdfReference.kt:56. When xoppPath has no '/', 'dir' comes out empty and the function returns pdfPath whole, on the theory that both files sit at the volume root. For a path-shaped provider that is right; for an opaque id it is a false positive that fabricates a relative name out of an unrelated id.
+
+Fix: only relativise when both document ids actually look like paths. Add a predicate to PdfReference — 'fun isPathShaped(docId: String): Boolean' returning true when the id has a ':' volume root or its path half contains a '/'. A bare opaque UUID has neither and is rejected; 'primary:notes.xopp' (a real volume root) and 'primary:Docs/notes.xopp' both pass. Have relativeDocumentId() return null unless both xoppDocId and pdfDocId are path-shaped. Leave relativeReference()'s empty-dir branch alone for genuine filesystem paths; gate it at the document-id layer only. DocumentReferences.portablePdfReference already falls back to keeping the absolute reference when relativeTo() returns null, so no caller change is needed. Do the same for portablePixmapReferences, which goes through the same relativeTo().
+
+Also gate the read side: DocumentReferences.siblingUri() calls PdfReference.resolveRelativeDocumentId(), which has the mirror-image flaw — it happily resolves a sibling id against an opaque source id. Return null there too when the source id is not path-shaped, so a bad reference fails to a 'not found' note rather than to a fabricated URI.
+
+Verify with unit tests in the existing PdfReference test file: relativeDocumentId("a504fa52-uuid-a", "a504fa52-uuid-b") is null; relativeDocumentId("primary:Docs/notes.xopp", "primary:Docs/paper.pdf") is still "paper.pdf"; relativeDocumentId("primary:notes.xopp", "primary:paper.pdf") is still "paper.pdf"; resolveRelativeDocumentId("a504fa52-uuid-a", "paper.pdf") is null. Run scripts/build.sh testDebugUnitTest."""
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-02
+completed = 2026-09-02
+tags = ["pdf", "saf", "io"]
+
+[[task]]
 id = "verify-the-reload-button-on-the-emulator"
 title = "Verify the reload button on the emulator"
 description = """

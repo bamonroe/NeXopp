@@ -80,6 +80,44 @@ class PdfReferenceTest {
             "scans/bg.pdf",
             PdfReference.relativeDocumentId("primary:Docs/notes.xopp", "primary:Docs/scans/bg.pdf"),
         )
+        // Both at the volume root: still a real folder, so still relativisable.
+        assertEquals(
+            "bg.pdf",
+            PdfReference.relativeDocumentId("primary:notes.xopp", "primary:bg.pdf"),
+        )
+    }
+
+    @Test
+    fun `only ids that look like paths relativise`() {
+        assertTrue(PdfReference.isPathShaped("primary:notes.xopp"))
+        assertTrue(PdfReference.isPathShaped("primary:Docs/notes.xopp"))
+        assertTrue(PdfReference.isPathShaped("Docs/notes.xopp"))
+        // Dropbox hands out a bare UUID: no volume root, no separator, no folder to speak of.
+        assertFalse(PdfReference.isPathShaped("a504fa52-9f52-4a7f-9e93-52c6f81a3be7"))
+        assertFalse(PdfReference.isPathShaped("notes.xopp"))
+    }
+
+    @Test
+    fun `opaque provider ids never relativise into a bogus sibling name`() {
+        assertNull(
+            PdfReference.relativeDocumentId(
+                "a504fa52-9f52-4a7f-9e93-52c6f81a3be7",
+                "b1e7c3d0-1f44-4c02-8f0a-6d2b9a5e7c11",
+            ),
+        )
+        assertNull(
+            PdfReference.relativeDocumentId(
+                "primary:Docs/notes.xopp",
+                "b1e7c3d0-1f44-4c02-8f0a-6d2b9a5e7c11",
+            ),
+        )
+    }
+
+    @Test
+    fun `a relative reference does not resolve against an opaque id`() {
+        assertNull(
+            PdfReference.resolveRelativeDocumentId("a504fa52-9f52-4a7f-9e93-52c6f81a3be7", "bg.pdf"),
+        )
     }
 
     @Test
