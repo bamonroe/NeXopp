@@ -34,3 +34,17 @@ created = 2026-09-02
 tags = []
 rebuild = true
 emulator_debug = true
+
+[[task]]
+id = "tell-the-user-when-autosave-keeps-failing"
+title = "Tell the user when autosave keeps failing"
+description = "An autosave that fails is silent by design (AutoSaveTimer backs off and retries), which is right for a transient hiccup and wrong for a target that will never accept a write: a Dropbox file whose provider hands back a read-only descriptor refuses every retry, so the document stays dirty and the user is told nothing until they save deliberately. After N consecutive failures against the same target, surface it once through MainActivity.notice with the same Save As offer reportSaveFailure uses (MainActivityDocuments.kt), then stay quiet again until the target changes or a save succeeds. See docs/architecture.md 'Reporting a refused save'."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "normal"
+order = 20
+created = 2026-09-02
+tags = []
+rebuild = true
+emulator_debug = false

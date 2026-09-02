@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -84,12 +83,17 @@ class UriStagingTest {
     }
 
     /**
-     * The other half of the EBADF report: a provider that answers a write mode with a **read-only**
-     * descriptor. The open succeeds, so the failure used to land on the first `write(2)` as a bare
-     * `write failed: EBADF (Bad file descriptor)`. It must now be refused up front, named, and — the
-     * part that matters to the user — leave the file that is already on disk alone.
+     * The other half of the EBADF report: a provider that answers every write mode with a
+     * **read-only** descriptor — which is exactly what Dropbox does. The open succeeds, so the
+     * failure lands on the first `write(2)` as `write failed: EBADF (Bad file descriptor)`, and on
+     * its own that errno tells the user nothing they can act on.
+     *
+     * We still attempt the write (the flags could have been understating the fd), so what this
+     * pins down is the *report*: the provider's refusal has to lead, ahead of the errno, and the
+     * file already on disk has to survive untouched — a read-only fd fails on the first byte, so
+     * nothing of the new document can land on top of the old one.
      */
-    @Test fun aReadOnlyDescriptorIsRefusedBeforeAnythingIsWritten() {
+    @Test fun aReadOnlyDescriptorIsNamedAsTheCauseAndNothingIsWritten() {
         val target = awkward("read-only", "read-only.xopp")
         val scratch = staging.newFile("save").apply { writeText("fresh") }
 
@@ -99,7 +103,10 @@ class UriStagingTest {
 
         val message = failure.message.orEmpty()
         assertTrue("should name the read-only descriptor, was: $message", message.contains("read-only descriptor"))
-        assertFalse("should not surface a bare errno, was: $message", message.contains("EBADF"))
+        assertTrue(
+            "the provider's refusal must come before the errno, was: $message",
+            message.indexOf("read-only descriptor") < message.indexOf("the write failed"),
+        )
         assertEquals("the existing file must survive a refused save", LONG_STALE, contentsOf("read-only.xopp"))
     }
 

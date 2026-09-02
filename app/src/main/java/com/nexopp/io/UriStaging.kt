@@ -63,34 +63,59 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
      * that doesn't implement truncation answers it with a read-only descriptor (or refuses it
      * outright), and `ContentResolver.openOutputStream` reports neither — it hands back a stream
      * whose *first write* dies with `write failed: EBADF (Bad file descriptor)`, halfway through a
-     * save the user thought was working. So the descriptor is vetted before a byte is written, the
-     * plain `"w"` mode is tried when `"wt"` doesn't yield a writable one, and we do the truncation
-     * ourselves in that case.
+     * save the user thought was working. So several modes are tried, the descriptor is inspected
+     * before a byte is written, and we do the truncation ourselves when it didn't arrive truncated.
+     *
+     * The inspection informs the *report*, not the decision: a descriptor that fails it is still
+     * written through (see [openForWrite]), and only if that write then fails does its [Handle.doubt]
+     * join the errno in the message — so the user is told the provider refused, not just `EBADF`.
      */
     fun writeTo(uri: Uri, writer: (OutputStream) -> Unit) {
         val handle = openForWrite(uri)
         handle.descriptor.use { pfd ->
             val sink = Sink(FileOutputStream(pfd.fileDescriptor))
-            writer(sink)
-            sink.flush()
+            try {
+                writer(sink)
+                sink.flush()
+            } catch (e: IOException) {
+                // A descriptor we were already suspicious of has now actually failed: say both halves,
+                // so the report names the cause (the provider) and not just the errno (`EBADF`).
+                throw handle.doubt?.let { IOException("$it; the write failed: ${e.message}", e) } ?: e
+            }
             // "w" without "t" leaves whatever the old, longer file had past our last byte; trim it,
             // or a shrinking document keeps a tail of stale bytes and reopens as garbage.
             if (!handle.truncated) truncate(pfd, sink.count)
         }
     }
 
-    /** A descriptor we have checked is really open for writing, and whether it arrived truncated. */
-    private class Handle(val descriptor: ParcelFileDescriptor, val truncated: Boolean)
+    /**
+     * A descriptor to write through, whether it arrived truncated, and — for one we could not
+     * confirm is writable — what was wrong with it ([doubt]; null when it checked out).
+     */
+    private class Handle(
+        val descriptor: ParcelFileDescriptor,
+        val truncated: Boolean,
+        val doubt: String? = null,
+    )
 
     /**
      * Open [uri] for writing, trying [WRITE_MODES] in order and taking the first descriptor that is
-     * genuinely writable. Throws with every mode's refusal in the message rather than leaving the
-     * EBADF to surface later from somewhere with no context.
+     * genuinely writable.
+     *
+     * When none of them checks out we still return the first descriptor the provider handed over,
+     * carrying the refusal as [Handle.doubt], and let the write itself have the final word. The
+     * check is evidence, not proof: `F_GETFL` describes the fd in *this* process, and a provider is
+     * free to serve one whose flags say less than it can do. A read-only fd fails on the first
+     * `write(2)` with nothing written, so trying costs a refusal we would have issued anyway — while
+     * refusing on the check alone would lock out a provider that would have worked. Only a provider
+     * that yields no descriptor at all is refused outright.
      */
     private fun openForWrite(uri: Uri): Handle {
         // Keyed by reason, not by mode: a provider that refuses all four the same way should say so
         // once. The refusal is what the user reads, so it has to fit in a snackbar.
         val refusals = LinkedHashMap<String, MutableList<String>>()
+        var doubted: ParcelFileDescriptor? = null
+        var doubtedTruncated = false
         for (mode in WRITE_MODES) {
             val pfd = try {
                 resolver.openFileDescriptor(uri, mode)
@@ -102,28 +127,36 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
                 refusals.note("the provider returned no descriptor", mode)
                 continue
             }
-            if (isWritable(pfd)) return Handle(pfd, truncated = mode.contains('t'))
-            runCatching { pfd.close() }
+            if (isWritable(pfd)) {
+                doubted?.let { d -> runCatching { d.close() } }
+                return Handle(pfd, truncated = mode.contains('t'))
+            }
             refusals.note("the provider returned a read-only descriptor", mode)
+            // Keep the first one to try anyway; a later mode may still produce a verified one.
+            if (doubted == null) {
+                doubted = pfd
+                doubtedTruncated = mode.contains('t')
+            } else {
+                runCatching { pfd.close() }
+            }
         }
         // The URI is the one part not worth showing — it is a provider-internal id the width of the
         // screen (see the Dropbox UUID in the report that prompted this), so it goes to logcat only.
         val message = refusalMessage(refusals)
         Log.w(TAG, "$message: $uri")
-        throw IOException(message)
+        val fallback = doubted ?: throw IOException("the file could not be opened for writing — $message")
+        return Handle(fallback, doubtedTruncated, doubt = message)
     }
 
     private fun MutableMap<String, MutableList<String>>.note(reason: String, mode: String) {
         getOrPut(reason) { mutableListOf() } += mode
     }
 
-    /** The refusals as one sentence, reason first — this is what a failed save shows the user. */
-    private fun refusalMessage(refusals: Map<String, List<String>>): String {
-        val reasons = refusals.entries.joinToString("; ") { (reason, modes) ->
+    /** The refusals as one clause, reason first — this is what a failed save shows the user. */
+    private fun refusalMessage(refusals: Map<String, List<String>>): String =
+        refusals.entries.joinToString("; ") { (reason, modes) ->
             "$reason (mode ${modes.joinToString("/")})"
         }
-        return "the file could not be opened for writing — $reasons"
-    }
 
     /**
      * True when [pfd] is actually open for writing. A descriptor that isn't fails every `write(2)`

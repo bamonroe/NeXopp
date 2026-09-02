@@ -958,10 +958,18 @@ byte**: `Os.fcntlInt(fd, F_GETFL)` must come back `O_WRONLY` or `O_RDWR`. Four m
 order — `"wt"`, `"w"`, `"rwt"`, `"rw"` — because a provider may implement `openDocument` for only
 one spelling and hand back a read-only descriptor for the rest. The first genuinely writable
 descriptor wins, and when it arrived without the `t` the write does its own `Os.ftruncate` at the
-end, or a shrinking document would keep a tail of the previous, longer one. A descriptor that
-refuses `F_GETFL` gets the benefit of the doubt — better to attempt the write than to refuse a
-provider that would have worked. If no mode yields a writable descriptor the save is refused up
-front and whatever is already on disk is left untouched.
+end, or a shrinking document would keep a tail of the previous, longer one.
+
+**The check informs the report, not the decision.** When *no* mode yields a descriptor that passes
+it, the first one the provider handed over is written through anyway, carrying the refusal with it;
+only if that write then fails does the refusal join the errno in the message
+(`…read-only descriptor (mode wt/w/rwt/rw); the write failed: write failed: EBADF…`). `F_GETFL`
+describes the fd in *this* process and a provider may serve one whose flags say less than it can do,
+so vetoing on the check alone would lock out a provider that would have worked — while trying costs
+only a refusal we'd have issued anyway, since a read-only fd fails on the first `write(2)` with
+nothing written and the file already on disk untouched. A descriptor that won't answer `F_GETFL` at
+all is likewise given the benefit of the doubt. Only a provider that yields *no* descriptor from any
+mode is refused before the write.
 
 The refusal message is **reason first**, grouped by reason rather than listed per mode
 (`the file could not be opened for writing — the provider returned a read-only descriptor (mode
