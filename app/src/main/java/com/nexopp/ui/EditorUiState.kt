@@ -55,10 +55,22 @@ class PendingLossySave(
  * are reports rather than questions, so both take the same route: a snackbar carrying [message],
  * with [lines] behind its *Details* action.
  *
+ * A notice that the user can *act* on carries an [offer] instead, which takes the snackbar's single
+ * action slot: a save the target refused is the case that matters — there is nothing to expand and
+ * everything to redirect, so the action offers somewhere else to write.
+ *
  * @property message The one-line summary, which is also the details dialog's title.
- * @property lines The losses in full, one sentence each; never empty.
+ * @property lines The losses in full, one sentence each; empty when the notice is an [offer].
+ * @property offer What to do about it, or null for a report whose action expands [lines].
  */
-class ContentNotice(val message: String, val lines: List<String>)
+class ContentNotice(
+    val message: String,
+    val lines: List<String>,
+    val offer: NoticeOffer? = null,
+)
+
+/** A notice's one actionable button: its [label] and what tapping it does. */
+class NoticeOffer(val label: String, val onAction: () -> Unit)
 
 /**
  * Everything [EditorScreen] remembers that isn't a mirror of a canvas (that's [PaneState]) and isn't

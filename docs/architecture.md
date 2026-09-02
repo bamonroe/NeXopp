@@ -738,6 +738,23 @@ through the *same* snackbar, with its own line (`Some content could not be opene
   clears it (the modal already asked) and `saveActiveTab` sets it. The two paths share one SAF
   launcher, so the completion has no other way to tell them apart.
 
+#### Reporting a refused save (ui)
+
+A save the target **refused** — no writable descriptor
+([above](#opening-the-write-descriptor-why-not-just-openoutputstreamuri-wt)), a share that dropped
+mid-push, a revoked grant — rides the same `ContentNotice` channel, via
+`MainActivityDocuments.reportSaveFailure`. Nothing is lost: the document stays open and stays dirty.
+
+What it needs is not a list but a way out, so the notice carries a `NoticeOffer` instead of `lines`.
+A snackbar has exactly one action slot, and an offer spends it: the button reads **Save As…** and
+opens the same SAF picker the menu item does (`saveLauncher.launch(pendingSaveName)`) rather than
+*Details*. Without it, plain Save keeps writing back to the file the tab came from — the one that
+just refused — so the user's next three taps are a menu hunt under a message saying their work
+didn't land. The full failure, URI included, goes to logcat.
+
+**An autosave stays silent** on the same failure by design (`AutoSaveTimer` backs off and retries);
+the user learns about it on the next deliberate Save.
+
 ### Decision (2026-08-12): one `textstroke` stays one `<text>` — no run splitting
 
 **A Rnote text box imports as exactly one `TextElement`, always.** We do not split a box into one
@@ -937,13 +954,20 @@ detectably wrong until the first `write(2)` — the open succeeds, a spinner run
 partway with an errno the user can do nothing with.
 
 So `writeTo` opens a `ParcelFileDescriptor` instead of a stream and **checks it before writing a
-byte**: `Os.fcntlInt(fd, F_GETFL)` must come back `O_WRONLY` or `O_RDWR`. `"wt"` is tried first,
-then plain `"w"`; the first genuinely writable descriptor wins, and when it came from `"w"` the
-write does its own `Os.ftruncate` at the end, or a shrinking document would keep a tail of the
-previous, longer one. A descriptor that refuses `F_GETFL` gets the benefit of the doubt — better to
-attempt the write than to refuse a provider that would have worked. If no mode yields a writable
-descriptor the save is refused up front, naming each mode's refusal, and whatever is already on
-disk is left untouched.
+byte**: `Os.fcntlInt(fd, F_GETFL)` must come back `O_WRONLY` or `O_RDWR`. Four modes are tried in
+order — `"wt"`, `"w"`, `"rwt"`, `"rw"` — because a provider may implement `openDocument` for only
+one spelling and hand back a read-only descriptor for the rest. The first genuinely writable
+descriptor wins, and when it arrived without the `t` the write does its own `Os.ftruncate` at the
+end, or a shrinking document would keep a tail of the previous, longer one. A descriptor that
+refuses `F_GETFL` gets the benefit of the doubt — better to attempt the write than to refuse a
+provider that would have worked. If no mode yields a writable descriptor the save is refused up
+front and whatever is already on disk is left untouched.
+
+The refusal message is **reason first**, grouped by reason rather than listed per mode
+(`the file could not be opened for writing — the provider returned a read-only descriptor (mode
+wt/w/rwt/rw)`), because it is read in a snackbar: the URI a cloud provider hands out is a UUID the
+width of the screen, so it went to logcat and pushed the reason off the end. See
+[Reporting a refused save](#reporting-a-refused-save-ui) for what the user is offered next.
 
 The stream handed to the caller (`UriStaging.Sink`) counts bytes and deliberately **does not close**
 what's underneath: the `ParcelFileDescriptor` is the sole owner of that fd, so a caller that wraps
@@ -1366,6 +1390,7 @@ app/
       UriStaging.kt          # stage document bytes to/from a content:// URI (slow remote shares)
                              #   writes vet the descriptor before using it: a provider that answers
                              #   "wt" with a read-only fd used to fail the save with a bare EBADF
+                             #   four modes tried (wt/w/rwt/rw); refusal reads reason-first
       ScratchDir.kt          # unique-per-call file names (staging and both stores), so overlapping writes can't collide
       StoreFiles.kt          # the sweep both stores share: drop unreferenced files, then trim oldest-first to a byte budget
       IncomingDocument.kt    # picks the document URI out of an incoming view/edit intent (pure, testable)

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.system.Os
 import android.system.OsConstants
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -82,28 +83,46 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
     private class Handle(val descriptor: ParcelFileDescriptor, val truncated: Boolean)
 
     /**
-     * Open [uri] for writing: `"wt"` first, then plain `"w"`, taking the first descriptor that is
+     * Open [uri] for writing, trying [WRITE_MODES] in order and taking the first descriptor that is
      * genuinely writable. Throws with every mode's refusal in the message rather than leaving the
      * EBADF to surface later from somewhere with no context.
      */
     private fun openForWrite(uri: Uri): Handle {
-        val refusals = mutableListOf<String>()
+        // Keyed by reason, not by mode: a provider that refuses all four the same way should say so
+        // once. The refusal is what the user reads, so it has to fit in a snackbar.
+        val refusals = LinkedHashMap<String, MutableList<String>>()
         for (mode in WRITE_MODES) {
             val pfd = try {
                 resolver.openFileDescriptor(uri, mode)
             } catch (e: Exception) {
-                refusals += "$mode: ${e.javaClass.simpleName}: ${e.message}"
+                refusals.note("${e.javaClass.simpleName}: ${e.message}", mode)
                 continue
             }
             if (pfd == null) {
-                refusals += "$mode: the provider returned no descriptor"
+                refusals.note("the provider returned no descriptor", mode)
                 continue
             }
             if (isWritable(pfd)) return Handle(pfd, truncated = mode.contains('t'))
             runCatching { pfd.close() }
-            refusals += "$mode: the provider returned a read-only descriptor"
+            refusals.note("the provider returned a read-only descriptor", mode)
         }
-        throw IOException("$uri could not be opened for writing (${refusals.joinToString("; ")})")
+        // The URI is the one part not worth showing — it is a provider-internal id the width of the
+        // screen (see the Dropbox UUID in the report that prompted this), so it goes to logcat only.
+        val message = refusalMessage(refusals)
+        Log.w(TAG, "$message: $uri")
+        throw IOException(message)
+    }
+
+    private fun MutableMap<String, MutableList<String>>.note(reason: String, mode: String) {
+        getOrPut(reason) { mutableListOf() } += mode
+    }
+
+    /** The refusals as one sentence, reason first — this is what a failed save shows the user. */
+    private fun refusalMessage(refusals: Map<String, List<String>>): String {
+        val reasons = refusals.entries.joinToString("; ") { (reason, modes) ->
+            "$reason (mode ${modes.joinToString("/")})"
+        }
+        return "the file could not be opened for writing — $reasons"
     }
 
     /**
@@ -174,8 +193,15 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
         resolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
 
     companion object {
-        /** Write + truncate first, then plain write for a provider that can't do the truncating half. */
-        private val WRITE_MODES = listOf("wt", "w")
+        private const val TAG = "UriStaging"
+
+        /**
+         * Write + truncate first; then plain write for a provider that can't do the truncating half;
+         * then the read/write pair, because a provider is free to implement `openDocument` for
+         * `"rw"` and hand back a read-only descriptor for everything else. Whatever arrives without
+         * a `t` gets [truncate]d by us.
+         */
+        private val WRITE_MODES = listOf("wt", "w", "rwt", "rw")
 
         /** Copy [stream] (closed here) into a fresh file in [dir] and return it. Shared by [ImageStore] and [DocumentIo]. */
         fun copyIn(dir: File, stream: java.io.InputStream): File {

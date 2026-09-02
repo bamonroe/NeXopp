@@ -218,11 +218,14 @@ fun EditorScreen(
         // effect is keyed on, so an early call cancels the very coroutine that is showing it.
         val result = snackbars.showSnackbar(
             message = pending.message,
-            actionLabel = "Details",
+            actionLabel = pending.offer?.label ?: "Details",
             duration = SnackbarDuration.Long,
         )
         onNoticeShown()
-        if (result == SnackbarResult.ActionPerformed) ui.noticeDetails = pending
+        if (result != SnackbarResult.ActionPerformed) return@LaunchedEffect
+        // One action slot: a notice with an offer spends it on the offer, everything else on Details.
+        pending.offer?.let { it.onAction(); return@LaunchedEffect }
+        ui.noticeDetails = pending
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

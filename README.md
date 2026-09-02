@@ -779,6 +779,11 @@ authoritative flow; don't invent another one.
   file yet (or the grant on it has lapsed). The document is encoded locally and then pushed across
   in one pass behind a "Saving…" note, so a slow or broken link can never leave a half-written
   `.xopp` on the far end.
+  **If the file refuses the write** — some cloud providers (Dropbox among them) hand back a
+  descriptor that can't be written to — the save is refused *before* anything is sent, so what's on
+  disk is left exactly as it was, and the message says which way it was refused rather than showing
+  a raw error code. Your work is not lost: the document stays open and unsaved, and the message
+  carries a **Save As…** button that opens the picker so you can put it somewhere that will take it.
 
 - **Save As…** — the menu's **Save As…** opens a dialog to name the file and pick its format:
   - **Original (gzip)** — the standard Xournal++ `.xopp` (gzip-compressed XML). For a PDF-backed

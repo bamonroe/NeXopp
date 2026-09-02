@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.util.Log
 import com.nexopp.audio.documentAudioFiles
 import com.nexopp.format.ExportFormat
 import com.nexopp.format.SaveFormat
@@ -26,6 +27,7 @@ import com.nexopp.tabs.OpenTab
 import com.nexopp.tabs.TabStore
 import com.nexopp.ui.AppSettings
 import com.nexopp.ui.ContentNotice
+import com.nexopp.ui.NoticeOffer
 import java.io.File
 
 /** The snackbar line for content an opened file's conversion could not carry into our model. */
@@ -419,9 +421,28 @@ internal fun MainActivity.saveDocument(uri: Uri, quiet: Boolean = false) {
 
     inBackground("Saving ${displayName(uri)}…", { io.stageOut(staged, uri) }) { result ->
         staged.delete()
-        result.onFailure { toast("Save failed: ${it.message}") }
+        result.onFailure { reportSaveFailure(uri, it) }
             .onSuccess { afterSaved(view, uri) }
     }
+}
+
+/**
+ * The write the save target refused — a provider that won't hand over a writable descriptor, a
+ * share that dropped mid-push, a revoked grant.
+ *
+ * Nothing is lost: the document is still open and still dirty, so it can simply be written
+ * somewhere else. But plain Save will keep hitting the same wall (it writes back to the file the
+ * tab came from), and finding *Save As* in the menu is the user's problem to solve under a message
+ * that just told them their work didn't land. So the report carries the way out with it: the offer
+ * opens the very same picker the menu item does.
+ */
+internal fun MainActivity.reportSaveFailure(uri: Uri, cause: Throwable) {
+    Log.w("MainActivity", "save to $uri failed", cause)
+    notice.value = ContentNotice(
+        message = "Save failed: ${cause.message}",
+        lines = emptyList(),
+        offer = NoticeOffer("Save As…") { saveLauncher.launch(pendingSaveName) },
+    )
 }
 
 /** Book-keeping for a document that has just landed on disk at [uri]. */
