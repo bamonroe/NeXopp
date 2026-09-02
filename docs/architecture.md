@@ -2587,6 +2587,13 @@ no path to relativise, so resolution returns null and the pages come up blank wi
 "Background PDF not found" note — the reference itself is still written back untouched on save, so
 nothing is silently dropped.
 
+**The two directions are not symmetric.** `PdfReference.siblingDocumentId` is the reader's entry
+point, and against an opaque source id it falls back to trying the reference *as a whole document
+id* of that provider's own. That is precisely the bad reference the writer used to emit (below), and
+on the device that emitted it the id still finds the PDF — refusing it would blank the background of
+every document already saved that way, while a wrong guess costs only the miss we'd have had anyway.
+`resolveRelativeDocumentId` stays strict for everyone else; only the reader is forgiving.
+
 **What counts as opaque** is `PdfReference.isPathShaped`, and both directions are gated on it: an id
 is path-shaped only if it has a `:` volume root (`primary:notes.xopp`) or a `/` in its path half
 (`Docs/notes.xopp`). Dropbox hands out a bare UUID (`a504fa52-9f52-…`) with neither, and Downloads'

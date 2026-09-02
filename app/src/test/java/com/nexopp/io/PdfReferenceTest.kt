@@ -121,6 +121,23 @@ class PdfReferenceTest {
     }
 
     @Test
+    fun `an opaque reference beside an opaque id is tried as a document id of its own`() {
+        // What an older build wrote into a Dropbox-hosted .xopp: the PDF's whole document id as the
+        // "relative" name. Wrong off-device, but the provider that wrote it still knows the id.
+        val xopp = "a504fa52-9f52-4a7f-9e93-52c6f81a3be7"
+        val pdf = "b1e7c3d0-1f44-4c02-8f0a-6d2b9a5e7c11"
+        assertEquals(pdf, PdfReference.siblingDocumentId(xopp, pdf))
+        // A genuine path-shaped id still resolves as a sibling, never as a whole id.
+        assertEquals(
+            "primary:Docs/bg.pdf",
+            PdfReference.siblingDocumentId("primary:Docs/notes.xopp", "bg.pdf"),
+        )
+        // A multi-segment reference is a path, so an opaque id has nothing to resolve it against.
+        assertNull(PdfReference.siblingDocumentId(xopp, "scans/bg.pdf"))
+        assertNull(PdfReference.siblingDocumentId(xopp, ""))
+    }
+
+    @Test
     fun `ids on different volumes or folders do not relativise`() {
         assertNull(PdfReference.relativeDocumentId("primary:Docs/notes.xopp", "sdcard:Docs/bg.pdf"))
         assertNull(PdfReference.relativeDocumentId("primary:Docs/notes.xopp", "primary:Other/bg.pdf"))

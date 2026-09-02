@@ -88,8 +88,9 @@ internal class DocumentReferenceResolver(
      * Open the file [ref] names *relative to the document at [source]* — the one lookup a relative or
      * attached reference needs. A `file://` source relativises on the filesystem; a `content://` one
      * relativises on its SAF document id, which only works when the provider's ids are decomposable
-     * paths (`primary:Docs/notes.xopp`). Anything else — an opaque Downloads id, no source at all —
-     * gives null, and the caller falls back to blank pages with the usual "not found" note.
+     * paths (`primary:Docs/notes.xopp`); against an opaque id the reference is tried as a whole
+     * document id instead ([PdfReference.siblingDocumentId]). No source at all, or a provider that
+     * doesn't know the id, gives null and the usual blank page with its "not found" note.
      */
     private fun openSibling(source: Uri?, ref: String): java.io.InputStream? {
         val uri = source ?: return null
@@ -104,10 +105,10 @@ internal class DocumentReferenceResolver(
         }
     }
 
-    /** The SAF URI of [ref] resolved beside the document at [source], or null if its ids aren't paths. */
+    /** The SAF URI to try for [ref] beside the document at [source] — see [PdfReference.siblingDocumentId]. */
     private fun siblingUri(source: Uri, ref: String): Uri? = runCatching {
         val docId = DocumentsContract.getDocumentId(source)
-        val siblingId = PdfReference.resolveRelativeDocumentId(docId, ref) ?: return null
+        val siblingId = PdfReference.siblingDocumentId(docId, ref) ?: return null
         if (DocumentsContract.isTreeUri(source)) DocumentsContract.buildDocumentUriUsingTree(source, siblingId)
         else DocumentsContract.buildDocumentUri(source.authority, siblingId)
     }.getOrNull()

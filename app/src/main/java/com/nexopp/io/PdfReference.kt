@@ -109,4 +109,19 @@ object PdfReference {
         val resolved = resolveRelative(path, ref) ?: return null
         return joinDocumentId(root, resolved)
     }
+
+    /**
+     * The document id a sibling reference should be *tried* as: [resolveRelativeDocumentId] when the
+     * `.xopp`'s id is a path, and otherwise [ref] taken as a whole id of the provider's own.
+     *
+     * That fallback exists because we used to write exactly such a reference. Against an opaque-id
+     * provider (Dropbox), [relativeDocumentId] emitted the PDF's entire document id as the "relative"
+     * name — wrong anywhere else, which is what [isPathShaped] now prevents, but on the device that
+     * wrote it, handing the id back to the provider finds the PDF. Reading is the forgiving
+     * direction: refusing it would blank the background of every document already saved that way,
+     * and the cost of a wrong guess is the miss we would have had anyway. Only the writer is strict.
+     */
+    fun siblingDocumentId(xoppDocId: String, ref: String): String? =
+        resolveRelativeDocumentId(xoppDocId, ref)
+            ?: ref.takeIf { it.isNotEmpty() && !it.contains('/') && !isPathShaped(xoppDocId) }
 }
