@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.nexopp.render.Momentum
 import com.nexopp.render.PanSensitivity
+import com.nexopp.render.ShapeWidth
 
 /**
  * Where a row picked up at [from] and dragged [offset] px lands: one place per whole [rowHeight]
@@ -149,6 +150,34 @@ fun MomentumSlider(value: Float, onChange: (Float) -> Unit) {
         )
         Spacer(Modifier.width(12.dp))
         Text(label, modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
+    }
+}
+
+/**
+ * The line-thickness control: a continuous slider over [ShapeWidth.MIN]..[ShapeWidth.MAX], shown as
+ * a percentage of the pen's nominal width and snapped to the [ShapeWidth.STEP] grid. Shapes draw at
+ * a flat width while a pen stroke is thinned by pressure, so the ratio that makes the two look
+ * equal depends on how hard this particular user presses — hence a slider, not a constant.
+ */
+@Composable
+fun ShapeWidthSlider(value: Float, onChange: (Float) -> Unit) {
+    Text("Line thickness", style = MaterialTheme.typography.bodyLarge)
+    Text(
+        "How thick the shape tools (line, arrow, rectangle, ellipse, spline) draw, as a percentage " +
+            "of the pen's width. Raise it if your shapes look thin beside your handwriting, lower " +
+            "it if they look heavy. Doesn't affect the highlighter or strokes already drawn.",
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(bottom = 4.dp),
+    )
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Slider(
+            value = value,
+            onValueChange = { onChange(ShapeWidth.snap(it)) },
+            valueRange = ShapeWidth.MIN..ShapeWidth.MAX,
+            modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.width(12.dp))
+        Text("${ShapeWidth.percent(value)}%", modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
     }
 }
 

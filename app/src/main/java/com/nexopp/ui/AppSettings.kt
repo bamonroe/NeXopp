@@ -11,6 +11,7 @@ import com.nexopp.render.PaletteInvocation
 import com.nexopp.render.PageStacker
 import com.nexopp.render.PanSensitivity
 import com.nexopp.render.PressureSensitivity
+import com.nexopp.render.ShapeWidth
 import com.nexopp.render.StrokePrecision
 
 /**
@@ -90,6 +91,7 @@ enum class ThemeMode(val label: String) {
  * @property paletteHaptics Buzz as a radial-palette flick crosses into a new slot, and again when it commits.
  * @property paletteCloseOnSelect Close the radial palette the moment a slot is picked, instead of leaving it open.
  * @property sensitivity How pen pressure maps to stroke width.
+ * @property shapeWidth Width of a shape/spline as a fraction of the nominal pen width (see [ShapeWidth]).
  * @property strokePrecision How much digitiser detail a freehand stroke keeps (fidelity vs. file size).
  * @property recognizeShapes Snap a finished freehand stroke to the primitive it resembles (line, circle, rectangle…).
  * @property pageColumns Pages shown side by side in the page overview: 1 is the plain single-page stack.
@@ -142,6 +144,8 @@ data class AppSettings(
     val paletteCloseOnSelect: Boolean = false,
     /** How pen pressure maps to stroke width. */
     val sensitivity: PressureSensitivity = PressureSensitivity.LINEAR,
+    /** Width of a shape/spline as a fraction of the nominal pen width (see [ShapeWidth]). */
+    val shapeWidth: Float = ShapeWidth.DEFAULT,
     /** How much digitiser detail a freehand stroke keeps (fidelity vs. file size). */
     val strokePrecision: StrokePrecision = StrokePrecision.DEFAULT,
     /** Snap a finished freehand stroke to the primitive it resembles (line, circle, rectangle…). */
@@ -342,6 +346,7 @@ class SettingsStore(context: Context) {
             paletteCloseOnSelect =
                 prefs.getBoolean(KEY_PALETTE_CLOSE_ON_SELECT, d.paletteCloseOnSelect),
             sensitivity = enumOr(prefs.getString(KEY_SENSITIVITY, null), d.sensitivity),
+            shapeWidth = ShapeWidth.coerce(prefs.getFloat(KEY_SHAPE_WIDTH, d.shapeWidth)),
             strokePrecision = enumOr(prefs.getString(KEY_STROKE_PRECISION, null), d.strokePrecision),
             recognizeShapes = prefs.getBoolean(KEY_RECOGNIZE_SHAPES, d.recognizeShapes),
             pageColumns = prefs.getInt(KEY_PAGE_COLUMNS, d.pageColumns),
@@ -401,6 +406,7 @@ class SettingsStore(context: Context) {
             .putBoolean(KEY_PALETTE_HAPTICS, s.paletteHaptics)
             .putBoolean(KEY_PALETTE_CLOSE_ON_SELECT, s.paletteCloseOnSelect)
             .putString(KEY_SENSITIVITY, s.sensitivity.name)
+            .putFloat(KEY_SHAPE_WIDTH, s.shapeWidth)
             .putString(KEY_STROKE_PRECISION, s.strokePrecision.name)
             .putBoolean(KEY_RECOGNIZE_SHAPES, s.recognizeShapes)
             .putInt(KEY_PAGE_COLUMNS, s.pageColumns)
@@ -448,6 +454,7 @@ class SettingsStore(context: Context) {
         const val KEY_PALETTE_HAPTICS = "palette_haptics"
         const val KEY_PALETTE_CLOSE_ON_SELECT = "palette_close_on_select"
         const val KEY_SENSITIVITY = "sensitivity"
+        const val KEY_SHAPE_WIDTH = "shape_width"
         const val KEY_STROKE_PRECISION = "stroke_precision"
         const val KEY_RECOGNIZE_SHAPES = "recognize_shapes"
         const val KEY_PAGE_COLUMNS = "page_columns"

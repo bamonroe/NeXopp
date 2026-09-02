@@ -31,6 +31,40 @@ object PressureCurve {
     }
 }
 
+/**
+ * The user-facing **Line thickness** setting: what fraction of the pen's nominal width a
+ * constant-width shape or spline draws at. Pure and JVM-testable (see `PressureCurveTest`).
+ *
+ * This has to be a setting rather than a constant because the right value depends on how hard the
+ * owner of the stylus presses. A shape has no pressure stream, so it draws at a flat width, while a
+ * freehand stroke is scaled by [PressureCurve] the whole way along — someone with a light touch
+ * spends their stroke near [PressureCurve.MIN] and needs a thinner shape to match, someone leaning
+ * on the pen sits near [PressureCurve.MAX] and needs a thicker one. The slider lets each user land
+ * it by eye instead of us guessing a constant.
+ */
+object ShapeWidth {
+    /** Thinnest the slider goes: hairline shapes, at [STEP] of the pen's width. */
+    const val MIN = 0f
+
+    /** The default: shapes at 80% of the nominal pen width. */
+    const val DEFAULT = 0.8f
+
+    /** Widest the slider goes — twice the nominal pen width. */
+    const val MAX = 2.0f
+
+    /** Granularity the fraction snaps to — 5%, the persisted precision and the slider's grid. */
+    const val STEP = 0.05f
+
+    /** Clamp an arbitrary fraction into the valid [MIN]..[MAX] range. */
+    fun coerce(value: Float): Float = if (value.isNaN()) DEFAULT else value.coerceIn(MIN, MAX)
+
+    /** Snap to the [STEP] grid and clamp — mirrors [PanSensitivity.snap] for the continuous slider. */
+    fun snap(value: Float): Float = coerce(kotlin.math.round(value / STEP) * STEP)
+
+    /** The fraction as the whole-number percentage the settings UI shows (0…200). */
+    fun percent(value: Float): Int = kotlin.math.round(coerce(value) * 100f).toInt()
+}
+
 /** The user-facing pressure "feel" presets, each an exponent for [PressureCurve.factor]. */
 enum class PressureSensitivity(val gamma: Float, val label: String) {
     /** Reaches full width with a light touch. */

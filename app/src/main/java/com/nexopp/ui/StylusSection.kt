@@ -82,6 +82,12 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     )
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    ShapeWidthSlider(
+        value = settings.shapeWidth,
+        onChange = { onChange(settings.copy(shapeWidth = it)) },
+    )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
     OptionGroup(
         title = "Stroke precision",
         subtitle = "How much pen detail a stroke keeps. Higher draws rounder curves on a big, " +

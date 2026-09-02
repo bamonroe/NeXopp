@@ -862,10 +862,13 @@ native for stylus latency and platform fit).
   band, the pen's per-vertex pressure taper, and the shape/line/spline tools' constant width all go
   through it. A recognised freehand shape keeps the mean width of the stroke it replaces.
   *Amended (2026-09-02):* shapes and splines no longer sample the pressure curve at all — they take
-  the nominal width scaled by `SHAPE_WIDTH_FACTOR` (0.8), via `shapeWidth()`. Sampling once at the
-  gesture's first touch read the lightest instant of the press, so a drawn line landed near half the
-  weight of a pen stroke at the same size setting; the full nominal width then read slightly heavy,
-  since a constant-width shape has no taper at its ends to lighten it.
+  the nominal width scaled by `ShapeWidth` (`PressureCurve.kt`), via `shapeWidth()`. Sampling once at
+  the gesture's first touch read the lightest instant of the press, so a drawn line landed near half
+  the weight of a pen stroke at the same size setting. The replacement is a **user setting**
+  (**Line thickness**, 0–200%, default 80%), not a constant: a shape is flat-width while a stroke is
+  pressure-scaled along its whole length, so the ratio that makes them look equal depends on how
+  hard that user presses — a light hand spends its strokes near `PressureCurve.MIN` and needs a
+  thinner shape, a heavy hand needs a thicker one. No constant can be right for both.
 - **`.xopp` I/O — no third-party format libraries.** Both containers use only the JDK's
   `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`XOPP_GZIP`), and the
   ZIP-package via `ZipInputStream` / `ZipOutputStream` (`XOPP_ZIP`, `format/XoppZip.kt`). XML goes

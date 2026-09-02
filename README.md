@@ -562,6 +562,14 @@ authoritative flow; don't invent another one.
     touch gesture is chosen.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
+  - **Line thickness** — a slider from **0% to 200%** (default **80%**) setting how thick the shape
+    tools (line, arrow, double arrow, coordinate axis, rectangle, ellipse, spline) draw, as a
+    percentage of the pen's nominal width. A shape has no pressure of its own, so it draws at one
+    flat width, while a freehand stroke is scaled by how hard you press the whole way along — which
+    means the ratio that makes the two look equal depends on your own hand. Raise it if your shapes
+    look thin beside your handwriting, lower it if they look heavy. It takes effect on the next
+    shape you draw; strokes already on the page are untouched, and the highlighter keeps its own
+    fixed width.
   - **Stroke precision** — how much of the pen's detail a stroke keeps: **Economy**, **Balanced**
     (default), **High**, or **Maximum**. Strokes are thinned to a sub-pixel error budget as they're
     drawn; raising the precision shrinks that budget, which draws visibly rounder curves on a large,

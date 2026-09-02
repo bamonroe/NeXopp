@@ -328,6 +328,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var inputSettings: InputSettings = InputSettings()
     /** Pressure→width exponent (see [PressureCurve]); 1 = linear. Set from the sensitivity setting. */
     var pressureGamma: Float = PressureSensitivity.LINEAR.gamma
+    /** Shape/spline width as a fraction of [baseWidthPt] (see [ShapeWidth]); from the line-thickness setting. */
+    var shapeWidthFactor: Float = ShapeWidth.DEFAULT
     /** Jitter filter for the in-progress freehand stroke; reset at the start of each stroke. */
     internal val smoother = StrokeSmoother()
     /** How much digitiser detail freehand strokes keep (see [StrokePrecision]); from Settings. */

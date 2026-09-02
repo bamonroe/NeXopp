@@ -93,6 +93,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
     paletteHaptics = s.paletteHaptics
     paletteCloseOnSelect = s.paletteCloseOnSelect
     pressureGamma = s.sensitivity.gamma
+    shapeWidthFactor = s.shapeWidth
     strokePrecision = s.strokePrecision
     recognizeShapes = s.recognizeShapes
     setColumns(s.pageColumns)

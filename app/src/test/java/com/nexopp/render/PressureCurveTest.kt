@@ -34,3 +34,37 @@ class PressureCurveTest {
         }
     }
 }
+
+class ShapeWidthTest {
+
+    @Test fun coerceClampsToSliderRange() {
+        assertEquals(ShapeWidth.MIN, ShapeWidth.coerce(-1f), 1e-6f)
+        assertEquals(ShapeWidth.MAX, ShapeWidth.coerce(99f), 1e-6f)
+        assertEquals(1.25f, ShapeWidth.coerce(1.25f), 1e-6f)
+    }
+
+    @Test fun coerceRecoversFromACorruptPreference() {
+        // A NaN in SharedPreferences must not make every shape vanish — fall back to the default.
+        assertEquals(ShapeWidth.DEFAULT, ShapeWidth.coerce(Float.NaN), 1e-6f)
+    }
+
+    @Test fun snapLandsOnTheStepGrid() {
+        assertEquals(0.8f, ShapeWidth.snap(0.79f), 1e-6f)
+        assertEquals(1.0f, ShapeWidth.snap(0.98f), 1e-6f)
+        for (raw in listOf(0f, 0.37f, 1.11f, 2f)) {
+            val snapped = ShapeWidth.snap(raw)
+            assertEquals("raw=$raw", 0f, snapped / ShapeWidth.STEP % 1f, 1e-4f)
+        }
+    }
+
+    @Test fun percentIsTheWholeNumberTheSliderShows() {
+        assertEquals(80, ShapeWidth.percent(ShapeWidth.DEFAULT))
+        assertEquals(0, ShapeWidth.percent(ShapeWidth.MIN))
+        assertEquals(200, ShapeWidth.percent(ShapeWidth.MAX))
+        assertEquals(145, ShapeWidth.percent(1.45f))
+    }
+
+    @Test fun defaultSitsInsideTheRange() {
+        assertTrue(ShapeWidth.DEFAULT in ShapeWidth.MIN..ShapeWidth.MAX)
+    }
+}

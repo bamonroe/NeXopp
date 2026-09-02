@@ -30,13 +30,6 @@ internal object DrawingSurfaceDefaults {
 
     /** Highlighter width as a multiple of the pen's base width: broad, flat, and pressure-independent. */
     const val HIGHLIGHTER_WIDTH_FACTOR = 6f
-
-    /**
-     * Shape and spline width as a fraction of the pen's nominal base width. A constant-width shape
-     * reads heavier than a freehand stroke of the same nominal size, because the pen's pressure
-     * taper thins its ends; 0.8 lands the shape on the visual weight of the pen beside it.
-     */
-    const val SHAPE_WIDTH_FACTOR = 0.8f
     const val ZOOM_STEP = ViewportState.ZOOM_STEP
     const val MIN_ZOOM = ViewportState.MIN_ZOOM
     const val MAX_ZOOM = ViewportState.MAX_ZOOM
