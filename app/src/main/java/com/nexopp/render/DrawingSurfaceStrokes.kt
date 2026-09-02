@@ -279,15 +279,15 @@ internal fun DrawingSurfaceView.widthForPressure(pressure: Float): Double = if (
 }
 
 /**
- * The constant width a shape or spline gesture draws at, in pt: the tool's nominal width, with no
- * pressure attenuation. Sampling pressure here would read the touch-down instant — the lightest
- * moment of the gesture — and leave every shape around half the weight of a pen stroke drawn at
- * the same size. Desktop Xournal++ likewise draws its shape tools at the nominal pen width.
+ * The constant width a shape or spline gesture draws at, in pt: the tool's nominal width scaled by
+ * [DrawingSurfaceDefaults.SHAPE_WIDTH_FACTOR], with no pressure attenuation. Sampling pressure here
+ * would read the touch-down instant — the lightest moment of the gesture — and leave every shape
+ * around half the weight of a pen stroke drawn at the same size.
  */
 internal fun DrawingSurfaceView.shapeWidth(): Double = if (tool == Tool.HIGHLIGHTER) {
     (baseWidthPt * DrawingSurfaceDefaults.HIGHLIGHTER_WIDTH_FACTOR).toDouble()
 } else {
-    baseWidthPt.toDouble()
+    (baseWidthPt * DrawingSurfaceDefaults.SHAPE_WIDTH_FACTOR).toDouble()
 }
 
 internal fun DrawingSurfaceView.point(box: PageBox, vx: Float, vy: Float, pressure: Float): StrokePoint {

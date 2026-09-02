@@ -862,9 +862,10 @@ native for stylus latency and platform fit).
   band, the pen's per-vertex pressure taper, and the shape/line/spline tools' constant width all go
   through it. A recognised freehand shape keeps the mean width of the stroke it replaces.
   *Amended (2026-09-02):* shapes and splines no longer sample the pressure curve at all — they take
-  the **nominal** width from `shapeWidth()`. Sampling once at the gesture's first touch read the
-  lightest instant of the press, so a drawn line landed near half the weight of a pen stroke at the
-  same size setting. Desktop Xournal++ likewise draws its shape tools at the nominal pen width.
+  the nominal width scaled by `SHAPE_WIDTH_FACTOR` (0.8), via `shapeWidth()`. Sampling once at the
+  gesture's first touch read the lightest instant of the press, so a drawn line landed near half the
+  weight of a pen stroke at the same size setting; the full nominal width then read slightly heavy,
+  since a constant-width shape has no taper at its ends to lighten it.
 - **`.xopp` I/O — no third-party format libraries.** Both containers use only the JDK's
   `java.util.zip`: gzip via `GZIPInputStream` / `GZIPOutputStream` (`XOPP_GZIP`), and the
   ZIP-package via `ZipInputStream` / `ZipOutputStream` (`XOPP_ZIP`, `format/XoppZip.kt`). XML goes
