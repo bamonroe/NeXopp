@@ -971,6 +971,12 @@ nothing written and the file already on disk untouched. A descriptor that won't 
 all is likewise given the benefit of the doubt. Only a provider that yields *no* descriptor from any
 mode is refused before the write.
 
+The refusal's **log** line adds what the provider *claims* about the document
+(`DocumentsContract.Document.COLUMN_FLAGS`, and whether `FLAG_SUPPORTS_WRITE` is among them), which
+is the one thing the descriptor can't tell us: a document that never advertised write is a file or
+account problem the user can act on, while one that advertises write and then serves a read-only
+descriptor is a provider bug and nothing they can fix.
+
 The refusal message is **reason first**, grouped by reason rather than listed per mode
 (`the file could not be opened for writing — the provider returned a read-only descriptor (mode
 wt/w/rwt/rw)`), because it is read in a snackbar: the URI a cloud provider hands out is a UUID the

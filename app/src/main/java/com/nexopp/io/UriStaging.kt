@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Intent
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
 import android.system.Os
 import android.system.OsConstants
 import android.util.Log
@@ -143,13 +144,33 @@ class UriStaging(private val resolver: ContentResolver, private val dir: File) {
         // The URI is the one part not worth showing — it is a provider-internal id the width of the
         // screen (see the Dropbox UUID in the report that prompted this), so it goes to logcat only.
         val message = refusalMessage(refusals)
-        Log.w(TAG, "$message: $uri")
+        Log.w(TAG, "$message: $uri ${claimedFlags(uri)}")
         val fallback = doubted ?: throw IOException("the file could not be opened for writing — $message")
         return Handle(fallback, doubtedTruncated, doubt = message)
     }
 
     private fun MutableMap<String, MutableList<String>>.note(reason: String, mode: String) {
         getOrPut(reason) { mutableListOf() } += mode
+    }
+
+    /**
+     * What the provider *claims* about [uri], for the refusal's log line only. It separates two
+     * failures that look identical from the fd alone: a document that never advertised
+     * `FLAG_SUPPORTS_WRITE` (the provider considers it read-only and is at least consistent about
+     * it) from one that advertises write and then hands over a read-only descriptor anyway. The
+     * first is a file or account problem the user can act on; the second is a provider bug.
+     */
+    private fun claimedFlags(uri: Uri): String {
+        if (uri.scheme != ContentResolver.SCHEME_CONTENT) return ""
+        val column = DocumentsContract.Document.COLUMN_FLAGS
+        return runCatching {
+            resolver.query(uri, arrayOf(column), null, null, null).use { cursor ->
+                if (cursor == null || !cursor.moveToFirst()) return "(the provider reports no row)"
+                val flags = cursor.getInt(0)
+                val writable = flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0
+                "(the provider reports flags=0x${flags.toString(16)}, supportsWrite=$writable)"
+            }
+        }.getOrElse { "(the provider would not report its flags: ${it.javaClass.simpleName})" }
     }
 
     /** The refusals as one clause, reason first — this is what a failed save shows the user. */
