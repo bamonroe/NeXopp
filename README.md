@@ -695,8 +695,12 @@ authoritative flow; don't invent another one.
   - An autosave **doesn't interrupt you**. The whole write happens in the background, so unlike the
     menu's **Save** there's no full-screen "Saving…" panel — just a small spinner that fades into the
     top bar while the write is in flight and fades away when it's done, and you can keep drawing
-    straight through it. If a background save fails it stays
-    silent and simply tries again later.
+    straight through it. If a background save fails it stays silent and simply tries again later —
+    but if the **third try in a row** to the same file fails, it stops keeping that to itself and
+    tells you once, with the same **Save As…** button the menu's Save shows when a file refuses the
+    write. It then goes quiet again until you save somewhere that works. (Some cloud providers will
+    hand out a file they then won't let anything write to; without this the document would just stay
+    unsaved without a word.)
 
   Under **Storage** — two budgets that bound what opening documents costs on disk and in memory:
   - **Text import limit** — the largest plain-text file that may be typeset into a document

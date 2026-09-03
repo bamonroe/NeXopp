@@ -17,6 +17,28 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "tell-the-user-when-autosave-keeps-failing"
+title = "Tell the user when autosave keeps failing"
+description = "An autosave that fails is silent by design (AutoSaveTimer backs off and retries), which is right for a transient hiccup and wrong for a target that will never accept a write: a Dropbox file whose provider hands back a read-only descriptor refuses every retry, so the document stays dirty and the user is told nothing until they save deliberately. After N consecutive failures against the same target, surface it once through MainActivity.notice with the same Save As offer reportSaveFailure uses (MainActivityDocuments.kt), then stay quiet again until the target changes or a save succeeds. See docs/architecture.md 'Reporting a refused save'."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-02
+completed = 2026-09-02
+tags = []
+
+[[task]]
+id = "offer-save-as-when-the-save-target-refuses-the-write"
+title = "Offer Save As when the save target refuses the write"
+description = "When saveDocument's stageOut fails (MainActivityDocuments.kt:422) the app only toasts 'Save failed: <reason>'. The document is still in memory and still dirty, so nothing is lost, but the user has to find Save As themselves. Make the failure actionable: replace the toast with a snackbar/dialog carrying a 'Save As…' action that calls saveAs (the same path the Save As menu item uses, saveLauncher.launch(pendingSaveName)), so a target that has gone read-only or lost its grant can be re-pointed in one tap. Verify on the emulator against AwkwardProvider's read-only path (app/src/androidTest), which is the case that produces this failure."
+status = "finished"
+level = "task"
+category = "feature"
+created = 2026-09-02
+completed = 2026-09-02
+tags = []
+
+[[task]]
 id = "save-fails-with-ebadf-when-the-provider-hands-back-a-non-writable-descriptor"
 title = "Save fails with EBADF when the provider hands back a non-writable descriptor"
 description = "Saving to some content providers fails with 'Save failed: write failed: EBADF (Bad file descriptor)'. UriStaging.stageOut opened the target with ContentResolver.openOutputStream(uri, \"wt\"); a provider that ignores the mode and returns a read-only descriptor makes that open succeed and the first write(2) fail with EBADF, and a provider that refuses the 't' (truncate) half fails the save outright. Fix: writeTo now opens a ParcelFileDescriptor, checks it is really writable with Os.fcntlInt(F_GETFL) before writing, tries \"wt\" then \"w\", ftruncates itself when it fell back to \"w\", and refuses up front with a message naming each mode's refusal. Reproduced on the emulator by AwkwardProvider (app/src/androidTest) and asserted by UriStagingTest."

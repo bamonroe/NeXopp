@@ -752,8 +752,18 @@ opens the same SAF picker the menu item does (`saveLauncher.launch(pendingSaveNa
 just refused — so the user's next three taps are a menu hunt under a message saying their work
 didn't land. The full failure, URI included, goes to logcat.
 
-**An autosave stays silent** on the same failure by design (`AutoSaveTimer` backs off and retries);
-the user learns about it on the next deliberate Save.
+**An autosave stays silent** on the same failure by design (`AutoSaveTimer` backs off and retries) —
+but not *forever* silent. Silence is the right answer to a transient hiccup and the wrong one to a
+target that refuses every retry identically, which is exactly what a provider handing back a
+read-only descriptor does: the document would stay dirty indefinitely with nobody told.
+
+`io/AutoSaveFailures.kt` is the pure counter that draws that line, and `MainActivity` holds one.
+Each quiet failure calls `noteFailure(uri)`; the **third consecutive** failure against the *same*
+target returns true and raises the same `reportSaveFailure` notice — Save As offer included, only
+led by *"Autosave can't write to this file"*. Then it goes quiet again. It speaks a second time only
+if the target changes (another tab, a Save As elsewhere) or a save lands and the failures resume —
+`afterSaved` calls `noteSaved()`. So an unwritable file costs one snackbar, not one per interval.
+The failures nobody is told about still go to logcat, every time.
 
 ### Decision (2026-08-12): one `textstroke` stays one `<text>` — no run splitting
 

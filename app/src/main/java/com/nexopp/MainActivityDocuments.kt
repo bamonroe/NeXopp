@@ -408,7 +408,16 @@ internal fun MainActivity.saveDocument(uri: Uri, quiet: Boolean = false) {
             }
         }) { result ->
             // An autosave stays silent on failure: AutoSaveTimer already backs off and retries.
+            // Silent forever is a different thing, though — a target that refuses every retry
+            // leaves the document dirty with nobody told, so the run of failures speaks once.
             result.onSuccess { afterSaved(view, uri) }
+                .onFailure {
+                    if (autoSaveFailures.noteFailure(uri.toString())) {
+                        reportSaveFailure(uri, it, lead = "Autosave can't write to this file")
+                    } else {
+                        Log.w("MainActivity", "autosave to $uri failed", it)
+                    }
+                }
         }
         return
     }
@@ -435,11 +444,18 @@ internal fun MainActivity.saveDocument(uri: Uri, quiet: Boolean = false) {
  * tab came from), and finding *Save As* in the menu is the user's problem to solve under a message
  * that just told them their work didn't land. So the report carries the way out with it: the offer
  * opens the very same picker the menu item does.
+ *
+ * [lead] names which save it was: a deliberate one the user is waiting on, or the run of autosaves
+ * that have quietly been failing behind their back (see [com.nexopp.io.AutoSaveFailures]).
  */
-internal fun MainActivity.reportSaveFailure(uri: Uri, cause: Throwable) {
+internal fun MainActivity.reportSaveFailure(
+    uri: Uri,
+    cause: Throwable,
+    lead: String = "Save failed",
+) {
     Log.w("MainActivity", "save to $uri failed", cause)
     notice.value = ContentNotice(
-        message = "Save failed: ${cause.message}",
+        message = "$lead: ${cause.message}",
         lines = emptyList(),
         offer = NoticeOffer("Save As…") { saveLauncher.launch(pendingSaveName) },
     )
@@ -451,6 +467,8 @@ internal fun MainActivity.afterSaved(view: DrawingSurfaceView, uri: Uri) {
     io.persist(uri)
     // The document is clean again: stand both autosave timers down and restart the interval.
     autoSave.noteSaved()
+    // The target took the write, so any run of refusals behind it is over.
+    autoSaveFailures.noteSaved()
     // The file is already written, so this is a report, not a question: the snackbar says it once.
     val lost = if (reportLossesAfterSave) saveWarningsFor(saveFormat) else emptyList()
     notice.value = if (lost.isEmpty()) null else ContentNotice(SAVE_NOTICE, lost)

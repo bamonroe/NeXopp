@@ -19,6 +19,7 @@ import com.nexopp.format.DEFAULT_EXPORT_DPI
 import com.nexopp.format.ExportFormat
 import com.nexopp.format.PageRange
 import com.nexopp.format.SaveFormat
+import com.nexopp.io.AutoSaveFailures
 import com.nexopp.io.AutoSavePolicy
 import com.nexopp.io.AutoSaveTimer
 import com.nexopp.io.DocumentIo
@@ -121,6 +122,12 @@ class MainActivity : ComponentActivity() {
      * saves by [afterSaved]; when it fires, [autoSaveNow] decides whether the save can happen at all.
      */
     internal val autoSave: AutoSaveTimer by lazy { AutoSaveTimer(onDue = { autoSaveNow() }) }
+
+    /**
+     * Consecutive autosave refusals against the current target, so a file that will never accept a
+     * write is said out loud once instead of failing silently forever (see [AutoSaveFailures]).
+     */
+    internal val autoSaveFailures = AutoSaveFailures()
 
     /**
      * The folder sidecar `.wav` files are kept in — a persisted `OpenDocumentTree` grant, normally
