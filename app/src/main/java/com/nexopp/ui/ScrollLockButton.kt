@@ -31,8 +31,9 @@ import com.nexopp.render.ScrollLock
  * It behaves like the rail's grouped tool buttons: a **tap cycles** off → horizontal → vertical → off
  * so the lock can be thrown mid-annotation without looking, and a **long press** opens the menu that
  * names the three modes outright, for when the icon alone isn't enough. The icon shows the travel a
- * pan can still make ([ScrollLock.icon]) and tints itself while any lock is on, so the button doubles
- * as the indicator that the document isn't refusing to move for some other reason.
+ * *one-finger* pan can still make ([ScrollLock.icon]) and tints itself while any lock is on, so the
+ * button doubles as the indicator that the document isn't refusing to move for some other reason.
+ * A two-finger pan ignores the lock entirely, so the page is always reachable.
  *
  * The setting itself lives in [AppSettings.scrollLock]; this only hands the next value up.
  */

@@ -174,7 +174,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
         context = context,
         choreographer = choreographer,
         canScroll = { viewport.canScroll() },
-        scrollBy = { dx, dy -> scrollViewportBy(dx, dy) },
+        // Only a one-finger pan flings (see [onPointerUp]), so every glide obeys the scroll lock.
+        scrollBy = { dx, dy -> panViewportBy(dx, dy) },
         // Already inside a frame dispatch: paint now rather than deferring to the next vsync. Nothing
         // can have posted [paintCallback] since the glide started ([render] no-ops while flinging), so
         // this is the only buffer posted for this vsync.
@@ -200,7 +201,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * pan, >1 pans faster than the finger. Driven by the panning-sensitivity setting (see
      * [PanSensitivity]). Also scales the released velocity so a fling glides at the same visual rate. */
     var panSensitivity = PanSensitivity.NORMAL
-    /** Which axis pans refuse to travel along (see [ScrollLock]); driven by the scroll-lock setting. */
+    /**
+     * Which axis a **one-finger** pan refuses to travel along (see [ScrollLock]); driven by the
+     * scroll-lock setting. A two-finger pan, the wheel and every jump to a place ignore it.
+     */
     var scrollLock: ScrollLock
         get() = viewport.lock
         set(value) { viewport.lock = value }
@@ -1267,6 +1271,13 @@ class DrawingSurfaceView @JvmOverloads constructor(
 
     /** Scroll the viewport by one glide step, clamped; false when it didn't move (pinned at a bound). */
     internal fun scrollViewportBy(dx: Float, dy: Float): Boolean = viewport.scrollBy(dx, dy)
+
+    /**
+     * The same move, but subject to [scrollLock] — for the one-finger pan and the fling it launches.
+     * A two-finger pan deliberately goes through [scrollViewportBy] instead: the lock is there to
+     * stop the *drawing hand* drifting, not to take the two-finger pan away.
+     */
+    internal fun panViewportBy(dx: Float, dy: Float): Boolean = viewport.scrollByWithinLock(dx, dy)
 
     // --- surface + rendering -------------------------------------------------------------------
 

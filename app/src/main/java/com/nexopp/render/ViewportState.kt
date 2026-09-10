@@ -46,9 +46,9 @@ internal class ViewportState {
         private set
 
     /**
-     * The axis pans may not travel along (see [ScrollLock]). It is enforced in [scrollBy] alone, so
-     * a drag, its fling and the mouse wheel all obey it while going *to* a page or a search hit
-     * still lands where it was asked to.
+     * The axis a *one-finger* pan may not travel along (see [ScrollLock]). Nothing here applies it
+     * on its own: only [scrollByWithinLock] drops the locked delta, so the caller decides which
+     * moves the lock governs and which — a two-finger pan, a jump to a page — go where they like.
      */
     var lock: ScrollLock = ScrollLock.NONE
 
@@ -135,8 +135,8 @@ internal class ViewportState {
     }
 
     /**
-     * Scroll by ([dx], [dy]) pixels, clamped and with a locked axis dropped; false when nothing
-     * moved (pinned at a bound, or every axis the delta asked for is locked).
+     * Scroll by ([dx], [dy]) pixels, clamped; false when nothing moved (pinned at a bound). The
+     * [lock] is *not* consulted — this is the free move, for two-finger pans and the mouse wheel.
      * @param dx Horizontal delta in pixels.
      * @param dy Vertical delta in pixels.
      * @return true if scroll position changed.
@@ -144,10 +144,21 @@ internal class ViewportState {
     fun scrollBy(dx: Float, dy: Float): Boolean {
         val prevX = scrollX
         val prevY = scrollY
-        scrollY = (scrollY + lock.allowY(dy)).coerceIn(0f, maxScrollY())
-        scrollX = (scrollX + lock.allowX(dx)).coerceIn(0f, maxScrollX())
+        scrollY = (scrollY + dy).coerceIn(0f, maxScrollY())
+        scrollX = (scrollX + dx).coerceIn(0f, maxScrollX())
         return scrollX != prevX || scrollY != prevY
     }
+
+    /**
+     * [scrollBy] with the [lock]ed axis dropped first — the one-finger pan and the fling it
+     * launches. Returns false when the lock leaves nothing to do, which is also what stops a fling
+     * along a locked axis on its first frame.
+     * @param dx Horizontal delta in pixels, before the lock.
+     * @param dy Vertical delta in pixels, before the lock.
+     * @return true if scroll position changed.
+     */
+    fun scrollByWithinLock(dx: Float, dy: Float): Boolean =
+        scrollBy(lock.allowX(dx), lock.allowY(dy))
 
     /**
      * Zoom to [target] (clamped to [MIN_ZOOM]..[MAX_ZOOM]), keeping the viewport centre roughly fixed.

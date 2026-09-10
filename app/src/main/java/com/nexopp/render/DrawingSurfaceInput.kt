@@ -277,8 +277,13 @@ internal fun DrawingSurfaceView.doScroll(event: MotionEvent) {
     val fx = focusX(event, skip = -1)
     // Pan gain: 1 tracks the finger one-to-one, <1 pans slower, >1 faster, 0 freezes the document.
     // Routed through the viewport rather than written straight in, so the drag obeys the same clamp
-    // and the same scroll lock as the fling that follows it.
-    scrollViewportBy((lastFocusX - fx) * panSensitivity, (lastFocusY - fy) * panSensitivity)
+    // as the fling that follows it. Which of the two moves it is decides whether the scroll lock
+    // applies: **two fingers always pan freely**, because reaching for a second finger is the
+    // deliberate "take me over there" gesture; one finger (the Hand tool, or a finger with drawing
+    // off) is the drawing hand whose drift the lock exists to stop.
+    val dx = (lastFocusX - fx) * panSensitivity
+    val dy = (lastFocusY - fy) * panSensitivity
+    if (event.pointerCount > 1) scrollViewportBy(dx, dy) else panViewportBy(dx, dy)
     lastFocusY = fy
     lastFocusX = fx
     // Two fingers also pinch-zoom: a change in span since the last frame scales zoom about the focus.

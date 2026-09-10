@@ -34,9 +34,10 @@ fun NavigationSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     OptionGroup(
         title = "Scroll lock",
-        subtitle = "Stop pans drifting off one axis: locking horizontal scrolling lets a drag " +
-            "move up and down only, locking vertical lets it move side to side only. " +
-            "Going to a page, a search hit or a zoom still lands where it should. " +
+        subtitle = "Stop one-finger pans drifting off one axis: locking horizontal scrolling lets " +
+            "a drag move up and down only, locking vertical lets it move side to side only. " +
+            "A two-finger pan is never locked, and going to a page, a search hit or a zoom still " +
+            "lands where it should. " +
             "Also on the top bar beside undo, and assignable to a radial-palette slot.",
         options = ScrollLock.entries.toList(),
         selected = settings.scrollLock,

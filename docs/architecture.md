@@ -1460,7 +1460,7 @@ app/
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
-      ScrollLock.kt          # which axis pans may not travel along (pure, tested)
+      ScrollLock.kt          # which axis a one-finger pan may not travel along (pure, tested)
       ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested);
                              # a view-size change (rotation, split view) re-anchors the viewport centre,
                              # keeping it pending while a viewport too small to hold it clamps it away
@@ -2874,13 +2874,17 @@ nothing for the synthetic events used in tests), so the kinematics are unit-test
 document — and the same factor scales the seeded release velocity so the fling coasts at the pan's
 visual rate.
 
-**Scroll lock.** `ScrollLock` (`render/ScrollLock.kt`, pure) names the axis pans may not travel
-along: `NONE`, `HORIZONTAL` (sideways frozen — a drag only goes up/down) or `VERTICAL` (the mirror
-image). It is held by `ViewportState.lock` and enforced in **one** place, `ViewportState.scrollBy`,
-which zeroes the locked delta before clamping. That is deliberately the whole enforcement: `doScroll`
-routes its per-frame pan through `scrollViewportBy` rather than writing `scrollX`/`scrollY` itself, so
-the drag, the `MomentumDriver` fling that follows it and `handleWheelScroll` all obey the lock, while
-the *absolute* moves — `scrollToY`, `goToPage`, `jumpToSearchHit`, `zoomAbout`'s re-anchor,
+**Scroll lock.** `ScrollLock` (`render/ScrollLock.kt`, pure) names the axis a **one-finger** pan may
+not travel along: `NONE`, `HORIZONTAL` (sideways frozen — a drag only goes up/down) or `VERTICAL`
+(the mirror image). It is held by `ViewportState.lock`, and the viewport offers **two** moves rather
+than applying it implicitly: `scrollBy` (free) and `scrollByWithinLock`, which zeroes the locked
+delta before clamping. Each pan path then says out loud which it is. `doScroll` routes its per-frame
+delta through `panViewportBy` (locked) when `event.pointerCount == 1` and `scrollViewportBy` (free)
+when a second finger is down: **a two-finger pan is never locked**, because reaching for the second
+finger is the deliberate "take me over there" gesture and must stay the way *out* of a lock rather
+than something the lock removes. The `MomentumDriver` bridge is locked (only one-finger pans fling —
+see `onPointerUp`), `handleWheelScroll` is free (a wheel has no second-finger escape), and the
+*absolute* moves — `scrollToY`, `goToPage`, `jumpToSearchHit`, `zoomAbout`'s re-anchor,
 `setBounds`' re-clamp — are destinations the user named and stay unconstrained. Because a locked axis
 reports "didn't move", a fling along it stops on its first frame instead of grinding. The mode is
 persisted as `AppSettings.scrollLock`, pushed onto the surface by `applySettings`, and has three

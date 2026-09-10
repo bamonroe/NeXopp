@@ -420,7 +420,10 @@ authoritative flow; don't invent another one.
   **unlocked → lock horizontal → lock vertical → unlocked**; **press and hold** for a menu naming the
   three outright. The icon shows the travel a pan can still make (a free-move cross when unlocked,
   up/down arrows when horizontal scrolling is locked, left/right when vertical is) and lights up
-  while any lock is on. A locked axis stops drags, their flings and the mouse wheel; **going** to a
+  while any lock is on. The lock applies to the **one-finger pan** — the Hand tool, or a finger with
+  drawing turned off — and the fling it throws. A **two-finger pan is never locked**, so putting a
+  second finger down is always the way to move the page wherever you like without touching the
+  setting; the mouse wheel is free for the same reason. **Going** to a
   page, a search hit or a zoom still lands where it should, so a lock never traps you. The mode is
   shared with **Settings → Navigation → Scroll lock**, can be bound to a **radial-palette slot**, and
   is remembered across restarts.
@@ -700,12 +703,14 @@ authoritative flow; don't invent another one.
     is one-to-one (the default — the page tracks your finger exactly), values **below 1** pan slower
     than your finger, values up to **4.0×** pan faster, and **0** turns panning off entirely. The gain
     also scales the fling, so a released pan coasts at the same visual rate it was moving.
-  - **Scroll lock** — pins panning to one axis so a long annotation session doesn't slowly walk the
-    page sideways. **Unlocked** (the default) pans wherever your fingers go; **Lock horizontal** lets
-    a pan move only up and down; **Lock vertical** lets it move only side to side. The lock applies to
-    drags, the fling that follows them and the mouse wheel; going to a page, jumping to a search hit
+  - **Scroll lock** — pins **one-finger** panning to one axis so a long annotation session doesn't
+    slowly walk the page sideways. **Unlocked** (the default) pans wherever your finger goes;
+    **Lock horizontal** lets a one-finger pan move only up and down; **Lock vertical** lets it move
+    only side to side. A **two-finger pan always moves freely**, whatever the lock — that's the
+    deliberate "take me over there" gesture and the lock never takes it away — and so does the mouse
+    wheel. Going to a page, jumping to a search hit
     and zooming still land where they should. The same setting is a **top-bar button beside undo/redo**
-    (see below) and can be put on a **radial-palette slot**, and it is remembered across restarts.
+    (see above) and can be put on a **radial-palette slot**, and it is remembered across restarts.
 
   Under **Appearance**:
   - **Theme** — **System** (the default — follows the device's light/dark setting), **Light**, or
