@@ -31,6 +31,7 @@ its own [map](docs/architecture.md#map-of-this-document); these are the rows wor
 | where a file or package lives, or adding one     | [Repository layout](docs/architecture.md#repository-layout) |
 | opening/saving, staging, tabs, split view        | [Data path](docs/architecture.md#data-path) |
 | the canvas, tools, gestures, erasers, selection  | [Rendering & editing](docs/architecture.md#rendering--editing-render) and [Selecting objects](docs/architecture.md#selecting-objects-render) |
+| what a finger tap (double/triple/two-finger) does | [Finger tap gestures](docs/architecture.md#finger-tap-gestures-render) |
 | PDF backgrounds, or any export                   | [PDF backgrounds & rasterisation](docs/architecture.md#pdf-backgrounds--rasterisation-render), [Exporting](docs/architecture.md#exporting-pdf-svg-and-raster) |
 | the Compose chrome, rail, tab strip, settings    | [The editor chrome](docs/architecture.md#the-editor-chrome-ui) |
 | adding or changing a test                        | [What the unit tests cover](docs/architecture.md#what-the-unit-tests-cover) |

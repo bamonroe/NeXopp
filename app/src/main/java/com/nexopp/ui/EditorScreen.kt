@@ -81,7 +81,7 @@ fun DrawingSurfaceView.applyTool(tool: EditorTool) {
     }
 }
 
-/** Push the stylus/input [AppSettings] onto the surface (classifier settings, hover, pressure feel). */
+/** Push the stylus/touch/input [AppSettings] onto the surface (classifier settings, hover, pressure feel). */
 fun DrawingSurfaceView.applySettings(s: AppSettings) {
     inputSettings = InputSettings(
         fingerDraws = s.fingerDraws,
@@ -89,6 +89,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
         barrelDoubleAction = s.barrelDoubleAction,
         paletteInvocation = s.paletteInvocation,
     )
+    touchGestures = s.touchGestures
     showHover = s.showHover
     paletteHaptics = s.paletteHaptics
     paletteCloseOnSelect = s.paletteCloseOnSelect

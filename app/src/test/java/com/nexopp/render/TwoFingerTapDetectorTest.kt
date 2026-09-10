@@ -6,9 +6,9 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** The two-finger palette tap: what counts as a tap, and everything that disqualifies one. */
-class PaletteTapDetectorTest {
+class TwoFingerTapDetectorTest {
 
-    private fun detector() = PaletteTapDetector(slopPx = 10f, timeoutMs = 250L)
+    private fun detector() = TwoFingerTapDetector(slopPx = 10f, timeoutMs = 250L)
 
     @Test
     fun `a still, quick two-finger tap opens midway between the fingers`() {

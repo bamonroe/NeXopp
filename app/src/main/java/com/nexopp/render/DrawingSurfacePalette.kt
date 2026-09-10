@@ -1,8 +1,12 @@
 /**
- * [DrawingSurfaceView]'s radial palette: the two button-free ways of summoning the ring (pen-tip
- * hold and two-finger tap) and the open menu itself — anchoring, hit tracking, haptics and commit.
- * Extensions on the view, so they read its state directly; the small amount of gesture state they
- * need lives on the view in `DrawingSurfaceView.kt`.
+ * [DrawingSurfaceView]'s radial palette: the pen-tip hold that summons the ring, the confirming of a
+ * two-finger tap, and the open menu itself — anchoring, hit tracking, haptics and commit. Extensions
+ * on the view, so they read its state directly; the small amount of gesture state they need lives on
+ * the view in `DrawingSurfaceView.kt`.
+ *
+ * A two-finger tap is confirmed here but not *interpreted* here: what it invokes is the user's
+ * [TouchGestures] setting, applied by `DrawingSurfaceTaps.kt` — the palette is only one of the
+ * things it can be bound to.
  */
 package com.nexopp.render
 
@@ -16,8 +20,9 @@ import com.nexopp.ui.hitTest
 import kotlin.math.hypot
 
 // --- palette invocation gestures ---------------------------------------------------------------
-// The two button-free ways of summoning the ring (see [PaletteInvocation]). Each is live only
-// when the user has picked it, so at most one of them ever inspects a touch.
+// The stylus's button-free way of summoning the ring (see [PaletteInvocation]), live only when the
+// user has picked it. Fingers reach the palette through the Touch settings instead — any tap
+// gesture there can be bound to [TouchAction.RADIAL_PALETTE].
 
 /** Arm the pen-tip hold that opens the palette, for a single stylus pointer coming down. */
 internal fun DrawingSurfaceView.armPaletteLongPress(event: MotionEvent) {
@@ -61,30 +66,25 @@ internal fun DrawingSurfaceView.openPaletteOnLongPress() {
 
 /** A second finger landing starts a tap candidate; a third one ends any hope of a tap. */
 internal fun DrawingSurfaceView.trackPaletteTapDown(event: MotionEvent) {
-    if (inputSettings.paletteInvocation != PaletteInvocation.TWO_FINGER_TAP) return
-    if (event.pointerCount != 2 || !bothFingers(event)) { paletteTap.cancel(); return }
-    paletteTap.start(event.eventTime, event.getX(0), event.getY(0), event.getX(1), event.getY(1))
+    if (!touchGestures.tracksTwoFingerTaps) return
+    if (event.pointerCount != 2 || !bothFingers(event)) { twoFingerTap.cancel(); return }
+    twoFingerTap.start(event.eventTime, event.getX(0), event.getY(0), event.getX(1), event.getY(1))
 }
 
 /** Feed both fingers to the detector, which drops the candidate once either one pans. */
 internal fun DrawingSurfaceView.trackPaletteTapMove(event: MotionEvent) {
     if (event.pointerCount < 2) return
-    paletteTap.move(event.getX(0), event.getY(0), event.getX(1), event.getY(1))
+    twoFingerTap.move(event.getX(0), event.getY(0), event.getX(1), event.getY(1))
 }
 
 /**
- * True when this lift completed a two-finger tap — in which case the pan it would otherwise have
- * become is cancelled and the palette opens midway between the fingers.
+ * True when this lift completed a two-finger tap the user has bound something to — in which case the
+ * pan it would otherwise have become is cancelled and that action runs midway between the fingers.
+ * The run counter turns a second tap in the same place into the two-finger *double*-tap gesture.
  */
-internal fun DrawingSurfaceView.openPaletteOnTwoFingerTap(event: MotionEvent): Boolean {
-    val (x, y) = paletteTap.release(event.eventTime) ?: return false
-    cancelPageDrag()
-    cancelGesture()
-    handTapCandidate = false
-    palettePendingLift = true
-    tick(HapticFeedbackConstants.LONG_PRESS)
-    openPalette(palette, x, y)
-    return true
+internal fun DrawingSurfaceView.handleTwoFingerTap(event: MotionEvent): Boolean {
+    val (x, y) = twoFingerTap.release(event.eventTime) ?: return false
+    return routeTwoFingerTap(twoFingerTaps.tap(event.eventTime, x, y), x, y)
 }
 
 /** True when every pointer down is a finger — a stylus in the mix is drawing, not summoning. */

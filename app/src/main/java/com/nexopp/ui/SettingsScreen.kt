@@ -36,8 +36,10 @@ import androidx.compose.ui.unit.dp
  * so a single screen never has to carry every preference at once.
  */
 enum class SettingsSection(val title: String, val summary: String) {
-    /** Stylus and finger input settings: pressure curve, barrel buttons, hover, finger drawing. */
-    STYLUS("Stylus", "Finger drawing, hover preview, barrel button, pressure feel."),
+    /** Stylus input settings: pressure curve, barrel buttons, hover, pen-tip gestures. */
+    STYLUS("Stylus", "Hover preview, barrel button, pressure feel, stroke precision."),
+    /** Touch input settings: whether a finger draws, and what each finger tap gesture invokes. */
+    TOUCH("Touch", "Finger drawing, and what a double-, triple- or two-finger tap does."),
     /** Editor behaviour: default tool, shape recognition, snapping to grid or angles. */
     EDITOR("Editor", "Default tool and snapping to the grid or to 15° rotations."),
     /** Toolbar configuration: which rail buttons appear and their order. */
@@ -86,6 +88,7 @@ fun SettingsScreen(
         SettingsPage(title = open.title, onBack = { section = null }) {
             when (open) {
                 SettingsSection.STYLUS -> StylusSection(settings, onChange)
+                SettingsSection.TOUCH -> TouchSection(settings, onChange)
                 SettingsSection.EDITOR -> EditorSection(settings, onChange)
                 SettingsSection.TOOLBAR -> ToolbarSection(settings, onChange)
                 SettingsSection.PALETTE -> PaletteSection(settings, onChange)

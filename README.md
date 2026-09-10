@@ -427,10 +427,11 @@ authoritative flow; don't invent another one.
   keeps the pages **gliding** with momentum and coasts to a stop — the faster the flick, the much
   farther it carries — while a **two-finger** pan stops the instant you lift. Touch down again to halt
   a glide at once. With the
-  Hand tool, a **double-tap** navigates: tap twice on the **left edge** to jump to the previous page,
-  on the **right edge** for the next page, or in the **centre** to toggle **full-page view** (hides
-  the top bar and side toolbar for a distraction-free canvas; double-tap the centre again to restore
-  them). A
+  Hand tool, a **double-tap** navigates by default: tap twice on the **left edge** to jump to the
+  previous page, on the **right edge** for the next page, or in the **centre** to toggle
+  **full-page view** (hides the top bar and side toolbar for a distraction-free canvas; double-tap
+  the centre again to restore them). That is only the default — **Settings → Touch** rebinds the
+  double-tap, and the triple-tap and two-finger taps besides. A
   PDF-style **scroll thumb**
   rides the **right edge** whenever the document is taller than the screen: **drag it** to page
   quickly through a long document (a **page-number bubble** shows where you are as you drag). A small
@@ -510,12 +511,11 @@ authoritative flow; don't invent another one.
     a **custom** width and height in **mm / in / pt** (the unit toggle converts the fields), and **swap**
     width↔height for landscape. **Set** resizes that page (undoable); the dimensions round-trip via the
     `<page width= height=>` attributes to desktop Xournal++.
-- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Palette**, **Editor**,
+- **Settings** — the top-bar menu opens **Settings**, a list of sections — **Stylus**, **Touch**, **Palette**, **Editor**,
   **Toolbar**, **Navigation**, **Appearance**, **Autosave**, **Storage** and **About**. Tap a section to open it as its own page; back returns to the list, and back from
-  the list returns to the editor. Your choices persist across restarts. Under **Stylus**:
-  - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and never actuate a
-    tool at all — pen, highlighter, eraser, text and selection all become stylus-only
-    (best on a stylus tablet where a palm would otherwise draw).
+  the list returns to the editor. Your choices persist across restarts. **Stylus** covers what the
+  pen does and **Touch** what your fingers do, so each input device has one page to configure it on.
+  Under **Stylus**:
   - **Hover preview** — show a ring where a hovering stylus will land.
   - **Palette haptics** — tick as a radial-palette flick crosses into a new slot, with a
     stronger confirm buzz when it commits. Turn it off for a silent palette.
@@ -544,22 +544,19 @@ authoritative flow; don't invent another one.
     full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
     It starts from the built-in layout — tools and undo/redo on the inner ring, the standard pen
     colours on the outer one — and you can re-arrange it under **Settings > Palette** (below).
-  - **Open the palette by touch** — which *touch* gesture also summons that menu, for the many
-    styluses that have no side button at all. The side button is not an option here: what a barrel
-    double-click does is decided solely by **Barrel double-click** above, so there is exactly one
-    owner of that gesture.
-      - **None** (default) — no touch gesture opens the palette; only the barrel double-click can,
+  - **Open the palette with the pen tip** — a *pen-tip* gesture that also summons that menu, for the
+    many styluses that have no side button at all. The side button is not an option here: what a
+    barrel double-click does is decided solely by **Barrel double-click** above, so there is exactly
+    one owner of that gesture.
+      - **None** (default) — no pen-tip gesture opens the palette; only the barrel double-click can,
         and only when it is set to **Radial palette**.
       - **Pen-tip long press** — rest the tip on the glass and hold it still; the ring opens where it
         rests, with a buzz. Move the tip more than a hair before the hold completes and you simply
         draw as usual — a stroke is never stolen, and the few pixels laid down while holding are
         thrown away rather than committed.
-      - **Two-finger tap** — tap two fingers on the canvas and lift them promptly; the ring opens
-        midway between them. Anything that looks like a pan or a pinch (either finger travelling, a
-        third finger, or a hold longer than a quarter-second) is left to pan and zoom as usual.
-    Only one touch gesture is live at a time, so the two never fight each other for a touch. The
-    barrel double-click is independent of this setting and keeps working alongside whichever
-    touch gesture is chosen.
+    To open the palette with your **fingers** instead, bind a tap gesture to **Open the radial
+    palette** under **Touch** (below) — a two-finger tap is the usual choice. The barrel double-click
+    is independent of both settings and keeps working alongside whichever gesture you pick.
   - **Pressure sensitivity** — **Soft** (thickens with a light touch), **Linear**, or **Firm** (needs
     a harder press).
   - **Line thickness** — a slider from **0% to 200%** (default **80%**) setting how thick the shape
@@ -579,6 +576,38 @@ authoritative flow; don't invent another one.
     overview stores the same detail as one drawn at 100% — zooming out never costs you precision.
   - **Shape recognition** — off by default; when on, a finished freehand pen stroke snaps to the
     primitive it resembles (see **Shape recognition** above).
+
+  Under **Touch** — everything your *fingers* do on the canvas, as opposed to the stylus:
+  - **Finger draws** — on by default; turn it **off** so fingers only pan/zoom and never actuate a
+    tool at all — pen, highlighter, eraser, text and selection all become stylus-only
+    (best on a stylus tablet where a palm would otherwise draw). It also decides when the one-finger
+    tap gestures below are live: normally they need the **Hand** tool (any other tool is drawing
+    with that finger, and a gesture must never eat a stroke), but with **Finger draws** off a finger
+    never draws anyway, so they work under **every** tool.
+  - **Double-tap**, **Triple-tap**, **Two-finger tap** and **Two-finger double-tap** — four gestures,
+    each bound to whatever you like from the same list:
+      - **Nothing** — the gesture is ignored.
+      - **Page zones (edges turn, centre full-page)** — the historic double-tap behaviour, and still
+        the default for **Double-tap**: the screen splits in thirds, so tapping the **left edge**
+        jumps to the previous page, the **right edge** to the next, and the **centre** toggles
+        **full-page view**.
+      - **Toggle full page** — hide/show the top bar and side toolbar, wherever you tapped.
+      - **Undo** / **Redo**, **Next page** / **Previous page**.
+      - **Open the radial palette** — the ring pops up where the gesture landed (midway between the
+        fingers for a two-finger gesture), with a buzz. This is how a finger reaches the palette;
+        for a stylus, see **Open the palette with the pen tip** above.
+      - **Toggle eraser**, **Toggle select**, **Toggle hand** — flip to that tool, and flip back to
+        the previous one when the gesture repeats.
+    A **two-finger** gesture is read under every tool, since a second finger already means pan/zoom
+    rather than ink; anything that looks like a pan or a pinch (either finger travelling, a third
+    finger, or a hold longer than a quarter-second) is left alone to pan and zoom as usual.
+  - **Tap window** — how long a run of taps may take: taps further apart than this count as separate
+    gestures. **System default** follows Android's own double-tap timeout (about 300 ms on most
+    devices); raise it towards 800 ms if a double-tap of yours keeps registering as two single taps.
+    Note that binding **Triple-tap** makes the double-tap wait out this window before firing (so a
+    triple-tap doesn't set the double off on its way past) — likewise a bound **Two-finger
+    double-tap** delays the single two-finger tap. Leave the longer gesture on **Nothing** and the
+    shorter one fires instantly.
 
   Under **Palette** — the editor for the radial palette described above:
   - **The palette list** sits at the top: one chip per saved palette, the selected chip being the

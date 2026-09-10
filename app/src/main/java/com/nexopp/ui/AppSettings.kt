@@ -13,6 +13,9 @@ import com.nexopp.render.PanSensitivity
 import com.nexopp.render.PressureSensitivity
 import com.nexopp.render.ShapeWidth
 import com.nexopp.render.StrokePrecision
+import com.nexopp.render.TapWindow
+import com.nexopp.render.TouchAction
+import com.nexopp.render.TouchGestures
 
 /**
  * Which edge of the editor the tool rail is docked to.
@@ -84,9 +87,14 @@ enum class ThemeMode(val label: String) {
  * and never touch the `.xopp` format.
  *
  * @property fingerDraws When false, fingers only pan/zoom — never draw (palm-safe for stylus users).
+ * @property touchDoubleTap What two quick one-finger taps invoke (see [TouchAction]).
+ * @property touchTripleTap What three quick one-finger taps invoke.
+ * @property touchTwoFingerTap What a quick two-finger tap invokes.
+ * @property touchTwoFingerDoubleTap What two quick two-finger taps invoke.
+ * @property touchTapWindowMs How long a run of taps may take (ms); [TapWindow.SYSTEM] follows Android.
  * @property barrelAction What the stylus primary barrel-button does while held.
  * @property barrelDoubleAction What a rapid double-click of that button does (recognised only with the tip off the glass).
- * @property paletteInvocation Which touch gesture opens the radial palette — for styluses with no barrel button at all.
+ * @property paletteInvocation Which pen-tip gesture opens the radial palette — for styluses with no barrel button at all.
  * @property showHover Show a preview ring where a hovering stylus will land.
  * @property paletteHaptics Buzz as a radial-palette flick crosses into a new slot, and again when it commits.
  * @property paletteCloseOnSelect Close the radial palette the moment a slot is picked, instead of leaving it open.
@@ -130,11 +138,21 @@ enum class ThemeMode(val label: String) {
 data class AppSettings(
     /** When false, fingers only pan/zoom — never draw (palm-safe for stylus users). */
     val fingerDraws: Boolean = true,
+    /** What two quick one-finger taps invoke — the historic edge/centre page zones by default. */
+    val touchDoubleTap: TouchAction = TouchAction.PAGE_ZONES,
+    /** What three quick one-finger taps invoke. Binding this delays the double-tap by one window. */
+    val touchTripleTap: TouchAction = TouchAction.NONE,
+    /** What a quick two-finger tap invokes. */
+    val touchTwoFingerTap: TouchAction = TouchAction.NONE,
+    /** What two quick two-finger taps invoke. Binding this delays the two-finger tap by one window. */
+    val touchTwoFingerDoubleTap: TouchAction = TouchAction.NONE,
+    /** How long a run of taps may take (ms); [TapWindow.SYSTEM] follows Android's own timeout. */
+    val touchTapWindowMs: Int = TapWindow.SYSTEM,
     /** What the stylus primary barrel-button does while held. */
     val barrelAction: BarrelAction = BarrelAction.ERASE,
     /** What a rapid double-click of that button does (recognised only with the tip off the glass). */
     val barrelDoubleAction: BarrelDoubleAction = BarrelDoubleAction.UNDO,
-    /** Which touch gesture opens the radial palette — for styluses with no barrel button at all. */
+    /** Which pen-tip gesture opens the radial palette — for styluses with no barrel button at all. */
     val paletteInvocation: PaletteInvocation = PaletteInvocation.NONE,
     /** Show a preview ring where a hovering stylus will land. */
     val showHover: Boolean = true,
@@ -240,6 +258,16 @@ data class AppSettings(
      */
     val autoSaveIntervalSeconds: Int = 0,
 ) {
+    /** The five touch-gesture fields as the one value the canvas is driven by. */
+    val touchGestures: TouchGestures
+        get() = TouchGestures(
+            doubleTap = touchDoubleTap,
+            tripleTap = touchTripleTap,
+            twoFingerTap = touchTwoFingerTap,
+            twoFingerDoubleTap = touchTwoFingerDoubleTap,
+            tapWindowMs = touchTapWindowMs,
+        )
+
     /** The two autosave timers as the one value [com.nexopp.io.AutoSaveTimer] is driven by. */
     val autoSavePolicy: AutoSavePolicy
         get() = AutoSavePolicy(autoSaveIdleSeconds, autoSaveIntervalSeconds)
@@ -338,6 +366,15 @@ class SettingsStore(context: Context) {
         val d = AppSettings()
         return AppSettings(
             fingerDraws = prefs.getBoolean(KEY_FINGER_DRAWS, d.fingerDraws),
+            touchDoubleTap = enumOr(prefs.getString(KEY_TOUCH_DOUBLE_TAP, null), d.touchDoubleTap),
+            touchTripleTap = enumOr(prefs.getString(KEY_TOUCH_TRIPLE_TAP, null), d.touchTripleTap),
+            touchTwoFingerTap =
+                enumOr(prefs.getString(KEY_TOUCH_TWO_FINGER_TAP, null), migratedTwoFingerTap(d)),
+            touchTwoFingerDoubleTap = enumOr(
+                prefs.getString(KEY_TOUCH_TWO_FINGER_DOUBLE_TAP, null),
+                d.touchTwoFingerDoubleTap,
+            ),
+            touchTapWindowMs = prefs.getInt(KEY_TOUCH_TAP_WINDOW, d.touchTapWindowMs).coerceAtLeast(0),
             barrelAction = enumOr(prefs.getString(KEY_BARREL, null), d.barrelAction),
             barrelDoubleAction = enumOr(prefs.getString(KEY_BARREL_DOUBLE, null), d.barrelDoubleAction),
             paletteInvocation = enumOr(prefs.getString(KEY_PALETTE_INVOCATION, null), d.paletteInvocation),
@@ -387,6 +424,19 @@ class SettingsStore(context: Context) {
     }
 
     /**
+     * The two-finger tap's default, honouring the build that offered it as a *palette invocation*
+     * instead: a pref still naming that dropped choice means the user asked for a two-finger tap to
+     * open the ring, so that is what it keeps doing under the new setting. The invocation pref
+     * itself falls back to `NONE` on its own (the name no longer parses), and the next save clears it.
+     */
+    private fun migratedTwoFingerTap(d: AppSettings): TouchAction =
+        if (prefs.getString(KEY_PALETTE_INVOCATION, null) == LEGACY_TWO_FINGER_TAP) {
+            TouchAction.RADIAL_PALETTE
+        } else {
+            d.touchTwoFingerTap
+        }
+
+    /**
      * The saved palette list, or — for a pref file written before palettes became a list — the single
      * palette that build stored, migrated into a one-entry list so nobody loses their setup.
      */
@@ -399,6 +449,11 @@ class SettingsStore(context: Context) {
     fun save(s: AppSettings) {
         val e = prefs.edit()
             .putBoolean(KEY_FINGER_DRAWS, s.fingerDraws)
+            .putString(KEY_TOUCH_DOUBLE_TAP, s.touchDoubleTap.name)
+            .putString(KEY_TOUCH_TRIPLE_TAP, s.touchTripleTap.name)
+            .putString(KEY_TOUCH_TWO_FINGER_TAP, s.touchTwoFingerTap.name)
+            .putString(KEY_TOUCH_TWO_FINGER_DOUBLE_TAP, s.touchTwoFingerDoubleTap.name)
+            .putInt(KEY_TOUCH_TAP_WINDOW, s.touchTapWindowMs)
             .putString(KEY_BARREL, s.barrelAction.name)
             .putString(KEY_BARREL_DOUBLE, s.barrelDoubleAction.name)
             .putString(KEY_PALETTE_INVOCATION, s.paletteInvocation.name)
@@ -447,9 +502,16 @@ class SettingsStore(context: Context) {
 
     private companion object {
         const val KEY_FINGER_DRAWS = "finger_draws"
+        const val KEY_TOUCH_DOUBLE_TAP = "touch_double_tap"
+        const val KEY_TOUCH_TRIPLE_TAP = "touch_triple_tap"
+        const val KEY_TOUCH_TWO_FINGER_TAP = "touch_two_finger_tap"
+        const val KEY_TOUCH_TWO_FINGER_DOUBLE_TAP = "touch_two_finger_double_tap"
+        const val KEY_TOUCH_TAP_WINDOW = "touch_tap_window_ms"
         const val KEY_BARREL = "barrel_action"
         const val KEY_BARREL_DOUBLE = "barrel_double_action"
         const val KEY_PALETTE_INVOCATION = "palette_invocation"
+        /** The `PaletteInvocation` entry that became a [TouchAction]; still recognised, to migrate it. */
+        const val LEGACY_TWO_FINGER_TAP = "TWO_FINGER_TAP"
         const val KEY_HOVER = "show_hover"
         const val KEY_PALETTE_HAPTICS = "palette_haptics"
         const val KEY_PALETTE_CLOSE_ON_SELECT = "palette_close_on_select"

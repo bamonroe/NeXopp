@@ -27,6 +27,7 @@ nothing here is repeated in another section.
 | [Rendering & editing](#rendering--editing-render) | the canvas loop, page/layer edits, shapes, styles, the erasers, authoring |
 | [Audio-annotated strokes](#audio-annotated-strokes-audio) | record, replay and sidecar transfer for `fn`/`ts` |
 | [Vertical space](#vertical-space-renderverticalspaceopskt) | the insert/remove-space tool |
+| [Finger tap gestures](#finger-tap-gestures-render) | what a double-, triple- or two-finger tap is bound to, and how a run of taps is counted |
 | [Selecting objects](#selecting-objects-render) | marquee, lasso, text and background selection, and the edits on them |
 | [PDF backgrounds & rasterisation](#pdf-backgrounds--rasterisation-render) | importing a PDF as pages, the caches, the text layer |
 | [Exporting](#exporting-pdf-svg-and-raster) | PDF, SVG and raster export, and the fonts they embed |
@@ -1445,6 +1446,9 @@ app/
       DrawingSurfaceConstants.kt # DrawingSurfaceDefaults: the canvas's shared tuning constants; blankDocument/blankPage
       DrawingSurfacePaint.kt # the surface's render loop, page compositing and chrome overlays (extensions)
       DrawingSurfaceInput.kt # the surface's touch/hover state machine: pointer routing, scroll and gesture end (extensions)
+      DrawingSurfaceTaps.kt  # the finger tap gestures: confirm a tap, count a run of them, run its TouchAction (extensions)
+      TouchGestures.kt       # TouchAction/TouchGestures/TapWindow — what each finger tap is bound to —
+                             #   plus MultiTapDetector, the pure run-of-taps counter behind them
       DrawingSurfaceStrokes.kt # the surface's ink capture: stroke, spline, erase and place gestures (extensions)
       DrawingSurfacePalette.kt # the surface's radial palette: invocation gestures, open menu, commit (extensions)
       DrawingSurfaceSelection.kt # the surface's selection: rubber-band start, PDF-text selection, and the
@@ -1477,7 +1481,7 @@ app/
       StrokePainter.kt       # paints a stroke's pressure polyline (shared by screen + PDF export)
       PageRenderer.kt        # draws a page's layers/elements at a scale/offset (shared)
       ElementRenderer.kt     # draws text boxes, images, and LaTeX images (real math)
-      PaletteTapDetector.kt  # the two-finger-tap gesture that opens the radial palette (pure state machine)
+      TwoFingerTapDetector.kt # what counts as a two-finger tap, and what disqualifies one (pure state machine)
       PaletteHaptics.kt      # when the open palette should buzz as the highlight moves (pure)
       RadialPaletteRenderer.kt # paints the open radial palette (two rings + hovered slot) over the canvas
       LatexParser.kt         # LaTeX source -> node tree (pure, no Android deps)
@@ -1751,8 +1755,11 @@ a gzip round-trip, the PDF-background on-disk shape, the fixture-driven `FormatD
 asserting schema coverage, and `XmlEqualityRoundTripTest`, which checks that the XML we emit
 still matches the desktop-written source byte-for-byte once normalized. The `render/` tests
 cover the pure geometry — page layout, gridlines, page ops, eraser hit-testing, text layout,
-LaTeX geometry and undo/redo history — and the `audio/` tests cover fn/ts mapping and WAV
-framing. The `io/` tests cover the storage-access logic that has no device in it: the save-name
+LaTeX geometry and undo/redo history — plus the input state machines that were deliberately kept
+free of Android types so they could be tested here at all: `BarrelClickDetectorTest`,
+`TwoFingerTapDetectorTest` (what counts as a two-finger tap and everything that disqualifies one)
+and `MultiTapDetectorTest` (what continues a run of taps into a double or triple, and where the run
+wraps). The `audio/` tests cover fn/ts mapping and WAV framing. The `io/` tests cover the storage-access logic that has no device in it: the save-name
 mapping, incoming-intent URI selection, the two stores' liveness sweeps, text import, and
 `AutoSavePolicyTest`, which drives both autosave timers over a fabricated timeline (dirty vs clean,
 which timer wins, and the overdue case) and the `AutoSaveGate` mid-stroke hold (due while the pen is
@@ -2043,6 +2050,47 @@ together, matching desktop. Dragging up is clamped by `clampShift` so content ca
 never crosses above the line it was grabbed at; a drag that can't move anything returns the same page
 list, which keeps `finishGesture` from recording an empty undo step. The whole drag is one undo step,
 and because it only rewrites coordinates the result round-trips through save unchanged.
+
+## Finger tap gestures (`render/`)
+
+What a **finger** tap does on the canvas is the user's, not the app's: the four tap gestures
+(one-finger double- and triple-tap, two-finger tap and two-finger double-tap) each carry a
+`TouchAction`, and the whole set — plus the tap-run window — is the `TouchGestures` value
+`EditorScreen.applySettings` pushes onto the surface from the Settings **Touch** section. Every
+`TouchAction` is something the toolbar or the radial palette can already do, so a gesture is a second
+way in and never a behaviour of its own; the default keeps what the app always did, with the
+one-finger double-tap on `PAGE_ZONES` (left third → previous page, right third → next, centre →
+full-page view).
+
+**Where the parts live.** `TouchGestures.kt` holds the pure model (`TouchAction`, `TouchGestures`,
+`TapWindow`) and `MultiTapDetector`, the run-of-taps counter; `DrawingSurfaceTaps.kt` is the wiring
+onto the view. Two-finger taps are *confirmed* by `TwoFingerTapDetector` (driven from
+`DrawingSurfacePalette.kt`, which is where a two-finger candidate is armed and disqualified) and then
+*routed* through the same `applyTouchAction`, so there is exactly one place that says what a gesture
+does. `MultiTapDetector` is fed taps that are already confirmed — it only decides whether each one
+continues the previous run (within the window, within the double-tap slop) or opens a fresh one, and
+wraps at three so the tap after a triple-tap starts over. Being free of Android types, both are
+unit-tested on the JVM (`MultiTapDetectorTest`, `TwoFingerTapDetectorTest`).
+
+**When a one-finger tap is a gesture at all.** Only when that finger can't be drawing: the Hand tool
+(which pans with any pointer) or **Finger draws** switched off (where a finger only ever pans).
+Anywhere else the touch is ink, and `beginHandTap` never arms — a gesture must not eat a stroke.
+Two-finger gestures need no such gate, because a second finger already means pan/zoom. A tap is
+confirmed on lift and disqualified by travel past the double-tap slop or by a release velocity (a
+flick is a pan, however short), and at more than one column the overview grid claims the tap for its
+own page selection before any run is counted.
+
+**Waiting for the longer gesture.** A double-tap can only fire on the spot when nothing longer is
+bound; with a triple-tap bound, the double's action is held for one tap window via
+`deferTouchAction` (on the same main-looper handler the pen-tip hold uses, so it works off-screen and
+in tests) and the third tap cancels it — as does the gesture turning into a pan. The two-finger pair
+works the same way. This is why the Touch section says binding the longer gesture delays the shorter
+one: leave it on `NONE` and the shorter one is instant.
+
+**Applying it.** `applyTouchAction` does everything the surface owns — page zones, undo/redo, page
+turns, opening the ring — and hands the rest (`TOGGLE_ERASER`/`TOGGLE_SELECT`/`TOGGLE_HAND`, which
+need the editor's notion of "the previous tool") to `EditorRegions` through `onTouchAction`, exactly
+as the barrel double-click's toggles are handed out through `onBarrelDoubleClick`.
 
 ## Selecting objects (`render/`)
 
@@ -2587,9 +2635,9 @@ page-number bubble beside it. A rounded grip "peninsula" bulges out of the thumb
 visual — the whole band already catches touches) so there's an obvious finger-sized target to grab. It is a pure navigation affordance — no `.xopp` state, so nothing
 round-trips. Choosing Settings
 from the ☰ menu swaps in `SettingsScreen`, which is an **index of sections** (`SettingsSection` —
-Stylus, Editor, Toolbar, Palette, Navigation, Appearance, Autosave, Storage): each row opens that section as its own page, with back returning to the
+Stylus, Touch, Editor, Toolbar, Palette, Navigation, Appearance, Autosave, Storage): each row opens that section as its own page, with back returning to the
 index and back from the index leaving settings. Each section body is its own file (`StylusSection.kt`,
-`EditorSection.kt`, `ToolbarSection.kt`, `NavigationSection.kt`, `AppearanceSection.kt`,
+`TouchSection.kt`, `EditorSection.kt`, `ToolbarSection.kt`, `NavigationSection.kt`, `AppearanceSection.kt`,
 `AutoSaveSection.kt`, `StorageSection.kt`),
 over the controls they share in `SettingsWidgets.kt`. The fixed pen palette (`PEN_COLORS`, `PEN_WIDTH_LABELS`)
 lives beside its pop-up (`ToolbarColorPopup.kt` / `ToolbarSizePopup.kt`); the user-configurable pen widths and the editable custom colour are
@@ -2711,9 +2759,14 @@ toolbar":
    the hover/generic event stream — never while the tip is down, so it can't interrupt a stroke —
    and runs the configured `BarrelDoubleAction` (undo/redo on the surface; the tool and full-page
    toggles are handed to `EditorScreen` through `onBarrelDoubleClick`).
-   The `RADIAL_PALETTE` action is the **sole owner** of what a barrel double-click does — the
-   separate `PaletteInvocation` setting covers *touch* gestures only (`NONE` by default, plus
-   pen-tip long press and two-finger tap), so the two settings can never contradict each other.
+   The `RADIAL_PALETTE` action is the **sole owner** of what a barrel double-click does. The two
+   other roads to the ring are likewise one-owner-each: `PaletteInvocation` covers *pen-tip*
+   gestures only (`NONE` by default, plus pen-tip long press), and a **finger** reaches it by
+   binding any tap gesture to `TouchAction.RADIAL_PALETTE` under Touch (see
+   [Finger tap gestures](#finger-tap-gestures-render)). No two settings can contradict each other,
+   because no gesture appears in two of them — a build before the split offered the two-finger tap
+   under `PaletteInvocation`, and `SettingsStore` migrates that pref into the touch setting on first
+   load.
    `RADIAL_PALETTE` opens the pen-tip menu at the event's own `(x, y)` and the
    overlay then **owns every pointer**: `onTouchEvent` returns before `beginPointer` while it is up,
    which is what makes "the menu can never leave a stroke behind" structural rather than a rule to

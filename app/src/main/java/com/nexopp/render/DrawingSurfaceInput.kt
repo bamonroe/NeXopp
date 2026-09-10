@@ -56,22 +56,23 @@ internal fun DrawingSurfaceView.handleTouch(event: MotionEvent): Boolean? {
         // The two-finger tap is decided on the *first* lift — before the surviving finger can be
         // handed a pan by [onPointerUp] — and takes the whole gesture with it when it fires.
         MotionEvent.ACTION_POINTER_UP -> {
-            if (openPaletteOnTwoFingerTap(event)) return true
+            if (handleTwoFingerTap(event)) return true
             onPointerUp(event)
         }
         // A spline node is still mid-curve on release — it must not run the commit-and-finish path.
         MotionEvent.ACTION_UP -> when {
             overview.dragging -> { overview.disarm(); removeCallbacks(pageDragArm); finishPageDrag() }
             splineDragging -> splineUp(event)
-            backgroundSelecting -> { cancelPageDrag(); cancelPaletteLongPress(); paletteTap.cancel(); commitBackgroundSelect() }
+            backgroundSelecting -> { cancelPageDrag(); cancelPaletteLongPress(); twoFingerTap.cancel(); commitBackgroundSelect() }
             else -> {
-                cancelPageDrag(); cancelPaletteLongPress(); paletteTap.cancel()
+                cancelPageDrag(); cancelPaletteLongPress(); twoFingerTap.cancel()
                 captureReleaseVelocity(event); handleHandTapUp(event); endGesture()
             }
         }
         MotionEvent.ACTION_CANCEL -> {
-            handTapCandidate = false; cancelPageDrag(); cancelPaletteLongPress()
-            paletteTap.cancel(); cancelGesture()
+            handTapCandidate = false; handTaps.reset(); cancelPendingTap()
+            cancelPageDrag(); cancelPaletteLongPress()
+            twoFingerTap.cancel(); twoFingerTaps.reset(); cancelGesture()
         }
         else -> return null
     }
@@ -358,57 +359,4 @@ internal fun DrawingSurfaceView.spanOf(event: MotionEvent): Float {
     var sum = 0f
     for (i in 0 until event.pointerCount) sum += hypot(event.getX(i) - fx, event.getY(i) - fy)
     return sum / event.pointerCount
-}
-
-/** Arm double-tap tracking for a fresh single-finger touch, but only while the Hand tool is active. */
-internal fun DrawingSurfaceView.beginHandTap(event: MotionEvent) {
-    handTapCandidate = handMode
-    handTapMoved = false
-    handTapDownTime = event.eventTime
-    handTapDownX = event.x
-    handTapDownY = event.y
-}
-
-/** A moved-too-far touch is a pan, not a tap — disqualify it from forming a double-tap. */
-internal fun DrawingSurfaceView.trackHandTapMove(event: MotionEvent) {
-    if (hypot(event.x - handTapDownX, event.y - handTapDownY) > doubleTapSlopPx) handTapMoved = true
-}
-
-/** On lift, confirm a tap and — if it pairs with the previous one in time and place — fire the double-tap. */
-internal fun DrawingSurfaceView.handleHandTapUp(event: MotionEvent) {
-    if (!handTapCandidate) return
-    handTapCandidate = false
-    // A flick is a pan, not a tap — even one whose travel stayed inside the tap slop. Without this
-    // a short-but-fast swipe in the overview grid would count as a tap and jump back to the page
-    // under the finger, cancelling the glide it should have started.
-    if (handTapMoved || momentum.hasRelease) { handFirstTapTime = 0L; return }
-    // In the overview grid a tap is about pages, not paging/zooming around: in edit mode it picks
-    // pages out for a bulk edit, in view mode it just jumps to the page you tapped.
-    if (columns > 1) {
-        handFirstTapTime = 0L
-        val box = layout.pageAt(scrollX + handTapDownX, scrollY + handTapDownY) ?: return
-        if (overview.editMode) overview.toggleSelection(box.index, doc.pages.size) else goToPage(box.index)
-        return
-    }
-    val pairsWithPrevious = handFirstTapTime != 0L &&
-        handTapDownTime - handFirstTapTime <= doubleTapTimeoutMs &&
-        hypot(handTapDownX - handFirstTapX, handTapDownY - handFirstTapY) <= doubleTapSlopPx
-    if (pairsWithPrevious) {
-        handFirstTapTime = 0L // consume, so a third tap doesn't immediately re-fire
-        onHandDoubleTap(handTapDownX)
-    } else {
-        handFirstTapTime = handTapDownTime
-        handFirstTapX = handTapDownX
-        handFirstTapY = handTapDownY
-    }
-}
-
-/** Route a Hand-tool double-tap by horizontal zone: left third → prev page, right third → next, centre → toggle full-page. */
-internal fun DrawingSurfaceView.onHandDoubleTap(x: Float) {
-    val edge = width / 3f
-    when {
-        x < edge -> goToPage(currentPageIndex() - 1)
-        x > width - edge -> goToPage(currentPageIndex() + 1)
-        else -> onToggleFullPage?.invoke()
-    }
 }

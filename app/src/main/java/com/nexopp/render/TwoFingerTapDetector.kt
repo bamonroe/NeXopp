@@ -3,11 +3,13 @@ package com.nexopp.render
 import kotlin.math.hypot
 
 /**
- * The pure state machine behind the [PaletteInvocation.TWO_FINGER_TAP] gesture: two fingers that go
- * down together, stay put, and come up quickly open the radial palette midway between them.
+ * The pure state machine behind the two-finger tap gestures: two fingers that go down together, stay
+ * put, and come up quickly count as one tap, reported at the midpoint between them. What that tap
+ * then *does* is the user's [TouchGestures] setting; counting a run of them into a double-tap is
+ * [MultiTapDetector]'s job.
  *
  * It is deliberately free of Android types so every disqualification rule is unit-testable on the
- * JVM (`PaletteTapDetectorTest`); `DrawingSurfaceView` only feeds it the raw pointer positions it
+ * JVM (`TwoFingerTapDetectorTest`); `DrawingSurfaceView` only feeds it the raw pointer positions it
  * already has. The rules are what keep it from stealing the existing gestures:
  *
  *  * a third pointer, or a second finger arriving late, cancels it outright;
@@ -17,7 +19,7 @@ import kotlin.math.hypot
  * Because it only ever *reports* a tap on release, the pan/zoom underneath runs as usual until the
  * moment the tap is confirmed — a rejected tap costs the user nothing.
  */
-class PaletteTapDetector(private val slopPx: Float, private val timeoutMs: Long) {
+class TwoFingerTapDetector(private val slopPx: Float, private val timeoutMs: Long) {
 
     private var armed = false
     private var downTime = 0L

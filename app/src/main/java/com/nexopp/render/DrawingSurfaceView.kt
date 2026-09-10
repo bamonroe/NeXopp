@@ -205,8 +205,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var paintPosted = false
     internal val paintCallback = Choreographer.FrameCallback { paint() }
 
-    // Hand-tool double-tap: a centre double-tap toggles full-page view, a left/right-edge double-tap
-    // pages back/forward. Detected manually (single-finger tap = down→up without exceeding tap slop).
+    // One-finger tap gestures: a run of taps by a finger that isn't drawing (Hand tool, or
+    // finger-draw off) invokes whatever the Touch settings bind to a double- or triple-tap. Taps are
+    // confirmed manually (down→up without exceeding tap slop); the whole layer is
+    // `DrawingSurfaceTaps.kt`.
     internal val doubleTapTimeoutMs = ViewConfiguration.getDoubleTapTimeout().toLong()
     internal val doubleTapSlopPx = ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat()
     /** The current single touch's down time/position, and whether it has moved past tap slop (→ a pan). */
@@ -215,10 +217,24 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var handTapDownY = 0f
     internal var handTapCandidate = false
     internal var handTapMoved = false
-    /** The previous confirmed tap's down time/position, to match the next tap against for a double-tap. */
-    internal var handFirstTapTime = 0L
-    internal var handFirstTapX = 0f
-    internal var handFirstTapY = 0f
+    /** Counts one finger's confirmed taps into a run; its rules live in [MultiTapDetector]. */
+    internal val handTaps = MultiTapDetector(doubleTapSlopPx, doubleTapTimeoutMs)
+    /** The same, for confirmed two-finger taps (matched on the midpoint between the fingers). */
+    internal val twoFingerTaps = MultiTapDetector(doubleTapSlopPx, doubleTapTimeoutMs)
+
+    /**
+     * A gesture's action held back until the tap window closes, because a longer run of taps is also
+     * bound and might still arrive — see `deferTouchAction`. [TouchAction.NONE] means nothing is
+     * pending.
+     */
+    internal var pendingTapAction = TouchAction.NONE
+    internal var pendingTapX = 0f
+    internal var pendingTapY = 0f
+    internal val pendingTapFire = Runnable {
+        val action = pendingTapAction
+        pendingTapAction = TouchAction.NONE
+        applyTouchAction(action, pendingTapX, pendingTapY)
+    }
 
     // Page-overview drag-to-reorder: in the multi-column grid a finger long-press lifts a page and the
     // drag drops it at another slot. Armed on touch-down, fired by [pageDragArm] after the long-press
@@ -312,8 +328,14 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var onScrollChanged: ((Float, Float, Float) -> Unit)? = null
     /** Notified when a placement tap lands, so the editor can prompt for content / pick an image. */
     var onPlace: ((PlaceKind, Placement) -> Unit)? = null
-    /** Notified when the Hand tool receives a centre double-tap, so the editor can toggle full-page (chrome-hidden) view. */
+    /** Notified when a tap gesture asks for full-page (chrome-hidden) view, so the editor can toggle it. */
     var onToggleFullPage: (() -> Unit)? = null
+    /**
+     * Notified with a [TouchAction] a finger gesture fired that the surface can't apply on its own —
+     * the tool flips, which need the editor's notion of "the previous tool". Everything else a
+     * gesture can be bound to is done on the surface (see `applyTouchAction`).
+     */
+    var onTouchAction: ((TouchAction) -> Unit)? = null
     /**
      * Notified with the configured [BarrelDoubleAction] when the stylus barrel button is
      * double-clicked. Undo/redo are applied here on the surface; the tool/chrome flips need the
@@ -326,6 +348,18 @@ class DrawingSurfaceView @JvmOverloads constructor(
     var baseWidthPt: Float = 1.5f
     /** Input-layer settings (finger-draw / barrel action) consulted by [InputClassifier]; from Settings. */
     var inputSettings: InputSettings = InputSettings()
+
+    /**
+     * What each finger tap gesture invokes, and how long a run of taps may take (see [TouchGestures]);
+     * from the Touch settings section. Changing it takes effect on the next gesture — a run of taps
+     * already under way keeps the window it started with.
+     */
+    var touchGestures: TouchGestures = TouchGestures()
+        set(value) {
+            field = value
+            handTaps.windowMs = tapWindowMs()
+            twoFingerTaps.windowMs = tapWindowMs()
+        }
     /** Pressure→width exponent (see [PressureCurve]); 1 = linear. Set from the sensitivity setting. */
     var pressureGamma: Float = PressureSensitivity.LINEAR.gamma
     /** Shape/spline width as a fraction of [baseWidthPt] (see [ShapeWidth]); from the line-thickness setting. */
@@ -1191,8 +1225,8 @@ class DrawingSurfaceView @JvmOverloads constructor(
     internal var paletteLongPressX = 0f
     internal var paletteLongPressY = 0f
 
-    /** The two-finger tap candidate; its rules — and their tests — live in [PaletteTapDetector]. */
-    internal val paletteTap = PaletteTapDetector(touchSlopPx, DrawingSurfaceDefaults.TWO_FINGER_TAP_MS)
+    /** The two-finger tap candidate; its rules — and their tests — live in [TwoFingerTapDetector]. */
+    internal val twoFingerTap = TwoFingerTapDetector(touchSlopPx, DrawingSurfaceDefaults.TWO_FINGER_TAP_MS)
 
     /** True between a two-finger tap opening the menu and the last of those fingers coming up. */
     internal var palettePendingLift = false

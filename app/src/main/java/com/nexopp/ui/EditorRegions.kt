@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.nexopp.render.BarrelDoubleAction
+import com.nexopp.render.TouchAction
 import com.nexopp.render.DrawingSurfaceView
 import com.nexopp.render.PlaceKind
 import com.nexopp.render.Placement
@@ -444,6 +445,16 @@ private fun DrawingSurfaceView.bindEditorActions(
             BarrelDoubleAction.TOGGLE_ERASER -> ui.toggleTool(EditorTool.ERASER)
             BarrelDoubleAction.TOGGLE_SELECT -> ui.toggleTool(EditorTool.SELECT)
             BarrelDoubleAction.TOGGLE_FULL_PAGE -> ui.fullPage = !ui.fullPage
+            else -> Unit
+        }
+        applyTool(ui.tool)
+    }
+    onTouchAction = { action ->
+        when (action) {
+            TouchAction.TOGGLE_ERASER -> ui.toggleTool(EditorTool.ERASER)
+            TouchAction.TOGGLE_SELECT -> ui.toggleTool(EditorTool.SELECT)
+            TouchAction.TOGGLE_HAND -> ui.toggleTool(EditorTool.HAND)
+            // Everything else a gesture can fire is applied on the surface itself.
             else -> Unit
         }
         applyTool(ui.tool)

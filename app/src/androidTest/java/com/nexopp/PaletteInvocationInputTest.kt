@@ -14,6 +14,8 @@ import com.nexopp.format.model.Tool
 import com.nexopp.render.DrawingSurfaceView
 import com.nexopp.render.InputSettings
 import com.nexopp.render.PaletteInvocation
+import com.nexopp.render.TouchAction
+import com.nexopp.render.TouchGestures
 import com.nexopp.ui.RadialRing
 import com.nexopp.ui.slotDrawRadius
 import org.junit.Assert.assertEquals
@@ -23,11 +25,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * On-device verification of the two button-free ways of summoning the radial palette
- * ([PaletteInvocation]). Like `StylusInputTest`, these need real `MotionEvent`s carrying a tool type
- * and two pointers — `adb input` can inject neither — so they run via `connectedDebugAndroidTest`.
- * The pure decision rules behind the two-finger tap are unit-tested in `PaletteTapDetectorTest`;
- * this proves the view is wired to them and that neither gesture steals a stroke or a pan.
+ * On-device verification of the two button-free ways of summoning the radial palette: the pen-tip
+ * hold ([PaletteInvocation]) and a finger tap bound to [TouchAction.RADIAL_PALETTE]. Like
+ * `StylusInputTest`, these need real `MotionEvent`s carrying a tool type and two pointers —
+ * `adb input` can inject neither — so they run via `connectedDebugAndroidTest`. The pure decision
+ * rules behind the two-finger tap are unit-tested in `TwoFingerTapDetectorTest`; this proves the
+ * view is wired to them and that neither gesture steals a stroke or a pan.
  */
 @RunWith(AndroidJUnit4::class)
 class PaletteInvocationInputTest {
@@ -35,7 +38,7 @@ class PaletteInvocationInputTest {
     /** Two fingers down, still, and up promptly: the palette opens and no ink is left behind. */
     @Test
     fun twoFingerTapOpensThePalette() = onView { view ->
-        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.TWO_FINGER_TAP)
+        view.touchGestures = TouchGestures(twoFingerTap = TouchAction.RADIAL_PALETTE)
         twoFingerTap(view, holdMs = 40)
         assertTrue("the tap opened the palette", view.paletteOpen)
         assertEquals("the tap left no stroke", 0, strokesOf(view).size)
@@ -44,17 +47,17 @@ class PaletteInvocationInputTest {
     /** Two fingers that travel are a pan or a pinch — the palette must stay shut. */
     @Test
     fun twoFingerPanDoesNotOpenThePalette() = onView { view ->
-        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.TWO_FINGER_TAP)
+        view.touchGestures = TouchGestures(twoFingerTap = TouchAction.RADIAL_PALETTE)
         twoFingerTap(view, holdMs = 40, travelPx = 220f)
         assertFalse("a pan did not open the palette", view.paletteOpen)
     }
 
-    /** The same tap with the setting left on its default does nothing — only the chosen gesture is live. */
+    /** The same tap with the gesture left unbound does nothing — only a bound gesture is live. */
     @Test
-    fun twoFingerTapIsInertUnderTheDefaultInvocation() = onView { view ->
-        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.NONE)
+    fun twoFingerTapIsInertUnderTheDefaultGestures() = onView { view ->
+        view.touchGestures = TouchGestures()
         twoFingerTap(view, holdMs = 40)
-        assertFalse("the default invocation ignores the two-finger tap", view.paletteOpen)
+        assertFalse("an unbound two-finger tap does nothing", view.paletteOpen)
     }
 
     /** A stylus held still on the glass opens the palette, and the held tip commits no ink. */
@@ -97,7 +100,7 @@ class PaletteInvocationInputTest {
      */
     @Test
     fun aPickLeavesTheMenuUpAndOnlyAnOutsideTapClosesIt() = onView { view ->
-        view.inputSettings = InputSettings(paletteInvocation = PaletteInvocation.TWO_FINGER_TAP)
+        view.touchGestures = TouchGestures(twoFingerTap = TouchAction.RADIAL_PALETTE)
         twoFingerTap(view, holdMs = 40)
         assertTrue("the tap opened the palette", view.paletteOpen)
 

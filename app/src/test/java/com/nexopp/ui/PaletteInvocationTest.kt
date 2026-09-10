@@ -13,14 +13,24 @@ import org.junit.Test
 class PaletteInvocationTest {
 
     @Test
-    fun `no touch gesture is the default`() {
+    fun `no pen-tip gesture is the default`() {
         assertEquals(PaletteInvocation.NONE, AppSettings().paletteInvocation)
     }
 
     /** The barrel button has exactly one owner — the double-click setting — so it is absent here. */
     @Test
-    fun `the touch setting never refers to the pen barrel button`() {
+    fun `the setting never refers to the pen barrel button`() {
         assert(PaletteInvocation.entries.none { it.name.contains("BARREL") })
+    }
+
+    /**
+     * Fingers reach the palette through the Touch section's tap gestures instead, so this setting
+     * must offer none of its own — two owners of the two-finger tap is exactly the collision the
+     * split was made to remove.
+     */
+    @Test
+    fun `the setting offers no finger gesture`() {
+        assert(PaletteInvocation.entries.none { it.name.contains("FINGER") })
     }
 
     @Test
@@ -32,8 +42,8 @@ class PaletteInvocationTest {
 
     @Test
     fun `the setting is carried on AppSettings`() {
-        val settings = AppSettings().copy(paletteInvocation = PaletteInvocation.TWO_FINGER_TAP)
-        assertEquals(PaletteInvocation.TWO_FINGER_TAP, settings.paletteInvocation)
+        val settings = AppSettings().copy(paletteInvocation = PaletteInvocation.PEN_TIP_LONG_PRESS)
+        assertEquals(PaletteInvocation.PEN_TIP_LONG_PRESS, settings.paletteInvocation)
     }
 
     @Test

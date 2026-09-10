@@ -145,21 +145,22 @@ data class InputSettings(
 )
 
 /**
- * Which **touch** gesture summons the radial palette. The barrel button is deliberately absent here:
- * a double-click of it is owned solely by [BarrelDoubleAction.RADIAL_PALETTE], so there is exactly
- * one owner of that gesture. This setting exists for the many styluses with no side button at all —
- * those users need a gesture the tip or the fingers can make. Exactly one is live at a time: a
- * long-press that also opened on a two-finger tap would fight the pan/zoom gestures for every touch.
+ * Which **pen-tip** gesture summons the radial palette. The barrel button is deliberately absent
+ * here: a double-click of it is owned solely by [BarrelDoubleAction.RADIAL_PALETTE], so there is
+ * exactly one owner of that gesture. This setting exists for the many styluses with no side button
+ * at all — those users need a gesture the tip itself can make.
+ *
+ * Fingers reach the palette by a different road: any of the tap gestures in [TouchGestures] can be
+ * bound to [TouchAction.RADIAL_PALETTE]. Splitting the two apart is what keeps one gesture to one
+ * owner — a build before that split offered a two-finger tap *here*, and it migrates into the touch
+ * setting on first load (see `SettingsStore`).
  */
 enum class PaletteInvocation(val label: String) {
-    /** The default: no touch gesture opens the palette (the barrel double-click still can). */
+    /** The default: no pen-tip gesture opens the palette (the barrel double-click still can). */
     NONE("None"),
 
     /** Hold the pen tip still on the glass; the ring opens where it rests, and no stroke is left. */
     PEN_TIP_LONG_PRESS("Pen-tip long press"),
-
-    /** A quick two-finger tap that never becomes a pan or a pinch, opening midway between them. */
-    TWO_FINGER_TAP("Two-finger tap"),
 }
 
 /**

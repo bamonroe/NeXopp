@@ -11,15 +11,14 @@ import com.nexopp.render.PaletteInvocation
 import com.nexopp.render.PressureSensitivity
 import com.nexopp.render.StrokePrecision
 
-/** Stylus behaviours: palm rejection, hover preview, barrel-button action and pressure "feel". */
+/**
+ * Stylus behaviours: hover preview, barrel-button actions and pressure "feel".
+ *
+ * What *fingers* do — whether they draw at all, and what each tap gesture invokes — is the Touch
+ * section's, so each input device has one page to configure it on.
+ */
 @Composable
 fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
-    SwitchRow(
-        title = "Finger draws",
-        subtitle = "Off: fingers only pan/zoom and never use any tool — stylus only.",
-        checked = settings.fingerDraws,
-        onCheckedChange = { onChange(settings.copy(fingerDraws = it)) },
-    )
     SwitchRow(
         title = "Hover preview",
         subtitle = "Show a ring where a hovering stylus will land.",
@@ -62,9 +61,10 @@ fun StylusSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
 
     HorizontalDivider(Modifier.padding(vertical = 12.dp))
     OptionGroup(
-        title = "Open the palette by touch",
-        subtitle = "Touch gesture that summons the radial palette, for a stylus with no side " +
-            "button. The side button itself is set above, under Barrel double-click.",
+        title = "Open the palette with the pen tip",
+        subtitle = "Pen-tip gesture that summons the radial palette, for a stylus with no side " +
+            "button. The side button itself is set above, under Barrel double-click; to open the " +
+            "palette with your fingers instead, bind a tap gesture in the Touch section.",
         options = PaletteInvocation.values().toList(),
         selected = settings.paletteInvocation,
         label = { it.label },
