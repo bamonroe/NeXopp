@@ -1,5 +1,7 @@
 package com.nexopp.ui
 
+import com.nexopp.render.ScrollLock
+
 /**
  * The data model behind the radial palette — the two-ring menu that pops up at the pen tip.
  *
@@ -57,6 +59,15 @@ sealed interface PaletteAction {
 
     /** Show/hide the chrome (full-page view). */
     data object ToggleFullPage : PaletteAction
+
+    /**
+     * Lock the axis pans may travel along, or clear the lock (see [ScrollLock]).
+     *
+     * The slot *toggles* rather than sets: firing it while that lock is already on unlocks again,
+     * so one flick both stops the document drifting sideways and lets it go — which is what makes
+     * the action worth a slot at all. [ScrollLock.NONE] is the plain "unlock whatever is on" slot.
+     */
+    data class LockScroll(val lock: ScrollLock) : PaletteAction
 
     /** A page-level operation. */
     data class Page(val op: PalettePageOp) : PaletteAction

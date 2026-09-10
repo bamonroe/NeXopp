@@ -6,8 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nexopp.render.MomentumCurve
+import com.nexopp.render.ScrollLock
 
-/** Canvas navigation: momentum scrolling (strength and curve) and panning sensitivity. */
+/** Canvas navigation: momentum scrolling (strength and curve), panning sensitivity and scroll lock. */
 @Composable
 fun NavigationSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     MomentumSlider(
@@ -28,5 +29,18 @@ fun NavigationSection(settings: AppSettings, onChange: (AppSettings) -> Unit) {
     PanSensitivitySlider(
         value = settings.panSensitivity,
         onChange = { onChange(settings.copy(panSensitivity = it)) },
+    )
+
+    HorizontalDivider(Modifier.padding(vertical = 12.dp))
+    OptionGroup(
+        title = "Scroll lock",
+        subtitle = "Stop pans drifting off one axis: locking horizontal scrolling lets a drag " +
+            "move up and down only, locking vertical lets it move side to side only. " +
+            "Going to a page, a search hit or a zoom still lands where it should. " +
+            "Also on the top bar beside undo, and assignable to a radial-palette slot.",
+        options = ScrollLock.entries.toList(),
+        selected = settings.scrollLock,
+        label = { it.label },
+        onSelect = { onChange(settings.copy(scrollLock = it)) },
     )
 }

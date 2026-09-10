@@ -34,6 +34,32 @@ class ViewportStateTest {
         assertFalse(v.scrollBy(0f, 50f)) // already pinned at the bottom
     }
 
+    @Test fun `a horizontal lock drops the sideways half of a pan`() {
+        val v = viewport()
+        v.lock = ScrollLock.HORIZONTAL
+        assertTrue(v.scrollBy(30f, 20f))
+        assertEquals(0f, v.scrollX, 0f)
+        assertEquals(20f, v.scrollY, 0f)
+        // A purely sideways pan now moves nothing at all, which is what stops a fling dead.
+        assertFalse(v.scrollBy(30f, 0f))
+    }
+
+    @Test fun `a vertical lock drops the up-down half of a pan`() {
+        val v = viewport()
+        v.lock = ScrollLock.VERTICAL
+        assertTrue(v.scrollBy(30f, 20f))
+        assertEquals(30f, v.scrollX, 0f)
+        assertEquals(0f, v.scrollY, 0f)
+        assertFalse(v.scrollBy(0f, 20f))
+    }
+
+    @Test fun `a lock does not hold back a jump to a place`() {
+        val v = viewport()
+        v.lock = ScrollLock.VERTICAL
+        v.scrollToY(120f)
+        assertEquals(120f, v.scrollY, 0f)
+    }
+
     @Test fun `scrollToY clamps to the range`() {
         val v = viewport()
         v.scrollToY(-5f)

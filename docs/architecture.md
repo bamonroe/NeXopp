@@ -1460,6 +1460,7 @@ app/
       InkCache.kt            # off-screen page-ink bitmaps in zoom buckets, so panning blits instead of re-drawing
       StrokeSmoother.kt      # streaming jitter filter for freehand position and pressure (pure)
       CanvasChrome.kt        # the canvas's non-document brushes: selection, band, guide, overview, hover, palette
+      ScrollLock.kt          # which axis pans may not travel along (pure, tested)
       ViewportState.kt       # scroll offsets, zoom, and their clamps (pure, tested);
                              # a view-size change (rotation, split view) re-anchors the viewport centre,
                              # keeping it pending while a viewport too small to hold it clamps it away
@@ -1608,13 +1609,14 @@ app/
       ToolPresetCodec.kt     # the preset list's one-line SharedPreferences form; forgiving decode (pure)
       ToolGroups.kt          # the rail's tool groups + their persisted per-slot selections (pure)
       RailItems.kt           # the rail's button positions + their persisted order/hidden set (pure)
+      ScrollLockButton.kt    # top-bar scroll-lock button beside undo/redo: tap cycles, long-press names the modes
       ScrollThumb.kt         # right-edge PDF-style scroll thumb: drag to page fast, faint-when-idle, page bubble
       PageCounter.kt         # always-visible "page X of Y" badge; its corner is a setting
       SettingsScreen.kt      # settings index: one clickable row per section, each opening its own page
       StylusSection.kt       # settings page: pressure feel, hover, barrel actions, palette invocation
       EditorSection.kt       # settings page: the tool a document opens in, and how edits snap
       ToolbarSection.kt      # settings page: rail edge, item order/visibility, pen width slots
-      NavigationSection.kt   # settings page: momentum, pan sensitivity, page columns, counters
+      NavigationSection.kt   # settings page: momentum, pan sensitivity, scroll lock, page columns, counters
       AppearanceSection.kt   # settings page: theme mode, dynamic colour, chrome
       AutoSaveSection.kt     # settings page: the inactivity and fixed-interval autosave timers
       StorageSection.kt      # settings page: the import and cache byte budgets
@@ -1725,8 +1727,8 @@ The picker layer is the UI face — what the user sees and touches:
   or moving a palette doesn't leave the pen pointing at nothing.
 - **`PaletteSection`** — the settings page: a tappable two-ring diagram (drawn from the same
   geometry as the live menu), plus the `PaletteActionPickerSheet` that fills one slot. The
-  sheet lists every assignable action — tools, edit/page ops, the shared colour swatches, a
-  width slider, and **Clear** — and reports the choice through `onPick`.
+  sheet lists every assignable action — tools, edit/page ops, the scroll locks, the shared colour
+  swatches, a width slider, and **Clear** — and reports the choice through `onPick`.
 - **`PaletteActionCatalog`** — the catalogue of assignable actions and how each reads in
   prose (`describeAction`). Colour and width actions are not listed (they carry a value the
   user has to dial in), so the sheet hands those to the shared colour palette and width slider
@@ -1737,7 +1739,7 @@ The picker layer is the UI face — what the user sees and touches:
   slot disc.
 - **`RadialPaletteLabel`** — how a slot presents itself: a short glyph (2 characters at most)
   or, for colour slots, the swatch that fills the mark. The glyph set (`✎`, `⌫`, `↶`, `↷`,
-  `⛶`, `★`, `◎`, etc.) is defined here, next to the data model, so it's testable on the JVM
+  `⛶`, `★`, `◎`, `✥`/`↕`/`↔`, etc.) is defined here, next to the data model, so it's testable on the JVM
   and reusable by the configuration UI.
 
 All picker logic is factored so the **model** (`RadialPalette`, `PaletteAction`) is plain
@@ -2585,7 +2587,8 @@ it doesn't affect round-trip (matching how desktop selects a PDF background's te
 (`EditorTopBar(saving = …)` — an 18 dp `CircularProgressIndicator` in an `AnimatedVisibility`
 fade, first in the actions row, fed from `MainActivity.autoSaving`; the blocking `TransferOverlay`
 path is untouched), a **reload** button, undo/redo
-icon buttons and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export…, Save,
+icon buttons, the **scroll-lock** button (`ScrollLockButton.kt`, right of Redo — see
+[Scroll lock](#stylus--selection-roadmap) below for what it locks) and a **☰ overflow menu** (`DropdownMenu`) holding Open, Import PDF, Export…, Save,
 and Settings. The reload button (`Icons.Filled.Refresh`, immediately before undo) is the chrome half
 of `MainActivity.reloadActiveTab()`: it never reloads anything itself, it only raises
 `EditorUiState.showReloadConfirm`, and the `ConfirmDialog` that flag drives in `EditorOverlays` calls
@@ -2870,6 +2873,20 @@ nothing for the synthetic events used in tests), so the kinematics are unit-test
 `scrollX`/`scrollY` — 1 tracks the finger one-to-one, `<1` pans slower, `>1` faster, `0` freezes the
 document — and the same factor scales the seeded release velocity so the fling coasts at the pan's
 visual rate.
+
+**Scroll lock.** `ScrollLock` (`render/ScrollLock.kt`, pure) names the axis pans may not travel
+along: `NONE`, `HORIZONTAL` (sideways frozen — a drag only goes up/down) or `VERTICAL` (the mirror
+image). It is held by `ViewportState.lock` and enforced in **one** place, `ViewportState.scrollBy`,
+which zeroes the locked delta before clamping. That is deliberately the whole enforcement: `doScroll`
+routes its per-frame pan through `scrollViewportBy` rather than writing `scrollX`/`scrollY` itself, so
+the drag, the `MomentumDriver` fling that follows it and `handleWheelScroll` all obey the lock, while
+the *absolute* moves — `scrollToY`, `goToPage`, `jumpToSearchHit`, `zoomAbout`'s re-anchor,
+`setBounds`' re-clamp — are destinations the user named and stay unconstrained. Because a locked axis
+reports "didn't move", a fling along it stops on its first frame instead of grinding. The mode is
+persisted as `AppSettings.scrollLock`, pushed onto the surface by `applySettings`, and has three
+front doors: the `ScrollLockButton` beside undo/redo in the top bar (tap cycles, long-press opens the
+naming menu), the `PaletteAction.LockScroll` palette slot (which *toggles*, so one slot both locks and
+releases), and **Settings → Navigation**. Unit-tested by `ScrollLockTest` and `ViewportStateTest`.
 
 **Out of scope: tilt / orientation.** The `.xopp` format stores only per-vertex width — it has no
 place for stylus **tilt / orientation** (`AXIS_TILT` / `AXIS_ORIENTATION`), so tilt-driven width

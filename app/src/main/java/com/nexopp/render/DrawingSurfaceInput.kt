@@ -276,8 +276,9 @@ internal fun DrawingSurfaceView.doScroll(event: MotionEvent) {
     val fy = focusY(event, skip = -1)
     val fx = focusX(event, skip = -1)
     // Pan gain: 1 tracks the finger one-to-one, <1 pans slower, >1 faster, 0 freezes the document.
-    scrollY = (scrollY + (lastFocusY - fy) * panSensitivity).coerceIn(0f, maxScrollY())
-    scrollX = (scrollX + (lastFocusX - fx) * panSensitivity).coerceIn(0f, maxScrollX())
+    // Routed through the viewport rather than written straight in, so the drag obeys the same clamp
+    // and the same scroll lock as the fling that follows it.
+    scrollViewportBy((lastFocusX - fx) * panSensitivity, (lastFocusY - fy) * panSensitivity)
     lastFocusY = fy
     lastFocusX = fx
     // Two fingers also pinch-zoom: a change in span since the last frame scales zoom about the focus.

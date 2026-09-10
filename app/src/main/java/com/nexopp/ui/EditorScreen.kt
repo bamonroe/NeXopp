@@ -110,6 +110,7 @@ fun DrawingSurfaceView.applySettings(s: AppSettings) {
     flingStrength = s.momentum
     momentumCurve = s.momentumCurve
     panSensitivity = s.panSensitivity
+    scrollLock = s.scrollLock
     palette = s.radialPalette
     presetColors = s.presets.associate { it.id to it.colorArgb }
 }
@@ -188,6 +189,8 @@ fun EditorScreen(
             onOpen = onOpen,
             onNewTab = { tabs.onNew() },
             onSave = onSave,
+            settings = settings,
+            onSettingsChange = onSettingsChange,
             splitView = splitView,
             onToggleSplitView = onToggleSplitView,
             saving = saving,

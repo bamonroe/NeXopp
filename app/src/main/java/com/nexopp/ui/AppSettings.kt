@@ -11,6 +11,7 @@ import com.nexopp.render.PaletteInvocation
 import com.nexopp.render.PageStacker
 import com.nexopp.render.PanSensitivity
 import com.nexopp.render.PressureSensitivity
+import com.nexopp.render.ScrollLock
 import com.nexopp.render.ShapeWidth
 import com.nexopp.render.StrokePrecision
 import com.nexopp.render.TapWindow
@@ -112,6 +113,7 @@ enum class ThemeMode(val label: String) {
  * @property momentum How far a released pan keeps gliding — the momentum-strength factor (0 = off, 1 = normal).
  * @property momentumCurve The velocity→coast response shape for momentum (linear … exponential).
  * @property panSensitivity How far the document moves per unit of pan travel (0 = frozen, 1 = one-to-one, >1 = faster).
+ * @property scrollLock Which axis pans refuse to travel along, so a drag can only go up/down or only side to side.
  * @property toolbarPosition Which edge of the editor the tool rail is docked to.
  * @property recentColors Colours picked recently, most-recent-first, capped at [MAX_RECENT_COLORS].
  * @property lastColor The pen colour in use when the app last ran, restored on the next launch.
@@ -188,6 +190,8 @@ data class AppSettings(
     val momentumCurve: MomentumCurve = MomentumCurve.QUADRATIC,
     /** How far the document moves per unit of pan travel (0 = frozen, 1 = one-to-one, >1 = faster). */
     val panSensitivity: Float = PanSensitivity.NORMAL,
+    /** Which axis pans refuse to travel along, so a drag can only go up/down or only side to side. */
+    val scrollLock: ScrollLock = ScrollLock.NONE,
     /** Which edge of the editor the tool rail is docked to. */
     val toolbarPosition: ToolbarPosition = ToolbarPosition.LEFT,
     /** Colours picked recently, most-recent-first, capped at [MAX_RECENT_COLORS]. */
@@ -396,6 +400,7 @@ class SettingsStore(context: Context) {
             momentum = Momentum.coerce(prefs.getFloat(KEY_MOMENTUM, d.momentum)),
             momentumCurve = enumOr(prefs.getString(KEY_MOMENTUM_CURVE, null), d.momentumCurve),
             panSensitivity = PanSensitivity.coerce(prefs.getFloat(KEY_PAN_SENSITIVITY, d.panSensitivity)),
+            scrollLock = enumOr(prefs.getString(KEY_SCROLL_LOCK, null), d.scrollLock),
             toolbarPosition = enumOr(prefs.getString(KEY_TOOLBAR_POSITION, null), d.toolbarPosition),
             recentColors = decodeColors(prefs.getString(KEY_RECENT_COLORS, null)),
             lastColor = prefs.getInt(KEY_LAST_COLOR, d.lastColor),
@@ -474,6 +479,7 @@ class SettingsStore(context: Context) {
         e.putFloat(KEY_MOMENTUM, s.momentum)
         e.putString(KEY_MOMENTUM_CURVE, s.momentumCurve.name)
         e.putFloat(KEY_PAN_SENSITIVITY, s.panSensitivity)
+        e.putString(KEY_SCROLL_LOCK, s.scrollLock.name)
         e.putString(KEY_TOOLBAR_POSITION, s.toolbarPosition.name)
         e.putString(KEY_RECENT_COLORS, s.recentColors.joinToString(",") { it.toString() })
         e.putInt(KEY_LAST_COLOR, s.lastColor)
@@ -530,6 +536,7 @@ class SettingsStore(context: Context) {
         const val KEY_MOMENTUM = "momentum_factor"
         const val KEY_MOMENTUM_CURVE = "momentum_curve"
         const val KEY_PAN_SENSITIVITY = "pan_sensitivity"
+        const val KEY_SCROLL_LOCK = "scroll_lock"
         const val KEY_TOOLBAR_POSITION = "toolbar_position"
         const val KEY_RECENT_COLORS = "recent_colors"
         const val KEY_LAST_COLOR = "last_color"

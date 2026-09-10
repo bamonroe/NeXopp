@@ -1,5 +1,7 @@
 package com.nexopp.ui
 
+import com.nexopp.render.ScrollLock
+
 /**
  * Encoding of a [RadialPalette] to and from the single string [SettingsStore] keeps in
  * `SharedPreferences`, following the same plain-text pattern as [encodeToolGroupSelections].
@@ -85,6 +87,7 @@ private fun encodeAction(action: PaletteAction): String = when (action) {
     PaletteAction.Redo -> "redo"
     PaletteAction.ToggleFullPage -> "fullpage"
     is PaletteAction.Page -> "page:${action.op.name}"
+    is PaletteAction.LockScroll -> "scrolllock:${action.lock.name}"
     is PaletteAction.ApplyPreset -> "preset:${action.presetId}"
     is PaletteAction.ApplyPresetSlot -> "presetslot:${action.index}"
     // Safe unescaped: [encodeRadialPalette] already strips every separator out of a palette name.
@@ -106,6 +109,7 @@ private fun decodeAction(token: String): PaletteAction? {
         "redo" -> PaletteAction.Redo
         "fullpage" -> PaletteAction.ToggleFullPage
         "page" -> enumOrNull<PalettePageOp>(arg)?.let(PaletteAction::Page)
+        "scrolllock" -> enumOrNull<ScrollLock>(arg)?.let(PaletteAction::LockScroll)
         "preset" -> arg.takeIf { it.isNotEmpty() }?.let(PaletteAction::ApplyPreset)
         // A negative position could never resolve, so it is dropped rather than kept as a dead slot.
         "presetslot" -> arg.toIntOrNull()?.takeIf { it >= 0 }?.let(PaletteAction::ApplyPresetSlot)

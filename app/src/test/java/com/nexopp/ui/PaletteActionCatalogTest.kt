@@ -1,5 +1,6 @@
 package com.nexopp.ui
 
+import com.nexopp.render.ScrollLock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,6 +27,14 @@ class PaletteActionCatalogTest {
     fun `offers the edit actions`() {
         val edit = paletteActionGroups().first { it.title == "Edit" }.choices.map { it.action }
         assertEquals(listOf(PaletteAction.Undo, PaletteAction.Redo, PaletteAction.ToggleFullPage), edit)
+    }
+
+    @Test
+    fun `offers every scroll-lock mode, worded as the toggle it is`() {
+        val locks = paletteActionGroups().first { it.title == "Scroll lock" }.choices
+        assertEquals(ScrollLock.entries.map { PaletteAction.LockScroll(it) }, locks.map { it.action })
+        assertEquals("Lock horizontal scrolling", PaletteAction.LockScroll(ScrollLock.HORIZONTAL).describeAction())
+        assertEquals("Unlock scrolling", PaletteAction.LockScroll(ScrollLock.NONE).describeAction())
     }
 
     @Test

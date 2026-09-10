@@ -1,5 +1,7 @@
 package com.nexopp.ui
 
+import com.nexopp.render.ScrollLock
+
 /**
  * The catalogue of assignable [PaletteAction]s — what the slot picker offers, and how each action
  * reads in prose. Kept free of Compose so the list of choices (and every label in it) is
@@ -61,10 +63,26 @@ fun paletteActionGroups(
         ),
     ),
     PaletteActionGroup(
+        "Scroll lock",
+        ScrollLock.entries.map { PaletteActionChoice(it.actionLabel, PaletteAction.LockScroll(it)) },
+    ),
+    PaletteActionGroup(
         "Page",
         PalettePageOp.entries.map { PaletteActionChoice(it.label, PaletteAction.Page(it)) },
     ),
 )
+
+/**
+ * How a scroll-lock action reads. Phrased as the *verb* rather than the mode's name, because the
+ * slot toggles: "Lock horizontal scrolling" is what a flick does the first time, and firing it again
+ * undoes it (see [PaletteAction.LockScroll]).
+ */
+val ScrollLock.actionLabel: String
+    get() = when (this) {
+        ScrollLock.NONE -> "Unlock scrolling"
+        ScrollLock.HORIZONTAL -> "Lock horizontal scrolling"
+        ScrollLock.VERTICAL -> "Lock vertical scrolling"
+    }
 
 /** Human-readable label for a page operation, matching the toolbar's pages popup wording. */
 val PalettePageOp.label: String
@@ -87,6 +105,7 @@ fun PaletteAction.describeAction(presets: List<ToolPreset> = emptyList()): Strin
     PaletteAction.Redo -> "Redo"
     PaletteAction.ToggleFullPage -> "Toggle full page"
     is PaletteAction.Page -> op.label
+    is PaletteAction.LockScroll -> lock.actionLabel
     // Named where the preset still exists; a slot pointing at a deleted preset says so plainly.
     is PaletteAction.ApplyPreset ->
         presets.firstOrNull { it.id == presetId }?.let { "Preset ${it.name}" } ?: "Preset (deleted)"

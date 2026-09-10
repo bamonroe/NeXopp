@@ -45,6 +45,13 @@ internal class ViewportState {
     var zoom = 1f
         private set
 
+    /**
+     * The axis pans may not travel along (see [ScrollLock]). It is enforced in [scrollBy] alone, so
+     * a drag, its fling and the mouse wheel all obey it while going *to* a page or a search hit
+     * still lands where it was asked to.
+     */
+    var lock: ScrollLock = ScrollLock.NONE
+
     /** Current view width in pixels; set via [setBounds]. */
     private var viewWidth = 0f
     /** Current view height in pixels; set via [setBounds]. */
@@ -128,7 +135,8 @@ internal class ViewportState {
     }
 
     /**
-     * Scroll by ([dx], [dy]) pixels, clamped; false when nothing moved (pinned at a bound).
+     * Scroll by ([dx], [dy]) pixels, clamped and with a locked axis dropped; false when nothing
+     * moved (pinned at a bound, or every axis the delta asked for is locked).
      * @param dx Horizontal delta in pixels.
      * @param dy Vertical delta in pixels.
      * @return true if scroll position changed.
@@ -136,8 +144,8 @@ internal class ViewportState {
     fun scrollBy(dx: Float, dy: Float): Boolean {
         val prevX = scrollX
         val prevY = scrollY
-        scrollY = (scrollY + dy).coerceIn(0f, maxScrollY())
-        scrollX = (scrollX + dx).coerceIn(0f, maxScrollX())
+        scrollY = (scrollY + lock.allowY(dy)).coerceIn(0f, maxScrollY())
+        scrollX = (scrollX + lock.allowX(dx)).coerceIn(0f, maxScrollX())
         return scrollX != prevX || scrollY != prevY
     }
 

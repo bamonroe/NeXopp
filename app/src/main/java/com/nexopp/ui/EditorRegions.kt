@@ -83,6 +83,9 @@ fun EditorTopBar(
     onOpen: () -> Unit,
     onNewTab: () -> Unit,
     onSave: () -> Unit,
+    /** The live settings, for the chrome that edits one directly (the scroll lock). */
+    settings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit,
     splitView: Boolean,
     onToggleSplitView: () -> Unit,
     /** A quiet autosave is in flight: show a small spinner that fades in and back out. */
@@ -113,6 +116,7 @@ fun EditorTopBar(
             IconButton(onClick = { pane.surface?.redo() }, enabled = pane.canRedo) {
                 Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
             }
+            ScrollLockButton(settings = settings, onChange = onSettingsChange)
             TabOverviewButton(tabs)
             OverflowMenu(
                 onOpen = onOpen,

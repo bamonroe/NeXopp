@@ -9,10 +9,14 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.NoteAdd
+import androidx.compose.material.icons.filled.OpenWith
 import androidx.compose.material.icons.filled.PostAdd
 import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.nexopp.render.ScrollLock
 
 /**
  * The picture on a palette slot, drawn from the **same Material icon set as the toolbar rail** so a
@@ -32,6 +36,7 @@ fun PaletteAction.icon(): ImageVector? = when (this) {
     PaletteAction.Redo -> Icons.Filled.Redo
     PaletteAction.ToggleFullPage -> Icons.Filled.Fullscreen
     is PaletteAction.Page -> op.icon()
+    is PaletteAction.LockScroll -> lock.icon()
     is PaletteAction.ApplyPreset -> Icons.Filled.Bookmark
     // No icon: a slot action's number *is* its identity, so it falls back to the "★1" glyph.
     is PaletteAction.ApplyPresetSlot -> null
@@ -72,6 +77,16 @@ fun legibleOnSlot(argb: Int): Int {
 
 /** How light a preset's icon must be to stand off the slot disc (relative luminance, 0…1). */
 private const val MIN_LUMINANCE = 0.45
+
+/**
+ * A scroll lock wears the arrows of the travel it still *allows* — the free-move cross when nothing
+ * is locked — because that is what the user needs to read off the button mid-pan.
+ */
+fun ScrollLock.icon(): ImageVector = when (this) {
+    ScrollLock.NONE -> Icons.Filled.OpenWith
+    ScrollLock.HORIZONTAL -> Icons.Filled.SwapVert
+    ScrollLock.VERTICAL -> Icons.Filled.SwapHoriz
+}
 
 private fun PalettePageOp.icon(): ImageVector = when (this) {
     PalettePageOp.NEW_AFTER -> Icons.Filled.PostAdd

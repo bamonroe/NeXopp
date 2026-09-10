@@ -415,6 +415,15 @@ authoritative flow; don't invent another one.
   erasing, and adding/editing text/image/LaTeX are all undoable). They enable and disable as history
   allows; opening a file starts fresh history. History is **200 edits deep** — past that the oldest
   step is dropped, so the most recent edits always stay undoable without the stack growing forever.
+- **Scroll lock** — the arrows button in the top bar, just right of Redo, locks panning to one axis
+  so a long session of annotating doesn't slowly walk the page off to one side. **Tap** it to cycle
+  **unlocked → lock horizontal → lock vertical → unlocked**; **press and hold** for a menu naming the
+  three outright. The icon shows the travel a pan can still make (a free-move cross when unlocked,
+  up/down arrows when horizontal scrolling is locked, left/right when vertical is) and lights up
+  while any lock is on. A locked axis stops drags, their flings and the mouse wheel; **going** to a
+  page, a search hit or a zoom still lands where it should, so a lock never traps you. The mode is
+  shared with **Settings → Navigation → Scroll lock**, can be bound to a **radial-palette slot**, and
+  is remembered across restarts.
 - **Reload from file** — the circular-arrow button in the top bar (left of the undo arrow) throws the
   tab's **unsaved edits** away and re-reads the document from its file, so you can get back to what's
   on disk — handy after editing the same file on the desktop. It always asks first (*Discard &
@@ -541,7 +550,8 @@ authoritative flow; don't invent another one.
     Nothing you do while the menu is open can
     leave a stroke behind: the canvas ignores the pen until the menu closes. Slots run the same
     actions the toolbar does: pick or toggle a tool, set the pen colour or width, undo/redo, toggle
-    full-page, and the page commands (new page before/after, duplicate, delete, next, previous).
+    full-page, lock or unlock scrolling, and the page commands (new page before/after, duplicate,
+    delete, next, previous).
     It starts from the built-in layout — tools and undo/redo on the inner ring, the standard pen
     colours on the outer one — and you can re-arrange it under **Settings > Palette** (below).
   - **Open the palette with the pen tip** — a *pen-tip* gesture that also summons that menu, for the
@@ -625,7 +635,9 @@ authoritative flow; don't invent another one.
     spells out which ring, which position, and what it currently holds). The tap also opens the
     **action picker** — a bottom sheet listing everything a slot can do: **Select tool** and
     **Toggle tool** for each tool, the shared **colour** swatches, a **width** slider with a
-    *Set width* button, **Undo**, **Redo**, **Toggle full page**, the page operations (new page
+    *Set width* button, **Undo**, **Redo**, **Toggle full page**, a **Scroll lock** group (**Lock
+    horizontal scrolling**, **Lock vertical scrolling**, **Unlock scrolling** — a lock slot *toggles*,
+    so flicking onto it a second time releases the lock again), the page operations (new page
     after/before, duplicate, delete, next, previous), and — once you have saved any — a **Preset**
     group listing your saved tool presets (each numbered with its slot, "1. Fine liner"), so one flick restores a whole tool configuration (the
     slot draws a **bookmark**, tinted with that preset's own colour so several preset slots are
@@ -688,6 +700,12 @@ authoritative flow; don't invent another one.
     is one-to-one (the default — the page tracks your finger exactly), values **below 1** pan slower
     than your finger, values up to **4.0×** pan faster, and **0** turns panning off entirely. The gain
     also scales the fling, so a released pan coasts at the same visual rate it was moving.
+  - **Scroll lock** — pins panning to one axis so a long annotation session doesn't slowly walk the
+    page sideways. **Unlocked** (the default) pans wherever your fingers go; **Lock horizontal** lets
+    a pan move only up and down; **Lock vertical** lets it move only side to side. The lock applies to
+    drags, the fling that follows them and the mouse wheel; going to a page, jumping to a search hit
+    and zooming still land where they should. The same setting is a **top-bar button beside undo/redo**
+    (see below) and can be put on a **radial-palette slot**, and it is remembered across restarts.
 
   Under **Appearance**:
   - **Theme** — **System** (the default — follows the device's light/dark setting), **Light**, or

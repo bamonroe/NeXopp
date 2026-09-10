@@ -1,5 +1,6 @@
 package com.nexopp.ui
 
+import com.nexopp.render.ScrollLock
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -27,7 +28,9 @@ class RadialPaletteCodecTest {
                 PaletteAction.ToggleFullPage,
                 PaletteAction.Page(PalettePageOp.DUPLICATE),
             ),
-            outer = List(RadialRing.OUTER.slotCount) { null },
+            outer = List(RadialRing.OUTER.slotCount) { i ->
+                ScrollLock.entries.getOrNull(i)?.let { PaletteAction.LockScroll(it) }
+            },
         )
         assertEquals(palette, decodeRadialPalette(encodeRadialPalette(palette)))
     }

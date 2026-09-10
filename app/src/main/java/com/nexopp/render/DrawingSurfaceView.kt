@@ -200,6 +200,10 @@ class DrawingSurfaceView @JvmOverloads constructor(
      * pan, >1 pans faster than the finger. Driven by the panning-sensitivity setting (see
      * [PanSensitivity]). Also scales the released velocity so a fling glides at the same visual rate. */
     var panSensitivity = PanSensitivity.NORMAL
+    /** Which axis pans refuse to travel along (see [ScrollLock]); driven by the scroll-lock setting. */
+    var scrollLock: ScrollLock
+        get() = viewport.lock
+        set(value) { viewport.lock = value }
 
     /** Set between a [render] request and the vsync that services it — see [render]. */
     internal var paintPosted = false

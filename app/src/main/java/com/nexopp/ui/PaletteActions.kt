@@ -1,6 +1,7 @@
 package com.nexopp.ui
 
 import com.nexopp.render.DrawingSurfaceView
+import com.nexopp.render.ScrollLock
 import com.nexopp.render.reopenPalette
 
 /**
@@ -34,6 +35,14 @@ fun applyPaletteAction(
         PaletteAction.Undo -> surface.undo()
         PaletteAction.Redo -> surface.redo()
         PaletteAction.ToggleFullPage -> ui.fullPage = !ui.fullPage
+        is PaletteAction.LockScroll -> {
+            // Toggling, not setting: the slot the lock is already on releases it (see [LockScroll]).
+            val next = if (settings.scrollLock == action.lock) ScrollLock.NONE else action.lock
+            // Pushed straight at the surface as well as saved, so the very next pan obeys it rather
+            // than waiting a frame for the settings round trip — the same as the colour case above.
+            surface.scrollLock = next
+            onSettingsChange(settings.copy(scrollLock = next))
+        }
         is PaletteAction.Page -> applyPageOp(action.op, surface)
         // A slot naming a preset that has since been deleted is a no-op rather than an error.
         is PaletteAction.ApplyPreset -> settings.presets.firstOrNull { it.id == action.presetId }
