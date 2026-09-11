@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "never-evict-on-screen-bitmaps-make-inkcache-yield-under-pressure"
+title = "Never evict on-screen bitmaps; make InkCache yield under pressure"
+description = "BitmapLruCache.trim's second pass ignores spared() and evicts visible whole-page rasters/tiles when the pinned working set exceeds the budget, causing white flicker on slow scrolls, slight resizes, and page barriers. Remove the second pass (single pass skipping protectedKey and spared keys; bounded overage is acceptable since bitmap pixels are native-backed on API 26+). In InkCache.entryFor, before rasterising a new entry, decline (return null, direct-draw path) when the needed bytes exceed budget.headroom() plus the bytes its own non-retained entries could free, so ink yields to the PDF rasters instead of forcing evictions. Verify: unit tests pass; slow scroll and pinch across page barriers show no white flashes."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
 id = "drop-queued-pdf-renders-for-pages-a-fling-left-behind"
 title = "Drop queued PDF renders for pages a fling left behind"
 description = "During a fast flick the single pdf-raster worker queues whole-page renders for every page crossed; by the time they run the pages are gone, and live pages' renders queue behind them. Override stale() in PdfPageCache to also drop a non-tiled key whose page is farther than 3 pages from every page in retainedPages (skip pruning while retainedPages is empty). Verify: flinging far lands sharp pages faster; unit tests pass."
