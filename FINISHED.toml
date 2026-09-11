@@ -17,6 +17,17 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "pin-visible-pages-whole-page-pdf-rasters-against-eviction"
+title = "Pin visible pages' whole-page PDF rasters against eviction"
+description = "After making PdfPageCache.request fully async, a visible page whose raster gets evicted paints as a plain sheet until the worker re-rasterises it, and eviction freely takes visible whole-page bitmaps (only tile cells are spared) — causing constant flicker while scrolling. In PdfPageCache, record the visible page set from retain() and make spared(key) also spare non-tiled keys of visible pages, so eviction's first pass skips them (second pass still takes them, keeping memory bounded). Verify: build, and scrolling a PDF-backed doc shows no white flashes."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
 id = "widen-pdf-prefetch-to-avoid-sync-rasterise-during-flings"
 title = "Widen PDF prefetch to avoid sync rasterise during flings"
 description = "PdfPageCache.request falls through to synchronous produce() on the draw thread when a page has nothing cached (render/PdfPageCache.kt:88-93), called from paint() via pageBitmapFor (DrawingSurfacePaint.kt:126-133); prefetchAround only covers +-1 page (DrawingSurfacePaint.kt:193-204). Widen prefetch (e.g. +-2/3 in scroll direction) and prefer drawing a placeholder (page background colour) instead of blocking the frame on synchronous PdfRenderer render when nothing is cached. Verify: unit tests pass; fling through an 18-page doc shows no multi-hundred-ms frames in systrace/logcat."
