@@ -59,6 +59,14 @@ class PdfPageCache(
      */
     private val pinnedByPage = HashMap<Int, Set<Key>>()
     private val pinnedKeys = HashSet<Key>()
+
+    /**
+     * The pages on screen right now, from [retain]. Their *whole-page* rasters are spared by
+     * eviction's first pass just like pinned tiles: [request] never rasterises inline, so evicting
+     * a visible page's only raster paints it as a plain sheet until the worker re-produces it —
+     * which under budget pressure repeats every few frames and reads as constant flicker.
+     */
+    private var retainedPages: Set<Int> = emptySet()
     private val sizes = HashMap<Int, Pair<Double, Double>>()
 
     /** Invoked (on the worker thread) whenever a newly rasterised page enters the cache. */
@@ -199,6 +207,7 @@ class PdfPageCache(
      */
     fun retain(pages: Set<Int>) {
         synchronized(lock) {
+            retainedPages = pages
             if (pinnedByPage.keys.retainAll(pages)) rebuildPinned()
         }
     }
@@ -292,9 +301,11 @@ class PdfPageCache(
 
     /**
      * Caller holds [lock]. The tiles on screen right now survive eviction's first pass — see
-     * [pinnedByPage] for what happens when they don't.
+     * [pinnedByPage] — and so do the whole-page rasters of visible pages — see [retainedPages].
+     * The second pass still takes both, so a viewport too large to cache stays memory-bounded.
      */
-    override fun spared(key: Key) = key in pinnedKeys
+    override fun spared(key: Key) =
+        key in pinnedKeys || (!key.tiled && key.page in retainedPages)
 
     /**
      * How many holders this instance has, for the shared instances handed out by [shared]. Only

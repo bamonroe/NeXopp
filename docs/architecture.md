@@ -1866,8 +1866,12 @@ eviction pass; the ring is only warmed while the cache is under `PdfPageCache.PR
 budget. Without this, a zoom whose visible tiles plus ring outgrow the budget evicts the very tiles
 being drawn, the next frame falls back to the upscaled whole-page bitmap and re-queues them, and the
 page flickers between blurry and sharp indefinitely. `DrawingSurfaceView` calls `PdfPageCache.retain`
-each frame with the on-screen pages so pins don't accumulate behind a scroll, and a second eviction
-pass ignores pins entirely, so a viewport too large to cache still stays memory-bounded.
+each frame with the on-screen pages so pins don't accumulate behind a scroll; that same set also
+spares the visible pages' **whole-page rasters** on the first pass — `request` never rasterises
+inline, so evicting a visible page's only raster paints it as a plain sheet until the worker
+re-produces it, which under budget pressure repeats every few frames and reads as constant flicker.
+A second eviction pass ignores all sparing, so a viewport too large to cache still stays
+memory-bounded.
 Ink is culled the same way: `DrawingSurfaceView` hands `PageRenderer.drawElements` the viewport in
 page-local pt, and any element whose `ElementBounds` box misses it is never submitted (boxes are
 memoised by element identity, so the cull doesn't rescan stroke points each frame). At high zoom a
