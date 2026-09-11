@@ -20,3 +20,17 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "never-evict-on-screen-bitmaps-make-inkcache-yield-under-pressure"
+title = "Never evict on-screen bitmaps; make InkCache yield under pressure"
+description = "BitmapLruCache.trim's second pass ignores spared() and evicts visible whole-page rasters/tiles when the pinned working set exceeds the budget, causing white flicker on slow scrolls, slight resizes, and page barriers. Remove the second pass (single pass skipping protectedKey and spared keys; bounded overage is acceptable since bitmap pixels are native-backed on API 26+). In InkCache.entryFor, before rasterising a new entry, decline (return null, direct-draw path) when the needed bytes exceed budget.headroom() plus the bytes its own non-retained entries could free, so ink yields to the PDF rasters instead of forcing evictions. Verify: unit tests pass; slow scroll and pinch across page barriers show no white flashes."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "critical"
+order = 10
+created = 2026-09-11
+tags = []
+rebuild = true
+emulator_debug = false

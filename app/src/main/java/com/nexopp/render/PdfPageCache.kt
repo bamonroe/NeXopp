@@ -322,9 +322,9 @@ class PdfPageCache(
     }
 
     /**
-     * Caller holds [lock]. The tiles on screen right now survive eviction's first pass — see
-     * [pinnedByPage] — and so do the whole-page rasters of visible pages — see [retainedPages].
-     * The second pass still takes both, so a viewport too large to cache stays memory-bounded.
+     * Caller holds [lock]. The tiles on screen right now survive eviction — see [pinnedByPage] —
+     * and so do the whole-page rasters of visible pages — see [retainedPages]. Eviction never
+     * takes them (see [BitmapLruCache.trim] for why running over budget is the lesser evil).
      */
     override fun spared(key: Key) =
         key in pinnedKeys || (!key.tiled && key.page in retainedPages)

@@ -1874,8 +1874,13 @@ each frame with the on-screen pages so pins don't accumulate behind a scroll; th
 spares the visible pages' **whole-page rasters** on the first pass — `request` never rasterises
 inline, so evicting a visible page's only raster paints it as a plain sheet until the worker
 re-produces it, which under budget pressure repeats every few frames and reads as constant flicker.
-A second eviction pass ignores all sparing, so a viewport too large to cache still stays
-memory-bounded.
+Sparing is absolute — no eviction pass ever takes an on-screen bitmap. When the pinned working set
+alone exceeds the budget the total simply runs over for a while (bounded by a few per-entry-capped
+rasters, and native-backed bitmap pixels make that safe); the alternative was evicting what is
+being drawn, which flickered on every slow scroll, slight zoom and page barrier. `InkCache` is the
+cache that *yields* instead: it declines to rasterise a page whose bytes wouldn't fit in the
+headroom plus what its own off-screen entries could free, falling back to direct element drawing,
+so the background rasters — which have no direct-draw fallback — keep their room.
 Ink is culled the same way: `DrawingSurfaceView` hands `PageRenderer.drawElements` the viewport in
 page-local pt, and any element whose `ElementBounds` box misses it is never submitted (boxes are
 memoised by element identity, so the cull doesn't rescan stroke points each frame). At high zoom a

@@ -147,6 +147,19 @@ class InkCache(
                     entries.remove(eldest)?.bitmap?.let { budget.credit(it.byteCount.toLong()); it.recycle() }
                 }
             }
+            // Yield under budget pressure instead of forcing it: if this raster couldn't fit even
+            // after freeing every one of our own off-screen entries, rasterising it would only make
+            // the shared budget evict other caches' still-needed bitmaps (or sit hopelessly over).
+            // Declining is graceful — the caller direct-draws this page, viewport-culled — and the
+            // PDF/image background rasters, which *cannot* be drawn any other way, keep their room.
+            val need = bucketW.toLong() * bucketH * BYTES_PER_PX
+            if (entries[box.index]?.widthPx != bucketW &&
+                need > budget.headroom() + entries.entries.sumOf {
+                    if (it.key in retained) 0L else it.value.bitmap.byteCount.toLong()
+                }
+            ) {
+                return null
+            }
             val cached = entries[box.index]
             if (cached != null &&
                 cached.page === box.page &&

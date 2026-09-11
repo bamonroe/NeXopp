@@ -125,26 +125,29 @@ abstract class BitmapLruCache<K : Any>(
     }
 
     /**
-     * Give [bytes] back to the shared budget, least-recently-used first. The first pass spares the
-     * entries [spared] protects (PdfPageCache's on-screen tiles); if that alone can't free enough, a
-     * second pass takes them too, so a viewport too large to cache still stays memory-bounded.
+     * Give [bytes] back to the shared budget, least-recently-used first, never touching the
+     * entries [spared] protects (PdfPageCache's on-screen tiles and visible whole-page rasters).
+     * There used to be a second pass that took spared entries too, "so a viewport too large to
+     * cache stays memory-bounded" — but with rasterisation fully async, evicting an on-screen
+     * bitmap paints its page as a plain sheet until the worker re-produces it, and whenever the
+     * pinned working set alone exceeded the budget that repeated on every charge: white flicker
+     * on slow scrolls, slight zooms and page barriers. The overage is bounded by the visible
+     * working set (a few per-entry-capped rasters), transient, and — bitmap pixels being
+     * native-backed on the API levels we run on — not a heap-OOM risk, so running a little over
+     * beats evicting what is being drawn.
      *
      * Evicted bitmaps are not recycled: the drawing thread may still hold one for the current frame.
      */
     override fun trim(bytes: Long): Long {
         var freed = 0L
         synchronized(lock) {
-            for (sparePinned in listOf(true, false)) {
-                val it = cache.entries.iterator()
-                while (freed < bytes && cache.size > 1 && it.hasNext()) {
-                    val eldest = it.next()
-                    if (eldest.key == protectedKey) continue
-                    if (sparePinned && spared(eldest.key)) continue
-                    freed += eldest.value.byteCount.toLong()
-                    it.remove()
-                    unindex(eldest.key)
-                }
-                if (freed >= bytes) break
+            val it = cache.entries.iterator()
+            while (freed < bytes && cache.size > 1 && it.hasNext()) {
+                val eldest = it.next()
+                if (eldest.key == protectedKey || spared(eldest.key)) continue
+                freed += eldest.value.byteCount.toLong()
+                it.remove()
+                unindex(eldest.key)
             }
             cachedBytes -= freed
             if (freed > 0) onCacheChanged()
