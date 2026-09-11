@@ -1838,8 +1838,11 @@ backgrounds are re-rasterised per zoomed width up to `BitmapLruCache.MAX_RASTER_
 never above `BitmapLruCache.PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
 can't evict one another and flash blank), beyond which the whole-page bitmap is upscaled to bound
 memory — asynchronously, so a zoom step shows the previous resolution stretched and sharpens a
-moment later rather than stalling the frame. A page with *nothing* cached is the one exception: it
-rasterises inline, since an empty background reads as a blank page. Past that whole-page ceiling
+moment later rather than stalling the frame. A page with *nothing* cached queues the work and shows
+a plain sheet for a frame or two — `request` never rasterises on the calling thread, because it is
+called from `paint()` and a fling past the prefetch window used to block whole frames on
+`PdfRenderer`. Past `MAX_RASTER_WIDTH` — the widest a whole page can *ever* be rasterised, not the
+budget-shrunk width, which on wide tablets switched tiles on at 100 % zoom and thrashed the budget —
 the sharpness comes from **tiles**: `PdfPageCache.requestTiles` rasterises only the visible cells of
 a `PdfPageCache.TILE_PX` (512 px) grid built at the true on-screen page width, each rendered 1:1 via
 a `Matrix` on `PdfRenderer.Page.render`, and `BackgroundRenderer` draws them over the upscaled page
@@ -1848,8 +1851,9 @@ viewport, not the page; a tile that hasn't rasterised yet simply shows the coars
 When the tiles on hand already cover every visible pixel of the page, `BackgroundRenderer` skips the
 coarse whole-page blit entirely, so those pixels aren't rasterised twice. Four things keep the tile
 path off the frame budget: `requestTiles` **memoises** its answer per page and rebuilds the list only
-when the visible cell block or the cache's contents change (a pan holds the same block for many
-frames); it queues the **ring of cells just outside** the viewport, so a pan meets rasterised tiles
+when the visible cell block or *that page's own* tiles change — the generation counter is per page,
+so a tile landing or being evicted for one page no longer invalidates every other page's memo
+(a pan holds the same block for many frames); it queues the **ring of cells just outside** the viewport, so a pan meets rasterised tiles
 at its leading edge rather than the coarse under-layer; a viewport spanning more cells than
 `PdfPageCache.MAX_TILES_PER_FRAME` caps how many new cells are *queued* instead of dropping the whole
 request, so cells already rasterised still draw sharp; and `nearest` finds a stand-in bitmap through
@@ -1876,21 +1880,24 @@ crosses a bucket edge and the zooms in between are a ≤19 % stretch of the bitm
 entry is invalidated by page identity (any edit rebuilds the `Page`), by its hidden-layer set, or by
 scrolling out of view (`InkCache.retain` keeps only the visible pages). The cache **declines** two
 cases and the direct element path takes over: a page whose bucket would exceed its per-entry ceiling
-(`BitmapLruCache.PAGE_SHARE` of the shared budget — at deep zoom a page spans many screens and its full
-raster would dwarf the screen it feeds, and the viewport cull is the better tool there), and any
+(`InkCache.ENTRY_SHARE` — half the shared budget, so a full-width tablet page still qualifies; at
+deep zoom a page spans many screens and its full raster would dwarf the screen it feeds, and the
+viewport cull is the better tool there), and any
 gesture that rewrites the page every frame — drag, resize, rotate, erase — where caching would only thrash.
 `PdfPageCache` and `ImageBackgroundCache` share their LRU core: both extend **`BitmapLruCache<K>`**,
 which owns the access-ordered map, the short-held cache lock, the single background worker, the
 insert-and-charge path, and eviction. A subclass supplies only what differs — `produce` (rasterise or
 decode, called *without* the cache lock), `index`/`unindex` (its width index behind `nearest`),
 `spared` (PdfPageCache's on-screen pinned tiles), and the `onCacheChanged`/`onDiscard` hooks.
-`BitmapLruCache.MAX_RASTER_WIDTH` (4096 px), `PAGE_SHARE` (a quarter of the budget per raster) and
-`bucket` (64 px width buckets) live there once for all three caches.
+`BitmapLruCache.MAX_RASTER_WIDTH` (4096 px), `PAGE_SHARE` (a quarter of the budget per PDF/image
+raster; `InkCache` has its own larger `ENTRY_SHARE`) and `bucket` (64 px width buckets) live there once.
 Both bitmap caches allocate through **one** `BitmapBudget` (`BitmapBudget.shared`, sized at startup
 from `ActivityManager.memoryClass`), so a PDF-backed document has a single memory bound rather than
 two independent guesses. A cache `charge`s each bitmap it rasterises; when the total goes over, the
 budget asks its clients to `trim` — the *other* clients first, the one that just allocated last, so
-the pixels being drawn this frame survive. `InkCache.trim` gives back off-screen pages first,
+the pixels being drawn this frame survive. `InkCache.trim` gives back off-screen pages **only** —
+evicting a visible page forces a synchronous re-rasterise inside `paint()` that charges the budget
+and evicts the PDF tiles right back, a ping-pong that was most of the PDF-scroll lag —
 `PdfPageCache.trim` its least-recently-used entries (pinned tiles last), and
 `ElementRenderer.trim` its least-recently-drawn embedded images (keyed by element *identity*, since
 an `ImageElement`'s `equals` compares whole byte arrays; `ElementRenderer.close` recycles them and
@@ -2187,12 +2194,13 @@ index is reclaimable, and `forget` drops it when the bytes behind a path are rew
 a merge). Without this, mirroring a PDF-backed document into both panes opened a second `PdfRenderer`
 over the same file, rasterised every page twice against one shared bitmap budget, and extracted and
 retained a second copy of the whole word index. The cache is keyed by page,
-target-width bucket and (for tiles) grid cell, **LRU** under a heap-proportional byte budget (`PdfPageCache.budget`, a quarter
-of the heap clamped to 24–192 MB — a page's cost varies ~64× between zoom levels, so counting pages
-budgets nothing). Rasterisation never happens on the drawing frame: `request` returns whatever
+target-width bucket and (for tiles) grid cell, **LRU** under a heap-proportional byte budget (`PdfPageCache.budget`, a third
+of the heap clamped to 32–384 MB — a page's cost varies ~64× between zoom levels, so counting pages
+budgets nothing, and on tablet screens the visible working set has to fit with headroom or the
+caches evict each other every frame). Rasterisation never happens on the drawing frame: `request` returns whatever
 resolution is already cached for that page (the nearest width, upscaled, or nothing) and queues the
 exact size on a single worker thread, which fires `onPageReady` so the view redraws sharp. The view
-also `prefetch`es one page either side of the viewport, so scrolling a long document meets a filled
+also `prefetch`es two pages either side of the viewport, so a fling through a long document meets a filled
 cache. Evicted bitmaps are *not* recycled — the drawing thread may still hold one for the frame in
 flight; the GC reclaims them. Past the whole-page raster ceiling `requestTiles` supplies
 viewport-sized tiles rendered at the true on-screen scale (see the zoom paragraph above), so text

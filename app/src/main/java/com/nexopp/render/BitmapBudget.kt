@@ -84,10 +84,15 @@ class BitmapBudget(val totalBytes: Long) {
     fun credit(bytes: Long) = synchronized(lock) { used = (used - bytes).coerceAtLeast(0) }
 
     companion object {
-        /** Share of the heap given to bitmap caches, clamped so tiny and huge heaps both behave. */
-        private const val HEAP_SHARE = 4
-        private val MIN = 24L shl 20
-        private val MAX = 192L shl 20
+        /**
+         * Share of the heap given to bitmap caches, clamped so tiny and huge heaps both behave.
+         * A third rather than a quarter: on tablet-sized screens the *visible* working set (2–3
+         * pages of ink rasters plus their PDF tiles) has to fit with headroom, or the caches evict
+         * each other every frame and scrolling degrades into a rasterise loop.
+         */
+        private const val HEAP_SHARE = 3
+        private val MIN = 32L shl 20
+        private val MAX = 384L shl 20
 
         /**
          * The process-wide budget every cache uses by default. Sized from the JVM heap until

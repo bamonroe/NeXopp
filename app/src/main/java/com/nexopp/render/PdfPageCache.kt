@@ -18,8 +18,8 @@ private const val PREFETCH_HEADROOM = PdfTileGeometry.PREFETCH_HEADROOM
  *    scrolling through survive;
  *  - [request] returns the best whole-page bitmap already cached for that page (any width — the
  *    renderer scales it) and queues the exact size on a worker, calling [onPageReady] when the sharp
- *    version lands. It only rasterises inline when *nothing* is cached for the page, since drawing
- *    no background at all reads as a blank page;
+ *    version lands. It never rasterises on the calling thread — a page with nothing cached shows a
+ *    plain sheet for a frame or two rather than stalling `paint()` on `PdfRenderer`;
  *  - [requestTiles] takes over past the whole-page ceiling: at high zoom only the visible cells of
  *    the page are rasterised, each at the true on-screen resolution, so text stays sharp however far
  *    you zoom while the heap stays bounded by the viewport rather than the page;
@@ -40,10 +40,13 @@ class PdfPageCache(
     private val pageWidths = HashMap<Int, java.util.TreeSet<Int>>()
 
     /**
-     * Bumped whenever the cache's contents change, so [requestTiles] can tell a repeat of the same
-     * request (reuse the memoised tile list) from one whose answer may have grown.
+     * Bumped per page whenever that page's *tiles* change, so [requestTiles] can tell a repeat of
+     * the same request (reuse the memoised tile list) from one whose answer may have grown. Kept
+     * per page rather than cache-wide: a global counter meant every tile landing or being evicted
+     * anywhere invalidated every page's memo, so during a scroll no memo ever hit and the tile
+     * lists were rebuilt for every visible page every frame.
      */
-    private var generation = 0
+    private val pageGenerations = HashMap<Int, Int>()
     /** Last tile list handed out per page, valid while grid and [generation] are unchanged. */
     private val tileMemo = HashMap<Int, TileMemo>()
 
@@ -76,9 +79,11 @@ class PdfPageCache(
     /**
      * The best whole-page bitmap available for page [i] at [targetWidthPx]. An exact-bucket hit is
      * returned as-is; otherwise the nearest cached width for that page is returned as a stand-in
-     * (upscaled by the renderer) and the exact size is queued in the background. Only when the page
-     * has nothing cached at all does this rasterise on the calling thread — drawing no background
-     * reads as a blank page, which is worse than one slow frame. Null if out of range or closed.
+     * (upscaled by the renderer) and the exact size is queued in the background. A page with
+     * nothing cached at all queues the work and returns null — the renderer paints a plain sheet
+     * for a frame or two. It used to rasterise inline instead, but this is called from `paint()`,
+     * and a fling past the prefetch window then blocked whole frames on `PdfRenderer` (queued
+     * behind the tile worker's render lock, too); a briefly blank sheet beats a frozen scroll.
      */
     fun request(i: Int, targetWidthPx: Int): Bitmap? {
         if (targetWidthPx <= 0 || i < 0) return null
@@ -89,8 +94,9 @@ class PdfPageCache(
         synchronized(lock) {
             cache[key]?.let { return it }
             nearest(i, key.width)?.let { enqueue(key); return it }
+            enqueue(key)
         }
-        return produce(key)
+        return null
     }
 
     /**
@@ -118,7 +124,7 @@ class PdfPageCache(
         synchronized(lock) {
             pin(i, grid)
             val memo = tileMemo[i]
-            if (memo != null && memo.matches(grid.scale, grid.c0, grid.c1, grid.r0, grid.r1, generation)) {
+            if (memo != null && memo.matches(grid.scale, grid.c0, grid.c1, grid.r0, grid.r1, generationOf(i))) {
                 return memo.tiles
             }
         }
@@ -139,7 +145,7 @@ class PdfPageCache(
             if (budget.used() < budget.totalBytes * PdfTileGeometry.PREFETCH_HEADROOM) {
                 queued += prefetchRing(i, grid, queued)
             }
-            tileMemo[i] = TileMemo(grid.scale, grid.c0, grid.c1, grid.r0, grid.r1, generation, tiles)
+            tileMemo[i] = TileMemo(grid.scale, grid.c0, grid.c1, grid.r0, grid.r1, generationOf(i), tiles)
         }
         return tiles
     }
@@ -225,15 +231,14 @@ class PdfPageCache(
     override fun onDiscard() {
         pageWidths.clear()
         tileMemo.clear()
+        pageGenerations.clear()
         pinnedByPage.clear()
         pinnedKeys.clear()
         sizes.clear()
     }
 
-    /** Caller holds [lock]. Any answer memoised from the old contents is now suspect. */
-    override fun onCacheChanged() {
-        generation++
-    }
+    /** Caller holds [lock]. Page [i]'s current tile generation. */
+    private fun generationOf(i: Int) = pageGenerations[i] ?: 0
 
     /** A cache entry: a whole page at a width bucket, or one cell of that width's tile grid. */
     data class Key(val page: Int, val width: Int, val col: Int = -1, val row: Int = -1) {
@@ -264,15 +269,22 @@ class PdfPageCache(
      */
     private fun nearest(i: Int, w: Int): Bitmap? = nearest(pageWidths[i], w) { Key(i, it) }
 
-    /** Caller holds [lock]. Track a whole-page entry's width for [nearest]. */
+    /** Caller holds [lock]. Track a whole-page entry's width for [nearest]; a tile bumps its
+     * page's generation so only *that* page's memoised tile list is rebuilt. */
     override fun index(key: Key) {
-        if (key.tiled) return
+        if (key.tiled) {
+            pageGenerations[key.page] = generationOf(key.page) + 1
+            return
+        }
         pageWidths.getOrPut(key.page) { java.util.TreeSet() }.add(key.width)
     }
 
-    /** Caller holds [lock]. Forget an evicted whole-page entry's width. */
+    /** Caller holds [lock]. Forget an evicted whole-page entry's width (a tile: see [index]). */
     override fun unindex(key: Key) {
-        if (key.tiled) return
+        if (key.tiled) {
+            pageGenerations[key.page] = generationOf(key.page) + 1
+            return
+        }
         val widths = pageWidths[key.page] ?: return
         widths.remove(key.width)
         if (widths.isEmpty()) pageWidths.remove(key.page)

@@ -21,8 +21,8 @@ import com.nexopp.format.model.Page
  * the caller falls back to drawing elements directly, where viewport culling already does the work.
  *
  * Every raster is charged to a shared [BitmapBudget], so this cache and [PdfPageCache] live under
- * one bound instead of two independent guesses; when the total goes over, [trim] hands back the
- * off-screen pages first.
+ * one bound instead of two independent guesses; when the total goes over, [trim] hands back
+ * off-screen pages only — the visible ones are never evicted out from under the drawing thread.
  *
  * In **overview mode** (columns > 1), the cache tightens its bounds: bucket widths are capped and
  * the entry count is limited, so a multi-page grid on a large document can't blow the bitmap budget.
@@ -34,7 +34,7 @@ class InkCache(
 
     /** Max pixels in one cached page raster, from this device's share of the shared budget. */
     private val budgetPx: Int =
-        (budget.perEntryBytes(BitmapLruCache.PAGE_SHARE) / BYTES_PER_PX).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        (budget.perEntryBytes(ENTRY_SHARE) / BYTES_PER_PX).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
 
     /** Max entries in overview mode; null in single-page mode (byte budget only). */
     private val maxEntries = { if (columns() > 1) OVERVIEW_MAX_ENTRIES else null }
@@ -95,22 +95,25 @@ class InkCache(
     fun clear() = retain(emptySet())
 
     /**
-     * Give [bytes] back to the shared budget, off-screen pages first. Bitmaps handed back here are
+     * Give [bytes] back to the shared budget, off-screen pages only. Bitmaps handed back here are
      * **not** recycled: unlike [retain] this can run on another cache's worker thread while the
      * drawing thread still holds the bitmap for the current frame.
+     *
+     * The pages in [retained] are never given back: they are being blitted *this frame*, and
+     * evicting one forces `paint()` to re-rasterise it synchronously on the drawing thread — which
+     * charges the budget, evicts the PDF cache's tiles, whose worker then trims us again. That
+     * ping-pong between the two caches was most of the scroll lag on PDF-backed documents; falling
+     * a little over budget for a frame is far cheaper.
      */
     override fun trim(bytes: Long): Long {
         var freed = 0L
         synchronized(lock) {
-            for (pass in 0..1) {
-                val it = entries.entries.iterator()
-                while (freed < bytes && it.hasNext()) {
-                    val e = it.next()
-                    if (pass == 0 && e.key in retained) continue
-                    freed += e.value.bitmap.byteCount.toLong()
-                    it.remove()
-                }
-                if (freed >= bytes) break
+            val it = entries.entries.iterator()
+            while (freed < bytes && it.hasNext()) {
+                val e = it.next()
+                if (e.key in retained) continue
+                freed += e.value.bitmap.byteCount.toLong()
+                it.remove()
             }
         }
         return freed
@@ -124,7 +127,7 @@ class InkCache(
         elements: ElementRenderer,
     ): Entry? {
         if (box.widthPx <= 0f || box.heightPx <= 0f) return null
-        val bucketW = bucketWidth(box.widthPx) ?: return null
+        val bucketW = bucketWidth(box.widthPx)
         val bucketH = ((box.heightPx / box.widthPx) * bucketW).toInt().coerceAtLeast(1)
         if (bucketW.toLong() * bucketH > budgetPx) return null
         synchronized(lock) {
@@ -174,22 +177,29 @@ class InkCache(
     }
 
     /**
-     * The smallest bucket width at or above [widthPx], or null once that would blow the budget on
-     * width alone. Buckets start at [BUCKET_BASE] and step by [BUCKET_RATIO]. In overview mode
-     * (columns > 1), the width is capped to keep memory bounded across many visible pages.
+     * The smallest bucket width at or above [widthPx]. Buckets start at [BUCKET_BASE] and step by
+     * [BUCKET_RATIO]. In overview mode (columns > 1) the width is capped (not declined) to keep
+     * memory bounded across many visible pages; whether the resulting *area* fits the budget is
+     * [entryFor]'s pixel check, not a width comparison here.
      */
-    private fun bucketWidth(widthPx: Float): Int? {
+    private fun bucketWidth(widthPx: Float): Int {
         var w = BUCKET_BASE.toFloat()
-        val cap = if (columns() > 1) OVERVIEW_BUCKET_CAP.toFloat() else Float.POSITIVE_INFINITY
-        while (w < widthPx) {
-            w *= BUCKET_RATIO
-            if (w > budgetPx || w > cap) return null
-        }
+        val cap = if (columns() > 1) OVERVIEW_BUCKET_CAP.toFloat() else BitmapLruCache.MAX_RASTER_WIDTH.toFloat()
+        while (w < widthPx && w < cap) w *= BUCKET_RATIO
         return w.toInt().coerceAtMost(cap.toInt())
     }
 
     private companion object {
         const val BYTES_PER_PX = 4
+
+        /**
+         * Share of the shared budget one ink raster may take. Larger than the PDF caches'
+         * [BitmapLruCache.PAGE_SHARE]: at a quarter share a full-width tablet page (~3.3M px)
+         * exceeded the ceiling, [entryFor] declined every visible page and all their strokes were
+         * re-submitted to the canvas each frame — the cache's whole reason to exist. A visible ink
+         * raster is the single most valuable bitmap in the app, so it gets the biggest slice.
+         */
+        const val ENTRY_SHARE = 0.5
 
         /** Narrowest bucket; below this a page is a thumbnail and the raster is nearly free. */
         const val BUCKET_BASE = 256

@@ -187,15 +187,16 @@ internal fun DrawingSurfaceView.retainPdfPins(visible: List<PageBox>) {
 }
 
 /**
- * Warm the pages just outside the viewport so scrolling meets a filled cache rather than a
- * rasterise. One page either side is enough to cover a flick at reading speed.
+ * Warm the pages just outside the viewport so scrolling meets a filled cache rather than a blank
+ * sheet ([PdfPageCache.request] never rasterises inline). Two pages either side: one only covered
+ * reading speed, and a fling outran it into un-warmed pages every few frames.
  */
 internal fun DrawingSurfaceView.prefetchAround(visible: List<PageBox>) {
     val src = pdfSource ?: return
     if (visible.isEmpty()) return
     val first = visible.first().index
     val last = visible.last().index
-    for (i in intArrayOf(first - 1, last + 1)) {
+    for (i in intArrayOf(first - 2, first - 1, last + 1, last + 2)) {
         val box = layout.boxes.getOrNull(i) ?: continue
         val bg = box.page.background as? Background.Pdf ?: continue
         src.prefetch(bg.pageNo, box.widthPx.toInt())

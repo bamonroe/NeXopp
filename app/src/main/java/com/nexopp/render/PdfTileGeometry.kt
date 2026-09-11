@@ -55,14 +55,20 @@ internal object PdfTileGeometry {
     }
 
     /**
-     * The page-width the tile grid is built at, or null when tiles aren't wanted — i.e. when the
-     * whole-page bitmap already covers [targetWidthPx] at full resolution. Bucketed like whole-page
-     * widths so a small zoom nudge reuses the same grid instead of re-rasterising every cell.
+     * The page-width the tile grid is built at, or null when tiles aren't wanted. Bucketed like
+     * whole-page widths so a small zoom nudge reuses the same grid instead of re-rasterising every
+     * cell.
+     *
+     * The threshold is [BitmapLruCache.MAX_RASTER_WIDTH] — the widest a whole page can *ever* be
+     * rasterised — **not** the budget-shrunk [rasterWidth]. Keying off the budgeted width switched
+     * tiles on at 100% zoom on any screen wider than the byte cap allowed, and the visible tiles of
+     * two or three pages then outgrew the whole budget: eviction and re-rasterisation every frame,
+     * which is the scroll lag on large tablets. Below the ceiling a slightly upscaled whole-page
+     * bitmap is strictly cheaper than a thrashing tile grid; past it sharpness comes from tiles.
      */
     fun tileScale(pageWidthPt: Double, pageHeightPt: Double, budget: BitmapBudget, targetWidthPx: Int): Int? {
         val want = BitmapLruCache.bucket(targetWidthPx.coerceAtMost(MAX_TILE_SCALE))
-        val wholePageWidth = rasterWidth(pageWidthPt, pageHeightPt, budget, targetWidthPx)
-        return if (want > wholePageWidth) want else null
+        return if (want > BitmapLruCache.bucket(BitmapLruCache.MAX_RASTER_WIDTH)) want else null
     }
 
     /**
