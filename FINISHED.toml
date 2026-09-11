@@ -17,6 +17,61 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "widen-pdf-prefetch-to-avoid-sync-rasterise-during-flings"
+title = "Widen PDF prefetch to avoid sync rasterise during flings"
+description = "PdfPageCache.request falls through to synchronous produce() on the draw thread when a page has nothing cached (render/PdfPageCache.kt:88-93), called from paint() via pageBitmapFor (DrawingSurfacePaint.kt:126-133); prefetchAround only covers +-1 page (DrawingSurfacePaint.kt:193-204). Widen prefetch (e.g. +-2/3 in scroll direction) and prefer drawing a placeholder (page background colour) instead of blocking the frame on synchronous PdfRenderer render when nothing is cached. Verify: unit tests pass; fling through an 18-page doc shows no multi-hundred-ms frames in systrace/logcat."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
+id = "inkcache-never-evict-visible-pages-fix-per-entry-ceiling"
+title = "InkCache: never evict visible pages, fix per-entry ceiling"
+description = "Two InkCache issues (render/InkCache.kt): (1) trim's second pass evicts retained/visible pages (lines 102-118), so BitmapBudget.charge from the PDF worker forces synchronous re-rasterisation of visible ink inside paint(); make trim skip retained pages entirely. (2) budgetPx = perEntryBytes(0.25)/4 (lines 36-38) rejects full-width tablet pages (~3.3M px) at entryFor line 129 so strokes redraw every frame; raise the per-entry allowance so a full-width page qualifies. Also fix the dead guard at line 186 that compares a width against the pixel-area budget. Verify with unit tests for trim retention and entryFor accepting a 1600x2070 page."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
+id = "invalidate-tile-memo-per-page-not-globally"
+title = "Invalidate tile memo per page, not globally"
+description = "Every BitmapLruCache.put/trim calls onCacheChanged -> PdfPageCache.generation++ (render/PdfPageCache.kt:233-236), and TileMemo.matches includes generation (PdfTileGeometry.kt:33), so during scroll the memo never hits and requestTiles rebuilds tile lists + pin sets for every visible page every frame (PdfPageCache.kt:119-143). Replace the global generation with per-page invalidation: only bump/clear the memo of the page whose tiles were inserted or evicted (the cache key carries the page index). Verify: unit test that inserting a tile for page 3 does not invalidate page 2's memo."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
+id = "don-t-engage-pdf-tiling-at-100-zoom"
+title = "Don't engage PDF tiling at 100% zoom"
+description = "PdfTileGeometry.tileScale (render/PdfTileGeometry.kt:46-66) returns non-null as soon as the bucketed target width exceeds the budget-capped whole-page raster width, which on wide tablets activates the 512px tile path at 100% zoom. Change the threshold so tiling only engages when zoomed in beyond what a full-width whole-page raster can serve (e.g. only when targetWidthPx meaningfully exceeds the max whole-page rasterWidth, not the budget-shrunken one). Verify with existing PdfTileGeometry unit tests plus a new test asserting tileScale is null at zoom 1.0 for a 2560px-wide viewport."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
+id = "raise-bitmapbudget-size-for-big-screens"
+title = "Raise BitmapBudget size for big screens"
+description = "BitmapBudget (app/src/main/java/com/nexopp/render/BitmapBudget.kt:88-105) clamps the shared cache budget to heap/4 within 24-192 MB; on a tablet the effective 24-48 MB is smaller than the visible working set, causing continuous eviction/re-render thrash while scrolling. Raise the share/clamp (e.g. heap/3, floor 96 MB) so the visible pages' ink bitmaps + PDF tiles fit comfortably. Verify: unit tests pass and scrolling an 18-page PDF-backed doc no longer thrashes."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
 id = "scroll-axis-lock-horizontal-vertical"
 title = "Scroll axis lock (horizontal/vertical)"
 description = "Lock panning to one axis: a new AppSettings.scrollLock enforced in ViewportState, a top-bar toggle next to undo/redo, a radial-palette action, and a Navigation settings option."
