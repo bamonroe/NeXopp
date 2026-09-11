@@ -17,6 +17,39 @@ finish_work = "Tasks arrive here via `todo.py done <id>`; newest first, append-o
 growth = "This file only grows; nothing is removed from it."
 
 [[task]]
+id = "drop-queued-pdf-renders-for-pages-a-fling-left-behind"
+title = "Drop queued PDF renders for pages a fling left behind"
+description = "During a fast flick the single pdf-raster worker queues whole-page renders for every page crossed; by the time they run the pages are gone, and live pages' renders queue behind them. Override stale() in PdfPageCache to also drop a non-tiled key whose page is farther than 3 pages from every page in retainedPages (skip pruning while retainedPages is empty). Verify: flinging far lands sharp pages faster; unit tests pass."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
+id = "skip-synchronous-ink-rasterisation-mid-fling"
+title = "Skip synchronous ink rasterisation mid-fling"
+description = "InkCache.draw/entryFor rasterise a full-page ARGB bitmap synchronously inside paint() when a page enters the viewport; during a fling that lands on nearly every frame and makes the scroll jerky. Add a rasterOk parameter to InkCache.draw; when false and no entry is cached, return false so drawPageElements falls back to direct element drawing (viewport-culled). Pass !momentum.isFlinging from drawPageElements. Verify: fling is smooth; ink rasters still build once the fling settles."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
+id = "queue-a-low-res-pdf-stand-in-before-the-exact-raster-on-a-total-miss"
+title = "Queue a low-res PDF stand-in before the exact raster on a total miss"
+description = "PdfPageCache.request/prefetch: when a page has nothing cached, enqueue a small stand-in width (256px bucket) before the exact key, so the page shows a fast blurry raster upscaled instead of a white sheet while the big raster renders. Verify: fast flick shows blur, not white."
+status = "finished"
+level = "task"
+category = "bug"
+created = 2026-09-11
+completed = 2026-09-11
+tags = []
+
+[[task]]
 id = "pin-visible-pages-whole-page-pdf-rasters-against-eviction"
 title = "Pin visible pages' whole-page PDF rasters against eviction"
 description = "After making PdfPageCache.request fully async, a visible page whose raster gets evicted paints as a plain sheet until the worker re-rasterises it, and eviction freely takes visible whole-page bitmaps (only tile cells are spared) — causing constant flicker while scrolling. In PdfPageCache, record the visible page set from retain() and make spared(key) also spare non-tiled keys of visible pages, so eviction's first pass skips them (second pass still takes them, keeping memory bounded). Verify: build, and scrolling a PDF-backed doc shows no white flashes."
