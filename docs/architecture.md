@@ -1838,10 +1838,14 @@ backgrounds are re-rasterised per zoomed width up to `BitmapLruCache.MAX_RASTER_
 never above `BitmapLruCache.PAGE_SHARE` of the cache budget for one bitmap (so the visible pages
 can't evict one another and flash blank), beyond which the whole-page bitmap is upscaled to bound
 memory — asynchronously, so a zoom step shows the previous resolution stretched and sharpens a
-moment later rather than stalling the frame. A page with *nothing* cached queues the work and shows
-a plain sheet for a frame or two — `request` never rasterises on the calling thread, because it is
-called from `paint()` and a fling past the prefetch window used to block whole frames on
-`PdfRenderer`. Past `MAX_RASTER_WIDTH` — the widest a whole page can *ever* be rasterised, not the
+moment later rather than stalling the frame. A page with *nothing* cached queues a cheap low-res
+stand-in (`PdfPageCache.STANDIN_WIDTH`, 256 px) *ahead of* the full-size raster and shows a plain
+sheet only until that lands — a frame or two — so a fast flick reads as blur-then-sharp, never a
+run of white flashes. `request` never rasterises on the calling thread, because it is called from
+`paint()` and a fling past the prefetch window used to block whole frames on `PdfRenderer`. The
+worker also drops queued whole-page renders whose page a fling has carried more than
+`PdfPageCache.PRUNE_DISTANCE` pages away, so the pages actually on screen aren't queued behind
+dead work. Past `MAX_RASTER_WIDTH` — the widest a whole page can *ever* be rasterised, not the
 budget-shrunk width, which on wide tablets switched tiles on at 100 % zoom and thrashed the budget —
 the sharpness comes from **tiles**: `PdfPageCache.requestTiles` rasterises only the visible cells of
 a `PdfPageCache.TILE_PX` (512 px) grid built at the true on-screen page width, each rendered 1:1 via
@@ -1888,6 +1892,10 @@ cases and the direct element path takes over: a page whose bucket would exceed i
 deep zoom a page spans many screens and its full raster would dwarf the screen it feeds, and the
 viewport cull is the better tool there), and any
 gesture that rewrites the page every frame — drag, resize, rotate, erase — where caching would only thrash.
+It also declines to *rasterise on a miss* while a fling is running (`draw`'s `rasterOk`): the
+rasterise is synchronous inside `paint()`, and with a new page entering the viewport nearly every
+fling frame it made flings jerky — those pages direct-draw (viewport-culled) until the fling
+settles, while pages already cached still blit.
 `PdfPageCache` and `ImageBackgroundCache` share their LRU core: both extend **`BitmapLruCache<K>`**,
 which owns the access-ordered map, the short-held cache lock, the single background worker, the
 insert-and-charge path, and eviction. A subclass supplies only what differs — `produce` (rasterise or

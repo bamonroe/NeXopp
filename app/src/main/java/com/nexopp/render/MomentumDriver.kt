@@ -134,6 +134,13 @@ internal class MomentumDriver(
         paintFrame()
         // Stop once too slow, or when both axes are pinned at a bound (nowhere left to glide).
         val stuck = !moved && dt > 0f
-        if (!fling.isMoving || stuck) stop() else choreographer.postFrameCallback(frameCallback)
+        if (!fling.isMoving || stuck) {
+            stop()
+            // One settled paint with isFlinging false: work deferred mid-glide (the ink cache's
+            // rasterise-on-miss) runs now, so the resting frame is the fully cached one.
+            paintFrame()
+        } else {
+            choreographer.postFrameCallback(frameCallback)
+        }
     }
 }

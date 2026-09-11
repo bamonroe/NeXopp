@@ -20,3 +20,45 @@ remove_dropped_items = "Remove dropped items with a one-line why."
 finish_work = "When a task is fully finished (built, tested, documented), run `todo.py done <id>` to move it to FINISHED.toml."
 documentation_is_part_of_the_task = "Every task that writes code also writes its documentation, in the same task and the same commit. Never add a separate follow-up task for documenting work that a task already did — a task whose docs are not updated is not finished, and no `done` until they are."
 scope = "Only build features the .xopp format can represent on disk. If a capability cannot round-trip through the file, it is out of scope."
+
+[[task]]
+id = "queue-a-low-res-pdf-stand-in-before-the-exact-raster-on-a-total-miss"
+title = "Queue a low-res PDF stand-in before the exact raster on a total miss"
+description = "PdfPageCache.request/prefetch: when a page has nothing cached, enqueue a small stand-in width (256px bucket) before the exact key, so the page shows a fast blurry raster upscaled instead of a white sheet while the big raster renders. Verify: fast flick shows blur, not white."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "critical"
+order = 10
+created = 2026-09-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "skip-synchronous-ink-rasterisation-mid-fling"
+title = "Skip synchronous ink rasterisation mid-fling"
+description = "InkCache.draw/entryFor rasterise a full-page ARGB bitmap synchronously inside paint() when a page enters the viewport; during a fling that lands on nearly every frame and makes the scroll jerky. Add a rasterOk parameter to InkCache.draw; when false and no entry is cached, return false so drawPageElements falls back to direct element drawing (viewport-culled). Pass !momentum.isFlinging from drawPageElements. Verify: fling is smooth; ink rasters still build once the fling settles."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "critical"
+order = 20
+created = 2026-09-11
+tags = []
+rebuild = false
+emulator_debug = false
+
+[[task]]
+id = "drop-queued-pdf-renders-for-pages-a-fling-left-behind"
+title = "Drop queued PDF renders for pages a fling left behind"
+description = "During a fast flick the single pdf-raster worker queues whole-page renders for every page crossed; by the time they run the pages are gone, and live pages' renders queue behind them. Override stale() in PdfPageCache to also drop a non-tiled key whose page is farther than 3 pages from every page in retainedPages (skip pruning while retainedPages is empty). Verify: flinging far lands sharp pages faster; unit tests pass."
+status = "active"
+level = "task"
+category = "bug"
+urgency = "critical"
+order = 30
+created = 2026-09-11
+tags = []
+rebuild = true
+emulator_debug = false

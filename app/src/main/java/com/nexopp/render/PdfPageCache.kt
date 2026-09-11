@@ -102,6 +102,11 @@ class PdfPageCache(
         synchronized(lock) {
             cache[key]?.let { return it }
             nearest(i, key.width)?.let { enqueue(key); return it }
+            // Nothing at all for this page: queue a cheap low-res stand-in *first*, so the page
+            // shows a blurry upscale within a frame or two instead of a white sheet for as long
+            // as the full-size raster takes — the difference between a fast flick reading as a
+            // scroll and reading as flicker.
+            if (key.width > STANDIN_WIDTH) enqueue(Key(i, STANDIN_WIDTH))
             enqueue(key)
         }
         return null
@@ -221,6 +226,9 @@ class PdfPageCache(
         val key = Key(i, PdfTileGeometry.rasterWidth(pw, ph, budget, targetWidthPx))
         synchronized(lock) {
             if (cache.containsKey(key)) return
+            // Same stand-in-first rule as [request]: a prefetched page the scroll reaches early
+            // should meet at least a blur, not a blank.
+            if (pageWidths[i].isNullOrEmpty() && key.width > STANDIN_WIDTH) enqueue(Key(i, STANDIN_WIDTH))
             enqueue(key)
         }
     }
@@ -248,6 +256,20 @@ class PdfPageCache(
 
     /** Caller holds [lock]. Page [i]'s current tile generation. */
     private fun generationOf(i: Int) = pageGenerations[i] ?: 0
+
+    /**
+     * Caller holds [lock]. Besides the base rules (closed, already cached), a queued whole-page
+     * render is dead work once a fling has carried the viewport more than [PRUNE_DISTANCE] pages
+     * away: rendering it anyway keeps the single worker busy on pages nobody sees while the pages
+     * actually on screen queue behind them — the sharp version arriving seconds late. No pruning
+     * while [retainedPages] is empty (document open, tests), where nothing is known about the
+     * viewport yet.
+     */
+    override fun stale(key: Key): Boolean {
+        if (super.stale(key)) return true
+        if (key.tiled || retainedPages.isEmpty()) return false
+        return retainedPages.minOf { kotlin.math.abs(it - key.page) } > PRUNE_DISTANCE
+    }
 
     /** A cache entry: a whole page at a width bucket, or one cell of that width's tile grid. */
     data class Key(val page: Int, val width: Int, val col: Int = -1, val row: Int = -1) {
@@ -335,6 +357,16 @@ class PdfPageCache(
     }
 
     companion object {
+        /**
+         * Width of the low-res stand-in queued ahead of a page's first full raster. One 64px
+         * bucket over thumbnail size: fast enough to land within a frame or two, sharp enough
+         * that its upscale reads as "loading", not "broken".
+         */
+        const val STANDIN_WIDTH = 256
+
+        /** How many pages past the viewport a queued whole-page render stays worth doing. */
+        const val PRUNE_DISTANCE = 3
+
         /** Live shared caches by absolute PDF path — see [shared]. Guarded by its own monitor. */
         private val registry = HashMap<String, PdfPageCache>()
 

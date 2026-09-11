@@ -62,6 +62,12 @@ class InkCache(
     /**
      * Blit page [box]'s ink at its on-screen position, rasterising it first if needed. Returns false
      * if this page can't be cached at this zoom — the caller must then draw its elements directly.
+     *
+     * [rasterOk] gates the rasterise-on-miss: it is synchronous, on the drawing thread, and costs a
+     * full-page bitmap. During a fling a new page enters the viewport nearly every frame, so paying
+     * that inside `paint()` made flings jerky — pass false there and a missing page falls back to
+     * direct (viewport-culled) element drawing until the fling settles; a page already cached still
+     * blits either way.
      */
     fun draw(
         canvas: Canvas,
@@ -71,8 +77,9 @@ class InkCache(
         hidden: Set<Int>,
         strokes: StrokePainter,
         elements: ElementRenderer,
+        rasterOk: Boolean = true,
     ): Boolean {
-        val entry = entryFor(box, hidden, strokes, elements) ?: return false
+        val entry = entryFor(box, hidden, strokes, elements, rasterOk) ?: return false
         val left = box.toViewX(0.0, scrollX)
         val top = box.toViewY(0.0, scrollY)
         dst.set(left, top, left + box.widthPx, top + box.heightPx)
@@ -125,6 +132,7 @@ class InkCache(
         hidden: Set<Int>,
         strokes: StrokePainter,
         elements: ElementRenderer,
+        rasterOk: Boolean,
     ): Entry? {
         if (box.widthPx <= 0f || box.heightPx <= 0f) return null
         val bucketW = bucketWidth(box.widthPx)
@@ -147,6 +155,9 @@ class InkCache(
             ) {
                 return cached
             }
+            // Not allowed to rasterise this frame: leave any stale entry in place (the caller
+            // direct-draws over nothing either way, and the entry may become exact again).
+            if (!rasterOk) return null
             entries.remove(box.index)?.bitmap?.let { budget.credit(it.byteCount.toLong()); it.recycle() }
         }
         val fresh = rasterise(box, hidden, bucketW, bucketH, strokes, elements) ?: return null

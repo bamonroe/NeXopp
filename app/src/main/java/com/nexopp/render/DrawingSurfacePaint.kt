@@ -215,7 +215,10 @@ internal fun DrawingSurfaceView.drawPageElements(canvas: Canvas, box: PageBox) {
         box.page.layers.indices.filterTo(HashSet()) { isLayerHidden(box.index, it) }
     }
     if (inkCacheUsable &&
-        inkCache.draw(canvas, box, scrollX, scrollY, hidden, strokePainter, elementRenderer)
+        inkCache.draw(
+            canvas, box, scrollX, scrollY, hidden, strokePainter, elementRenderer,
+            rasterOk = !momentum.isFlinging,
+        )
     ) {
         return
     }
